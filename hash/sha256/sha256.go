@@ -1,6 +1,8 @@
 package sha256
 
 import (
+	"fmt"
+
 	"github.com/consensys/gnark/frontend"
 	"github.com/succinctlabs/gnark-gadgets/hash/bits"
 )
@@ -36,12 +38,13 @@ func Hash(api frontend.API, in []frontend.Variable) [256]frontend.Variable {
 	if remainderLength == 0 {
 		paddingLength = 0
 	} else {
-		paddingLength = (512 - remainderLength)
+		paddingLength = 512 - remainderLength
 	}
+	paddedMessageLength := encodedMessageLength + paddingLength
 
 	// Initialization of core variables.
-	var paddedMessage [256]frontend.Variable
-	for i := 0; i < len(in); i++ {
+	paddedMessage := make([]frontend.Variable, paddedMessageLength)
+	for i := 0; i < paddedMessageLength; i++ {
 		paddedMessage[i] = frontend.Variable(0)
 	}
 
@@ -74,9 +77,20 @@ func Hash(api frontend.API, in []frontend.Variable) [256]frontend.Variable {
 	message := paddedMessage
 	numChunks := len(message) / sha256ChunkLength
 
+	var h [8][32]frontend.Variable
+	for i := 0; i < 8; i++ {
+		h[i] = bits.FromUint32(H[i])
+	}
+
 	for i := 0; i < numChunks; i++ {
 		// The 64-entry message schedule array of 32-bit words.
 		var w [sha256MessageScheduleArrayLength][sha256WordLength]frontend.Variable
+		for j := 0; j < sha256MessageScheduleArrayLength; j++ {
+			for k := 0; k < sha256WordLength; k++ {
+				w[j][k] = frontend.Variable(0)
+				api.Println(w[j][k])
+			}
+		}
 
 		// Copy chunk into first 16 words w[0..15] of the message schedule array.
 		chunkOffset := i * sha256ChunkLength
@@ -101,10 +115,73 @@ func Hash(api frontend.API, in []frontend.Variable) [256]frontend.Variable {
 				bits.Rotate(w[j-2], 19),
 				bits.Shr(w[j-2], 10),
 			)
+			fmt.Println(w[j-7])
+			api.Println(w[j-7][0])
 			w[j] = bits.Add(api, w[j-16], s0, w[j-7], s1)
 		}
+
+		sa := h[0]
+		sb := h[1]
+		sc := h[2]
+		sd := h[3]
+		se := h[4]
+		sf := h[5]
+		sg := h[6]
+		sh := h[7]
+
+		numCompressionRounds := 64
+		for j := 0; j < numCompressionRounds; j++ {
+			s1 := bits.Xor3(
+				api,
+				bits.Rotate(se, 6),
+				bits.Rotate(se, 11),
+				bits.Rotate(se, 25),
+			)
+			ch := bits.Xor2(
+				api,
+				bits.And2(api, se, sf),
+				bits.And2(api, bits.Not(api, se), sg),
+			)
+			temp := bits.Add(api, sh, s1, ch, bits.FromUint32(K[j]), w[j])
+			s0 := bits.Xor3(
+				api,
+				bits.Rotate(sa, 2),
+				bits.Rotate(sa, 13),
+				bits.Rotate(sa, 22),
+			)
+			maj := bits.Xor3(
+				api,
+				bits.And2(api, sa, sb),
+				bits.And2(api, sa, sc),
+				bits.And2(api, sb, sc),
+			)
+			temp2 := bits.Add(api, s0, maj)
+
+			sh = sg
+			sg = sf
+			sf = se
+			se = bits.Add(api, sd, temp)
+			sd = sc
+			sc = sb
+			sb = sa
+			sa = bits.Add(api, temp, temp2)
+		}
+
+		h[0] = bits.Add(api, h[0], sa)
+		h[1] = bits.Add(api, h[1], sb)
+		h[2] = bits.Add(api, h[2], sc)
+		h[3] = bits.Add(api, h[3], sd)
+		h[4] = bits.Add(api, h[4], se)
+		h[5] = bits.Add(api, h[5], sf)
+		h[6] = bits.Add(api, h[6], sg)
+		h[7] = bits.Add(api, h[7], sh)
 	}
 
 	var digest [256]frontend.Variable
+	for i := 0; i < 8; i++ {
+		for j := 0; j < sha256WordLength; j++ {
+			digest[i*sha256WordLength+j] = h[i][j]
+		}
+	}
 	return digest
 }
