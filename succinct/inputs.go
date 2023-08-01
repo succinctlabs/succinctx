@@ -1,17 +1,16 @@
 package succinct
 
 import (
-	"github.com/consensys/gnark/frontend"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
 type InputReader struct {
-	api   frontend.API
+	api   API
 	ptr   int
 	bytes []vars.Byte
 }
 
-func NewInputReader(api frontend.API, bytes []vars.Byte) *InputReader {
+func NewInputReader(api API, bytes []vars.Byte) *InputReader {
 	return &InputReader{
 		api:   api,
 		ptr:   0,

@@ -1,17 +1,16 @@
 package succinct
 
 import (
-	"github.com/consensys/gnark/frontend"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
 type OutputWriter struct {
-	api   frontend.API
+	api   API
 	ptr   int
 	bytes []vars.Byte
 }
 
-func NewOutputWriter(api frontend.API) *OutputWriter {
+func NewOutputWriter(api API) *OutputWriter {
 	return &OutputWriter{
 		api:   api,
 		ptr:   0,
