@@ -1,11 +1,13 @@
 package bits
 
-import "github.com/consensys/gnark/frontend"
+import (
+	"github.com/consensys/gnark/frontend"
+)
 
 func FromUint32(value uint32) [32]frontend.Variable {
 	var result [32]frontend.Variable
 	for k := 0; k < 32; k++ {
-		if (value & (1 << (63 - k))) != 0 {
+		if (value & (1 << (31 - k))) != 0 {
 			result[k] = 1
 		} else {
 			result[k] = 0
@@ -16,7 +18,7 @@ func FromUint32(value uint32) [32]frontend.Variable {
 
 func Xor2(api frontend.API, a, b [32]frontend.Variable) [32]frontend.Variable {
 	var result [32]frontend.Variable
-	for i := 0; i < 64; i++ {
+	for i := 0; i < 32; i++ {
 		result[i] = api.Xor(a[i], b[i])
 	}
 	return result
@@ -24,8 +26,17 @@ func Xor2(api frontend.API, a, b [32]frontend.Variable) [32]frontend.Variable {
 
 func Xor3(api frontend.API, a, b, c [32]frontend.Variable) [32]frontend.Variable {
 	var result [32]frontend.Variable
-	for i := 0; i < 64; i++ {
-		result[i] = api.Xor(a[i], api.Xor(b[i], c[i]))
+	var mid [32]frontend.Variable
+	for i := 0; i < 32; i++ {
+		mid[i] = api.Mul(b[i], c[i])
+		result[i] = api.Mul(
+			a[i],
+			api.Add(
+				api.Sub(1, api.Mul(2, b[i]), api.Mul(2, c[i])),
+				api.Mul(4, mid[i]),
+			),
+		)
+		result[i] = api.Sub(api.Add(result[i], b[i], c[i]), api.Mul(2, mid[i]))
 	}
 	return result
 }
@@ -69,6 +80,22 @@ func Add2(api frontend.API, a, b [32]frontend.Variable) [32]frontend.Variable {
 		}
 		result[i] = sumBin[0]
 		carry = sumBin[1]
+	}
+	return result
+}
+
+func And2(api frontend.API, a, b [32]frontend.Variable) [32]frontend.Variable {
+	var result [32]frontend.Variable
+	for i := 0; i < 32; i++ {
+		result[i] = api.And(a[i], b[i])
+	}
+	return result
+}
+
+func Not(api frontend.API, n [32]frontend.Variable) [32]frontend.Variable {
+	var result [32]frontend.Variable
+	for i := 0; i < 32; i++ {
+		result[i] = api.Sub(1, n[i])
 	}
 	return result
 }
