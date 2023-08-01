@@ -84,16 +84,15 @@ func TestCircuit(t *testing.T) {
 		t.Errorf("assignment should be valid")
 	}
 
-	// badAssignment := &TestSimpleSerializeCircuit{
-	// 	Leaf:   vars.NewBytes32(testData.leaf),
-	// 	Proof:  vars.NewBytes32Array(testData.proof),
-	// 	Root:   vars.NewBytes32(make([]byte, 32)),
-	// 	GIndex: testData.gindex,
-	// 	Depth:  testData.depth,
-	// }
-	// err = test.IsSolved(circuit, badAssignment, ecc.BN254.ScalarField())
-	// if err == nil {
-	// 	t.Errorf("badAssignment should be invalid")
-	// }
-	// assert.ProverFailed(circuit, badAssignment)
+	badAssignment := &TestSimpleSerializeCircuit{
+		Leaf:   vars.NewBytes32(testData.leaf),
+		Proof:  vars.NewBytes32Array(testData.proof),
+		Root:   vars.NewBytes32(make([]byte, 32)),
+		GIndex: testData.gindex,
+		Depth:  testData.depth,
+	}
+	err = test.IsSolved(circuit, badAssignment, ecc.BN254.ScalarField())
+	if err == nil {
+		t.Errorf("badAssignment should be invalid")
+	}
 }
