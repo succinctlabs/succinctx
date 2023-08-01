@@ -2,7 +2,8 @@ package sha256
 
 import (
 	"github.com/consensys/gnark/frontend"
-	"github.com/succinctlabs/gnark-gadgets/hash/bits"
+	"github.com/succinctlabs/gnark-gadgets/succinct"
+	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
 // First 32 bits of the fractional parts of the square roots of the first 8 primes.
@@ -24,11 +25,20 @@ var K = []uint32{
 	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 }
 
-func HashBytes(api frontend.API, in []frontend.Variable) [32]frontend.Variable {
+func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
+	// Decompose bytes to bits.
+	inBits := make([]vars.Bit, len(in)*8)
+	for i := 0; i < len(in); i++ {
+		bits := api.ToBitsFromByte(in[i])
+		for j := 0; j < 8; j++ {
+			inBits[i*8+j] = bits[7-j]
+		}
+	}
+
 	// The length-encoded message length ("L + 1 + 64").
 	const seperatorLength = 1
 	const u64BitLength = 64
-	encodedMessageLength := len(in) + seperatorLength + u64BitLength
+	encodedMessageLength := len(inBits) + seperatorLength + u64BitLength
 
 	// The multiple of 512-bit padded message length. Padding length is "K".
 	remainderLength := encodedMessageLength % 512
@@ -41,25 +51,21 @@ func HashBytes(api frontend.API, in []frontend.Variable) [32]frontend.Variable {
 	paddedMessageLength := encodedMessageLength + paddingLength
 
 	// Initialization of core variables.
-	paddedMessage := make([]frontend.Variable, paddedMessageLength)
+	paddedMessage := make([]vars.Bit, paddedMessageLength)
 	for i := 0; i < paddedMessageLength; i++ {
-		paddedMessage[i] = frontend.Variable(0)
+		paddedMessage[i] = vars.NewBit(0)
 	}
 
 	// Begin with the original message of length "L".
-	copy(paddedMessage, in)
+	copy(paddedMessage, inBits)
 
 	// Append a single '1' bit.
-	paddedMessage[len(in)] = frontend.Variable(1)
+	paddedMessage[len(inBits)] = vars.NewBit(1)
 
 	// Append L as a 64-bit big-endian integer.
-	inputLengthBitsLE := api.ToBinary(frontend.Variable(len(in)), 64)
-	inputLengthBitsBE := make([]frontend.Variable, 64)
-	for i := 0; i < 64; i++ {
-		inputLengthBitsBE[i] = inputLengthBitsLE[63-i]
-	}
+	inputLengthBitsBE := api.ToBinaryBE(frontend.Variable(len(inBits)), 64)
 	for i := 0; i < len(inputLengthBitsBE); i++ {
-		paddedMessage[len(in)+i+1+paddingLength] = inputLengthBitsBE[i]
+		paddedMessage[len(inBits)+i+1+paddingLength] = inputLengthBitsBE[i]
 	}
 
 	// At this point, the padded message should be of the following form.
@@ -73,17 +79,17 @@ func HashBytes(api frontend.API, in []frontend.Variable) [32]frontend.Variable {
 	message := paddedMessage
 	numChunks := len(message) / sha256ChunkLength
 
-	var h [8][32]frontend.Variable
+	var h [8][32]vars.Bit
 	for i := 0; i < 8; i++ {
-		h[i] = bits.FromUint32(H[i])
+		h[i] = api.FromUint32(H[i])
 	}
 
 	for i := 0; i < numChunks; i++ {
 		// The 64-entry message schedule array of 32-bit words.
-		var w [sha256MessageScheduleArrayLength][sha256WordLength]frontend.Variable
+		var w [sha256MessageScheduleArrayLength][sha256WordLength]vars.Bit
 		for j := 0; j < sha256MessageScheduleArrayLength; j++ {
 			for k := 0; k < sha256WordLength; k++ {
-				w[j][k] = frontend.Variable(0)
+				w[j][k] = vars.NewBit(0)
 			}
 		}
 
@@ -98,19 +104,17 @@ func HashBytes(api frontend.API, in []frontend.Variable) [32]frontend.Variable {
 
 		// Extend the first 16 words into the remaining 48 words w[16..63].
 		for j := 16; j < sha256MessageScheduleArrayLength; j++ {
-			s0 := bits.Xor3(
-				api,
-				bits.Rotate(w[j-15], 7),
-				bits.Rotate(w[j-15], 18),
-				bits.Shr(w[j-15], 3),
+			s0 := api.Xor32(
+				api.Rotate32(w[j-15], 7),
+				api.Rotate32(w[j-15], 18),
+				api.Shr32(w[j-15], 3),
 			)
-			s1 := bits.Xor3(
-				api,
-				bits.Rotate(w[j-2], 17),
-				bits.Rotate(w[j-2], 19),
-				bits.Shr(w[j-2], 10),
+			s1 := api.Xor32(
+				api.Rotate32(w[j-2], 17),
+				api.Rotate32(w[j-2], 19),
+				api.Shr32(w[j-2], 10),
 			)
-			w[j] = bits.Add(api, w[j-16], s0, w[j-7], s1)
+			w[j] = api.AddMany32(w[j-16], s0, w[j-7], s1)
 		}
 
 		sa := h[0]
@@ -124,57 +128,61 @@ func HashBytes(api frontend.API, in []frontend.Variable) [32]frontend.Variable {
 
 		numCompressionRounds := 64
 		for j := 0; j < numCompressionRounds; j++ {
-			s1 := bits.Xor3(
-				api,
-				bits.Rotate(se, 6),
-				bits.Rotate(se, 11),
-				bits.Rotate(se, 25),
+			s1 := api.Xor32(
+				api.Rotate32(se, 6),
+				api.Rotate32(se, 11),
+				api.Rotate32(se, 25),
 			)
-			ch := bits.Xor2(
-				api,
-				bits.And2(api, se, sf),
-				bits.And2(api, bits.Not(api, se), sg),
+			ch := api.Xor32(
+				api.And32(se, sf),
+				api.And32(api.Not32(se), sg),
 			)
-			temp := bits.Add(api, sh, s1, ch, bits.FromUint32(K[j]), w[j])
-			s0 := bits.Xor3(
-				api,
-				bits.Rotate(sa, 2),
-				bits.Rotate(sa, 13),
-				bits.Rotate(sa, 22),
+			temp := api.AddMany32(sh, s1, ch, api.FromUint32(K[j]), w[j])
+			s0 := api.Xor32(
+				api.Rotate32(sa, 2),
+				api.Rotate32(sa, 13),
+				api.Rotate32(sa, 22),
 			)
-			maj := bits.Xor3(
-				api,
-				bits.And2(api, sa, sb),
-				bits.And2(api, sa, sc),
-				bits.And2(api, sb, sc),
+			maj := api.Xor32(
+				api.And32(sa, sb),
+				api.And32(sa, sc),
+				api.And32(sb, sc),
 			)
-			temp2 := bits.Add(api, s0, maj)
-
+			temp2 := api.AddMany32(s0, maj)
 			sh = sg
 			sg = sf
 			sf = se
-			se = bits.Add(api, sd, temp)
+			se = api.AddMany32(sd, temp)
 			sd = sc
 			sc = sb
 			sb = sa
-			sa = bits.Add(api, temp, temp2)
+			sa = api.AddMany32(temp, temp2)
 		}
 
-		h[0] = bits.Add(api, h[0], sa)
-		h[1] = bits.Add(api, h[1], sb)
-		h[2] = bits.Add(api, h[2], sc)
-		h[3] = bits.Add(api, h[3], sd)
-		h[4] = bits.Add(api, h[4], se)
-		h[5] = bits.Add(api, h[5], sf)
-		h[6] = bits.Add(api, h[6], sg)
-		h[7] = bits.Add(api, h[7], sh)
+		h[0] = api.Add32(h[0], sa)
+		h[1] = api.Add32(h[1], sb)
+		h[2] = api.Add32(h[2], sc)
+		h[3] = api.Add32(h[3], sd)
+		h[4] = api.Add32(h[4], se)
+		h[5] = api.Add32(h[5], sf)
+		h[6] = api.Add32(h[6], sg)
+		h[7] = api.Add32(h[7], sh)
 	}
 
-	var digest [256]frontend.Variable
+	var digestBits [256]vars.Bit
 	for i := 0; i < 8; i++ {
 		for j := 0; j < sha256WordLength; j++ {
-			digest[i*sha256WordLength+j] = h[i][j]
+			digestBits[i*sha256WordLength+j] = h[i][j]
 		}
+	}
+
+	var digest [32]vars.Byte
+	for i := 0; i < 32; i++ {
+		var bits [8]vars.Bit
+		for j := 0; j < 8; j++ {
+			bits[7-j] = digestBits[i*8+j]
+		}
+		digest[i] = api.ToByteFromBits(bits)
 	}
 	return digest
 }

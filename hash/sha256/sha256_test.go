@@ -8,21 +8,24 @@ import (
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
-	"github.com/succinctlabs/gnark-gadgets/bitutils"
+	"github.com/succinctlabs/gnark-gadgets/succinct"
+	"github.com/succinctlabs/gnark-gadgets/utils/byteutils"
+	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
 type TestSha256Circuit struct {
-	In  []frontend.Variable `gnark:"in"`
-	Out []frontend.Variable `gnark:"out"`
+	In  []vars.Byte `gnark:"in"`
+	Out []vars.Byte `gnark:"out"`
 }
 
 func (circuit *TestSha256Circuit) Define(api frontend.API) error {
-	res := Hash(api, circuit.In)
-	if len(res) != 256 {
+	succinctAPI := succinct.NewAPI(api)
+	res := Hash(*succinctAPI, circuit.In)
+	if len(res) != 32 {
 		panic("bad length")
 	}
-	for i := 0; i < 256; i++ {
-		api.AssertIsEqual(res[i], circuit.Out[i])
+	for i := 0; i < 32; i++ {
+		api.AssertIsEqual(res[i].Value, circuit.Out[i].Value)
 	}
 	return nil
 }
@@ -40,12 +43,12 @@ func TestSha256Witness(t *testing.T) {
 		}
 
 		circuit := TestSha256Circuit{
-			In:  bitutils.ToBits(in),
-			Out: bitutils.ToBits(out),
+			In:  byteutils.ToBytes(in),
+			Out: byteutils.ToBytes(out),
 		}
 		witness := TestSha256Circuit{
-			In:  bitutils.ToBits(in),
-			Out: bitutils.ToBits(out),
+			In:  byteutils.ToBytes(in),
+			Out: byteutils.ToBytes(out),
 		}
 		err = test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 		assert.NoError(err)
@@ -69,12 +72,12 @@ func TestSha256Proof(t *testing.T) {
 		}
 
 		circuit := TestSha256Circuit{
-			In:  bitutils.ToBits(in),
-			Out: bitutils.ToBits(out),
+			In:  byteutils.ToBytes(in),
+			Out: byteutils.ToBytes(out),
 		}
 		witness := TestSha256Circuit{
-			In:  bitutils.ToBits(in),
-			Out: bitutils.ToBits(out),
+			In:  byteutils.ToBytes(in),
+			Out: byteutils.ToBytes(out),
 		}
 		assert.ProverSucceeded(&circuit, &witness, test.WithBackends(backend.GROTH16), test.NoFuzzing())
 		assert.NoError(err)

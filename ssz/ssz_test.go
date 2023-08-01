@@ -1,13 +1,15 @@
-package ssz
+package ssz_test
 
 import (
-	"crypto/sha256"
+	"fmt"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/succinctlabs/gnark-gadgets/ssz"
+	"github.com/succinctlabs/gnark-gadgets/succinct"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
@@ -19,8 +21,7 @@ type TestData struct {
 	proof  [][]byte
 }
 
-// Test case from
-// From: https://github.com/succinctlabs/telepathy-contracts/blob/main/test/libraries/SimpleSerialize.t.sol#L37
+// Test case from https://github.com/succinctlabs/telepathy-contracts/blob/main/test/libraries/SimpleSerialize.t.sol#L37
 func GetTestData() TestData {
 	var depth = 6
 	gindex := 105
@@ -40,57 +41,38 @@ func GetTestData() TestData {
 	return TestData{depth, gindex, root, leaf, branch}
 }
 
-func TestTestData(t *testing.T) {
-	assert := test.NewAssert(t)
-	testData := GetTestData()
-	gindex := testData.gindex
-	depth := testData.depth
-	hash := testData.leaf
-	for i := 0; i < depth; i++ {
-		var ret [32]byte
-		if gindex%2 == 1 {
-			ret = sha256.Sum256(append(testData.proof[i], hash...))
-		} else {
-			ret = sha256.Sum256(append(hash, testData.proof[i]...))
-		}
-		hash = ret[:]
-		gindex /= 2
-	}
-	assert.Equal(testData.root, hash)
-}
-
-type SSZProofCircuit struct {
-	Leaf   vars.Bytes32
-	Proof  []vars.Bytes32
-	Root   vars.Bytes32
+type TestSimpleSerializeCircuit struct {
+	Root   [32]vars.Byte
+	Leaf   [32]vars.Byte
+	Proof  [][32]vars.Byte
 	GIndex int
 	Depth  int
 }
 
-func (circuit *SSZProofCircuit) Define(api frontend.API) error {
+func (circuit *TestSimpleSerializeCircuit) Define(api frontend.API) error {
 	leaf := circuit.Leaf
 	proof := circuit.Proof
 	root := circuit.Root
 	gindex := circuit.GIndex
 	depth := circuit.Depth
-	VerifyProof(api, leaf, proof, root, gindex, depth)
+
+	succinctAPI := succinct.NewAPI(api)
+	sszAPI := ssz.NewAPI(succinctAPI)
+	sszAPI.VerifyProof(root, leaf, proof, gindex, depth)
 	return nil
 }
 
 func TestCircuit(t *testing.T) {
-	// assert := test.NewAssert(t)
 	testData := GetTestData()
-
-	// TODO should this be blank like in the examples they have?
-	circuit := &SSZProofCircuit{
+	fmt.Printf("%#v", testData)
+	circuit := &TestSimpleSerializeCircuit{
 		Leaf:   vars.NewBytes32(testData.leaf),
 		Proof:  vars.NewBytes32Array(testData.proof),
 		Root:   vars.NewBytes32(testData.root),
 		GIndex: testData.gindex,
 		Depth:  testData.depth,
 	}
-
-	assignment := &SSZProofCircuit{
+	assignment := &TestSimpleSerializeCircuit{
 		Leaf:   vars.NewBytes32(testData.leaf),
 		Proof:  vars.NewBytes32Array(testData.proof),
 		Root:   vars.NewBytes32(testData.root),
@@ -102,7 +84,7 @@ func TestCircuit(t *testing.T) {
 		t.Errorf("assignment should be valid")
 	}
 
-	badAssignment := &SSZProofCircuit{
+	badAssignment := &TestSimpleSerializeCircuit{
 		Leaf:   vars.NewBytes32(testData.leaf),
 		Proof:  vars.NewBytes32Array(testData.proof),
 		Root:   vars.NewBytes32(make([]byte, 32)),
@@ -113,5 +95,4 @@ func TestCircuit(t *testing.T) {
 	if err == nil {
 		t.Errorf("badAssignment should be invalid")
 	}
-	// assert.ProverFailed(circuit, badAssignment)
 }
