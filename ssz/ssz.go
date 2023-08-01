@@ -1,42 +1,49 @@
 package ssz
 
 import (
-	"errors"
-
-	"github.com/consensys/gnark/frontend"
 	"github.com/succinctlabs/gnark-gadgets/hash/sha256"
-	"github.com/succinctlabs/gnark-gadgets/io"
+	"github.com/succinctlabs/gnark-gadgets/succinct"
+	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
-type SSZProofCircuit struct {
-	Leaf   io.Bytes32Var
-	Proof  []io.Bytes32Var
-	Root   io.Bytes32Var
-	GIndex int
-	Depth  int
+type SimpleSerializeAPI struct {
+	api succinct.API
 }
 
-func (sszProof *SSZProofCircuit) Define(api frontend.API) error {
-	depth := sszProof.Depth
-	if len(sszProof.Proof) != depth {
-		return errors.New("SSZ proof length must equal provided depth")
+func NewAPI(api *succinct.API) *SimpleSerializeAPI {
+	return &SimpleSerializeAPI{api: *api}
+}
+
+func (a *SimpleSerializeAPI) VerifyProof(
+	root [32]vars.Byte,
+	leaf [32]vars.Byte,
+	proof [][32]vars.Byte,
+	gindex int,
+	depth int,
+) {
+	restoredRoot := a.RestoreMerkleRoot(leaf, proof, gindex, depth)
+	for i := 0; i < 32; i++ {
+		a.api.API().AssertIsEqual(root[i].Value, restoredRoot[i].Value)
 	}
+}
 
-	gindex := sszProof.GIndex
-
-	hash := sszProof.Leaf
+func (a *SimpleSerializeAPI) RestoreMerkleRoot(
+	leaf [32]vars.Byte,
+	proof [][32]vars.Byte,
+	gindex int,
+	depth int,
+) [32]vars.Byte {
+	if len(proof) != depth {
+		panic("ssz proof length must equal provided depth")
+	}
+	hash := leaf
 	for i := 0; i < depth; i++ {
 		if gindex%2 == 1 {
-			hash = sha256.Hash(api, append(sszProof.Proof[i][:], hash[:]...))
+			hash = sha256.Hash(a.api, append(proof[i][:], hash[:]...))
 		} else {
-			hash = sha256.Hash(api, append(hash[:], sszProof.Proof[i][:]...))
+			hash = sha256.Hash(a.api, append(hash[:], proof[i][:]...))
 		}
 		gindex = gindex / 2
 	}
-
-	for i := 0; i < 256; i++ {
-		api.AssertIsEqual(sszProof.Root[i], hash[i])
-	}
-
-	return nil
+	return hash
 }

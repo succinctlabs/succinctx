@@ -8,8 +8,8 @@ import (
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
-	"github.com/succinctlabs/gnark-gadgets/byteutils"
 	"github.com/succinctlabs/gnark-gadgets/succinct"
+	"github.com/succinctlabs/gnark-gadgets/utils/byteutils"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
