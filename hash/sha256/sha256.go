@@ -1,8 +1,6 @@
 package sha256
 
 import (
-	"fmt"
-
 	"github.com/consensys/gnark/frontend"
 	"github.com/succinctlabs/gnark-gadgets/hash/bits"
 )
@@ -49,9 +47,7 @@ func Hash(api frontend.API, in []frontend.Variable) [256]frontend.Variable {
 	}
 
 	// Begin with the original message of length "L".
-	for i := 0; i < len(in); i++ {
-		paddedMessage[i] = in[i]
-	}
+	copy(paddedMessage, in)
 
 	// Append a single '1' bit.
 	paddedMessage[len(in)] = frontend.Variable(1)
@@ -88,7 +84,6 @@ func Hash(api frontend.API, in []frontend.Variable) [256]frontend.Variable {
 		for j := 0; j < sha256MessageScheduleArrayLength; j++ {
 			for k := 0; k < sha256WordLength; k++ {
 				w[j][k] = frontend.Variable(0)
-				api.Println(w[j][k])
 			}
 		}
 
@@ -115,8 +110,6 @@ func Hash(api frontend.API, in []frontend.Variable) [256]frontend.Variable {
 				bits.Rotate(w[j-2], 19),
 				bits.Shr(w[j-2], 10),
 			)
-			fmt.Println(w[j-7])
-			api.Println(w[j-7][0])
 			w[j] = bits.Add(api, w[j-16], s0, w[j-7], s1)
 		}
 
