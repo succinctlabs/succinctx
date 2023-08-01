@@ -53,14 +53,14 @@ func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
 	// Initialization of core variables.
 	paddedMessage := make([]vars.Bit, paddedMessageLength)
 	for i := 0; i < paddedMessageLength; i++ {
-		paddedMessage[i] = vars.NewBit(0)
+		paddedMessage[i] = vars.ZERO_BIT
 	}
 
 	// Begin with the original message of length "L".
 	copy(paddedMessage, inBits)
 
 	// Append a single '1' bit.
-	paddedMessage[len(inBits)] = vars.NewBit(1)
+	paddedMessage[len(inBits)] = vars.ONE_BIT
 
 	// Append L as a 64-bit big-endian integer.
 	inputLengthBitsBE := api.ToBinaryBE(frontend.Variable(len(inBits)), 64)
@@ -89,7 +89,7 @@ func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
 		var w [sha256MessageScheduleArrayLength][sha256WordLength]vars.Bit
 		for j := 0; j < sha256MessageScheduleArrayLength; j++ {
 			for k := 0; k < sha256WordLength; k++ {
-				w[j][k] = vars.NewBit(0)
+				w[j][k] = vars.ZERO_BIT
 			}
 		}
 

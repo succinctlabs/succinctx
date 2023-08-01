@@ -17,9 +17,3 @@ func NewOutputWriter(api API) *OutputWriter {
 		bytes: make([]vars.Byte, 0),
 	}
 }
-
-func (w *OutputWriter) WriteUint64(value vars.Uint64) {
-	for i := 0; i < 8; i++ {
-		w.bytes = append(w.bytes, value.Bytes[i])
-	}
-}

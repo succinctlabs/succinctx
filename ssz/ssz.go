@@ -47,3 +47,19 @@ func (a *SimpleSerializeAPI) RestoreMerkleRoot(
 	}
 	return hash
 }
+
+func (a *SimpleSerializeAPI) HashTreeRoot(
+	leaves [][32]vars.Byte,
+	nbLeaves int,
+) [32]vars.Byte {
+	if nbLeaves&(nbLeaves-1) != 0 {
+		panic("nbLeaves must be a power of 2")
+	}
+	for nbLeaves > 1 {
+		for i := 0; i < nbLeaves/2; i++ {
+			leaves[i] = sha256.Hash(a.api, append(leaves[i*2][:], leaves[i*2+1][:]...))
+		}
+		nbLeaves = nbLeaves / 2
+	}
+	return leaves[0]
+}

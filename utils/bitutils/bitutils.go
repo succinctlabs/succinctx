@@ -11,9 +11,9 @@ func ToBits(arr []byte) []vars.Bit {
 	for i, v := range arr {
 		for j := 0; j < 8; j++ {
 			if (v & (1 << (7 - j))) != 0 {
-				result[i*8+j] = vars.NewBit(1)
+				result[i*8+j] = vars.ONE_BIT
 			} else {
-				result[i*8+j] = vars.NewBit(0)
+				result[i*8+j] = vars.ZERO_BIT
 			}
 		}
 	}
