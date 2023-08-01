@@ -27,6 +27,16 @@ func (a *SimpleSerializeAPI) VerifyProof(
 	}
 }
 
+func (a *SimpleSerializeAPI) VerifyProofWithVariableGIndex(
+	root [32]vars.Byte,
+	leaf [32]vars.Byte,
+	proof [][32]vars.Byte,
+	gindex vars.U64,
+	depth int,
+) {
+
+}
+
 func (a *SimpleSerializeAPI) RestoreMerkleRoot(
 	leaf [32]vars.Byte,
 	proof [][32]vars.Byte,
