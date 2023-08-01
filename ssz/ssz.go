@@ -1,42 +1,44 @@
 package ssz
 
 import (
-	"errors"
-
 	"github.com/consensys/gnark/frontend"
 	"github.com/succinctlabs/gnark-gadgets/hash/sha256"
-	"github.com/succinctlabs/gnark-gadgets/io"
+	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
-type SSZProofCircuit struct {
-	Leaf   io.Bytes32Var
-	Proof  []io.Bytes32Var
-	Root   io.Bytes32Var
-	GIndex int
-	Depth  int
+func VerifyProof(api frontend.API, leaf vars.Bytes32, proof []vars.Bytes32, root vars.Bytes32, gindex int, depth int) {
+	restoredRoot := RestoreMerkleRoot(api, leaf, proof, gindex, depth)
+	for i := 0; i < 256; i++ {
+		api.AssertIsEqual(root[i], restoredRoot[i])
+	}
 }
 
-func (sszProof *SSZProofCircuit) Define(api frontend.API) error {
-	depth := sszProof.Depth
-	if len(sszProof.Proof) != depth {
-		return errors.New("SSZ proof length must equal provided depth")
+func HashTreeRoot(api frontend.API, leaves []vars.Bytes32, NumLeaves int) vars.Bytes32 {
+	// check NumLeaves is a power of 2
+	if NumLeaves&(NumLeaves-1) != 0 {
+		panic("NumLeaves must be a power of 2")
 	}
+	for NumLeaves > 1 {
+		for i := 0; i < NumLeaves/2; i++ {
+			leaves[i] = sha256.HashBytes(api, append(leaves[i*2][:], leaves[i*2+1][:]...))
+		}
+		NumLeaves = NumLeaves / 2
+	}
+	return leaves[0]
+}
 
-	gindex := sszProof.GIndex
-
-	hash := sszProof.Leaf
+func RestoreMerkleRoot(api frontend.API, leaf vars.Bytes32, proof []vars.Bytes32, gindex int, depth int) vars.Bytes32 {
+	if len(proof) != depth {
+		panic("SSZ proof length must equal provided depth")
+	}
+	hash := leaf
 	for i := 0; i < depth; i++ {
 		if gindex%2 == 1 {
-			hash = sha256.Hash(api, append(sszProof.Proof[i][:], hash[:]...))
+			hash = sha256.HashBytes(api, append(proof[i][:], hash[:]...))
 		} else {
-			hash = sha256.Hash(api, append(hash[:], sszProof.Proof[i][:]...))
+			hash = sha256.HashBytes(api, append(hash[:], proof[i][:]...))
 		}
 		gindex = gindex / 2
 	}
-
-	for i := 0; i < 256; i++ {
-		api.AssertIsEqual(sszProof.Root[i], hash[i])
-	}
-
-	return nil
+	return hash
 }

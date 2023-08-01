@@ -24,7 +24,7 @@ var K = []uint32{
 	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 }
 
-func Hash(api frontend.API, in []frontend.Variable) [256]frontend.Variable {
+func HashBytes(api frontend.API, in []frontend.Variable) [32]frontend.Variable {
 	// The length-encoded message length ("L + 1 + 64").
 	const seperatorLength = 1
 	const u64BitLength = 64

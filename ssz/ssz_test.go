@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/succinctlabs/gnark-gadgets/io"
+	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
 type TestData struct {
@@ -39,7 +40,7 @@ func GetTestData() TestData {
 	return TestData{depth, gindex, root, leaf, branch}
 }
 
-func TestVerification(t *testing.T) {
+func TestTestData(t *testing.T) {
 	assert := test.NewAssert(t)
 	testData := GetTestData()
 	gindex := testData.gindex
@@ -58,30 +59,41 @@ func TestVerification(t *testing.T) {
 	assert.Equal(testData.root, hash)
 }
 
+type SSZProofCircuit struct {
+	Leaf   vars.Bytes32
+	Proof  []vars.Bytes32
+	Root   vars.Bytes32
+	GIndex int
+	Depth  int
+}
+
+func (circuit *SSZProofCircuit) Define(api frontend.API) error {
+	leaf := circuit.Leaf
+	proof := circuit.Proof
+	root := circuit.Root
+	gindex := circuit.GIndex
+	depth := circuit.Depth
+	VerifyProof(api, leaf, proof, root, gindex, depth)
+	return nil
+}
+
 func TestCircuit(t *testing.T) {
 	// assert := test.NewAssert(t)
 	testData := GetTestData()
 
+	// TODO should this be blank like in the examples they have?
 	circuit := &SSZProofCircuit{
-		Leaf:   io.NewBytes32Var(),
-		Proof:  io.NewBytes32VarArray(testData.depth),
-		Root:   io.NewBytes32Var(),
+		Leaf:   vars.NewBytes32(testData.leaf),
+		Proof:  vars.NewBytes32Array(testData.proof),
+		Root:   vars.NewBytes32(testData.root),
 		GIndex: testData.gindex,
 		Depth:  testData.depth,
 	}
 
-	branch := io.NewBytes32VarArray(testData.depth)
-	for i := 0; i < testData.depth; i++ {
-		branch[i] = io.Bytes32VarFromBytes(testData.proof[i])
-	}
-	// gindex_le_bytes := make([]byte, 32)
-	// binary.LittleEndian.PutUint64(gindex_le_bytes, gindex)
-	// gindex_le := H256FromBytes(gindex_le_bytes)
-
 	assignment := &SSZProofCircuit{
-		Leaf:   io.Bytes32VarFromBytes(testData.leaf),
-		Proof:  branch,
-		Root:   io.Bytes32VarFromBytes(testData.root),
+		Leaf:   vars.NewBytes32(testData.leaf),
+		Proof:  vars.NewBytes32Array(testData.proof),
+		Root:   vars.NewBytes32(testData.root),
 		GIndex: testData.gindex,
 		Depth:  testData.depth,
 	}
@@ -90,12 +102,11 @@ func TestCircuit(t *testing.T) {
 		t.Errorf("assignment should be valid")
 	}
 
-	// Bad Assignment with Root == bytes32(0)
 	badAssignment := &SSZProofCircuit{
-		Leaf:   io.Bytes32VarFromBytes(testData.leaf),
-		Proof:  branch,
-		Root:   io.Bytes32VarFromBytes(make([]byte, 32)),
-		GIndex: testData.gindex + 1,
+		Leaf:   vars.NewBytes32(testData.leaf),
+		Proof:  vars.NewBytes32Array(testData.proof),
+		Root:   vars.NewBytes32(make([]byte, 32)),
+		GIndex: testData.gindex,
 		Depth:  testData.depth,
 	}
 	err = test.IsSolved(circuit, badAssignment, ecc.BN254.ScalarField())
