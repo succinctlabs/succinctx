@@ -6,10 +6,14 @@ import (
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
+// SimpleSerializeAPI is a wrapper around succinct.API that provides methods related to
+// SSZ, a serialization method used on the Beacon Chain. For more information and details, see:
+// https://ethereum.org/en/developers/docs/data-structures-and-encoding/ssz/
 type SimpleSerializeAPI struct {
 	api succinct.API
 }
 
+// Creates a new SimpleSerializeAPI.
 func NewAPI(api *succinct.API) *SimpleSerializeAPI {
 	return &SimpleSerializeAPI{api: *api}
 }
@@ -19,35 +23,47 @@ func (a *SimpleSerializeAPI) VerifyProof(
 	leaf [32]vars.Byte,
 	proof [][32]vars.Byte,
 	gindex int,
-	depth int,
 ) {
-	restoredRoot := a.RestoreMerkleRoot(leaf, proof, gindex, depth)
+	restoredRoot := a.RestoreMerkleRoot(leaf, proof, gindex)
 	for i := 0; i < 32; i++ {
 		a.api.API().AssertIsEqual(root[i].Value, restoredRoot[i].Value)
 	}
 }
 
-func (a *SimpleSerializeAPI) VerifyProofWithVariableGIndex(
+func (a *SimpleSerializeAPI) VerifyProofWithGIndexVariable(
 	root [32]vars.Byte,
 	leaf [32]vars.Byte,
 	proof [][32]vars.Byte,
 	gindex vars.U64,
-	depth int,
 ) {
+	restoredRoot := a.RestoreMerkleRootWithGIndexVariable(leaf, proof, gindex)
+	for i := 0; i < 32; i++ {
+		a.api.API().AssertIsEqual(root[i].Value, restoredRoot[i].Value)
+	}
+}
 
+func (a *SimpleSerializeAPI) RestoreMerkleRootWithGIndexVariable(
+	leaf [32]vars.Byte,
+	proof [][32]vars.Byte,
+	gindex vars.U64,
+) [32]vars.Byte {
+	gindexBits := a.api.ToBinaryLE(gindex.Value, len(proof)+1)
+	hash := leaf
+	for i := 0; i < len(proof); i++ {
+		hash1 := sha256.Hash(a.api, append(proof[i][:], hash[:]...))
+		hash2 := sha256.Hash(a.api, append(hash[:], proof[i][:]...))
+		hash = a.api.SelectBytes32(gindexBits[i], hash1, hash2)
+	}
+	return hash
 }
 
 func (a *SimpleSerializeAPI) RestoreMerkleRoot(
 	leaf [32]vars.Byte,
 	proof [][32]vars.Byte,
 	gindex int,
-	depth int,
 ) [32]vars.Byte {
-	if len(proof) != depth {
-		panic("ssz proof length must equal provided depth")
-	}
 	hash := leaf
-	for i := 0; i < depth; i++ {
+	for i := 0; i < len(proof); i++ {
 		if gindex%2 == 1 {
 			hash = sha256.Hash(a.api, append(proof[i][:], hash[:]...))
 		} else {

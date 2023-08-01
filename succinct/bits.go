@@ -5,7 +5,6 @@ import (
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
-// TODO: Remove
 func (a *API) ToBinaryLE(i1 frontend.Variable, n int) []vars.Bit {
 	values := a.api.ToBinary(i1, n)
 	bits := make([]vars.Bit, n)
@@ -15,7 +14,6 @@ func (a *API) ToBinaryLE(i1 frontend.Variable, n int) []vars.Bit {
 	return bits
 }
 
-// TODO: Remove
 func (a *API) ToBinaryBE(i1 frontend.Variable, n int) []vars.Bit {
 	values := a.api.ToBinary(i1, n)
 	bits := make([]vars.Bit, n)
@@ -157,4 +155,16 @@ func (a *API) PrintBits(in []vars.Bit) {
 		variables[i] = in[i].Value
 	}
 	a.api.Println(variables...)
+}
+
+func (a *API) SelectByte(selector vars.Bit, i1 vars.Byte, i2 vars.Byte) vars.Byte {
+	return vars.Byte{Value: a.api.Select(selector.Value, i1.Value, i2.Value)}
+}
+
+func (a *API) SelectBytes32(selector vars.Bit, i1 [32]vars.Byte, i2 [32]vars.Byte) [32]vars.Byte {
+	var result [32]vars.Byte
+	for i := 0; i < 32; i++ {
+		result[i] = a.SelectByte(selector, i1[i], i2[i])
+	}
+	return result
 }
