@@ -65,6 +65,10 @@ func NewBytes32FromU64LE(i1 uint64) [32]Byte {
 
 // Creates a new bytes32 as a variable in a circuit from a u64. The u64 will placed in the
 func NewBytes32FromBytesLeftPad(i1 []byte) [32]Byte {
+	if len(i1) < 20 {
+		panic("length of i1 is less than 20")
+	}
+
 	var b [32]byte
 	startOffset := 32 - len(i1) - 1
 	for i := 0; i < len(i1); i++ {
