@@ -29,11 +29,12 @@ func (a *SimpleSerializeAPI) VerifyProof(
 ) {
 	restoredRoot := a.RestoreMerkleRoot(leaf, proof, gindex)
 	for i := 0; i < 32; i++ {
-		a.api.FrontendAPI().AssertIsEqual(root[i].Value, restoredRoot[i].Value)
+		a.api.AssertIsEqual(root[i].Value, restoredRoot[i].Value)
 	}
 }
 
-// Verifies an ssz proof with a gindex that is a circuit variable.
+// Verifies an ssz proof with a gindex that is a circuit variable. Note that the depth of the proof
+// must be a compile-time constant, however.
 func (a *SimpleSerializeAPI) VerifyProofWithGIndexVariable(
 	root [32]vars.Byte,
 	leaf [32]vars.Byte,
