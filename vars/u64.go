@@ -5,6 +5,10 @@ type U64 struct {
 	Value Variable
 }
 
+func InitU64() U64 {
+	return U64{Value: ZERO}
+}
+
 // Creates a new u64 as a variable in a circuit.
 func NewU64(i1 uint64) U64 {
 	return U64{Value: Variable{Value: i1}}

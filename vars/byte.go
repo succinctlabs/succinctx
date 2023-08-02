@@ -99,3 +99,19 @@ func NewBytes32FromBytesRightPad(data []byte) [32]Byte {
 	copy(res[:], data)
 	return NewBytes32(res)
 }
+
+func InitBytes(n int) []Byte {
+	var bytes []Byte
+	for i := 0; i < n; i++ {
+		bytes = append(bytes, InitByte())
+	}
+	return bytes
+}
+
+func InitBytes32Array(n int) [][32]Byte {
+	var bytes [][32]Byte
+	for i := 0; i < n; i++ {
+		bytes = append(bytes, InitBytes32())
+	}
+	return bytes
+}
