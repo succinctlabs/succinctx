@@ -1,7 +1,8 @@
+// The API for SHA256-2 according to https://en.wikipedia.org/wiki/SHA-2.
 package sha256
 
 import (
-	"github.com/consensys/gnark/frontend"
+	"github.com/succinctlabs/gnark-gadgets/bits32"
 	"github.com/succinctlabs/gnark-gadgets/succinct"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
@@ -26,8 +27,10 @@ var K = []uint32{
 }
 
 func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
+	bits32 := bits32.NewAPI(api)
+
 	// Decompose bytes to bits.
-	inBits := make([]vars.Bit, len(in)*8)
+	inBits := make([]vars.Bool, len(in)*8)
 	for i := 0; i < len(in); i++ {
 		bits := api.ToBitsFromByte(in[i])
 		for j := 0; j < 8; j++ {
@@ -51,19 +54,19 @@ func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
 	paddedMessageLength := encodedMessageLength + paddingLength
 
 	// Initialization of core variables.
-	paddedMessage := make([]vars.Bit, paddedMessageLength)
+	paddedMessage := make([]vars.Bool, paddedMessageLength)
 	for i := 0; i < paddedMessageLength; i++ {
-		paddedMessage[i] = vars.ZERO_BIT
+		paddedMessage[i] = vars.FALSE
 	}
 
 	// Begin with the original message of length "L".
 	copy(paddedMessage, inBits)
 
 	// Append a single '1' bit.
-	paddedMessage[len(inBits)] = vars.ONE_BIT
+	paddedMessage[len(inBits)] = vars.TRUE
 
 	// Append L as a 64-bit big-endian integer.
-	inputLengthBitsBE := api.ToBinaryBE(frontend.Variable(len(inBits)), 64)
+	inputLengthBitsBE := api.ToBinaryBE(vars.NewVariableFromInt(len(inBits)), 64)
 	for i := 0; i < len(inputLengthBitsBE); i++ {
 		paddedMessage[len(inBits)+i+1+paddingLength] = inputLengthBitsBE[i]
 	}
@@ -79,17 +82,17 @@ func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
 	message := paddedMessage
 	numChunks := len(message) / sha256ChunkLength
 
-	var h [8][32]vars.Bit
+	var h [8][32]vars.Bool
 	for i := 0; i < 8; i++ {
-		h[i] = api.FromUint32(H[i])
+		h[i] = vars.NewBoolArrayFromU32(H[i])
 	}
 
 	for i := 0; i < numChunks; i++ {
 		// The 64-entry message schedule array of 32-bit words.
-		var w [sha256MessageScheduleArrayLength][sha256WordLength]vars.Bit
+		var w [sha256MessageScheduleArrayLength][sha256WordLength]vars.Bool
 		for j := 0; j < sha256MessageScheduleArrayLength; j++ {
 			for k := 0; k < sha256WordLength; k++ {
-				w[j][k] = vars.ZERO_BIT
+				w[j][k] = vars.FALSE
 			}
 		}
 
@@ -104,17 +107,17 @@ func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
 
 		// Extend the first 16 words into the remaining 48 words w[16..63].
 		for j := 16; j < sha256MessageScheduleArrayLength; j++ {
-			s0 := api.Xor32(
-				api.Rotate32(w[j-15], 7),
-				api.Rotate32(w[j-15], 18),
-				api.Shr32(w[j-15], 3),
+			s0 := bits32.Xor(
+				bits32.Rotate(w[j-15], 7),
+				bits32.Rotate(w[j-15], 18),
+				bits32.Shr(w[j-15], 3),
 			)
-			s1 := api.Xor32(
-				api.Rotate32(w[j-2], 17),
-				api.Rotate32(w[j-2], 19),
-				api.Shr32(w[j-2], 10),
+			s1 := bits32.Xor(
+				bits32.Rotate(w[j-2], 17),
+				bits32.Rotate(w[j-2], 19),
+				bits32.Shr(w[j-2], 10),
 			)
-			w[j] = api.AddMany32(w[j-16], s0, w[j-7], s1)
+			w[j] = bits32.Add(w[j-16], s0, w[j-7], s1)
 		}
 
 		sa := h[0]
@@ -128,48 +131,48 @@ func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
 
 		numCompressionRounds := 64
 		for j := 0; j < numCompressionRounds; j++ {
-			s1 := api.Xor32(
-				api.Rotate32(se, 6),
-				api.Rotate32(se, 11),
-				api.Rotate32(se, 25),
+			s1 := bits32.Xor(
+				bits32.Rotate(se, 6),
+				bits32.Rotate(se, 11),
+				bits32.Rotate(se, 25),
 			)
-			ch := api.Xor32(
-				api.And32(se, sf),
-				api.And32(api.Not32(se), sg),
+			ch := bits32.Xor(
+				bits32.And(se, sf),
+				bits32.And(bits32.Not(se), sg),
 			)
-			temp := api.AddMany32(sh, s1, ch, api.FromUint32(K[j]), w[j])
-			s0 := api.Xor32(
-				api.Rotate32(sa, 2),
-				api.Rotate32(sa, 13),
-				api.Rotate32(sa, 22),
+			temp := bits32.Add(sh, s1, ch, vars.NewBoolArrayFromU32(K[j]), w[j])
+			s0 := bits32.Xor(
+				bits32.Rotate(sa, 2),
+				bits32.Rotate(sa, 13),
+				bits32.Rotate(sa, 22),
 			)
-			maj := api.Xor32(
-				api.And32(sa, sb),
-				api.And32(sa, sc),
-				api.And32(sb, sc),
+			maj := bits32.Xor(
+				bits32.And(sa, sb),
+				bits32.And(sa, sc),
+				bits32.And(sb, sc),
 			)
-			temp2 := api.AddMany32(s0, maj)
+			temp2 := bits32.Add(s0, maj)
 			sh = sg
 			sg = sf
 			sf = se
-			se = api.AddMany32(sd, temp)
+			se = bits32.Add(sd, temp)
 			sd = sc
 			sc = sb
 			sb = sa
-			sa = api.AddMany32(temp, temp2)
+			sa = bits32.Add(temp, temp2)
 		}
 
-		h[0] = api.Add32(h[0], sa)
-		h[1] = api.Add32(h[1], sb)
-		h[2] = api.Add32(h[2], sc)
-		h[3] = api.Add32(h[3], sd)
-		h[4] = api.Add32(h[4], se)
-		h[5] = api.Add32(h[5], sf)
-		h[6] = api.Add32(h[6], sg)
-		h[7] = api.Add32(h[7], sh)
+		h[0] = bits32.Add(h[0], sa)
+		h[1] = bits32.Add(h[1], sb)
+		h[2] = bits32.Add(h[2], sc)
+		h[3] = bits32.Add(h[3], sd)
+		h[4] = bits32.Add(h[4], se)
+		h[5] = bits32.Add(h[5], sf)
+		h[6] = bits32.Add(h[6], sg)
+		h[7] = bits32.Add(h[7], sh)
 	}
 
-	var digestBits [256]vars.Bit
+	var digestBits [256]vars.Bool
 	for i := 0; i < 8; i++ {
 		for j := 0; j < sha256WordLength; j++ {
 			digestBits[i*sha256WordLength+j] = h[i][j]
@@ -178,7 +181,7 @@ func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
 
 	var digest [32]vars.Byte
 	for i := 0; i < 32; i++ {
-		var bits [8]vars.Bit
+		var bits [8]vars.Bool
 		for j := 0; j < 8; j++ {
 			bits[7-j] = digestBits[i*8+j]
 		}

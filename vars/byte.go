@@ -2,28 +2,26 @@ package vars
 
 import (
 	"encoding/binary"
-
-	"github.com/consensys/gnark/frontend"
 )
 
 // The zero byte as a variable in a circuit. If used within APIs, it will be treated as a constant.
-var ZERO_BYTE = Byte{Value: 0}
+var ZERO_BYTE = Byte{Value: ZERO}
 
 // A variable in a circuit representing a byte. Under the hood, the value is a single field element.
 type Byte struct {
-	Value frontend.Variable
+	Value Variable
 }
 
 // Creates a new byte as a variable in a circuit.
 func NewByte(i1 byte) Byte {
-	return Byte{Value: int(i1)}
+	return Byte{Value: NewVariableFromInt(int(i1))}
 }
 
 // Creates a new array of bytes as a variable in a circuit.
 func NewBytes(i1 []byte) []Byte {
 	var result []Byte
 	for i := 0; i < len(i1); i++ {
-		result = append(result, Byte{Value: int(i1[i])})
+		result = append(result, NewByte(i1[i]))
 	}
 	return result
 }
@@ -41,7 +39,7 @@ func NewBytesArray(i1 [][]byte) [][]Byte {
 func NewBytes32(i1 [32]byte) [32]Byte {
 	var result [32]Byte
 	for i := 0; i < 32; i++ {
-		result[i] = Byte{Value: int(i1[i])}
+		result[i] = NewByte(i1[i])
 	}
 	return result
 }

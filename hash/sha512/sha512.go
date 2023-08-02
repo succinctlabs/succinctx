@@ -1,6 +1,5 @@
+// The API for SHA256-2 according to https://gist.github.com/illia-v/7883be942da5d416521375004cecb68f.
 package sha512
-
-/* Based on https://gist.github.com/illia-v/7883be942da5d416521375004cecb68f */
 
 import (
 	"github.com/consensys/gnark/frontend"

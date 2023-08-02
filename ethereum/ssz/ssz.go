@@ -1,3 +1,5 @@
+// The API for operations related to SSZ, a serialization method used by the Ethereum consensus
+// layer or "Beacon Chain".
 package ssz
 
 import (
@@ -26,7 +28,7 @@ func (a *SimpleSerializeAPI) VerifyProof(
 ) {
 	restoredRoot := a.RestoreMerkleRoot(leaf, proof, gindex)
 	for i := 0; i < 32; i++ {
-		a.api.API().AssertIsEqual(root[i].Value, restoredRoot[i].Value)
+		a.api.FrontendAPI().AssertIsEqual(root[i].Value, restoredRoot[i].Value)
 	}
 }
 
@@ -38,7 +40,7 @@ func (a *SimpleSerializeAPI) VerifyProofWithGIndexVariable(
 ) {
 	restoredRoot := a.RestoreMerkleRootWithGIndexVariable(leaf, proof, gindex)
 	for i := 0; i < 32; i++ {
-		a.api.API().AssertIsEqual(root[i].Value, restoredRoot[i].Value)
+		a.api.FrontendAPI().AssertIsEqual(root[i].Value, restoredRoot[i].Value)
 	}
 }
 

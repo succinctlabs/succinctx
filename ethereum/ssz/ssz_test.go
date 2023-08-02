@@ -7,7 +7,7 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/succinctlabs/gnark-gadgets/ssz"
+	"github.com/succinctlabs/gnark-gadgets/ethereum/ssz"
 	"github.com/succinctlabs/gnark-gadgets/succinct"
 	"github.com/succinctlabs/gnark-gadgets/utils/byteutils"
 	"github.com/succinctlabs/gnark-gadgets/vars"
@@ -46,7 +46,6 @@ type TestSimpleSerializeCircuit struct {
 	Leaf   [32]vars.Byte
 	Proof  [][32]vars.Byte
 	GIndex int
-	Depth  int
 }
 
 func (circuit *TestSimpleSerializeCircuit) Define(api frontend.API) error {
@@ -54,11 +53,10 @@ func (circuit *TestSimpleSerializeCircuit) Define(api frontend.API) error {
 	proof := circuit.Proof
 	root := circuit.Root
 	gindex := circuit.GIndex
-	depth := circuit.Depth
 
 	succinctAPI := succinct.NewAPI(api)
 	sszAPI := ssz.NewAPI(succinctAPI)
-	sszAPI.VerifyProof(root, leaf, proof, gindex, depth)
+	sszAPI.VerifyProof(root, leaf, proof, gindex)
 	return nil
 }
 
@@ -69,14 +67,12 @@ func TestCircuit(t *testing.T) {
 		Proof:  vars.NewBytes32Array(testData.proof),
 		Root:   vars.NewBytes32(testData.root),
 		GIndex: testData.gindex,
-		Depth:  testData.depth,
 	}
 	assignment := &TestSimpleSerializeCircuit{
 		Leaf:   vars.NewBytes32(testData.leaf),
 		Proof:  vars.NewBytes32Array(testData.proof),
 		Root:   vars.NewBytes32(testData.root),
 		GIndex: testData.gindex,
-		Depth:  testData.depth,
 	}
 	err := test.IsSolved(circuit, assignment, ecc.BN254.ScalarField())
 	if err != nil {
@@ -89,7 +85,6 @@ func TestCircuit(t *testing.T) {
 		Proof:  vars.NewBytes32Array(testData.proof),
 		Root:   vars.NewBytes32(emptyRoot),
 		GIndex: testData.gindex,
-		Depth:  testData.depth,
 	}
 	err = test.IsSolved(circuit, badAssignment, ecc.BN254.ScalarField())
 	if err == nil {

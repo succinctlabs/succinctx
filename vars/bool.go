@@ -1,30 +1,40 @@
 package vars
 
-import "github.com/consensys/gnark/frontend"
+// The zero bit as a variable in a circuit. If used within APIs, it will be treated as a constant.
+var FALSE = Bool{Value: ZERO}
 
 // The zero bit as a variable in a circuit. If used within APIs, it will be treated as a constant.
-var ZERO_BIT = Bit{Value: 0}
-
-// The zero bit as a variable in a circuit. If used within APIs, it will be treated as a constant.
-var ONE_BIT = Bit{Value: 1}
+var TRUE = Bool{Value: ONE}
 
 // A variable in a circuit representing a bit. Under the hood, the value is a single field element.
-type Bit struct {
-	Value frontend.Variable
+type Bool struct {
+	Value Variable
 }
 
 // Creates a new bit as a variable in a circuit from a boolean.
-func NewBitFromBool(i1 bool) Bit {
+func NewBool(i1 bool) Bool {
 	if i1 {
-		return ONE_BIT
+		return TRUE
 	}
-	return ZERO_BIT
+	return FALSE
 }
 
 // Creates a new bit as a variable in a circuit.
-func NewBitFromInt(i1 int) Bit {
+func NewBoolFromInt(i1 int) Bool {
 	if (i1 != 0) && (i1 != 1) {
 		panic("x must be 0 or 1")
 	}
-	return Bit{Value: i1}
+	return Bool{Value: NewVariableFromInt(i1)}
+}
+
+func NewBoolArrayFromU32(value uint32) [32]Bool {
+	var result [32]Bool
+	for k := 0; k < 32; k++ {
+		if (value & (1 << (31 - k))) != 0 {
+			result[k] = TRUE
+		} else {
+			result[k] = FALSE
+		}
+	}
+	return result
 }

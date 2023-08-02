@@ -25,7 +25,7 @@ func (circuit *TestSha256Circuit) Define(api frontend.API) error {
 		panic("bad length")
 	}
 	for i := 0; i < 32; i++ {
-		api.AssertIsEqual(res[i].Value, circuit.Out[i].Value)
+		succinctAPI.AssertIsEqual(res[i].Value, circuit.Out[i].Value)
 	}
 	return nil
 }
