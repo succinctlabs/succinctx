@@ -39,12 +39,15 @@ func (a *API) AddU64(in ...vars.U64) vars.U64 {
 func (a *API) ToBytes32FromU64LE(i1 vars.U64) [32]vars.Byte {
 	bits := a.ToBinaryLE(i1.Value, 64)
 	var bytes [32]vars.Byte
-	for i := 0; i < 32; i++ {
+	for i := 0; i < 8; i++ {
 		var byteBits [8]vars.Bool
 		for j := 0; j < 8; j++ {
 			byteBits[j] = bits[i*8+j]
 		}
 		bytes[i] = a.ToByteFromBits(byteBits)
+	}
+	for i := 8; i < 32; i++ {
+		bytes[i] = vars.ZERO_BYTE
 	}
 	return bytes
 }
