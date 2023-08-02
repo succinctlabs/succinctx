@@ -20,6 +20,7 @@ func NewAPI(api *succinct.API) *SimpleSerializeAPI {
 	return &SimpleSerializeAPI{api: *api}
 }
 
+// Verifies an ssz proof with a gindex that is a compile time constant.
 func (a *SimpleSerializeAPI) VerifyProof(
 	root [32]vars.Byte,
 	leaf [32]vars.Byte,
@@ -32,6 +33,7 @@ func (a *SimpleSerializeAPI) VerifyProof(
 	}
 }
 
+// Verifies an ssz proof with a gindex that is a circuit variable.
 func (a *SimpleSerializeAPI) VerifyProofWithGIndexVariable(
 	root [32]vars.Byte,
 	leaf [32]vars.Byte,
