@@ -30,6 +30,11 @@ func (w *OutputWriter) WriteU64(i1 vars.U64) {
 	}
 }
 
-func (w *OutputWriter) Save() []vars.Byte {
-	return w.bytes
+func (w *OutputWriter) Close(expectedBytes []vars.Byte) {
+	if len(w.bytes) != len(expectedBytes) {
+		panic("unexpected number of output bytes")
+	}
+	for i := 0; i < len(w.bytes); i++ {
+		w.api.AssertIsEqualByte(w.bytes[i], expectedBytes[i])
+	}
 }

@@ -25,3 +25,7 @@ func (a *API) SelectBytes32(selector vars.Bool, i1 [32]vars.Byte, i2 [32]vars.By
 	}
 	return result
 }
+
+func (a *API) AssertIsEqualByte(i1, i2 vars.Byte) {
+	a.AssertIsEqual(i1.Value, i2.Value)
+}
