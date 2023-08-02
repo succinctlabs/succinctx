@@ -1,7 +1,6 @@
 package succinct
 
 import (
-	"github.com/succinctlabs/gnark-gadgets/hash/sha256"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
@@ -29,8 +28,4 @@ func (w *OutputWriter) WriteU64(i1 vars.U64) {
 	for i := 0; i < 8; i++ {
 		w.bytes = append(w.bytes, bytes[i])
 	}
-}
-
-func (w *OutputWriter) Save() [32]vars.Byte {
-	return sha256.Hash(w.api, w.bytes)
 }
