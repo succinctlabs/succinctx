@@ -1,5 +1,5 @@
 // The API for operations related to SSZ, a serialization method used by the Ethereum consensus
-// layer or "Beacon Chain".
+// layer.
 package ssz
 
 import (
