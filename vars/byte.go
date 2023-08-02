@@ -12,6 +12,11 @@ type Byte struct {
 	Value Variable
 }
 
+// TODO: REMOVE
+func InitByte() Byte {
+	return Byte{Value: ZERO}
+}
+
 // Creates a new byte as a variable in a circuit.
 func NewByte(i1 byte) Byte {
 	return Byte{Value: NewVariableFromInt(int(i1))}
@@ -31,6 +36,14 @@ func NewBytesArray(i1 [][]byte) [][]Byte {
 	var result [][]Byte
 	for i := 0; i < len(i1); i++ {
 		result = append(result, NewBytes(i1[i]))
+	}
+	return result
+}
+
+func InitBytes32() [32]Byte {
+	var result [32]Byte
+	for i := 0; i < 32; i++ {
+		result[i] = ZERO_BYTE
 	}
 	return result
 }
