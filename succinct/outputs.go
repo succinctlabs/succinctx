@@ -29,3 +29,7 @@ func (w *OutputWriter) WriteU64(i1 vars.U64) {
 		w.bytes = append(w.bytes, bytes[i])
 	}
 }
+
+func (w *OutputWriter) Save() []vars.Byte {
+	return w.bytes
+}
