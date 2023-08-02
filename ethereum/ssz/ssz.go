@@ -43,7 +43,7 @@ func (a *SimpleSerializeAPI) VerifyProofWithGIndexVariable(
 ) {
 	restoredRoot := a.RestoreMerkleRootWithGIndexVariable(leaf, proof, gindex)
 	for i := 0; i < 32; i++ {
-		a.api.FrontendAPI().AssertIsEqual(root[i].Value, restoredRoot[i].Value)
+		a.api.AssertIsEqual(root[i].Value, restoredRoot[i].Value)
 	}
 }
 
