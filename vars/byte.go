@@ -74,3 +74,10 @@ func NewBytes32FromBytesLeftPad(i1 []byte) [32]Byte {
 	}
 	return NewBytes32(b)
 }
+
+func NewBytes32FromBytesRightPad(data []byte) [32]Byte {
+	if len(data) > 32 {
+		panic("length of data is greater than 32")
+	}
+	return NewBytes32([32]byte(data))
+}
