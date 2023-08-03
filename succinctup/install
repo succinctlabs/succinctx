@@ -15,7 +15,7 @@ SUCCINCT_MAN_DIR="$SUCCINCT_DIR/share/man/man1"
 
 # TODO change this to sdk/main link
 # BIN_URL="https://raw.githubusercontent.com/succinctlabs/sdk/main/succinctup/succinctup"
-BIN_URL="https://raw.githubusercontent.com/succinctlabs/sdk/b6918bba55b75e9819a72bcecda14f9a86995782/succinctup/succinctup?token=GHSAT0AAAAAACET55R7NDCBMVWKOWIXDERKZGMBFWA"
+BIN_URL="https://raw.githubusercontent.com/succinctlabs/sdk/68be656e5450dd3b89160ef556acd546a8b9b868/succinctup/succinctup?token=GHSAT0AAAAAACET55R7BCDPRMGYOUGNW2NEZGMB5TA"
 BIN_PATH="$SUCCINCT_BIN_DIR/succinctup"
 
 # Create the .succinct bin directory and succinctup binary if it doesn't exist.
