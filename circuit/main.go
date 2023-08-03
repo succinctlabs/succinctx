@@ -5,8 +5,6 @@ import (
 	"flag"
 	"fmt"
 
-	"{{ .ImportPath }}"
-
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/succinctlabs/sdk/gnarkx/succinct"
 )
@@ -16,10 +14,7 @@ func main() {
 	inputBytesString := flag.String("input", "", "input bytes to prove with 0x prefix")
 	flag.Parse()
 
-	subcircuit := {{ .PackageName }}.Circuit{}
-	circuit := succinct.OuterCircuit[*{{ .PackageName }}.Circuit]{
-		Subcircuit: &subcircuit,
-	}
+	circuit := succinct.NewCircuitFunction(NewCircuit())
 
 	if *proveFlag {
 		fmt.Println("proving circuit, assuming artifacts are already built")
