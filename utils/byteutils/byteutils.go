@@ -25,3 +25,29 @@ func ToBytes32FromBytes(data []byte) [32]byte {
 
 	return fixedSizeArray
 }
+
+func ToBytes32FromU64LE(v uint64) [32]byte {
+	var res [32]byte
+	for i := 0; i < 8; i++ {
+		res[i] = byte(v >> (8 * i))
+	}
+	return res
+}
+
+func ToBytes32FromBytesLeftPad(data []byte) [32]byte {
+	var res [32]byte
+	if len(data) > 32 {
+		panic("data too long")
+	}
+	copy(res[32-len(data):], data)
+	return res
+}
+
+func ToBytes32FromBytesRightPad(data []byte) [32]byte {
+	var res [32]byte
+	if len(data) > 32 {
+		panic("data too long")
+	}
+	copy(res[:], data)
+	return res
+}
