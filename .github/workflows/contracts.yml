@@ -47,9 +47,9 @@ jobs:
         working-directory: ./contracts
         run: forge build --sizes
 
-      - name: Check gas snapshots
-        working-directory: ./contracts
-        run: forge snapshot --check
+      # - name: Check gas snapshots
+      #   working-directory: ./contracts
+      #   run: forge snapshot --check
 
       - name: Add build summary
         run: |

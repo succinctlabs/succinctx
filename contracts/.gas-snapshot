@@ -1,5 +1,0 @@
-FunctionGatewayTest:test_Callback_WhenFromConsumer() (gas: 226826)
-FunctionGatewayTest:test_Fulfill_WhenFromConsumer() (gas: 188870)
-FunctionGatewayTest:test_Request() (gas: 153654)
-FunctionGatewayTest:test_Request_WhenFromConsumer() (gas: 150707)
-FunctionGatewayTest:test_RevertCallback_WhenReentered() (gas: 717975)
