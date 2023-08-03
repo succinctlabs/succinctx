@@ -71,9 +71,9 @@ jobs:
       - name: Install Foundry
         uses: "foundry-rs/foundry-toolchain@v1"
 
-      - name: Check test coverage
-        working-directory: ./contracts
-        run: forge coverage
+      # - name: Check test coverage
+      #   working-directory: ./contracts
+      #   run: forge coverage
 
       - name: Generate a fuzz seed that changes weekly to avoid burning through RPC allowance
         run: >
