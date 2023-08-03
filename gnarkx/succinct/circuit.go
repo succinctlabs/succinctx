@@ -35,7 +35,7 @@ type CircuitFunction struct {
 // for loading witnesses into the circuit, defining constraints, and reading and writing data to
 // Ethereum.
 type Circuit interface {
-	SetWitness(inputBytes []byte) error
+	SetWitness(inputBytes []byte)
 	Define(api frontend.API) error
 	GetInputBytes() *[]vars.Byte
 	GetOutputBytes() *[]vars.Byte
@@ -182,7 +182,7 @@ func (f *CircuitFunction) Prove(inputBytes []byte) {
 	// Deserialize the R1CS.
 	_, err = r1cs.ReadFrom(r1csFile)
 	if err != nil {
-		panic(fmt.Errorf("Failed to read data: %w", err))
+		panic(fmt.Errorf("failed to read data: %w", err))
 	}
 
 	// Register hints which are used for automatic constraint generation.
