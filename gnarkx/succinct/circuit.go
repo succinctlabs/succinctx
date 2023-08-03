@@ -59,10 +59,7 @@ func (f *CircuitFunction) SetWitness(inputBytes []byte) {
 	vars.SetBytes(f.Circuit.GetInputBytes(), inputBytes)
 
 	// Assign the circuit.
-	err := f.Circuit.SetWitness(inputBytes)
-	if err != nil {
-		panic(err)
-	}
+	f.Circuit.SetWitness(inputBytes)
 
 	// Set inputHash = sha256(inputBytes) && ((1 << 253) - 1).
 	inputHash := sha256utils.HashAndTruncate(inputBytes, 253)
