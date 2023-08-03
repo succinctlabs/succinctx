@@ -37,8 +37,8 @@ type CircuitFunction struct {
 type Circuit interface {
 	SetWitness(inputBytes []byte) error
 	Define(api frontend.API) error
-	InputBytes() []vars.Byte
-	OutputBytes() []vars.Byte
+	GetInputBytes() []vars.Byte
+	GetOutputBytes() []vars.Byte
 }
 
 // Creates a new circuit function based on a circuit that implements the Circuit interface.
@@ -66,7 +66,7 @@ func (f *CircuitFunction) SetWitness(inputBytes []byte) {
 	f.InputHash.Set(inputHash)
 
 	// Set outputHash = sha256(outputBytes) && ((1 << 253) - 1).
-	outputBytes := f.Circuit.OutputBytes()
+	outputBytes := f.Circuit.GetOutputBytes()
 	outputBytesValues := vars.GetValuesUnsafe(outputBytes)
 	outputHash := sha256utils.HashAndTruncate(outputBytesValues, 253)
 	f.OutputHash.Set(outputHash)
@@ -81,8 +81,8 @@ func (f *CircuitFunction) Define(baseApi frontend.API) error {
 
 	// Automatically handle the input and output hashes and assert that they must be consistent.
 	api := builder.NewAPI(baseApi)
-	inputHash := sha256.HashAndTruncate(*api, f.Circuit.InputBytes(), 253)
-	outputHash := sha256.HashAndTruncate(*api, f.Circuit.OutputBytes(), 253)
+	inputHash := sha256.HashAndTruncate(*api, f.Circuit.GetInputBytes(), 253)
+	outputHash := sha256.HashAndTruncate(*api, f.Circuit.GetOutputBytes(), 253)
 	api.AssertIsEqual(f.InputHash, inputHash)
 	api.AssertIsEqual(f.OutputHash, outputHash)
 	return nil
