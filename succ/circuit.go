@@ -51,7 +51,7 @@ func (circuit *OuterCircuit) Assign(inputBytes []byte) error {
 	vars.SetBytes32(&circuit.InputHash, sizedInputHash)
 
 	outputBytes := circuit.Subcircuit.GetOutputBytes()
-	outputBytesValues := vars.GetValue(outputBytes)
+	outputBytesValues := vars.GetValues(outputBytes)
 	h = crypto_sha256.New()
 	h.Write(outputBytesValues)
 	computedOutputHash := h.Sum(nil)

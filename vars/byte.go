@@ -2,7 +2,6 @@ package vars
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math/big"
 )
 
@@ -41,7 +40,6 @@ func (b *Byte) GetValue() byte {
 		convertedValue := byte(bigIntValue.Int64())
 		return convertedValue
 	} else {
-		fmt.Printf("Value is not of type big.Int %T", rawValue)
 		panic("Value is not of type big.Int")
 	}
 }
@@ -67,7 +65,7 @@ func NewBytesFrom(bytes []byte) []Byte {
 	return result
 }
 
-func GetValue(b []Byte) []byte {
+func GetValues(b []Byte) []byte {
 	var bytes []byte
 	for _, v := range b {
 		bytes = append(bytes, v.GetValue())
@@ -102,7 +100,6 @@ func SetBytes32(b *[32]Byte, i1 [32]byte) {
 	for i := 0; i < 32; i++ {
 		b[i].Set(i1[i])
 	}
-	fmt.Printf("b: %v\n", b)
 }
 
 // Creates a new bytes32 as a variable in a circuit from a u64. The u64 will placed in the first
