@@ -20,26 +20,27 @@ import (
 )
 
 type SuccinctCircuit interface {
-	Init()
 	Assign(inputBytes []byte) error
 	Define(api frontend.API) error
 	GetInputBytes() []vars.Byte
 	GetOutputBytes() []vars.Byte
 }
 
-type OuterCircuit[T SuccinctCircuit] struct {
+type OuterCircuit struct {
 	InputHash  [32]vars.Byte `gnark:"input_hash,public"`
 	OutputHash [32]vars.Byte `gnark:"output_hash,public"`
-	Subcircuit T
+	Subcircuit SuccinctCircuit
 }
 
-func (circuit *OuterCircuit[T]) Init() {
-	circuit.InputHash = vars.InitBytes32()
-	circuit.OutputHash = vars.InitBytes32()
-	circuit.Subcircuit.Init()
+func NewOuterCircuit(s SuccinctCircuit) OuterCircuit {
+	circuit := OuterCircuit{}
+	circuit.InputHash = vars.NewBytes32()
+	circuit.OutputHash = vars.NewBytes32()
+	circuit.Subcircuit = s
+	return circuit
 }
 
-func (circuit *OuterCircuit[T]) Assign(inputBytes []byte) error {
+func (circuit *OuterCircuit) Assign(inputBytes []byte) error {
 	circuit.Subcircuit.Assign(inputBytes)
 
 	h := crypto_sha256.New()
@@ -47,21 +48,21 @@ func (circuit *OuterCircuit[T]) Assign(inputBytes []byte) error {
 	computedInputHash := h.Sum(nil)
 	var sizedInputHash [32]byte
 	copy(sizedInputHash[:], computedInputHash)
-	circuit.InputHash = vars.NewBytes32(sizedInputHash)
+	vars.Bytes32(circuit.InputHash).Set(sizedInputHash)
 
 	outputBytes := circuit.Subcircuit.GetOutputBytes()
-	outputBytesValues := vars.GetUnderlyingFromBytes(outputBytes)
+	outputBytesValues := vars.Bytes(outputBytes).GetValue()
 	h = crypto_sha256.New()
 	h.Write(outputBytesValues)
 	computedOutputHash := h.Sum(nil)
 	var sizedOutputHash [32]byte
 	copy(sizedOutputHash[:], computedOutputHash)
-	circuit.OutputHash = vars.NewBytes32(sizedOutputHash)
+	vars.Bytes32(circuit.OutputHash).Set(sizedOutputHash)
 
 	return nil
 }
 
-func (circuit *OuterCircuit[T]) Define(baseApi frontend.API) error {
+func (circuit *OuterCircuit) Define(baseApi frontend.API) error {
 	api := succinct.NewAPI(baseApi)
 	circuit.Subcircuit.Define(baseApi)
 	computedInputHash := sha256.Hash(*api, circuit.Subcircuit.GetInputBytes())
@@ -74,7 +75,7 @@ func (circuit *OuterCircuit[T]) Define(baseApi frontend.API) error {
 	return nil
 }
 
-func (circuit *OuterCircuit[T]) Prove(inputBytes []byte) {
+func (circuit *OuterCircuit) Prove(inputBytes []byte) {
 	r1cs := groth16.NewCS(ecc.BN254)
 
 	// Read proving key.
@@ -148,9 +149,7 @@ func (circuit *OuterCircuit[T]) Prove(inputBytes []byte) {
 	return
 }
 
-func (circuit *OuterCircuit[T]) Build() {
-	circuit.Init()
-
+func (circuit *OuterCircuit) Build() {
 	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, circuit)
 	if err != nil {
 		panic(err)

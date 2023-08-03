@@ -2,6 +2,7 @@ package sha256
 
 import (
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -9,7 +10,6 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"github.com/succinctlabs/gnark-gadgets/succinct"
-	"github.com/succinctlabs/gnark-gadgets/utils/byteutils"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
@@ -43,12 +43,13 @@ func TestSha256Witness(t *testing.T) {
 		}
 
 		circuit := TestSha256Circuit{
-			In:  byteutils.ToBytes(in),
-			Out: byteutils.ToBytes(out),
+			In:  vars.NewBytesFrom(in),
+			Out: vars.NewBytesFrom(out),
 		}
+		fmt.Println("circuit.In", circuit.In)
 		witness := TestSha256Circuit{
-			In:  byteutils.ToBytes(in),
-			Out: byteutils.ToBytes(out),
+			In:  vars.NewBytesFrom(in),
+			Out: vars.NewBytesFrom(out),
 		}
 		err = test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 		assert.NoError(err)
@@ -72,12 +73,12 @@ func TestSha256Proof(t *testing.T) {
 		}
 
 		circuit := TestSha256Circuit{
-			In:  byteutils.ToBytes(in),
-			Out: byteutils.ToBytes(out),
+			In:  vars.NewBytesFrom(in),
+			Out: vars.NewBytesFrom(out),
 		}
 		witness := TestSha256Circuit{
-			In:  byteutils.ToBytes(in),
-			Out: byteutils.ToBytes(out),
+			In:  vars.NewBytesFrom(in),
+			Out: vars.NewBytesFrom(out),
 		}
 		assert.ProverSucceeded(&circuit, &witness, test.WithBackends(backend.GROTH16), test.NoFuzzing())
 		assert.NoError(err)

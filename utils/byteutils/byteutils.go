@@ -1,17 +1,5 @@
 package byteutils
 
-import (
-	"github.com/succinctlabs/gnark-gadgets/vars"
-)
-
-func ToBytes(arr []byte) []vars.Byte {
-	result := make([]vars.Byte, len(arr))
-	for i, v := range arr {
-		result[i] = vars.NewByte(v)
-	}
-	return result
-}
-
 func ToBytes32FromBytes(data []byte) [32]byte {
 	var fixedSizeArray [32]byte
 
