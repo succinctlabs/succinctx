@@ -3,6 +3,8 @@ package sha256utils
 import (
 	"crypto/sha256"
 	"math/big"
+
+	"github.com/succinctlabs/sdk/gnarkx/utils/byteutils"
 )
 
 // Computes sha256(data) & ((1 << nbBits) - 1)).
@@ -15,7 +17,7 @@ func HashAndTruncate(data []byte, nbBits int) *big.Int {
 	copy(bytes[:], h)
 
 	// Convert the hash to a big.Int and truncate it to the lower nbBits.
-	value := new(big.Int).SetBytes(bytes[:])
+	value := new(big.Int).SetBytes(byteutils.ReverseBytes(bytes[:]))
 	mask := new(big.Int).Lsh(big.NewInt(1), uint(nbBits))
 	mask.Sub(mask, big.NewInt(1))
 	result := new(big.Int).And(value, mask)

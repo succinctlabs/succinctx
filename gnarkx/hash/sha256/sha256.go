@@ -2,6 +2,8 @@
 package sha256
 
 import (
+	"math/big"
+
 	"github.com/succinctlabs/sdk/gnarkx/bits32"
 	"github.com/succinctlabs/sdk/gnarkx/builder"
 	"github.com/succinctlabs/sdk/gnarkx/vars"
@@ -201,7 +203,7 @@ func HashAndTruncate(api builder.API, in []vars.Byte, nbBits int) vars.Variable 
 	acc := vars.ZERO
 	nbBytes := nbBits / 8
 	for i := 0; i < nbBytes; i++ {
-		power := vars.NewVariableFromInt(1 << (8 * i))
+		power := vars.NewVariableFromString(new(big.Int).Lsh(big.NewInt(1), uint(i*8)).String())
 		acc = api.Add(acc, api.Mul(power, hash[i].Value))
 	}
 
@@ -210,7 +212,7 @@ func HashAndTruncate(api builder.API, in []vars.Byte, nbBits int) vars.Variable 
 	lastByteBits := api.ToBitsFromByte(lastByte)
 	lastByteNbBits := nbBits % 8
 	for i := 0; i < lastByteNbBits; i++ {
-		power := vars.NewVariableFromInt(1<<i + nbBytes*8)
+		power := vars.NewVariableFromString(new(big.Int).Lsh(big.NewInt(1), uint(i+nbBytes*8)).String())
 		acc = api.Add(acc, api.Mul(power, lastByteBits[i].Value))
 	}
 	return acc

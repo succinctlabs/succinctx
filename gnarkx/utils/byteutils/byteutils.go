@@ -1,5 +1,14 @@
 package byteutils
 
+func ReverseBytes(data []byte) []byte {
+	length := len(data)
+	reversed := make([]byte, length)
+	for i := range data {
+		reversed[i] = data[length-1-i]
+	}
+	return reversed
+}
+
 func ToBytes32FromBytes(data []byte) [32]byte {
 	var fixedSizeArray [32]byte
 
