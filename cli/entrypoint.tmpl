@@ -8,7 +8,7 @@ import (
 	"{{ .ImportPath }}"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/succinctlabs/gnark-gadgets/succ"
+	"github.com/succinctlabs/gnark-gadgets/succinct"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 	flag.Parse()
 
 	subcircuit := {{ .PackageName }}.Circuit{}
-	circuit := succ.OuterCircuit[*{{ .PackageName }}.Circuit]{
+	circuit := succinct.OuterCircuit[*{{ .PackageName }}.Circuit]{
 		Subcircuit: &subcircuit,
 	}
 

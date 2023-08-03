@@ -56,8 +56,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// Create or overwrite succinct/main.go in current directory
-	outputFile, err := os.Create("succinct/main.go")
+	// Create or overwrite main.go in current directory
+	outputFile, err := os.Create("main.go")
 	if err != nil {
 		panic(err)
 	}
@@ -68,5 +68,5 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("File succinct/main.go has been successfully generated.")
+	fmt.Println("File main.go has been successfully generated.")
 }
