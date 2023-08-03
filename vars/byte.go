@@ -2,6 +2,8 @@ package vars
 
 import (
 	"encoding/binary"
+	"fmt"
+	"math/big"
 )
 
 // The zero byte as a variable in a circuit. If used within APIs, it will be treated as a constant.
@@ -112,6 +114,37 @@ func InitBytes32Array(n int) [][32]Byte {
 	var bytes [][32]Byte
 	for i := 0; i < n; i++ {
 		bytes = append(bytes, InitBytes32())
+	}
+	return bytes
+}
+
+// TODO should these be implemented as methods on Byte?
+func GetUnderlyingFromByte(vars Byte) byte {
+	rawValue := vars.Value.Value
+	if intValue, ok := rawValue.(int); ok {
+		// If so, check if int is > 255 and panic if it is
+		if intValue > 255 {
+			panic("Value is greater than 255")
+		}
+		// Convert int to type byte
+		convertedValue := byte(intValue)
+		return convertedValue
+	} else if bigIntValue, ok := rawValue.(*big.Int); ok {
+		if bigIntValue.Cmp(big.NewInt(255)) > 0 {
+			panic("Value is greater than 255")
+		}
+		convertedValue := byte(bigIntValue.Int64())
+		return convertedValue
+	} else {
+		fmt.Printf("Value is not of type big.Int %T", rawValue)
+		panic("Value is not of type big.Int")
+	}
+}
+
+func GetUnderlyingFromBytes(vars []Byte) []byte {
+	var bytes []byte
+	for _, v := range vars {
+		bytes = append(bytes, GetUnderlyingFromByte(v))
 	}
 	return bytes
 }
