@@ -23,7 +23,7 @@ func (b *Byte) Set(i1 byte) {
 	b.Value = NewVariableFromInt(int(i1))
 }
 
-func (b *Byte) GetValue() byte {
+func (b *Byte) GetValueUnsafe() byte {
 	rawValue := b.Value.Value
 	if intValue, ok := rawValue.(int); ok {
 		// If so, check if int is > 255 and panic if it is
@@ -65,10 +65,10 @@ func NewBytesFrom(bytes []byte) []Byte {
 	return result
 }
 
-func GetValues(b []Byte) []byte {
+func GetValuesUnsafe(b []Byte) []byte {
 	var bytes []byte
 	for _, v := range b {
-		bytes = append(bytes, v.GetValue())
+		bytes = append(bytes, v.GetValueUnsafe())
 	}
 	return bytes
 }

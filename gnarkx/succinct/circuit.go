@@ -67,7 +67,7 @@ func (f *CircuitFunction) SetWitness(inputBytes []byte) {
 
 	// Set outputHash = sha256(outputBytes) && ((1 << 253) - 1).
 	outputBytes := f.Circuit.OutputBytes()
-	outputBytesValues := vars.GetValues(outputBytes)
+	outputBytesValues := vars.GetValuesUnsafe(outputBytes)
 	outputHash := sha256utils.HashAndTruncate(outputBytesValues, 253)
 	f.OutputHash.Set(outputHash)
 }
