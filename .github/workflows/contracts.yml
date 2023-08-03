@@ -1,0 +1,91 @@
+name: Contracts
+
+env:
+  FOUNDRY_PROFILE: "ci"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.PRIVATE_PULL_TOKEN }}
+          fetch-depth: 2
+
+      - name: Install Foundry
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: Ensure files are the same as forge fmt
+        working-directory: ./contracts
+        run: forge fmt --check
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.PRIVATE_PULL_TOKEN }}
+          fetch-depth: 2
+
+      - name: Install Foundry
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: Build the contracts and print their size
+        working-directory: ./contracts
+        run: forge build --sizes
+
+      - name: Check gas snapshots
+        working-directory: ./contracts
+        run: forge snapshot --check
+
+      - name: Add build summary
+        run: |
+          echo "## Build result" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+
+  test:
+    name: Test
+    needs: ["format", "build"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.PRIVATE_PULL_TOKEN }}
+          fetch-depth: 2
+
+      - name: Install Foundry
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: Check test coverage
+        working-directory: ./contracts
+        run: forge coverage
+
+      - name: Generate a fuzz seed that changes weekly to avoid burning through RPC allowance
+        run: >
+          echo "FOUNDRY_FUZZ_SEED=$(
+            echo $(($EPOCHSECONDS - $EPOCHSECONDS % 604800))
+          )" >> $GITHUB_ENV
+
+      - name: Run the tests
+        working-directory: ./contracts
+        run: forge test
+
+      - name: Add test summary
+        run: |
+          echo "## Tests result" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
