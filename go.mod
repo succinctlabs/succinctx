@@ -6,7 +6,6 @@ require (
 	github.com/consensys/gnark v0.8.1-0.20230731090741-7ca4af9b9ad0
 	github.com/consensys/gnark-crypto v0.11.1-0.20230724160225-800ddb59f51b
 	github.com/ethereum/go-ethereum v1.12.0
-	github.com/succinctlabs/gnark-template v0.0.0-20230803025806-cdb46a5781b2
 )
 
 require (
@@ -20,8 +19,10 @@ require (
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/rs/zerolog v1.29.1 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
+	github.com/succinctlabs/gnark-template v0.0.0-20230803025806-cdb46a5781b2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
