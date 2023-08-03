@@ -211,7 +211,7 @@ func HashAndTruncate(api builder.API, in []vars.Byte, nbBits int) vars.Variable 
 	lastByteNbBits := nbBits % 8
 	for i := 0; i < lastByteNbBits; i++ {
 		power := vars.NewVariableFromInt(1<<i + nbBytes*8)
-		acc = api.Add(acc, api.Mul(power, lastByteBits[i].Value))
+		acc = api.Add(acc, api.Mul(power, lastByteBits[8-i].Value))
 	}
 	return acc
 }
