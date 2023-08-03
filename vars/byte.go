@@ -113,7 +113,7 @@ func SetBytes32FromU64LE(b *[32]Byte, i1 uint64) {
 	SetBytes32(b, cast)
 }
 
-func SetFromBytesLeftPad(b *[32]Byte, i1 []byte) {
+func SetBytes32WithLeftPad(b *[32]Byte, i1 []byte) {
 	if len(i1) > 32 {
 		panic("length of i1 is less than 20")
 	}
@@ -126,7 +126,7 @@ func SetFromBytesLeftPad(b *[32]Byte, i1 []byte) {
 	SetBytes32(b, padded)
 }
 
-func SetFromBytesRightPad(b *[32]Byte, data []byte) {
+func SetBytes32WithRightPad(b *[32]Byte, data []byte) {
 	if len(data) > 32 {
 		panic("length of data is greater than 32")
 	}
