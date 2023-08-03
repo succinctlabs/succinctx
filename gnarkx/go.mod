@@ -1,4 +1,4 @@
-module github.com/succinctlabs/gnark-gadgets
+module github.com/succinctlabs/sdk/gnarkx
 
 go 1.20
 

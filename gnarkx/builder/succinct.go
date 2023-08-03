@@ -1,6 +1,6 @@
 // The basic APIs (for vars.Variable, vars.Bit, vars.Byte, vars.U64, etc) needed to write circuits
 // and tools for reading and writing inputs and outputs from on-chain and off-chain data.
-package succinct
+package builder
 
 import (
 	"github.com/consensys/gnark/frontend"

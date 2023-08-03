@@ -1,7 +1,7 @@
-package succinct
+package builder
 
 import (
-	"github.com/succinctlabs/gnark-gadgets/vars"
+	"github.com/succinctlabs/sdk/gnarkx/vars"
 )
 
 // Computes the or of two bits or i1 | i2.

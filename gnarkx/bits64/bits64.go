@@ -2,12 +2,12 @@
 package bits64
 
 import (
-	"github.com/succinctlabs/gnark-gadgets/succinct"
-	"github.com/succinctlabs/gnark-gadgets/vars"
+	"github.com/succinctlabs/sdk/gnarkx/builder"
+	"github.com/succinctlabs/sdk/gnarkx/vars"
 )
 
 type API struct {
-	api succinct.API
+	api builder.API
 }
 
 // Computes the xor of 64 bit arrays.
