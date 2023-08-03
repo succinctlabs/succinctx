@@ -41,6 +41,6 @@ func NewVariableFromString(s string) Variable {
 	return Variable{Value: frontend.Variable(s)}
 }
 
-func (v *Variable) Set(i1 *big.Int) Variable {
-	return Variable{Value: i1}
+func (v *Variable) Set(i1 *big.Int) {
+	v.Value = frontend.Variable(i1)
 }
