@@ -29,7 +29,7 @@ type Variable struct {
 }
 
 func NewVariable() Variable {
-	return Variable{Value: ZERO}
+	return Variable{Value: frontend.Variable(0)}
 }
 
 func NewVariableFromInt(i1 int) Variable {
