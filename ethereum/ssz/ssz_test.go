@@ -59,12 +59,9 @@ func NewCircuit(gindex int) *TestSimpleSerializeCircuit {
 }
 
 func (circuit *TestSimpleSerializeCircuit) Assign(t TestData) {
-	a := vars.Bytes32(circuit.Root)
-	a.Set(t.root)
-	b := vars.Bytes32(circuit.Leaf)
-	b.Set(t.leaf)
-	c := vars.Bytes32Array(circuit.Proof)
-	c.Set(t.proof)
+	vars.SetBytes32(&circuit.Root, t.root)
+	vars.SetBytes32(&circuit.Leaf, t.leaf)
+	vars.SetBytes32Array(&circuit.Proof, t.proof)
 }
 
 func (circuit *TestSimpleSerializeCircuit) Define(api frontend.API) error {
