@@ -2,8 +2,8 @@
 package bits64
 
 import (
-	"github.com/succinctlabs/gnark-gadgets/builder"
-	"github.com/succinctlabs/gnark-gadgets/vars"
+	"github.com/succinctlabs/sdk/gnarkx/builder"
+	"github.com/succinctlabs/sdk/gnarkx/vars"
 )
 
 type API struct {

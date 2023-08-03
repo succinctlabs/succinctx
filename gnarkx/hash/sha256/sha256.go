@@ -2,9 +2,9 @@
 package sha256
 
 import (
-	"github.com/succinctlabs/gnark-gadgets/bits32"
-	"github.com/succinctlabs/gnark-gadgets/builder"
-	"github.com/succinctlabs/gnark-gadgets/vars"
+	"github.com/succinctlabs/sdk/gnarkx/bits32"
+	"github.com/succinctlabs/sdk/gnarkx/builder"
+	"github.com/succinctlabs/sdk/gnarkx/vars"
 )
 
 // First 32 bits of the fractional parts of the square roots of the first 8 primes.

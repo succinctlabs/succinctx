@@ -2,8 +2,8 @@
 package bits32
 
 import (
-	"github.com/succinctlabs/gnark-gadgets/builder"
-	"github.com/succinctlabs/gnark-gadgets/vars"
+	"github.com/succinctlabs/sdk/gnarkx/builder"
+	"github.com/succinctlabs/sdk/gnarkx/vars"
 )
 
 // An API used for operations related to [32]vars.Bit.

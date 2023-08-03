@@ -8,8 +8,8 @@ import (
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
-	"github.com/succinctlabs/gnark-gadgets/builder"
-	"github.com/succinctlabs/gnark-gadgets/vars"
+	"github.com/succinctlabs/sdk/gnarkx/builder"
+	"github.com/succinctlabs/sdk/gnarkx/vars"
 )
 
 type TestSha256Circuit struct {

@@ -1,7 +1,7 @@
 package builder
 
 import (
-	"github.com/succinctlabs/gnark-gadgets/vars"
+	"github.com/succinctlabs/sdk/gnarkx/vars"
 )
 
 // InputReader is used for reading inputs into a circuit that were provided at the time of the

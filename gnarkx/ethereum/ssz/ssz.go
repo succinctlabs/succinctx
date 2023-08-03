@@ -3,9 +3,9 @@
 package ssz
 
 import (
-	"github.com/succinctlabs/gnark-gadgets/builder"
-	"github.com/succinctlabs/gnark-gadgets/hash/sha256"
-	"github.com/succinctlabs/gnark-gadgets/vars"
+	"github.com/succinctlabs/sdk/gnarkx/builder"
+	"github.com/succinctlabs/sdk/gnarkx/hash/sha256"
+	"github.com/succinctlabs/sdk/gnarkx/vars"
 )
 
 // SimpleSerializeAPI is a wrapper around succinct.API that provides methods related to

@@ -12,11 +12,11 @@ import (
 	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/succinctlabs/gnark-gadgets/builder"
-	"github.com/succinctlabs/gnark-gadgets/hash/sha256"
-	"github.com/succinctlabs/gnark-gadgets/types"
-	"github.com/succinctlabs/gnark-gadgets/utils/sha256utils"
-	"github.com/succinctlabs/gnark-gadgets/vars"
+	"github.com/succinctlabs/sdk/gnarkx/builder"
+	"github.com/succinctlabs/sdk/gnarkx/hash/sha256"
+	"github.com/succinctlabs/sdk/gnarkx/types"
+	"github.com/succinctlabs/sdk/gnarkx/utils/sha256utils"
+	"github.com/succinctlabs/sdk/gnarkx/vars"
 )
 
 // Circuit functions are circuits that want to be deployed as onchain functions.
