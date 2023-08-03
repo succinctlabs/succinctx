@@ -8,8 +8,8 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/succinctlabs/gnark-gadgets/builder"
 	"github.com/succinctlabs/gnark-gadgets/ethereum/ssz"
-	"github.com/succinctlabs/gnark-gadgets/succinct"
 	"github.com/succinctlabs/gnark-gadgets/utils/byteutils"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
@@ -70,7 +70,7 @@ func (circuit *TestSimpleSerializeCircuit) Define(api frontend.API) error {
 	root := circuit.Root
 	gindex := circuit.GIndex
 
-	succinctAPI := succinct.NewAPI(api)
+	succinctAPI := builder.NewAPI(api)
 	sszAPI := ssz.NewAPI(succinctAPI)
 	sszAPI.VerifyProof(root, leaf, proof, gindex)
 	return nil

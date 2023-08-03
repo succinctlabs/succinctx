@@ -2,14 +2,13 @@ package sha256
 
 import (
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
-	"github.com/succinctlabs/gnark-gadgets/succinct"
+	"github.com/succinctlabs/gnark-gadgets/builder"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
@@ -19,7 +18,7 @@ type TestSha256Circuit struct {
 }
 
 func (circuit *TestSha256Circuit) Define(api frontend.API) error {
-	succinctAPI := succinct.NewAPI(api)
+	succinctAPI := builder.NewAPI(api)
 	res := Hash(*succinctAPI, circuit.In)
 	if len(res) != 32 {
 		panic("bad length")
@@ -41,12 +40,10 @@ func TestSha256Witness(t *testing.T) {
 		if len(out) != 256/8 {
 			panic("bad output length")
 		}
-
 		circuit := TestSha256Circuit{
 			In:  vars.NewBytesFrom(in),
 			Out: vars.NewBytesFrom(out),
 		}
-		fmt.Println("circuit.In", circuit.In)
 		witness := TestSha256Circuit{
 			In:  vars.NewBytesFrom(in),
 			Out: vars.NewBytesFrom(out),

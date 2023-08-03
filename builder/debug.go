@@ -1,4 +1,4 @@
-package succinct
+package builder
 
 import (
 	"github.com/consensys/gnark/frontend"

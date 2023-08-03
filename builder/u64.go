@@ -1,4 +1,4 @@
-package succinct
+package builder
 
 import (
 	"math"

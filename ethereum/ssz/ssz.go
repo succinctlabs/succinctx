@@ -3,8 +3,8 @@
 package ssz
 
 import (
+	"github.com/succinctlabs/gnark-gadgets/builder"
 	"github.com/succinctlabs/gnark-gadgets/hash/sha256"
-	"github.com/succinctlabs/gnark-gadgets/succinct"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
@@ -12,11 +12,11 @@ import (
 // SSZ, a serialization method used on the Beacon Chain. For more information and details, see:
 // https://ethereum.org/en/developers/docs/data-structures-and-encoding/ssz/
 type SimpleSerializeAPI struct {
-	api succinct.API
+	api builder.API
 }
 
 // Creates a new SimpleSerializeAPI.
-func NewAPI(api *succinct.API) *SimpleSerializeAPI {
+func NewAPI(api *builder.API) *SimpleSerializeAPI {
 	return &SimpleSerializeAPI{api: *api}
 }
 

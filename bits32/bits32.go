@@ -2,17 +2,17 @@
 package bits32
 
 import (
-	"github.com/succinctlabs/gnark-gadgets/succinct"
+	"github.com/succinctlabs/gnark-gadgets/builder"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
 // An API used for operations related to [32]vars.Bit.
 type API struct {
-	api succinct.API
+	api builder.API
 }
 
 // Creates a new bits32.API.
-func NewAPI(api succinct.API) API {
+func NewAPI(api builder.API) API {
 	return API{api: api}
 }
 

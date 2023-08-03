@@ -3,7 +3,7 @@ package sha256
 
 import (
 	"github.com/succinctlabs/gnark-gadgets/bits32"
-	"github.com/succinctlabs/gnark-gadgets/succinct"
+	"github.com/succinctlabs/gnark-gadgets/builder"
 	"github.com/succinctlabs/gnark-gadgets/vars"
 )
 
@@ -26,7 +26,9 @@ var K = []uint32{
 	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 }
 
-func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
+// Computes the SHA256-2 hash of the input bytes. Note that at compile time of the circuit, len(in)
+// must be a constant.
+func Hash(api builder.API, in []vars.Byte) [32]vars.Byte {
 	bits32 := bits32.NewAPI(api)
 
 	// Decompose bytes to bits.
@@ -188,4 +190,28 @@ func Hash(api succinct.API, in []vars.Byte) [32]vars.Byte {
 		digest[i] = api.ToByteFromBits(bits)
 	}
 	return digest
+}
+
+// Computes sha256(in) && ((1 << nbBits) - 1).
+func HashAndTruncate(api builder.API, in []vars.Byte, nbBits int) vars.Variable {
+	// Compute the untruncated hash.
+	hash := Hash(api, in)
+
+	// Accumulate with byte digits until we get to the last relevant byte.
+	acc := vars.ZERO
+	nbBytes := nbBits / 8
+	for i := 0; i < nbBytes; i++ {
+		power := vars.NewVariableFromInt(1 << (8 * i))
+		acc = api.Add(acc, api.Mul(power, hash[i].Value))
+	}
+
+	// Accumulate with bit digits until we get to the last relevant bit.
+	lastByte := hash[nbBytes]
+	lastByteBits := api.ToBitsFromByte(lastByte)
+	lastByteNbBits := nbBits % 8
+	for i := 0; i < lastByteNbBits; i++ {
+		power := vars.NewVariableFromInt(1<<i + nbBytes*8)
+		acc = api.Add(acc, api.Mul(power, lastByteBits[i].Value))
+	}
+	return acc
 }

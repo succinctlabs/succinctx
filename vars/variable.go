@@ -1,6 +1,10 @@
 package vars
 
-import "github.com/consensys/gnark/frontend"
+import (
+	"math/big"
+
+	"github.com/consensys/gnark/frontend"
+)
 
 // The zero value as a variable in a circuit.
 var ZERO = Variable{Value: 0}
@@ -24,6 +28,10 @@ type Variable struct {
 	Value frontend.Variable
 }
 
+func NewVariable() Variable {
+	return Variable{Value: ZERO}
+}
+
 func NewVariableFromInt(i1 int) Variable {
 	return Variable{Value: frontend.Variable(i1)}
 }
@@ -31,4 +39,8 @@ func NewVariableFromInt(i1 int) Variable {
 // Creates a new variable in a circuit from base10 string integer.
 func NewVariableFromString(s string) Variable {
 	return Variable{Value: frontend.Variable(s)}
+}
+
+func (v *Variable) Set(i1 *big.Int) Variable {
+	return Variable{Value: i1}
 }
