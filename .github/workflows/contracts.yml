@@ -27,7 +27,7 @@ jobs:
 
       - name: Ensure files are the same as forge fmt
         working-directory: ./contracts
-        run: forge fmt --check
+        run: forge fmt src/ test/ script/ --check
 
   build:
     name: Build

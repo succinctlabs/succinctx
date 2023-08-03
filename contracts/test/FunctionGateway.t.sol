@@ -55,8 +55,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
             proofFulfilled: false,
             callbackFulfilled: false
         });
-        EXPECTED_REQUEST_ID =
-            keccak256(abi.encode(FunctionGateway(gateway).nonce(), expectedRequest));
+        EXPECTED_REQUEST_ID = keccak256(abi.encode(FunctionGateway(gateway).nonce(), expectedRequest));
 
         IFunctionRegistry(gateway).registerFunction(FUNCTION_ID, verifier, msg.sender);
 
@@ -70,9 +69,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
-        emit ProofRequested(
-            prevNonce, EXPECTED_REQUEST_ID, REQUEST, CALLBACK_CONTEXT, DEFAULT_GAS_LIMIT, 0
-        );
+        emit ProofRequested(prevNonce, EXPECTED_REQUEST_ID, REQUEST, CALLBACK_CONTEXT, DEFAULT_GAS_LIMIT, 0);
         vm.prank(consumer);
         bytes32 requestId = FunctionGateway(gateway).request{value: DEFAULT_FEE}(
             FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT
@@ -106,13 +103,9 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
-        emit ProofRequested(
-            prevNonce, EXPECTED_REQUEST_ID, REQUEST, CALLBACK_CONTEXT, DEFAULT_GAS_LIMIT, 0
-        );
+        emit ProofRequested(prevNonce, EXPECTED_REQUEST_ID, REQUEST, CALLBACK_CONTEXT, DEFAULT_GAS_LIMIT, 0);
         vm.prank(consumer);
-        bytes32 requestId = FunctionGateway(gateway).request(
-            FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT
-        );
+        bytes32 requestId = FunctionGateway(gateway).request(FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT);
         assertEq(EXPECTED_REQUEST_ID, requestId);
 
         (
@@ -263,9 +256,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         // Callback
         // inner error: vm.expectRevert(abi.encodeWithSelector(CallbackAlreadyFulfilled.selector, requestId));
         vm.expectRevert(
-            abi.encodeWithSelector(
-                CallbackFailed.selector, consumer, AttackConsumer.handleRequest.selector
-            )
+            abi.encodeWithSelector(CallbackFailed.selector, consumer, AttackConsumer.handleRequest.selector)
         );
         FunctionGateway(gateway).callback(requestId, REQUEST_OUTPUT, CALLBACK_CONTEXT);
     }

@@ -13,14 +13,12 @@ contract MockFunctionGateway is IFunctionGateway {
         requests[_requestId] = _request;
     }
 
-    function request(
-        bytes32 _functionId,
-        bytes memory _input,
-        bytes4 _callbackSelector,
-        bytes memory _context
-    ) external payable returns (bytes32) {
-        return
-            request(_functionId, _input, _callbackSelector, _context, DEFAULT_GAS_LIMIT, tx.origin);
+    function request(bytes32 _functionId, bytes memory _input, bytes4 _callbackSelector, bytes memory _context)
+        external
+        payable
+        returns (bytes32)
+    {
+        return request(_functionId, _input, _callbackSelector, _context, DEFAULT_GAS_LIMIT, tx.origin);
     }
 
     function request(
@@ -47,9 +45,7 @@ contract MockFunctionGateway is IFunctionGateway {
         bytes32 requestId = keccak256(abi.encode(nonce, r));
         requests[requestId] = r;
 
-        emit ProofRequested(
-            nonce, requestId, _input, _context, _gasLimit, calculateFeeAmount(_gasLimit)
-        );
+        emit ProofRequested(nonce, requestId, _input, _context, _gasLimit, calculateFeeAmount(_gasLimit));
         nonce++;
         return requestId;
     }
@@ -78,12 +74,7 @@ contract MockFunctionGateway is IFunctionGateway {
         }
 
         emit ProofBatchFulfilled(
-            _requestIds,
-            _aggregateProof,
-            _inputsRoot,
-            _outputHashes,
-            _outputsRoot,
-            _verificationKeyRoot
+            _requestIds, _aggregateProof, _inputsRoot, _outputHashes, _outputsRoot, _verificationKeyRoot
         );
     }
 
@@ -91,8 +82,7 @@ contract MockFunctionGateway is IFunctionGateway {
         FunctionRequest storage r = requests[_requestId];
         r.callbackFulfilled = true;
 
-        (bool status,) =
-            r.callbackAddress.call(abi.encodeWithSelector(r.callbackSelector, _output, _context));
+        (bool status,) = r.callbackAddress.call(abi.encodeWithSelector(r.callbackSelector, _output, _context));
         if (!status) {
             revert CallbackFailed(r.callbackAddress, r.callbackSelector);
         }

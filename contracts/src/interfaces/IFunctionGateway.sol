@@ -57,12 +57,10 @@ interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
         view
         returns (bytes32, bytes32, bytes32, bytes32, address, bytes4, bool, bool);
 
-    function request(
-        bytes32 functionId,
-        bytes memory input,
-        bytes4 callbackSelector,
-        bytes memory context
-    ) external payable returns (bytes32);
+    function request(bytes32 functionId, bytes memory input, bytes4 callbackSelector, bytes memory context)
+        external
+        payable
+        returns (bytes32);
 
     function request(
         bytes32 functionId,

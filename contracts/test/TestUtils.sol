@@ -12,9 +12,7 @@ library TestFuncLib {
         bytes4 _callbackSelector,
         bytes memory _context
     ) internal returns (bytes32) {
-        return FunctionGateway(_gateway).request{value: msg.value}(
-            _functionId, _input, _callbackSelector, _context
-        );
+        return FunctionGateway(_gateway).request{value: msg.value}(_functionId, _input, _callbackSelector, _context);
     }
 
     function decode(bytes memory _output) internal pure returns (bool) {
@@ -74,9 +72,7 @@ contract AttackConsumer {
         return TestFuncLib.request(_gateway, _functionId, _input, _callbackSelector, _context);
     }
 
-    function setCallbackParams(bytes32 _requestId, bytes memory _output, bytes memory _proof)
-        external
-    {
+    function setCallbackParams(bytes32 _requestId, bytes memory _output, bytes memory _proof) external {
         requestId = _requestId;
         output = _output;
         context = _proof;
