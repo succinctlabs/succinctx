@@ -1,4 +1,4 @@
-package circuit
+package succ
 
 import (
 	"bytes"
