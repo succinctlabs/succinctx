@@ -35,10 +35,10 @@ type CircuitFunction struct {
 // for loading witnesses into the circuit, defining constraints, and reading and writing data to
 // Ethereum.
 type Circuit interface {
-	SetWitness(inputBytes []byte) error
+	SetWitness(inputBytes []byte)
 	Define(api frontend.API) error
-	InputBytes() []vars.Byte
-	OutputBytes() []vars.Byte
+	GetInputBytes() *[]vars.Byte
+	GetOutputBytes() *[]vars.Byte
 }
 
 // Creates a new circuit function based on a circuit that implements the Circuit interface.
@@ -55,19 +55,20 @@ func NewCircuitFunction(c Circuit) CircuitFunction {
 // have the form f(inputs, witness) = outputs. Both inputsHash and outputsHash are h(inputs) and
 // h(outputs) respectively, where h is a hash function.
 func (f *CircuitFunction) SetWitness(inputBytes []byte) {
+	// Set the input bytes.
+	vars.SetBytes(f.Circuit.GetInputBytes(), inputBytes)
+
 	// Assign the circuit.
-	err := f.Circuit.SetWitness(inputBytes)
-	if err != nil {
-		panic(err)
-	}
+	f.Circuit.SetWitness(inputBytes)
 
 	// Set inputHash = sha256(inputBytes) && ((1 << 253) - 1).
 	inputHash := sha256utils.HashAndTruncate(inputBytes, 253)
+	fmt.Println("inputHash", inputHash)
 	f.InputHash.Set(inputHash)
 
 	// Set outputHash = sha256(outputBytes) && ((1 << 253) - 1).
-	outputBytes := f.Circuit.OutputBytes()
-	outputBytesValues := vars.GetValuesUnsafe(outputBytes)
+	outputBytes := f.Circuit.GetOutputBytes()
+	outputBytesValues := vars.GetValuesUnsafe(*outputBytes)
 	outputHash := sha256utils.HashAndTruncate(outputBytesValues, 253)
 	f.OutputHash.Set(outputHash)
 }
@@ -81,8 +82,8 @@ func (f *CircuitFunction) Define(baseApi frontend.API) error {
 
 	// Automatically handle the input and output hashes and assert that they must be consistent.
 	api := builder.NewAPI(baseApi)
-	inputHash := sha256.HashAndTruncate(*api, f.Circuit.InputBytes(), 253)
-	outputHash := sha256.HashAndTruncate(*api, f.Circuit.OutputBytes(), 253)
+	inputHash := sha256.HashAndTruncate(*api, *f.Circuit.GetInputBytes(), 253)
+	outputHash := sha256.HashAndTruncate(*api, *f.Circuit.GetOutputBytes(), 253)
 	api.AssertIsEqual(f.InputHash, inputHash)
 	api.AssertIsEqual(f.OutputHash, outputHash)
 	return nil
@@ -179,7 +180,7 @@ func (f *CircuitFunction) Prove(inputBytes []byte) {
 	// Deserialize the R1CS.
 	_, err = r1cs.ReadFrom(r1csFile)
 	if err != nil {
-		panic(fmt.Errorf("Failed to read data: %w", err))
+		panic(fmt.Errorf("failed to read data: %w", err))
 	}
 
 	// Register hints which are used for automatic constraint generation.
@@ -222,8 +223,13 @@ func (f *CircuitFunction) Prove(inputBytes []byte) {
 	}
 	defer proofFile.Close()
 
-	// Write the proof to the file.
+	// Marshal the proof to JSON.
 	jsonString, err := json.Marshal(output)
+	if err != nil {
+		panic(fmt.Errorf("failed to marshal output: %w", err))
+	}
+
+	// Write the proof to the file.
 	_, err = proofFile.Write(jsonString)
 	if err != nil {
 		panic(fmt.Errorf("failed to write data: %w", err))

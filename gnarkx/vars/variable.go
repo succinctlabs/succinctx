@@ -29,7 +29,7 @@ type Variable struct {
 }
 
 func NewVariable() Variable {
-	return Variable{Value: ZERO}
+	return Variable{Value: frontend.Variable(0)}
 }
 
 func NewVariableFromInt(i1 int) Variable {
@@ -41,6 +41,6 @@ func NewVariableFromString(s string) Variable {
 	return Variable{Value: frontend.Variable(s)}
 }
 
-func (v *Variable) Set(i1 *big.Int) Variable {
-	return Variable{Value: i1}
+func (v *Variable) Set(i1 *big.Int) {
+	v.Value = frontend.Variable(i1)
 }
