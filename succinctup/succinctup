@@ -132,8 +132,10 @@ main() {
     BIN_ARCHIVE_URL="${RELEASE_URL}succinct_${SUCCINCTUP_VERSION}_${PLATFORM}_${ARCHITECTURE}.$EXT"
     MAN_TARBALL_URL="${RELEASE_URL}succinct_man_${SUCCINCTUP_VERSION}.tar.gz"
 
+    echo "Downloading from $BIN_ARCHIVE_URL"
+
     # Download and extract the binaries archive
-    say "downloading latest forge, cast, anvil, and chisel"
+    say "downloading latest succinct binaries"
     if [ "$PLATFORM" = "win32" ]; then
       tmp="$(mktemp -d 2>/dev/null || echo ".")/succinct.zip"
       ensure download "$BIN_ARCHIVE_URL" "$tmp"
@@ -165,7 +167,7 @@ main() {
         cat 1>&2 <<EOF
 There are multiple binaries with the name '$bin' present in your 'PATH'.
 This may be the result of installing '$bin' using another method,
-like Cargo or other package managers.
+like Go or other package managers.
 You may need to run 'rm $which_path' or move '$SUCCINCT_BIN_DIR'
 in your 'PATH' to allow the newly installed version to take precedence!
 
