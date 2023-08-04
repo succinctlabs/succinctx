@@ -139,7 +139,6 @@ main() {
     say "downloading latest succinct binaries from $RELEASE_URL..."
     tmp_file="$(mktemp -t succinct.tar.gz)"
     # Use wget with the GitHub API to download the tarball, suppress output with -q
-    echo "Downloading $RELEASE_URL"
     ensure wget -q -O "$tmp_file" "$RELEASE_URL" >/dev/null 2>&1
     file "$tmp_file" # Print the file type
     tmp_dir="$(mktemp -d -t succinct)"
@@ -279,7 +278,6 @@ ensure() {
 
 # Downloads $1 into $2 or stdout
 download() {
-  say "downloading $1"
   if [ "$2" ]; then
     # output into $2
     if check_cmd curl; then
