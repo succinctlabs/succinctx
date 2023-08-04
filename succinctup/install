@@ -18,9 +18,11 @@ BIN_PATH="$SUCCINCT_BIN_DIR/succinctup"
 
 # Create the .succinct bin directory and succinctup binary if it doesn't exist.
 mkdir -p $SUCCINCT_BIN_DIR
-rm -f $BIN_PATH
+
+# Download the succinctup binary and make it executable.
+rm -rf $BIN_PATH
 curl -sS -L $BIN_URL -o $BIN_PATH
-chmod +rx $BIN_PATH
+chmod +x $BIN_PATH
 
 # Create the man directory for future man files if it doesn't exist.
 mkdir -p $SUCCINCT_MAN_DIR

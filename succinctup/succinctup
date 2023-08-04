@@ -57,7 +57,7 @@ main() {
     # Enter local repo and build
     say "installing from $SUCCINCTUP_LOCAL_REPO"
     cd "$SUCCINCTUP_LOCAL_REPO/cli"
-    ensure go build -o "$SUCCINCT_BIN_DIR/succ" main.go
+    ensure go build -o "$SUCCINCT_BIN_DIR/succinct" main.go
 
     say "done"
     exit 0
@@ -73,12 +73,12 @@ main() {
     # Normalize versions (handle channels, versions without v prefix
     if [[ "$SUCCINCTUP_VERSION" == "nightly" ]]; then
       # Locate real nightly tag
-      SHA=$(ensure curl -sSf "https://cli.succinct.xyz/repos/$SUCCINCTUP_REPO/git/refs/tags/nightly" \
-        | grep -Eo '"sha"[^,]*' \
-        | grep -Eo '[^:]*$' \
-        | tr -d '"' \
-        | tr -d ' ' \
-        | cut -d ':' -f2 )
+      # SHA=$(ensure curl -sSf "https://cli.succinct.xyz/repos/$SUCCINCTUP_REPO/git/refs/tags/nightly" \
+      #   | grep -Eo '"sha"[^,]*' \
+      #   | grep -Eo '[^:]*$' \
+      #   | tr -d '"' \
+      #   | tr -d ' ' \
+      #   | cut -d ':' -f2 )
       # SUCCINCTUP_TAG="nightly-${SHA}"
       SUCCINCTUP_TAG="nightly"
     elif [[ "$SUCCINCTUP_VERSION" == nightly* ]]; then
@@ -139,22 +139,23 @@ main() {
     say "downloading latest succinct binaries from $RELEASE_URL..."
     tmp_file="$(mktemp -t succinct.tar.gz)"
     # Use wget with the GitHub API to download the tarball, suppress output with -q
+    echo "Downloading $RELEASE_URL"
     ensure wget -q -O "$tmp_file" "$RELEASE_URL" >/dev/null 2>&1
     file "$tmp_file" # Print the file type
     tmp_dir="$(mktemp -d -t succinct)"
     ensure tar -xzC "$tmp_dir" -f "$tmp_file"
     # Move the content from the top-level directory to the desired location
     ensure mv "$tmp_dir"/*/* "$SUCCINCT_BIN_DIR"
-    rm -f "$tmp_file"
+    rm -rf "$tmp_file"
     rm -rf "$tmp_dir"
 
     say "download successful, building the CLI..."
 
-    # Build the CLI
+    # Build the CLI and move it to the bin directory with it named as "succinct".
     cli_dir="$SUCCINCT_BIN_DIR/cli"
     ensure cd "$cli_dir"
     ensure go build
-    ensure mv "$cli_dir/cli" "$SUCCINCT_BIN_DIR/succinct" # Assuming the built binary is named 'succinct'
+    ensure mv "$cli_dir/cli" "$SUCCINCT_BIN_DIR/succinct"
 
     # Optionally download the manuals
     # if check_cmd tar; then
@@ -213,7 +214,7 @@ EOF
 
     # Build the repo and install the binaries locally to the .succinct bin directory.
     cd "$REPO_PATH/cli"
-    ensure go build -o "$SUCCINCT_BIN_DIR/succ" main.go
+    ensure go build -o "$SUCCINCT_BIN_DIR/succinct" main.go
 
     # If help2man is installed, use it to add Succinct man pages.
     # if check_cmd help2man; then
@@ -278,6 +279,7 @@ ensure() {
 
 # Downloads $1 into $2 or stdout
 download() {
+  say "downloading $1"
   if [ "$2" ]; then
     # output into $2
     if check_cmd curl; then
