@@ -150,6 +150,22 @@ func (circuit *CircuitFunction) Build() {
 		fmt.Println("Failed to write data:", err)
 		return
 	}
+
+	// Write verifier smart contract into a file.
+	verifierFile, err := os.Create("build/FunctionVerifier.sol")
+	if err != nil {
+		fmt.Println("Failed to create file:", err)
+		return
+	}
+	defer verifierFile.Close()
+
+	svk := &SuccinctVerifyingKey{VerifyingKey: vk}
+	err = svk.ExportIFunctionVerifierSolidity(verifierFile)
+	if err != nil {
+		fmt.Println("Failed to export solidity verifier:", err)
+		return
+	}
+
 }
 
 // Generates a proof for f(inputs, witness) = outputs based on a circuit.
