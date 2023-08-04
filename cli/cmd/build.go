@@ -10,7 +10,7 @@ import (
 
 var buildCmd = &cobra.Command{
 	Use:   "build",
-	Short: "Build and run the initialized succinct project",
+	Short: "Build the succinct project",
 	Run: func(cmd *cobra.Command, args []string) {
 		buildCLI()
 	},
@@ -46,7 +46,7 @@ func isProjectInitialized() bool {
 
 func buildAndRun() error {
 	// Build the project
-	buildCmd := exec.Command("go", "build", "-o", "project", "circuit/main.go")
+	buildCmd := exec.Command("go", "build", "-o", "project", "./circuit")
 	if err := buildCmd.Run(); err != nil {
 		return fmt.Errorf("failed to build the project: %w", err)
 	}

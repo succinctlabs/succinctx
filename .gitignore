@@ -20,4 +20,6 @@ bin/
 
 keystore
 
-out/
+# Ignoring files generated from CLI build
+*.bin
+**/Verifier.sol
