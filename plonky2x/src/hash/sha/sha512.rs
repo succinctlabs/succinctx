@@ -1,13 +1,29 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::BoolTarget;
+use plonky2::iop::target::{Target, BoolTarget};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::hash::bit_operations::util::{_right_rotate, _shr, uint64_to_bits};
 use crate::hash::bit_operations::{add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add};
 
+fn select_chunk<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    b: BoolTarget,
+    x: [BoolTarget; 64],
+    y: [BoolTarget; 64]
+) -> [BoolTarget; 64] {
+    let mut res = [None; 64];
+    for i in 0..64 {
+        res[i] = Some(builder.select(b, x[i].target, y[i].target));
+    }
+    res.map(|x| BoolTarget::new_unsafe(x.unwrap()))
+}
+
+const CHUNK_128_BYTES: usize = 128;
+
 pub struct Sha512Target {
     pub message: Vec<BoolTarget>,
+    pub message_len: Target,
     pub digest: Vec<BoolTarget>,
 }
 
@@ -136,14 +152,32 @@ pub fn reshape(u: Vec<BoolTarget>) -> Vec<[BoolTarget; 64]> {
     res
 }
 
-pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
+pub fn sha512<F: RichField + Extendable<D>, const D: usize, const MAX_MESSAGE_LENGTH: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    message: &[BoolTarget],
-) -> Vec<BoolTarget> {
-    let mut msg_input = Vec::new();
-    msg_input.extend_from_slice(message);
+    // In bytes
+    message_len_bytes: usize,
+) -> Sha512Target {
+    assert!(MAX_MESSAGE_LENGTH > 0 && MAX_MESSAGE_LENGTH % CHUNK_128_BYTES == 0);
 
-    let msg_bit_len: u128 = message.len().try_into().expect("message too long");
+    let length = builder.add_virtual_target();
+    // Compress all full message chunks (128-bytes)
+
+    // let length_bytes_target = builder.le_sum(length_bits.to_vec().iter());
+    // let message_len_bytes_target = builder.constant(F::from_canonical_usize(message_len_bytes));
+    // builder.connect(length_bytes_target, message_len_bytes_target);
+
+    // The bits [7 .. 64] will be the total number of chunks
+    let last_block_num = builder.constant(F::from_canonical_usize((message_len_bytes * 8) + 129 / 1024));
+
+    let mut msg_input = Vec::new();
+    // msg_input.extend_from_slice(&message[..message_len]);
+
+    let max_msg_bit_len: u128 = MAX_MESSAGE_LENGTH as u128 * 8;
+    let msg_bit_len: u128 = message_len_bytes as u128 * 8;
+
+    for _i in 0..msg_bit_len {
+        msg_input.push(builder.add_virtual_bool_target_safe());
+    }
 
     // minimum_padding = 1 + 128 (min 1 bit for the pad, and 128 bit for the msg size)
     let msg_with_min_padding_len = msg_bit_len + 129;
@@ -160,11 +194,21 @@ pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
         msg_input.push(builder.constant_bool(has_bit));
     }
 
+    // No-op bits
+    for _i in msg_with_min_padding_len + additional_padding_len..max_msg_bit_len {
+        msg_input.push(builder.constant_bool(false));
+    }
+
     let mut sha512_hash = get_initial_hash(builder);
     let round_constants = get_round_constants(builder);
 
+    let mut do_noop = builder.constant_bool(false);
+
     // Process the input with 1024 bit chunks
     for chunk_start in (0..msg_input.len()).step_by(1024) {
+        let i_target = builder.constant(F::from_canonical_usize(chunk_start / 1024));
+        let is_last_block = builder.is_equal(i_target, last_block_num);
+
         let chunk = msg_input[chunk_start..chunk_start + 1024].to_vec();
         let mut u = Vec::new();
 
@@ -245,7 +289,17 @@ pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
             a = add_arr(final_temp1, final_temp2, builder);
         }
 
-        sha512_hash = zip_add(sha512_hash, [a, b, c, d, e, f, g, h], builder);
+        let new_sha512_hash = zip_add(sha512_hash, [a, b, c, d, e, f, g, h], builder);
+        for i in 0..8 {
+            sha512_hash[i] = select_chunk(builder, do_noop, sha512_hash[i], new_sha512_hash[i]);
+        }
+
+        do_noop = BoolTarget::new_unsafe(
+            builder.select(
+                    do_noop,
+                    do_noop.target,
+                    is_last_block.target)
+        );
     }
 
     let mut digest = Vec::new();
@@ -255,14 +309,15 @@ pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
         }
     }
 
-    digest
+    Sha512Target { message: msg_input, message_len: length, digest }
 }
 
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::iop::witness::PartialWitness;
+    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use plonky2::field::types::{Field, PrimeField64};
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use subtle_encoding::hex::decode;
@@ -284,133 +339,68 @@ mod tests {
         res
     }
 
-    #[test]
-    fn test_sha512_empty() -> Result<()> {
-        let msg = b"";
+    fn run_test<const MAX_MESSAGE_LENGTH: usize>(
+        msg: &[u8],
+        expected_digest: &str,
+    ) -> Result<()> {
         let msg_bits = to_bits(msg.to_vec());
-        let expected_digest = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e";
         let digest_bits = to_bits(decode(expected_digest).unwrap());
 
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
-        let message = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let digest = sha512(&mut builder, &message);
-        let pw = PartialWitness::new();
 
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(digest[i].target);
-            } else {
-                builder.assert_zero(digest[i].target);
-            }
+        let mut builder: CircuitBuilder<plonky2::field::goldilocks_field::GoldilocksField, 2> = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
+
+        let sha512_targets = sha512::<F, D, MAX_MESSAGE_LENGTH>(&mut builder, msg_bits.len() / 8);
+        builder.register_public_inputs(&sha512_targets.digest.iter().map(|x| x.target).collect::<Vec<_>>());
+
+        let mut pw = PartialWitness::new();
+        for i in 0..msg_bits.len() {
+            pw.set_bool_target(sha512_targets.message[i], msg_bits[i]);
         }
+        pw.set_target(sha512_targets.message_len, F::from_canonical_u64(msg.len() as u64));
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
 
+        for (expected_bit, proof_bit) in digest_bits.iter().zip(proof.public_inputs.iter()) {
+            assert_eq!(*expected_bit as u64, proof_bit.to_canonical_u64());
+        }
+
         data.verify(proof)
+    }
+
+    #[test]
+    fn test_sha512_empty() -> Result<()> {
+        let msg = b"";
+        let expected_digest = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e";
+
+        run_test::<CHUNK_128_BYTES>(msg, expected_digest)
     }
 
     #[test]
     fn test_sha512_small_msg() -> Result<()> {
         let msg = b"plonky2";
-        let msg_bits = to_bits(msg.to_vec());
         let expected_digest = "7c6159dd615db8c15bc76e23d36106e77464759979a0fcd1366e531f552cfa0852dbf5c832f00bb279cbc945b44a132bff3ed0028259813b6a07b57326e88c87";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
 
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
-        let message = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let digest = sha512(&mut builder, &message);
-        let pw = PartialWitness::new();
-
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(digest[i].target);
-            } else {
-                builder.assert_zero(digest[i].target);
-            }
-        }
-
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-
-        data.verify(proof)
+        run_test::<CHUNK_128_BYTES>(msg, expected_digest)
     }
 
     #[test]
     fn test_sha512_large_msg() -> Result<()> {
         let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
-        let msg_bits = to_bits(msg.to_vec());
         let expected_digest = "4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
 
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        let message = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let digest = sha512(&mut builder, &message);
-        let pw = PartialWitness::new();
-
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(digest[i].target);
-            } else {
-                builder.assert_zero(digest[i].target);
-            }
-        }
-
-        dbg!(builder.num_gates());
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-
-        data.verify(proof)
+        run_test::<CHUNK_128_BYTES>(&msg, expected_digest)
     }
 
     #[test]
     #[should_panic]
     fn test_sha512_failure() {
         let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
-        let msg_bits = to_bits(msg.to_vec());
         let expected_digest = "3388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
 
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
-        let message = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let digest = sha512(&mut builder, &message);
-        let pw = PartialWitness::new();
-
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(digest[i].target);
-            } else {
-                builder.assert_zero(digest[i].target);
-            }
-        }
-
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-
-        data.verify(proof).expect("sha512 error");
+        run_test::<CHUNK_128_BYTES>(&msg, expected_digest).expect("should fail")
     }
 }

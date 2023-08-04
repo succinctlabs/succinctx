@@ -18,8 +18,6 @@ use crate::num::biguint::BigUintTarget;
 use crate::num::u32::gadgets::arithmetic_u32::U32Target;
 use crate::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
 
-const MAX_NUM_SIGS: usize = 256;
-
 #[derive(Clone, Debug)]
 pub struct EDDSAPublicKeyTarget<C: Curve>(pub AffinePointTarget<C>);
 
@@ -31,7 +29,7 @@ pub struct EDDSASignatureTarget<C: Curve> {
 
 #[derive(Clone, Debug)]
 pub struct EDDSATargets<C: Curve> {
-    pub msgs: Vec<Vec<BoolTarget>>,
+    pub msg: Vec<BoolTarget>,
     pub sigs: Vec<EDDSASignatureTarget<C>>,
     pub pub_keys: Vec<EDDSAPublicKeyTarget<C>>,
 }
@@ -79,7 +77,8 @@ pub fn verify_signatures_circuit<
         C: Curve,
         E: CubicParameters<F>,
         Config: GenericConfig<D, F = F, FE = F::Extension> + 'static,
-        const D: usize>(
+        const D: usize,
+        const MAX_MESSAGE_LENGTH: usize>(
     builder: &mut CircuitBuilder<F, D>,
     num_sigs: usize,
     msg_len: u128, // message length in bytes
@@ -87,10 +86,14 @@ pub fn verify_signatures_circuit<
 where
     Config::Hasher: AlgebraicHasher<F>,
 {
-    assert!(num_sigs > 0 && num_sigs <= MAX_NUM_SIGS);
-
     // Create the eddsa circuit's virtual targets.
-    let mut msgs = Vec::new();
+    // There are basically the circuit's inputs.
+    let mut msg = Vec::new();
+    for _ in 0..msg_len * 8 {
+        // Note that add_virtual_bool_target_safe will do a range check to verify each element is 0 or 1.
+        msg.push(builder.add_virtual_bool_target_safe());
+    }
+
     let mut sigs = Vec::new();
     let mut pub_keys = Vec::new();
     let mut curta_pub_keys = Vec::new();
@@ -99,12 +102,6 @@ where
     let mut sigs_s_limbs = Vec::new();
 
     for _i in 0..num_sigs {
-        let mut msg = Vec::new();
-        for _ in 0..msg_len * 8 {
-            // Note that add_virtual_bool_target_safe will do a range check to verify each element is 0 or 1.
-            msg.push(builder.add_virtual_bool_target_safe());
-        }
-
         // There is already a calculation for the number of limbs needed for the underlying biguint targets.
         let sig = EDDSASignatureTarget {
             r: builder.add_virtual_affine_point_target(),
@@ -135,10 +132,18 @@ where
         for i in 0..msg.len() {
             hash_msg.push(msg[i]);
         }
-        msgs.push(msg);
 
-        let digest_bits_target = sha512(builder, &hash_msg);
-        let digest = biguint_from_le_bytes(builder, digest_bits_target);
+        let hash_msg_bytes_len = hash_msg.len() / 8;
+        
+        let sha512_targets = sha512::<F, D, MAX_MESSAGE_LENGTH>(builder, hash_msg_bytes_len);
+        for i in 0..hash_msg.len() {
+            builder.connect(sha512_targets.message[i].target, hash_msg[i].target);
+        }
+
+        let msg_len_bytes_target = builder.constant(F::from_canonical_usize(hash_msg_bytes_len));
+        builder.connect(sha512_targets.message_len, msg_len_bytes_target);
+
+        let digest = biguint_from_le_bytes(builder, sha512_targets.digest);
         let h_scalar = builder.reduce::<Ed25519Scalar>(&digest);
 
         let h_scalar_limbs = h_scalar.value.limbs.iter().map(|x| x.0).collect::<Vec<_>>();
@@ -155,7 +160,7 @@ where
     }
 
     // "Pad" the rest of the scalar mul inputs with dummy operands
-    for _i in num_sigs..MAX_NUM_SIGS {
+    for _i in num_sigs..256 {
         curta_pub_keys.push(ScalarMulEd25519Gadget::constant_affine_point(builder, CurtaEd25519::generator()));
         h_scalars_limbs.push([builder.zero(); 8].to_vec());
 
@@ -182,7 +187,7 @@ where
         CircuitBuilderCurve::connect_affine_point(builder, &s_times_g, &rhs);
     }
 
-    EDDSATargets { msgs, pub_keys, sigs }
+    EDDSATargets { msg, pub_keys, sigs }
 }
 
 #[cfg(test)]
@@ -291,10 +296,11 @@ mod tests {
 
         assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
 
+        const MAX_MESSAGE_LENGTH: usize = 128;
         let eddsa_target =
-            verify_signatures_circuit::<F, Curve, E, C, D>(&mut builder, 1, msg.len().try_into().unwrap());
+            verify_signatures_circuit::<F, Curve, E, C, D, MAX_MESSAGE_LENGTH>(&mut builder, 1, msg.len().try_into().unwrap());
         for i in 0..msg_bits.len() {
-            pw.set_bool_target(eddsa_target.msgs[0][i], msg_bits[i]);
+            pw.set_bool_target(eddsa_target.msg[i], msg_bits[i]);
         }
 
         pw.set_biguint_target(&eddsa_target.pub_keys[0].0.x.value, &pub_key.x.to_canonical_biguint());
@@ -355,11 +361,12 @@ mod tests {
 
         assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
 
+        const MAX_MESSAGE_LENGTH: usize = 256;
         let eddsa_target =
-            verify_signatures_circuit::<F, Curve, E, C, D>(&mut builder, 1, msg_bytes.len().try_into().unwrap());
+            verify_signatures_circuit::<F, Curve, E, C, D, MAX_MESSAGE_LENGTH>(&mut builder, 1, msg_bytes.len().try_into().unwrap());
 
         for i in 0..msg_bits.len() {
-            pw.set_bool_target(eddsa_target.msgs[0][i], msg_bits[i]);
+            pw.set_bool_target(eddsa_target.msg[i], msg_bits[i]);
         }
 
         pw.set_biguint_target(&eddsa_target.pub_keys[0].0.x.value, &pub_key.x.to_canonical_biguint());
