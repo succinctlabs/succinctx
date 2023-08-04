@@ -8,9 +8,7 @@ import "forge-std/Test.sol";
 import {OutputReader} from "src/libraries/OutputReader.sol";
 
 contract OutputReaderTest is Test {
-
-    function setUp() public {
-    }
+    function setUp() public {}
 
     function test_ReadUint256() public {
         bytes memory output = abi.encodePacked(uint256(1));
