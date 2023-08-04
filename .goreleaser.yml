@@ -159,5 +159,5 @@ release:
   name_template: "v{{ .Version }}"
   footer: |
     * * *
-
-    Thoughts? Questions? We'd love to hear from you. Feel free to reach out on [Twitter](https://twitter.com/succinctlabs) or [Discord](https://discord.gg/succinctlabs).
+    Having trouble? Open an [issue](https://github.com/succinctlabs/sdk/issues/new) on Github.
+    Other thoughts? Come participate with the community on [Twitter](https://twitter.com/succinctlabs) or [Discord](https://discord.gg/succinctlabs).

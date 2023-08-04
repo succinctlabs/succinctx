@@ -12,7 +12,18 @@ import (
 func main() {
 	proveFlag := flag.Bool("prove", false, "prove the circuit")
 	inputBytesString := flag.String("input", "", "input bytes to prove with 0x prefix")
+	initFlag := flag.Bool("init", false, "initialize the circuit")
 	flag.Parse()
+
+	if *initFlag {
+		fmt.Println("Scaffold files been successfully generated.")
+		return
+	}
+
+	if !*proveFlag && !*initFlag {
+		printHelp()
+		return
+	}
 
 	circuit := succinct.NewCircuitFunction(NewCircuit())
 
@@ -29,4 +40,9 @@ func main() {
 
 	fmt.Println("compiling and building circuit artifacts")
 	circuit.Build()
+}
+
+func printHelp() {
+	fmt.Println("Usage:")
+	fmt.Println("  succinct init - initialize the circuit")
 }

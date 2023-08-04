@@ -15,13 +15,23 @@ SUCCINCT_MAN_DIR="$SUCCINCT_DIR/share/man/man1"
 
 # TODO change this to sdk/main link
 # BIN_URL="https://raw.githubusercontent.com/succinctlabs/sdk/main/succinctup/succinctup"
-BIN_URL="https://raw.githubusercontent.com/succinctlabs/sdk/68be656e5450dd3b89160ef556acd546a8b9b868/succinctup/succinctup?token=GHSAT0AAAAAACET55R7BCDPRMGYOUGNW2NEZGMB5TA"
+# Define the URL of the raw content
+BIN_URL="https://raw.githubusercontent.com/succinctlabs/sdk/a41133aa674ffb21a243081207cc9e5b3d3c4b67/succinctup/succinctup"
 BIN_PATH="$SUCCINCT_BIN_DIR/succinctup"
+
+# Since private reposity, must use GitHub token.
+GITHUB_TOKEN=${GITHUB_TOKEN}
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo "GITHUB_TOKEN is not set, please set it to a value of a PAT with repo read access: https://docs.github.com/en/enterprise-server@3.6/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token"
+    exit 1;
+fi
 
 # Create the .succinct bin directory and succinctup binary if it doesn't exist.
 mkdir -p $SUCCINCT_BIN_DIR
-curl -# -L $BIN_URL -o $BIN_PATH
-chmod +x $BIN_PATH
+# curl -# -L $BIN_URL -o $BIN_PATH
+rm -f $BIN_PATH
+curl -sS -L $BIN_URL -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept:application/vnd.github.v3.raw" -o $BIN_PATH
+chmod +rx $BIN_PATH
 
 # Create the man directory for future man files if it doesn't exist.
 mkdir -p $SUCCINCT_MAN_DIR
@@ -60,5 +70,5 @@ if [[ "$OSTYPE" =~ ^darwin ]] && [[ ! -f /usr/local/opt/libusb/lib/libusb-1.0.0.
     echo && echo "warning: libusb not found. You may need to install it manually on MacOS via Homebrew (brew install libusb)."
 fi
 
-echo && echo "Detected your preferred shell is ${PREF_SHELL} and added succinctup to PATH. Run 'source ${PROFILE}' or start a new terminal session to use succinctup."
+echo "Detected your preferred shell is ${PREF_SHELL} and added succinctup to PATH. Run 'source ${PROFILE}' or start a new terminal session to use succinctup."
 echo "Then, simply run 'succinctup' to install."
