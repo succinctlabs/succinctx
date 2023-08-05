@@ -35,7 +35,7 @@ main() {
   done
 
   # Print the banner after successfully parsing args
-  # banner
+  banner
 
   if [ -n "$SUCCINCTUP_PR" ]; then
     if [ -z "$SUCCINCTUP_BRANCH" ]; then
@@ -296,7 +296,27 @@ download() {
 }
 
 # Banner Function for Succinct 
-# banner() {
-# }
+banner() {
+  printf '
+
+###############################################################
+ 
+ ██████╗██╗   ██╗ █████╗  █████╗ ██╗███╗  ██╗ █████╗ ████████╗
+██╔════╝██║   ██║██╔══██╗██╔══██╗██║████╗ ██║██╔══██╗╚══██╔══╝
+╚█████╗ ██║   ██║██║  ╚═╝██║  ╚═╝██║██╔██╗██║██║  ╚═╝   ██║   
+ ╚═══██╗██║   ██║██║  ██╗██║  ██╗██║██║╚████║██║  ██╗   ██║   
+██████╔╝╚██████╔╝╚█████╔╝╚█████╔╝██║██║ ╚███║╚█████╔╝   ██║   
+╚═════╝  ╚═════╝  ╚════╝  ╚════╝ ╚═╝╚═╝  ╚══╝ ╚════╝    ╚═╝   
+
+###############################################################
+
+Repo       : https://github.com/succinctlabs/sdk             
+Discord    : https://discord.gg/succinctlabs                     
+Twitter    : https://twitter.com/succinctlabs
+
+###############################################################
+
+'
+}
 
 main "$@" || exit 1

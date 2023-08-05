@@ -10,7 +10,7 @@ import (
 
 var buildCmd = &cobra.Command{
 	Use:   "build",
-	Short: "Build the succinct project",
+	Short: "Build the circuit and generate artifacts",
 	Run: func(cmd *cobra.Command, args []string) {
 		buildCLI()
 	},
@@ -46,17 +46,9 @@ func isProjectInitialized() bool {
 
 func buildAndRun() error {
 	// Build the project
-	buildCmd := exec.Command("go", "build", "-o", "project", "./circuit")
+	buildCmd := exec.Command("go", "run", "./circuit")
 	if err := buildCmd.Run(); err != nil {
-		return fmt.Errorf("failed to build the project: %w", err)
-	}
-
-	// Run the built binary
-	runCmd := exec.Command("./project")
-	runCmd.Stdout = os.Stdout
-	runCmd.Stderr = os.Stderr
-	if err := runCmd.Run(); err != nil {
-		return fmt.Errorf("failed to run the project: %w", err)
+		return fmt.Errorf("failed to build the circuit: %w", err)
 	}
 
 	return nil
