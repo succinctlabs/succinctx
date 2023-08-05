@@ -28,12 +28,12 @@ func buildCLI() {
 	}
 
 	// Build and run the generated main.go file
-	if err := buildAndRun(); err != nil {
+	if err := buildCircuit(); err != nil {
 		fmt.Printf("Failed to build and run the project: %v\n", err)
 		return
 	}
 
-	fmt.Println("Project built and run successfully.")
+	fmt.Println("Circuit built and artifacts have been successfully generated.")
 }
 
 func isProjectInitialized() bool {
@@ -44,9 +44,11 @@ func isProjectInitialized() bool {
 	return true
 }
 
-func buildAndRun() error {
-	// Build the project
-	buildCmd := exec.Command("go", "run", "./circuit")
+func buildCircuit() error {
+	args := []string{"run", "./circuit"}
+	buildCmd := exec.Command("go", args...)
+	buildCmd.Stdout = os.Stdout
+	buildCmd.Stderr = os.Stderr
 	if err := buildCmd.Run(); err != nil {
 		return fmt.Errorf("failed to build the circuit: %w", err)
 	}

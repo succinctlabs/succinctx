@@ -10,14 +10,20 @@ import (
 	"github.com/succinctlabs/sdk/cli/assets"
 )
 
-// Where all the files are saved.
-const dirName = "circuit"
+// Where all the circuit files are stored.
+var dirName string
 
 var initCmd = &cobra.Command{
-	Use:   "init",
+	Use:   "init [directory]",
 	Short: "Initialize a new succinct project",
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		initProject()
+		if len(args) > 0 {
+			dirName = args[0]
+		} else {
+			dirName = "circuit"
+		}
+		initCLI()
 	},
 }
 
@@ -25,7 +31,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
-func initProject() {
+func initCLI() {
 	circuit, err := template.ParseFS(assets.Circuit, "circuit.tmpl")
 	if err != nil {
 		panic(err)
@@ -64,12 +70,10 @@ func initProject() {
 		panic(err)
 	}
 
-	// Initialize a new Go module in the project directory
-	if err := initGoModule("github.com/yourusername/yourproject"); err != nil {
+	if err := initGoModule(); err != nil {
 		panic(err)
 	}
 
-	// Run 'go mod tidy' to set up dependencies
 	if err := tidyGoModule(); err != nil {
 		panic(err)
 	}
@@ -77,7 +81,8 @@ func initProject() {
 	fmt.Println("Scaffold files been successfully generated.")
 }
 
-func initGoModule(modulePath string) error {
+// Initialize a new Go module in the project directory
+func initGoModule() error {
 	// Check if go.mod already exists
 	if _, err := os.Stat("go.mod"); err == nil {
 		fmt.Println("go.mod already exists, adding package to existing module")
@@ -90,7 +95,14 @@ func initGoModule(modulePath string) error {
 	return cmd.Run()
 }
 
+// Run 'go mod tidy' to set up dependencies
 func tidyGoModule() error {
+	// Check if go.mod already exists
+	if _, err := os.Stat("go.mod"); err != nil {
+		fmt.Println("go.mod doesn't exists, skipping tidy")
+		return nil
+	}
+
 	cmd := exec.Command("go", "mod", "tidy")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

@@ -14,15 +14,29 @@ This installs `succinctup`. Running this will install or update the latest versi
 succinctup
 ```
 
-Now you can use the `succinct` CLI. For example, to initalize a project:
+## Creating a project
+
+After installing you can use the `succinct` CLI. For example, to initalize a project:
 
 ```sh
 succinct init
 ```
 
+Afterwards, you can build with:
+
+```sh
+succinct build
+```
+
+and prove with:
+
+```sh
+succinct prove
+```
+
 ## Release
 
-To create a new release:
+To create a new SDK release:
 
 ```sh
 ./build/release.sh <X.Y.Z>
