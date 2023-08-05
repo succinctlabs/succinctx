@@ -16,19 +16,19 @@ succinctup
 
 ## Creating a project
 
-After installing you can use the `succinct` CLI. For example, to initalize a project:
+After installing, you can use the `succinct` CLI. For example, to initialize a circuit:
 
 ```sh
 succinct init
 ```
 
-Afterwards, you can build with:
+Build the circuit with:
 
 ```sh
 succinct build
 ```
 
-and prove with:
+Generate a proof for the circuit with:
 
 ```sh
 succinct prove
