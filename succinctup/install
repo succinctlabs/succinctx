@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -e
+
+######################################
+### succinctup installation script ###
+######################################
+
+# Inspired by Foundry installation: https://book.getfoundry.sh/
+echo Installing succinctup...
+
+BASE_DIR=${XDG_CONFIG_HOME:-$HOME}
+SUCCINCT_DIR=${SUCCINCT_DIR-"$BASE_DIR/.succinct"}
+SUCCINCT_BIN_DIR="$SUCCINCT_DIR/bin"
+SUCCINCT_MAN_DIR="$SUCCINCT_DIR/share/man/man1"
+
+BIN_URL="https://cli.succinct.xyz/succinctlabs/sdk/main/succinctup/succinctup"
+BIN_PATH="$SUCCINCT_BIN_DIR/succinctup"
+
+# Create the .succinct bin directory and succinctup binary if it doesn't exist.
+mkdir -p $SUCCINCT_BIN_DIR
+
+# Download the succinctup binary and make it executable.
+rm -rf $BIN_PATH
+curl -sS -L $BIN_URL -o $BIN_PATH
+chmod +x $BIN_PATH
+
+# Create the man directory for future man files if it doesn't exist.
+mkdir -p $SUCCINCT_MAN_DIR
+
+# Store the correct profile file (i.e. .profile for bash or .zshenv for ZSH).
+case $SHELL in
+*/zsh)
+    PROFILE=${ZDOTDIR-"$HOME"}/.zshenv
+    PREF_SHELL=zsh
+    ;;
+*/bash)
+    PROFILE=$HOME/.bashrc
+    PREF_SHELL=bash
+    ;;
+*/fish)
+    PROFILE=$HOME/.config/fish/config.fish
+    PREF_SHELL=fish
+    ;;
+*/ash)
+    PROFILE=$HOME/.profile
+    PREF_SHELL=ash
+    ;;
+*)
+    echo "succinctup: could not detect shell, manually add ${SUCCINCT_BIN_DIR} to your PATH."
+    exit 1
+esac
+
+# Only add succinctup if it isn't already in PATH.
+if [[ ":$PATH:" != *":${SUCCINCT_BIN_DIR}:"* ]]; then
+    # Add the succinctup directory to the path and ensure the old PATH variables remain.
+    echo >> $PROFILE && echo "export PATH=\"\$PATH:$SUCCINCT_BIN_DIR\"" >> $PROFILE
+fi
+
+# Warn MacOS users that they may need to manually install libusb via Homebrew:
+if [[ "$OSTYPE" =~ ^darwin ]] && [[ ! -f /usr/local/opt/libusb/lib/libusb-1.0.0.dylib && ! -f /opt/homebrew/opt/libusb/lib/libusb-1.0.0.dylib ]]; then
+    echo && echo "warning: libusb not found. You may need to install it manually on MacOS via Homebrew (brew install libusb)."
+fi
+
+echo "Detected your preferred shell is ${PREF_SHELL} and added succinctup to PATH. Run 'source ${PROFILE}' or start a new terminal session to use succinctup."
+echo "Then, simply run 'succinctup' to install."
