@@ -1,16 +1,16 @@
 use plonky2::iop::target::BoolTarget;
 
 use crate::builder::API;
-use crate::vars::{BoolVariable, ByteTarget};
+use crate::vars::BoolVariable;
 
 impl API {
-    fn or(&mut self, i1: BoolVariable, i2: BoolVariable) -> BoolVariable {
+    pub fn or(&mut self, i1: BoolVariable, i2: BoolVariable) -> BoolVariable {
         let a = BoolTarget::new_unsafe(i1.value);
         let b = BoolTarget::new_unsafe(i2.value);
         BoolVariable::from_target(self.api.or(a, b).target)
     }
 
-    fn and(&mut self, i1: BoolVariable, i2: BoolVariable) -> BoolVariable {
+    pub fn and(&mut self, i1: BoolVariable, i2: BoolVariable) -> BoolVariable {
         let a = BoolTarget::new_unsafe(i1.value);
         let b = BoolTarget::new_unsafe(i2.value);
         BoolVariable::from_target(self.api.and(a, b).target)
@@ -22,7 +22,7 @@ impl API {
     //     BoolVariable::from_target(self.api.xor(a, b))
     // }
 
-    fn not(&mut self, i1: BoolVariable) -> BoolVariable {
+    pub fn not(&mut self, i1: BoolVariable) -> BoolVariable {
         let a = BoolTarget::new_unsafe(i1.value);
         BoolVariable::from_target(self.api.not(a).target)
     }

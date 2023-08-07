@@ -1,11 +1,11 @@
 use crate::builder::API;
 
-struct RecursiveLengthPrefixAPI {
-    api: API,
+pub struct RecursiveLengthPrefixAPI {
+    pub api: API,
 }
 
 impl RecursiveLengthPrefixAPI {
-    fn new(api: API) -> Self {
+    pub fn new(api: API) -> Self {
         Self { api }
     }
 }
