@@ -56,14 +56,6 @@ pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
         b: BoolTarget,
     ) -> AffinePointTarget<C>;
 
-    fn curve_double<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> AffinePointTarget<C>;
-
-    fn curve_repeated_double<C: Curve>(
-        &mut self,
-        p: &AffinePointTarget<C>,
-        n: usize,
-    ) -> AffinePointTarget<C>;
-
     /// Add two points, which are assumed to be non-equal.
     fn curve_add<C: Curve>(
         &mut self,
@@ -76,12 +68,6 @@ pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
         p1: &AffinePointTarget<C>,
         p2: &AffinePointTarget<C>,
         b: BoolTarget,
-    ) -> AffinePointTarget<C>;
-
-    fn curve_scalar_mul<C: Curve>(
-        &mut self,
-        p: &AffinePointTarget<C>,
-        n: &NonNativeTarget<C::ScalarField>,
     ) -> AffinePointTarget<C>;
 
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> Vec<BoolTarget>;
@@ -158,46 +144,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         }
     }
 
-    fn curve_double<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> AffinePointTarget<C> {
-        let AffinePointTarget { x, y } = p;
-
-        let xy = self.mul_nonnative(x, y);
-        let x_squared = self.mul_nonnative(x, x);
-        let y_squared = self.mul_nonnative(y, y);
-
-        let x3_numer = self.add_nonnative(&xy, &xy);
-        // the x3 denominator is a * x**2 + y**2, where a = -1
-        // can be rewritten as y**2 - x**2
-        let x3_denom = self.sub_nonnative(&y_squared, &x_squared);
-        let x3_denom_inv = self.inv_nonnative(&x3_denom);
-        let x3 = self.mul_nonnative(&x3_numer, &x3_denom_inv);
-
-        let y3_numer = self.add_nonnative(&y_squared, &x_squared);
-        // the y3 denominator is 2 - a * x**2 - y**2, where a = -1
-        // can be rewritten as 2 + x**2 - y**2
-        let two = self.constant_nonnative(C::BaseField::ONE.double());
-        let two_plus_x_squared = self.add_nonnative(&two, &x_squared);
-        let y3_denom = self.sub_nonnative(&two_plus_x_squared, &y_squared);
-        let y3_denom_inv = self.inv_nonnative(&y3_denom);
-        let y3 = self.mul_nonnative(&y3_numer, &y3_denom_inv);
-
-        AffinePointTarget { x: x3, y: y3 }
-    }
-
-    fn curve_repeated_double<C: Curve>(
-        &mut self,
-        p: &AffinePointTarget<C>,
-        n: usize,
-    ) -> AffinePointTarget<C> {
-        let mut result = p.clone();
-
-        for _ in 0..n {
-            result = self.curve_double(&result);
-        }
-
-        result
-    }
-
     fn curve_add<C: Curve>(
         &mut self,
         p1: &AffinePointTarget<C>,
@@ -250,57 +196,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         AffinePointTarget { x, y }
     }
 
-    fn curve_scalar_mul<C: Curve>(
-        &mut self,
-        p: &AffinePointTarget<C>,
-        n: &NonNativeTarget<C::ScalarField>,
-    ) -> AffinePointTarget<C> {
-        let bits = self.split_nonnative_to_bits(n);
-
-        let rando = (CurveScalar(C::ScalarField::rand()) * C::GENERATOR_PROJECTIVE).to_affine();
-        let randot = self.constant_affine_point(rando);
-        // Result starts at `rando`, which is later subtracted, because we don't support arithmetic with the zero point.
-        let mut result = self.add_virtual_affine_point_target();
-        self.connect_affine_point(&randot, &result);
-
-        let mut two_i_times_p = self.add_virtual_affine_point_target();
-        self.connect_affine_point(p, &two_i_times_p);
-
-        for &bit in bits.iter() {
-            let not_bit = self.not(bit);
-
-            let result_plus_2_i_p = self.curve_add(&result, &two_i_times_p);
-
-            let new_x_if_bit = self.mul_nonnative_by_bool(&result_plus_2_i_p.x, bit);
-            let new_x_if_not_bit = self.mul_nonnative_by_bool(&result.x, not_bit);
-            let new_y_if_bit = self.mul_nonnative_by_bool(&result_plus_2_i_p.y, bit);
-            let new_y_if_not_bit = self.mul_nonnative_by_bool(&result.y, not_bit);
-
-            let new_x = self.add_nonnative(&new_x_if_bit, &new_x_if_not_bit);
-            let new_y = self.add_nonnative(&new_y_if_bit, &new_y_if_not_bit);
-
-            result = AffinePointTarget { x: new_x, y: new_y };
-
-            two_i_times_p = self.curve_double(&two_i_times_p);
-        }
-
-        // Subtract off result's intial value of `rando`.
-        let neg_r = self.curve_neg(&randot);
-        result = self.curve_add(&result, &neg_r);
-
-        result
-    }
-
     // This funciton will accept an affine point target and return
     // the point in compressed form (bit vector).
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> Vec<BoolTarget> {
-        /*
-        let mut y_bits = self.split_nonnative_to_bits(&p.y);
-        let num_y_bits = y_bits.len();
-        let x_bits = self.split_nonnative_to_bits(&p.x);
-        y_bits[num_y_bits-1] = self.or(y_bits[num_y_bits-1].clone(), x_bits[0]);
-        y_bits
-        */
         let mut bits = biguint_to_bits_target::<F, D, 2>(self, &p.y.value);
         let x_bits_low_32 = self.split_le_base::<2>(p.x.value.get_limb(0).0, 32);
 
@@ -313,7 +211,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         bits
     }
 
-    fn decompress_point<C: Curve>(&mut self, pv: &[BoolTarget]) -> AffinePointTarget<C> {
+    fn decompress_point<C: Curve>(&mut self, pv: &AffinePointTarget<C>) -> AffinePointTarget<C> {
         assert_eq!(pv.len(), 256);
         let p = self.add_virtual_affine_point_target();
 
@@ -535,61 +433,6 @@ mod tests {
     }
 
     #[test]
-    fn test_curve_double() -> Result<()> {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
-        let config = CircuitConfig::standard_ecc_config();
-
-        let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
-
-        let g = Ed25519::GENERATOR_AFFINE;
-        let g_target = builder.constant_affine_point(g);
-        let neg_g_target = builder.curve_neg(&g_target);
-
-        let double_g = g.double();
-        let double_g_expected = builder.constant_affine_point(double_g);
-        builder.curve_assert_valid(&double_g_expected);
-
-        let double_neg_g = (-g).double();
-        let double_neg_g_expected = builder.constant_affine_point(double_neg_g);
-        builder.curve_assert_valid(&double_neg_g_expected);
-
-        let double_g_actual = builder.curve_double(&g_target);
-        let double_neg_g_actual = builder.curve_double(&neg_g_target);
-        builder.curve_assert_valid(&double_g_actual);
-        builder.curve_assert_valid(&double_neg_g_actual);
-
-        builder.connect_affine_point(&double_g_expected, &double_g_actual);
-        builder.connect_affine_point(&double_neg_g_expected, &double_neg_g_actual);
-
-        dbg!(builder.num_gates());
-        let inner_data = builder.build::<C>();
-        let inner_proof = inner_data.prove(pw).unwrap();
-        inner_data.verify(inner_proof.clone()).unwrap();
-
-
-        let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
-        let inner_verifier_data = outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
-        outer_builder.verify_proof::<C>(&inner_proof_target, &inner_verifier_data, &inner_data.common);
-
-        let outer_data = outer_builder.build::<C>();
-
-        let mut outer_pw = PartialWitness::new();
-        outer_pw.set_proof_with_pis_target(&inner_proof_target, &inner_proof);
-        outer_pw.set_verifier_data_target(&inner_verifier_data, &inner_data.verifier_only);
-
-        let outer_proof = outer_data.prove(outer_pw).unwrap();
-    
-        outer_data.verify(outer_proof)
-
-
-    }
-
-    #[test]
     fn test_curve_add() -> Result<()> {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -650,57 +493,6 @@ mod tests {
         let inner_data = builder.build::<C>();
         let inner_proof = inner_data.prove(pw).unwrap();
         inner_data.verify(inner_proof.clone()).unwrap();
-
-
-
-        let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
-        let inner_verifier_data = outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
-        outer_builder.verify_proof::<C>(&inner_proof_target, &inner_verifier_data, &inner_data.common);
-
-        let outer_data = outer_builder.build::<C>();
-
-        let mut outer_pw = PartialWitness::new();
-        outer_pw.set_proof_with_pis_target(&inner_proof_target, &inner_proof);
-        outer_pw.set_verifier_data_target(&inner_verifier_data, &inner_data.verifier_only);
-
-        let outer_proof = outer_data.prove(outer_pw).unwrap();
-    
-        outer_data.verify(outer_proof)
-
-    }
-
-    #[test]
-    fn test_curve_mul() -> Result<()> {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
-        let config = CircuitConfig::standard_ecc_config();
-
-        let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
-
-        let g = Ed25519::GENERATOR_PROJECTIVE.to_affine();
-        let five = Ed25519Scalar::from_canonical_usize(5);
-        let neg_five = five.neg();
-        let neg_five_scalar = CurveScalar::<Ed25519>(neg_five);
-        let neg_five_g = (neg_five_scalar * g.to_projective()).to_affine();
-        let neg_five_g_expected = builder.constant_affine_point(neg_five_g);
-        builder.curve_assert_valid(&neg_five_g_expected);
-
-        let g_target = builder.constant_affine_point(g);
-        let neg_five_target = builder.constant_nonnative(neg_five);
-        let neg_five_g_actual = builder.curve_scalar_mul(&g_target, &neg_five_target);
-        builder.curve_assert_valid(&neg_five_g_actual);
-
-        builder.connect_affine_point(&neg_five_g_expected, &neg_five_g_actual);
-
-        let inner_data = builder.build::<C>();
-        let inner_proof = inner_data.prove(pw).unwrap();
-
-        inner_data.verify(inner_proof.clone()).unwrap();
-
 
 
 
