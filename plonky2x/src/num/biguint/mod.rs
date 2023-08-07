@@ -9,13 +9,12 @@ use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartitionWitness, Witness};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult, Write, Read};
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
+use super::u32::serialization::{ReadU32, WriteU32};
 use crate::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use crate::num::u32::gadgets::multiple_comparison::list_le_u32_circuit;
 use crate::num::u32::witness::{GeneratedValuesU32, WitnessU32};
-
-use super::u32::serialization::{WriteU32, ReadU32};
 
 #[derive(Clone, Debug, Default)]
 pub struct BigUintTarget {
@@ -437,10 +436,9 @@ impl ReadBigUint for Buffer<'_> {
         let limbs = (0..length)
             .map(|_| self.read_target_u32())
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(BigUintTarget{ limbs })
+        Ok(BigUintTarget { limbs })
     }
 }
-
 
 #[cfg(test)]
 mod tests {
