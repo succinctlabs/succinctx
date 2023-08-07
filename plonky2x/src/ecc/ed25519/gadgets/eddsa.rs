@@ -120,9 +120,9 @@ where
         // Calculate h = hash(sig.r + pk + msg) mod q
         let mut hash_msg = Vec::new();
         let a = builder.compress_point(&sig.r);
-        let r_compressed = reverse_byte_ordering(a.bit_targets);
+        let r_compressed = reverse_byte_ordering(a.bit_targets.to_vec());
         let b = builder.compress_point(&pub_key.0);
-        let pk_compressed = reverse_byte_ordering(b.bit_targets);
+        let pk_compressed = reverse_byte_ordering(b.bit_targets.to_vec());
 
         for i in 0..r_compressed.len() {
             hash_msg.push(r_compressed[i]);

@@ -24,7 +24,7 @@ pub struct AffinePointTarget<C: Curve> {
 }
 
 pub struct CompressedPointTarget {
-    pub bit_targets: Vec<BoolTarget>,
+    pub bit_targets: [BoolTarget; 256],
 }
 
 pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
@@ -172,7 +172,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         let a_add_b = self.add(a, b);
         let ab = self.mul(a, b);
         bits[0] = BoolTarget::new_unsafe(self.sub(a_add_b, ab));
-        CompressedPointTarget{bit_targets: bits}
+        CompressedPointTarget{bit_targets: bits.try_into().unwrap()}
     }
 
     fn convert_to_curta_affine_point_target<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CurtaAffinePointTarget {
@@ -398,6 +398,7 @@ mod tests {
 
         builder.curve_assert_valid(&pub_key_affine_t);
         let pub_key_keycompressed_t = builder.compress_point(&pub_key_affine_t);
+        assert!(pub_key_keycompressed_t.bit_targets.len() == expected_bits_t.len()); 
         for (i, bit) in pub_key_keycompressed_t.bit_targets.iter().enumerate() {
             builder.connect(bit.target, expected_bits_t[i].target);
         }
