@@ -45,7 +45,7 @@ contract MockFunctionGateway is IFunctionGateway {
         bytes32 requestId = keccak256(abi.encode(nonce, r));
         requests[requestId] = r;
 
-        emit ProofRequested(nonce, requestId, _input, _context, _gasLimit, calculateFeeAmount(_gasLimit));
+        emit ProofRequested(nonce, _functionId, requestId, _input, _context, _gasLimit, calculateFeeAmount(_gasLimit));
         nonce++;
         return requestId;
     }
