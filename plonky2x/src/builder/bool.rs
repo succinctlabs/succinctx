@@ -1,33 +1,27 @@
-use plonky2::iop::target::BoolTarget;
-
 use crate::builder::API;
 use crate::vars::BoolVariable;
 
 impl API {
+    /// Computes the or of two bits or i1 | i2.
     pub fn or(&mut self, i1: BoolVariable, i2: BoolVariable) -> BoolVariable {
-        let a = BoolTarget::new_unsafe(i1.value);
-        let b = BoolTarget::new_unsafe(i2.value);
-        BoolVariable::from_target(self.api.or(a, b).target)
+        self.add(i1.0, i2.0).into()
     }
 
+    /// Computes the and of two bits or i1 & i2.
     pub fn and(&mut self, i1: BoolVariable, i2: BoolVariable) -> BoolVariable {
-        let a = BoolTarget::new_unsafe(i1.value);
-        let b = BoolTarget::new_unsafe(i2.value);
-        BoolVariable::from_target(self.api.and(a, b).target)
+        self.mul(i1.0, i2.0).into()
     }
 
-    // fn xor(&self, i1: BoolVariable, i2: BoolVariable) -> BoolVariable {
-    //     let a = BoolTarget::new_unsafe(i1.value);
-    //     let b = BoolTarget::new_unsafe(i2.value);
-    //     BoolVariable::from_target(self.api.xor(a, b))
-    // }
+    /// Computes the xor of two bits or i1 ^ i2.
+    pub fn xor(&mut self, i1: BoolVariable, i2: BoolVariable) -> BoolVariable {
+        let a_plus_b = self.add(i1.0, i2.0);
+        let two_a_b = self.mul(i1.0, i2.0);
+        self.sub(a_plus_b, two_a_b).into()
+    }
 
+    /// Computes the not of a bit or !i1.
     pub fn not(&mut self, i1: BoolVariable) -> BoolVariable {
-        let a = BoolTarget::new_unsafe(i1.value);
-        BoolVariable::from_target(self.api.not(a).target)
+        let one = self.one();
+        self.sub(one, i1.0).into()
     }
-
-    // fn to_binary_le(&self, i1: BoolVariable) -> ByteTarget {
-    //     ByteTarget::from_target(self.api.to_binary_le(i1.value))
-    // }
 }

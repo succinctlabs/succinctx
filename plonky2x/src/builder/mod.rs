@@ -27,78 +27,84 @@ impl API {
 
     /// Add returns res = i1 + i2.
     pub fn add(&mut self, i1: Variable, i2: Variable) -> Variable {
-        Variable::from_target(self.api.add(i1.value, i2.value))
+        self.api.add(i1.0, i2.0).into()
     }
 
     /// Add returns res = i1 + i2 + ...
     pub fn add_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].value;
+        let mut acc = values[0].0;
         for i in 1..values.len() {
-            acc = self.api.add(acc, values[i].value);
+            acc = self.api.add(acc, values[i].0);
         }
-        Variable::from_target(acc)
+        acc.into()
     }
 
     /// Sub returns res = i1 - i2.
     pub fn sub(&mut self, i1: Variable, i2: Variable) -> Variable {
-        Variable::from_target(self.api.sub(i1.value, i2.value))
+        self.api.sub(i1.0, i2.0).into()
     }
 
     /// Sub returns res = i1 - i2 - ...
     pub fn sub_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].value;
+        let mut acc = values[0].0;
         for i in 1..values.len() {
-            acc = self.api.sub(acc, values[i].value);
+            acc = self.api.sub(acc, values[i].0);
         }
-        Variable::from_target(acc)
+        acc.into()
     }
 
     /// Mul returns res = i1 * i2.
     pub fn mul(&mut self, i1: Variable, i2: Variable) -> Variable {
-        Variable::from_target(self.api.mul(i1.value, i2.value))
+        self.api.mul(i1.0, i2.0).into()
     }
 
     /// Mul returns res = i1 * i2 * ...
     pub fn mul_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].value;
+        let mut acc = values[0].0;
         for i in 1..values.len() {
-            acc = self.api.mul(acc, values[i].value);
+            acc = self.api.mul(acc, values[i].0);
         }
-        Variable::from_target(acc)
+        acc.into()
     }
 
     /// Div returns res = i1 / i2.
     pub fn div(&mut self, i1: Variable, i2: Variable) -> Variable {
-        Variable::from_target(self.api.div(i1.value, i2.value))
+        self.api.div(i1.0, i2.0).into()
     }
 
     /// Div returns res = -i1.
     pub fn neg(&mut self, i1: Variable) -> Variable {
-        Variable::from_target(self.api.neg(i1.value))
+        self.api.neg(i1.0).into()
     }
 
     /// Inverse returns res = 1 / i1.
     pub fn inverse(&mut self, i1: Variable) -> Variable {
-        Variable::from_target(self.api.inverse(i1.value))
+        self.api.inverse(i1.0).into()
     }
 
     /// Select if b is true, yields i1 else yields i2.
     pub fn select(&mut self, selector: BoolVariable, i1: Variable, i2: Variable) -> Variable {
-        Variable::from_target(self.api.select(
-            BoolTarget::new_unsafe(selector.value),
-            i1.value,
-            i2.value,
-        ))
+        self.api
+            .select(BoolTarget::new_unsafe(selector.0 .0), i1.0, i2.0)
+            .into()
     }
 
     /// Returns 1 if i1 is zero, 0 otherwise as a boolean.
     pub fn is_zero(&mut self, i1: Variable) -> BoolVariable {
         let zero = self.api.zero();
-        BoolVariable::from_target(self.api.is_equal(i1.value, zero).target)
+        self.api.is_equal(i1.0, zero).into()
     }
 
     /// Fails if i1 != i2.
     pub fn assert_is_equal(&mut self, i1: Variable, i2: Variable) {
-        self.api.connect(i1.value, i2.value);
+        self.api.connect(i1.0, i2.0);
+    }
+
+    pub fn zero(&mut self) -> Variable {
+        Variable::from_target(self.api.zero())
+    }
+
+    pub fn one(&mut self) -> Variable {
+        Variable::from_target(self.api.one())
     }
 }

@@ -1,5 +1,4 @@
 use plonky2::iop::target::Target;
 
-pub struct ByteTarget {
-    pub value: Target,
-}
+#[derive(Debug, Clone, Copy)]
+pub struct ByteTarget(pub Target);
