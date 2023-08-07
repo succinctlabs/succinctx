@@ -14,11 +14,6 @@ func main() {
 	inputBytesString := flag.String("input", "", "input bytes to prove with 0x prefix")
 	flag.Parse()
 
-	if *initFlag {
-		fmt.Println("Scaffold files been successfully generated.")
-		return
-	}
-
 	circuit := succinct.NewCircuitFunction(NewCircuit())
 
 	if *proveFlag {
