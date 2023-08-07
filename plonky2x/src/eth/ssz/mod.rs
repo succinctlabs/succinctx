@@ -1,11 +1,11 @@
-use crate::builder::API;
+use crate::builder::BuilderAPI;
 
 pub struct SimpleSerializeAPI {
-    pub api: API,
+    pub api: BuilderAPI,
 }
 
 impl SimpleSerializeAPI {
-    pub fn new(api: API) -> Self {
+    pub fn new(api: BuilderAPI) -> Self {
         Self { api }
     }
 }

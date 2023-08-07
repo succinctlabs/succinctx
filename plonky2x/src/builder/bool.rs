@@ -1,7 +1,7 @@
-use crate::builder::API;
+use crate::builder::BuilderAPI;
 use crate::vars::BoolVariable;
 
-impl API {
+impl BuilderAPI {
     /// Computes the or of two bits or i1 | i2.
     pub fn or(&mut self, i1: BoolVariable, i2: BoolVariable) -> BoolVariable {
         self.add(i1.0, i2.0).into()

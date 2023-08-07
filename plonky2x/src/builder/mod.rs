@@ -2,7 +2,7 @@ mod bool;
 
 use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::CircuitConfig;
+use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
 use crate::vars::{BoolVariable, Variable};
@@ -13,16 +13,21 @@ type F = <C as GenericConfig<D>>::F;
 
 /// This is the API that we recommend developers use for writing circuits. It is a wrapper around
 /// the basic plonky2 API.
-pub struct API {
+pub struct BuilderAPI {
     pub api: CircuitBuilder<F, D>,
 }
 
-impl API {
-    /// Creates a new builder API.
+impl BuilderAPI {
+    /// Creates a new API for building circuits.
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
         let api = CircuitBuilder::new(config);
         Self { api }
+    }
+
+    /// Build the circuit.
+    pub fn build(self) -> CircuitData<F, C, D> {
+        self.api.build()
     }
 
     /// Add returns res = i1 + i2.
@@ -106,5 +111,26 @@ impl API {
 
     pub fn one(&mut self) -> Variable {
         Variable::from_target(self.api.one())
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use plonky2::iop::witness::PartialWitness;
+
+    use crate::builder::BuilderAPI;
+
+    #[test]
+    fn test_simple_circuit() {
+        let mut api = BuilderAPI::new();
+        let zero = api.zero();
+        let one = api.one();
+        let sum = api.add(zero, one);
+        api.assert_is_equal(sum, one);
+
+        let pw = PartialWitness::new();
+        let data = api.build();
+        let proof = data.prove(pw).unwrap();
+        data.verify(proof).unwrap();
     }
 }
