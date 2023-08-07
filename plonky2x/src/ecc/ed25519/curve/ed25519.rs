@@ -49,8 +49,7 @@ mod tests {
     use std::ops::Neg;
 
     use num::BigUint;
-    use plonky2::field::types::Field;
-    use plonky2::field::types::PrimeField;
+    use plonky2::field::types::{Field, PrimeField};
 
     use crate::ecc::ed25519::curve::curve_types::{Curve, ProjectivePoint};
     use crate::ecc::ed25519::curve::ed25519::Ed25519;
