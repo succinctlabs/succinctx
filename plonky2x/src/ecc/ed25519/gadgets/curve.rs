@@ -163,7 +163,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
     // This funciton will accept an affine point target and return
     // the point in compressed form (bit vector).
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointTarget {
-        let mut bits = biguint_to_bits_target::<F, D, 2>(self, &p.y.value);
+        let mut bits = biguint_to_bits_target::<F, D>(self, &p.y.value);
         let x_bits_low_32 = self.split_le_base::<2>(p.x.value.get_limb(0).0, 32);
 
         let a = bits[0].target;
@@ -237,7 +237,6 @@ impl ReadAffinePoint for Buffer<'_> {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use num::BigUint;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
@@ -249,7 +248,7 @@ mod tests {
     use crate::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
     use crate::ecc::ed25519::gadgets::curve::CircuitBuilderCurve;
-    use crate::hash::bit_operations::util::bits_to_biguint_target;
+    use crate::hash::bit_operations::util::biguint_to_bits_target;
     use crate::num::biguint::CircuitBuilderBiguint;
 
     #[test]
@@ -352,7 +351,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_curve_random() -> Result<()> {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -389,59 +387,20 @@ mod tests {
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
-        /*let priv_key = Ed25519Scalar::from_canonical_usize(5);
+        let priv_key = Ed25519Scalar::from_canonical_usize(5);
         let g = Ed25519::GENERATOR_AFFINE;
-        let pub_key = (CurveScalar(priv_key) * g.to_projective()).to_affine();
-        let pub_key_t = builder.constant_affine_point(pub_key);
+        let pub_key_affine = (CurveScalar(priv_key) * g.to_projective()).to_affine();
+        let pub_key_affine_t = builder.constant_affine_point(pub_key_affine);
 
-        println!("pub_key point is ({}, {})", pub_key.x, pub_key.y);
-        */
+        let pub_key_compressed = pub_key_affine.compress_point();
+        let expected_pub_key_compressed_t = builder.constant_biguint(&pub_key_compressed);
+        let expected_bits_t = biguint_to_bits_target(&mut builder, &expected_pub_key_compressed_t);
 
-        let sig_r_x_biguint = BigUint::parse_bytes(
-            b"34429777554096177233623231228348362084988839912431844356123812156003444176586",
-            10,
-        )
-        .unwrap();
-        let sig_r_x = Ed25519Base::from_noncanonical_biguint(sig_r_x_biguint);
-        let sig_r_y_biguint = BigUint::parse_bytes(
-            b"22119998304038584770835958502800813263484475345060077692632207186036243708011",
-            10,
-        )
-        .unwrap();
-        let sig_r_y = Ed25519Base::from_noncanonical_biguint(sig_r_y_biguint);
-        let pub_key = AffinePoint::<Ed25519> {
-            x: sig_r_x,
-            y: sig_r_y,
-            zero: false,
-        };
-        let pub_key_t = builder.constant_affine_point(pub_key);
-
-        /*
-        >>> import pure25519.basic
-        >>> privateKey = 5
-        >>> pkBytes = privateKey.to_bytes(32, byteorder="little")
-        >>> pkScalar = pure25519.basic.bytes_to_clamped_scalar(pkBytes)
-        >>> pubKey = pure25519.basic.Base.scalarmult(pkScalar)
-        >>> pubKey.to_bytes().hex()
-        'edc876d6831fd2105d0b4389ca2e283166469289146e2ce06faefe98b22548df'
-        */
-
-        //let pub_key_compressed = BigUint::parse_bytes(b"df4825b298feae6fe02c6e148992466631282eca89430b5d10d21f83d676c8ed", 16).unwrap();
-        let pub_key_compressed = BigUint::parse_bytes(
-            b"30e779b1a01719b15aeab33b736949ece8ed46276b09b37880dec2bb411a386b",
-            16,
-        )
-        .unwrap();
-        let pub_key_compressed_t = builder.constant_biguint(&pub_key_compressed);
-        let mut pub_key_compressed_actual = builder.compress_point(&pub_key_t);
-
-        // TODO: This is really hacky.  bits_to_biguint_target expects the bit vector to be in big-endian format.
-        pub_key_compressed_actual.bit_targets.reverse();
-        let pub_key_compressed_actual_bigint =
-            bits_to_biguint_target(&mut builder, pub_key_compressed_actual.bit_targets);
-
-        builder.curve_assert_valid(&pub_key_t);
-        builder.connect_biguint(&pub_key_compressed_actual_bigint, &pub_key_compressed_t);
+        builder.curve_assert_valid(&pub_key_affine_t);
+        let pub_key_keycompressed_t = builder.compress_point(&pub_key_affine_t);
+        for (i, bit) in pub_key_keycompressed_t.bit_targets.iter().enumerate() {
+            builder.connect(bit.target, expected_bits_t[i].target);
+        }
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
