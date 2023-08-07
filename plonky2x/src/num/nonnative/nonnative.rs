@@ -1,8 +1,6 @@
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, Read, IoResult, Write};
 use core::marker::PhantomData;
 
 use num::{BigUint, Integer, One, Zero};
@@ -13,10 +11,13 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartitionWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::ceil_div_usize;
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use crate::num::biguint::{
-    BigUintTarget, CircuitBuilderBiguint, GeneratedValuesBigUint, ReadBigUint, WitnessBigUint, WriteBigUint,
+    BigUintTarget, CircuitBuilderBiguint, GeneratedValuesBigUint, ReadBigUint, WitnessBigUint,
+    WriteBigUint,
 };
 use crate::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use crate::num::u32::gadgets::range_check::range_check_u32_circuit;
@@ -450,7 +451,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
 }
 
 #[derive(Debug, Default)]
-pub struct NonNativeAdditionGenerator<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> {
+pub struct NonNativeAdditionGenerator<F: RichField + Extendable<D>, const D: usize, FF: PrimeField>
+{
     a: NonNativeTarget<FF>,
     b: NonNativeTarget<FF>,
     sum: NonNativeTarget<FF>,
@@ -477,7 +479,13 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
         let b = src.read_target_nonnative()?;
         let sum = src.read_target_nonnative()?;
         let overflow = src.read_target_bool()?;
-        Ok(Self { a, b, sum, overflow, _phantom: PhantomData })
+        Ok(Self {
+            a,
+            b,
+            sum,
+            overflow,
+            _phantom: PhantomData,
+        })
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -510,8 +518,11 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
 }
 
 #[derive(Debug, Default)]
-pub struct NonNativeMultipleAddsGenerator<F: RichField + Extendable<D>, const D: usize, FF: PrimeField>
-{
+pub struct NonNativeMultipleAddsGenerator<
+    F: RichField + Extendable<D>,
+    const D: usize,
+    FF: PrimeField,
+> {
     summands: Vec<NonNativeTarget<FF>>,
     sum: NonNativeTarget<FF>,
     overflow: U32Target,
@@ -541,7 +552,12 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
             .collect::<Result<Vec<_>, _>>()?;
         let sum = src.read_target_nonnative()?;
         let overflow = src.read_target_u32()?;
-        Ok(Self { summands, sum, overflow, _phantom: PhantomData })
+        Ok(Self {
+            summands,
+            sum,
+            overflow,
+            _phantom: PhantomData,
+        })
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -605,7 +621,13 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
         let b = src.read_target_nonnative()?;
         let diff = src.read_target_nonnative()?;
         let overflow = src.read_target_bool()?;
-        Ok(Self { a, b, diff, overflow, _phantom: PhantomData })
+        Ok(Self {
+            a,
+            b,
+            diff,
+            overflow,
+            _phantom: PhantomData,
+        })
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -638,7 +660,8 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
 }
 
 #[derive(Debug, Default)]
-pub struct NonNativeMultiplicationGenerator<F: RichField + Extendable<D>, const D: usize, FF: Field> {
+pub struct NonNativeMultiplicationGenerator<F: RichField + Extendable<D>, const D: usize, FF: Field>
+{
     a: NonNativeTarget<FF>,
     b: NonNativeTarget<FF>,
     prod: NonNativeTarget<FF>,
@@ -665,7 +688,13 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
         let b = src.read_target_nonnative()?;
         let prod = src.read_target_nonnative()?;
         let overflow = src.read_target_biguint()?;
-        Ok(Self { a, b, prod, overflow, _phantom: PhantomData })
+        Ok(Self {
+            a,
+            b,
+            prod,
+            overflow,
+            _phantom: PhantomData,
+        })
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -720,7 +749,12 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
         let x = src.read_target_nonnative()?;
         let inv = src.read_target_biguint()?;
         let div = src.read_target_biguint()?;
-        Ok(Self { x, inv, div, _phantom: PhantomData })
+        Ok(Self {
+            x,
+            inv,
+            div,
+            _phantom: PhantomData,
+        })
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -743,25 +777,28 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
 }
 
 pub trait WriteNonNativeTarget {
-    fn write_target_nonnative<FF:Field>(&mut self, x: NonNativeTarget<FF>) -> IoResult<()>;
+    fn write_target_nonnative<FF: Field>(&mut self, x: NonNativeTarget<FF>) -> IoResult<()>;
 }
 
 impl WriteNonNativeTarget for Vec<u8> {
     #[inline]
-    fn write_target_nonnative<FF:Field>(&mut self, x: NonNativeTarget<FF>) -> IoResult<()> {
+    fn write_target_nonnative<FF: Field>(&mut self, x: NonNativeTarget<FF>) -> IoResult<()> {
         self.write_target_biguint(x.value)
     }
 }
 
 pub trait ReadNonNativeTarget {
-    fn read_target_nonnative<FF:Field>(&mut self) -> IoResult<NonNativeTarget<FF>>;
+    fn read_target_nonnative<FF: Field>(&mut self) -> IoResult<NonNativeTarget<FF>>;
 }
 
 impl ReadNonNativeTarget for Buffer<'_> {
     #[inline]
-    fn read_target_nonnative<FF:Field>(&mut self) -> IoResult<NonNativeTarget<FF>> {
+    fn read_target_nonnative<FF: Field>(&mut self) -> IoResult<NonNativeTarget<FF>> {
         let value = self.read_target_biguint()?;
-        Ok(NonNativeTarget{ value, _phantom: core::marker::PhantomData })
+        Ok(NonNativeTarget {
+            value,
+            _phantom: core::marker::PhantomData,
+        })
     }
 }
 

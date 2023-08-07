@@ -157,7 +157,6 @@ impl Field for Ed25519Scalar {
     fn from_noncanonical_u96(n: (u64, u32)) -> Self {
         Self([n.0, n.1 as u64, 0, 0])
     }
-
 }
 
 impl PrimeField for Ed25519Scalar {

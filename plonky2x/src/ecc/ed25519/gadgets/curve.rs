@@ -1,14 +1,18 @@
 use curta::chip::ec::edwards::scalar_mul::generator::AffinePointTarget as CurtaAffinePointTarget;
+use plonky2::field::extension::Extendable;
+use plonky2::field::types::{Field, PrimeField, PrimeField64};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
+use plonky2::iop::witness::Witness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::util::serialization::{Buffer, IoResult};
-use plonky2::field::extension::Extendable;
-use plonky2::field::types::Field;
 
 use crate::ecc::ed25519::curve::curve_types::{AffinePoint, Curve};
 use crate::hash::bit_operations::util::biguint_to_bits_target;
-use crate::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget, ReadNonNativeTarget, WriteNonNativeTarget};
+use crate::num::biguint::WitnessBigUint;
+use crate::num::nonnative::nonnative::{
+    CircuitBuilderNonNative, NonNativeTarget, ReadNonNativeTarget, WriteNonNativeTarget,
+};
 use crate::num::nonnative::split_nonnative::CircuitBuilderSplit;
 
 /// A Target representing an affine point on the curve `C`. We use incomplete arithmetic for efficiency,
@@ -53,9 +57,15 @@ pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
 
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointTarget;
 
-    fn convert_to_curta_affine_point_target<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CurtaAffinePointTarget;
+    fn convert_to_curta_affine_point_target<C: Curve>(
+        &mut self,
+        p: &AffinePointTarget<C>,
+    ) -> CurtaAffinePointTarget;
 
-    fn convert_from_curta_affine_point_target<C: Curve>(&mut self, p: &CurtaAffinePointTarget) -> AffinePointTarget<C>;
+    fn convert_from_curta_affine_point_target<C: Curve>(
+        &mut self,
+        p: &CurtaAffinePointTarget,
+    ) -> AffinePointTarget<C>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
@@ -168,34 +178,63 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         let a_add_b = self.add(a, b);
         let ab = self.mul(a, b);
         bits[0] = BoolTarget::new_unsafe(self.sub(a_add_b, ab));
-        CompressedPointTarget{bit_targets: bits.try_into().unwrap()}
+        CompressedPointTarget {
+            bit_targets: bits.try_into().unwrap(),
+        }
     }
 
-    fn convert_to_curta_affine_point_target<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CurtaAffinePointTarget {
+    fn convert_to_curta_affine_point_target<C: Curve>(
+        &mut self,
+        p: &AffinePointTarget<C>,
+    ) -> CurtaAffinePointTarget {
         let x_limbs = self.split_nonnative_to_16_bit_limbs(&p.x);
         let y_limbs = self.split_nonnative_to_16_bit_limbs(&p.y);
 
         assert!(x_limbs.len() == 16);
         assert!(y_limbs.len() == 16);
 
-        CurtaAffinePointTarget{
+        CurtaAffinePointTarget {
             x: x_limbs.try_into().unwrap(),
             y: y_limbs.try_into().unwrap(),
         }
     }
 
-    fn convert_from_curta_affine_point_target<C: Curve>(&mut self, p: &CurtaAffinePointTarget) -> AffinePointTarget<C> {
+    fn convert_from_curta_affine_point_target<C: Curve>(
+        &mut self,
+        p: &CurtaAffinePointTarget,
+    ) -> AffinePointTarget<C> {
         let x = self.recombine_nonnative_16_bit_limbs(p.x.to_vec());
         let y = self.recombine_nonnative_16_bit_limbs(p.y.to_vec());
 
-        AffinePointTarget{x, y}
+        AffinePointTarget { x, y }
+    }
+}
+
+pub trait WitnessAffinePoint<F: PrimeField64, C: Curve>: Witness<F> {
+    fn get_affine_point_target(&self, target: AffinePointTarget<C>) -> AffinePoint<C>;
+    fn set_affine_point_target(&mut self, target: &AffinePointTarget<C>, value: &AffinePoint<C>);
+}
+
+impl<T: Witness<F>, F: PrimeField64, C: Curve> WitnessAffinePoint<F, C> for T {
+    fn get_affine_point_target(&self, target: AffinePointTarget<C>) -> AffinePoint<C> {
+        let x_biguint =
+            C::BaseField::from_noncanonical_biguint(self.get_biguint_target(target.x.value));
+        let y_biguint =
+            C::BaseField::from_noncanonical_biguint(self.get_biguint_target(target.y.value));
+        AffinePoint::nonzero(x_biguint, y_biguint)
+    }
+
+    fn set_affine_point_target(&mut self, target: &AffinePointTarget<C>, value: &AffinePoint<C>) {
+        assert!(value.is_valid() && value.zero == false, "Point is not on curve or is zero");
+        self.set_biguint_target(&target.x.value, &value.x.to_canonical_biguint());
+        self.set_biguint_target(&target.y.value, &value.y.to_canonical_biguint());
     }
 }
 
 pub trait WriteAffinePoint {
     fn write_target_affine_point<C: Curve>(&mut self, x: AffinePointTarget<C>) -> IoResult<()>;
 }
-    
+
 impl WriteAffinePoint for Vec<u8> {
     #[inline]
     fn write_target_affine_point<C: Curve>(&mut self, point: AffinePointTarget<C>) -> IoResult<()> {
@@ -203,28 +242,28 @@ impl WriteAffinePoint for Vec<u8> {
         self.write_target_nonnative(point.y)
     }
 }
-    
+
 pub trait ReadAffinePoint {
     fn read_target_affine_point<C: Curve>(&mut self) -> IoResult<AffinePointTarget<C>>;
 }
-    
+
 impl ReadAffinePoint for Buffer<'_> {
     #[inline]
     fn read_target_affine_point<C: Curve>(&mut self) -> IoResult<AffinePointTarget<C>> {
         let x = self.read_target_nonnative()?;
         let y = self.read_target_nonnative()?;
-        Ok(AffinePointTarget{ x, y })
+        Ok(AffinePointTarget { x, y })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use plonky2::field::types::{Field, Sample};
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use plonky2::field::types::{Field, Sample};
 
     use crate::ecc::ed25519::curve::curve_types::{AffinePoint, Curve, CurveScalar};
     use crate::ecc::ed25519::curve::ed25519::Ed25519;
@@ -259,8 +298,13 @@ mod tests {
 
         let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
-        let inner_verifier_data = outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
-        outer_builder.verify_proof::<C>(&inner_proof_target, &inner_verifier_data, &inner_data.common);
+        let inner_verifier_data =
+            outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
+        outer_builder.verify_proof::<C>(
+            &inner_proof_target,
+            &inner_verifier_data,
+            &inner_data.common,
+        );
 
         let outer_data = outer_builder.build::<C>();
 
@@ -270,7 +314,6 @@ mod tests {
 
         let outer_proof = outer_data.prove(outer_pw).unwrap();
         outer_data.verify(outer_proof)
-
     }
 
     #[test]
@@ -330,7 +373,6 @@ mod tests {
         let proof = data.prove(pw).unwrap();
 
         data.verify(proof)
-        
     }
 
     #[test]
@@ -381,7 +423,7 @@ mod tests {
 
         builder.curve_assert_valid(&pub_key_affine_t);
         let pub_key_keycompressed_t = builder.compress_point(&pub_key_affine_t);
-        assert!(pub_key_keycompressed_t.bit_targets.len() == expected_bits_t.len()); 
+        assert!(pub_key_keycompressed_t.bit_targets.len() == expected_bits_t.len());
         for (i, bit) in pub_key_keycompressed_t.bit_targets.iter().enumerate() {
             builder.connect(bit.target, expected_bits_t[i].target);
         }
