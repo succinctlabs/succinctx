@@ -10,13 +10,13 @@ To create a new release:
 
 ## Building ABIs and Bindings
 
-Then to build tha ABIs:
+To build the ABIs:
 
 ```sh
 ./build/abi.sh
 ```
 
-To build the bindings:
+Then to build the bindings:
 
 ```sh
 ./build/binding.sh
