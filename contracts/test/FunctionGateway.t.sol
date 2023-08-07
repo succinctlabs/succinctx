@@ -69,7 +69,9 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
-        emit ProofRequested(prevNonce, EXPECTED_REQUEST_ID, REQUEST, CALLBACK_CONTEXT, DEFAULT_GAS_LIMIT, 0);
+        emit ProofRequested(
+            prevNonce, FUNCTION_ID, EXPECTED_REQUEST_ID, REQUEST, CALLBACK_CONTEXT, DEFAULT_GAS_LIMIT, 0
+        );
         vm.prank(consumer);
         bytes32 requestId = FunctionGateway(gateway).request{value: DEFAULT_FEE}(
             FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT
@@ -103,7 +105,9 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
-        emit ProofRequested(prevNonce, EXPECTED_REQUEST_ID, REQUEST, CALLBACK_CONTEXT, DEFAULT_GAS_LIMIT, 0);
+        emit ProofRequested(
+            prevNonce, FUNCTION_ID, EXPECTED_REQUEST_ID, REQUEST, CALLBACK_CONTEXT, DEFAULT_GAS_LIMIT, 0
+        );
         vm.prank(consumer);
         bytes32 requestId = FunctionGateway(gateway).request(FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT);
         assertEq(EXPECTED_REQUEST_ID, requestId);

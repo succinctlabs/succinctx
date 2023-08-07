@@ -73,7 +73,7 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
         bytes32 requestId = keccak256(abi.encode(nonce, r));
         requests[requestId] = r;
 
-        emit ProofRequested(nonce, requestId, _input, _context, _gasLimit, feeAmount);
+        emit ProofRequested(nonce, _functionId, requestId, _input, _context, _gasLimit, feeAmount);
         nonce++;
         return requestId;
     }

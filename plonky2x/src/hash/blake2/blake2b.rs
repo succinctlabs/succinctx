@@ -1,10 +1,10 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::{ BoolTarget, Target };
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::hash::bit_operations::{add_arr, not_arr, xor2_arr_slow, xor3_arr_slow};
 use crate::hash::bit_operations::util::{_right_rotate, uint64_to_bits};
+use crate::hash::bit_operations::{add_arr, not_arr, xor2_arr_slow, xor3_arr_slow};
 
 const SIGMA_LEN: usize = 10;
 const SIGMA: [[usize; 16]; SIGMA_LEN] = [
@@ -59,7 +59,7 @@ fn select_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     b: BoolTarget,
     x: [BoolTarget; 64],
-    y: [BoolTarget; 64]
+    y: [BoolTarget; 64],
 ) -> [BoolTarget; 64] {
     let mut res = [None; 64];
     for i in 0..64 {
@@ -97,11 +97,7 @@ fn compress<F: RichField + Extendable<D>, const D: usize>(
     // Get t's big endian bit representation
     let mut t_bits = builder.split_le(t, 64);
     t_bits.reverse();
-    ov.push(xor2_arr_slow(
-        iv[4],
-        t_bits.try_into().unwrap(),
-        builder,
-    )); // assumes t is not more than u64
+    ov.push(xor2_arr_slow(iv[4], t_bits.try_into().unwrap(), builder)); // assumes t is not more than u64
     ov.push(iv[5]); // assumes t is not more than u64 and Hi(t) == 0
 
     // If this is the last block then invert all the bits in V14
@@ -198,7 +194,12 @@ fn reshape(u: Vec<BoolTarget>) -> Vec<[BoolTarget; 64]> {
 // reference: https://github.com/bryant/pyblake2/blob/master/pyblake2/__init__.py
 // A zk-circuit implementation of the Blake2b hash function.
 // Computes blake2b
-pub fn blake2b<F: RichField + Extendable<D>, const D: usize, const MAX_MESSAGE_LENGTH: usize, const DIGEST_SIZE: usize>(
+pub fn blake2b<
+    F: RichField + Extendable<D>,
+    const D: usize,
+    const MAX_MESSAGE_LENGTH: usize,
+    const DIGEST_SIZE: usize,
+>(
     builder: &mut CircuitBuilder<F, D>,
 ) -> Blake2bTarget {
     assert!(MAX_MESSAGE_LENGTH > 0 && MAX_MESSAGE_LENGTH % CHUNK_128_BYTES == 0);
@@ -236,21 +237,23 @@ pub fn blake2b<F: RichField + Extendable<D>, const D: usize, const MAX_MESSAGE_L
             msg_input[CHUNK_128_BYTES * i * 8..CHUNK_128_BYTES * (i + 1) * 8].to_vec();
 
         t_target = builder.add(t_target, chunk_bytes_target);
-        let t_input = builder.select(
+        let t_input = builder.select(is_last_block, length, t_target);
+
+        compress(
+            builder,
+            &mut blake2b_hash,
+            &chunk,
+            t_input,
             is_last_block,
-            length,
-            t_target
+            do_noop,
         );
 
-        compress(builder, &mut blake2b_hash, &chunk, t_input, is_last_block, do_noop);
-
         if i != (max_block_num - 1) {
-            do_noop = BoolTarget::new_unsafe(
-                builder.select(
-                        do_noop,
-                        do_noop.target,
-                        is_last_block.target)
-            );
+            do_noop = BoolTarget::new_unsafe(builder.select(
+                do_noop,
+                do_noop.target,
+                is_last_block.target,
+            ));
         }
     }
 
@@ -278,13 +281,13 @@ pub fn blake2b<F: RichField + Extendable<D>, const D: usize, const MAX_MESSAGE_L
 mod tests {
     use anyhow::Result;
     use hex::decode;
-    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::field::types::{Field, PrimeField64};
+    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::hash::blake2::blake2b::{ blake2b, CHUNK_128_BYTES };
+    use crate::hash::blake2::blake2b::{blake2b, CHUNK_128_BYTES};
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -312,10 +315,17 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let mut builder: CircuitBuilder<plonky2::field::goldilocks_field::GoldilocksField, 2> = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
+        let mut builder: CircuitBuilder<plonky2::field::goldilocks_field::GoldilocksField, 2> =
+            CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
 
         let blake2b_targets = blake2b::<F, D, MAX_MESSAGE_LENGTH, DIGEST_SIZE>(&mut builder);
-        builder.register_public_inputs(&blake2b_targets.digest.iter().map(|x| x.target).collect::<Vec<_>>());
+        builder.register_public_inputs(
+            &blake2b_targets
+                .digest
+                .iter()
+                .map(|x| x.target)
+                .collect::<Vec<_>>(),
+        );
 
         let mut pw = PartialWitness::new();
         for i in 0..msg_bits.len() {
@@ -324,7 +334,10 @@ mod tests {
         for i in msg_bits.len()..MAX_MESSAGE_LENGTH * 8 {
             pw.set_bool_target(blake2b_targets.message[i], false);
         }
-        pw.set_target(blake2b_targets.message_len, F::from_canonical_u64(msg.len() as u64));
+        pw.set_target(
+            blake2b_targets.message_len,
+            F::from_canonical_u64(msg.len() as u64),
+        );
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
@@ -339,7 +352,11 @@ mod tests {
     #[test]
     fn test_blake2b() {
         println!("Running blake2b test #1");
-        run_test::<CHUNK_128_BYTES, 32>(b"", "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8").expect("Failed test #1");
+        run_test::<CHUNK_128_BYTES, 32>(
+            b"",
+            "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8",
+        )
+        .expect("Failed test #1");
 
         println!("Running blake2b test #2");
         const MAX_MESSAGE_LENGTH: usize = CHUNK_128_BYTES * 2;
