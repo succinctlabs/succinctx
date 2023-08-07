@@ -22,11 +22,6 @@ func (svk *SuccinctVerifyingKey) ExportIFunctionVerifierSolidity(w io.Writer) er
 	}
 	content := buf.String()
 
-	// Remove any previous license and add the new license.
-	content = strings.Split(content, "pragma solidity")[1]
-	newLicense := "// SPDX-License-Identifier: MIT\npragma solidity"
-	content = newLicense + content
-
 	// Custom replacements to make compatible with IFunctionVerifier.
 	content = strings.ReplaceAll(content, "uint256[2] calldata input", "uint256[2] memory input")
 	content = strings.ReplaceAll(content, "pragma solidity ^0.8.0;", "pragma solidity ^0.8.16;")
