@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::Neg;
 
+use curve25519_dalek::edwards::CompressedEdwardsY;
 use num::{BigUint, Integer, One};
 use plonky2::field::ops::Square;
 use plonky2::field::types::{Field, PrimeField};
@@ -53,6 +54,19 @@ impl<C: Curve> AffinePoint<C> {
         y: C::BaseField::ZERO,
         zero: true,
     };
+
+    pub fn new_from_compressed_point(s: &[u8]) -> Self {
+        let mut s32 = [0u8; 32];
+        s32.copy_from_slice(s);
+        let compressed = CompressedEdwardsY(s32);
+        let point = compressed.decompress().unwrap();
+        let x_biguint = BigUint::from_bytes_le(&point.get_x().as_bytes());
+        let y_biguint = BigUint::from_bytes_le(&point.get_y().as_bytes());
+        AffinePoint::nonzero(
+            C::BaseField::from_noncanonical_biguint(x_biguint),
+            C::BaseField::from_noncanonical_biguint(y_biguint),
+        )
+    }
 
     pub fn nonzero(x: C::BaseField, y: C::BaseField) -> Self {
         let point = Self { x, y, zero: false };
