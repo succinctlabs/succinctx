@@ -4,7 +4,7 @@ pub struct BoolVariable {
     pub value: Target,
 }
 
-pub impl BoolVariable {
+impl BoolVariable {
     pub fn from_target(value: Target) -> Self {
         Self { value }
     }

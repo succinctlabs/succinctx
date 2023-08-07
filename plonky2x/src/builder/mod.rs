@@ -1,9 +1,6 @@
-use anyhow::Result;
-use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::types::Field;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+mod bool;
+
+use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -20,22 +17,22 @@ pub struct API {
     api: CircuitBuilder<F, D>,
 }
 
-pub impl API {
+impl API {
     /// Creates a new builder API.
     fn new() -> Self {
-        let config = CircuitConfig::<C, D>::new();
+        let config = CircuitConfig::standard_recursion_config();
         let api = CircuitBuilder::new(config);
         Self { api }
     }
 
     /// Add returns res = i1 + i2.
-    fn add(&self, i1: Variable, i2: Variable) -> Variable {
+    fn add(&mut self, i1: Variable, i2: Variable) -> Variable {
         Variable::from_target(self.api.add(i1.value, i2.value))
     }
 
     /// Add returns res = i1 + i2 + ...
-    fn add(&self, values: &[Variable]) -> Variable {
-        let mut acc = values[0];
+    fn add_many(&mut self, values: &[Variable]) -> Variable {
+        let mut acc = values[0].value;
         for i in 1..values.len() {
             acc = self.api.add(acc, values[i].value);
         }
@@ -43,13 +40,13 @@ pub impl API {
     }
 
     /// Sub returns res = i1 - i2.
-    fn sub(&self, i1: Variable, i2: Variable) -> Variable {
+    fn sub(&mut self, i1: Variable, i2: Variable) -> Variable {
         Variable::from_target(self.api.sub(i1.value, i2.value))
     }
 
     /// Sub returns res = i1 - i2 - ...
-    fn sub(&self, values: &[Variable]) -> Variable {
-        let mut acc = values[0];
+    fn sub_many(&mut self, values: &[Variable]) -> Variable {
+        let mut acc = values[0].value;
         for i in 1..values.len() {
             acc = self.api.sub(acc, values[i].value);
         }
@@ -57,13 +54,13 @@ pub impl API {
     }
 
     /// Mul returns res = i1 * i2.
-    fn mul(&self, i1: Variable, i2: Variable) -> Variable {
+    fn mul(&mut self, i1: Variable, i2: Variable) -> Variable {
         Variable::from_target(self.api.mul(i1.value, i2.value))
     }
 
     /// Mul returns res = i1 * i2 * ...
-    fn mul(&self, values: &[Variable]) -> Variable {
-        let mut acc = values[0];
+    fn mul_many(&mut self, values: &[Variable]) -> Variable {
+        let mut acc = values[0].value;
         for i in 1..values.len() {
             acc = self.api.mul(acc, values[i].value);
         }
@@ -71,32 +68,43 @@ pub impl API {
     }
 
     /// Div returns res = i1 / i2.
-    fn div(&self, i1: Variable, i2: Variable) -> Variable {
+    fn div(&mut self, i1: Variable, i2: Variable) -> Variable {
         Variable::from_target(self.api.div(i1.value, i2.value))
     }
 
     /// Div returns res = -i1.
-    fn neg(&self, i1: Variable) -> Variable {
+    fn neg(&mut self, i1: Variable) -> Variable {
         Variable::from_target(self.api.neg(i1.value))
     }
 
     /// Inverse returns res = 1 / i1.
-    fn inverse(&self, i1: Variable) -> Variable {
+    fn inverse(&mut self, i1: Variable) -> Variable {
         Variable::from_target(self.api.inverse(i1.value))
     }
 
     /// Select if b is true, yields i1 else yields i2.
-    fn select(&self, selector: BoolVariable, i1: Variable, i2: Variable) -> Variable {
-        Variable::from_target(self.api.select(selector.value.value, i1.value, i2.value))
+    fn select(&mut self, selector: BoolVariable, i1: Variable, i2: Variable) -> Variable {
+        Variable::from_target(self.api.select(
+            BoolTarget::new_unsafe(selector.value),
+            i1.value,
+            i2.value,
+        ))
     }
 
     /// Returns 1 if i1 is zero, 0 otherwise as a boolean.
-    fn is_zero(&self, i1: Variable) -> BoolVariable {
-        BoolVariable::from_target(self.api.is_zero(i1.value))
+    fn is_zero(&mut self, i1: Variable) -> BoolVariable {
+        let zero = self.api.zero();
+        BoolVariable::from_target(self.api.is_equal(i1.value, zero).target)
     }
 
     /// Fails if i1 != i2.
-    fn assert_is_equal(&self, i1: Variable, i2: Variable) {
+    fn assert_is_equal(&mut self, i1: Variable, i2: Variable) {
         self.api.connect(i1.value, i2.value);
+    }
+}
+
+impl Default for API {
+    fn default() -> Self {
+        Self::new()
     }
 }

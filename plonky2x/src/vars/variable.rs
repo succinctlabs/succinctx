@@ -4,7 +4,7 @@ pub struct Variable {
     pub value: Target,
 }
 
-pub impl Variable {
+impl Variable {
     pub fn from_target(value: Target) -> Self {
         Self { value }
     }
