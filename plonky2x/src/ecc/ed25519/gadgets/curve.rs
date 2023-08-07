@@ -225,6 +225,7 @@ impl<T: Witness<F>, F: PrimeField64, C: Curve> WitnessAffinePoint<F, C> for T {
     }
 
     fn set_affine_point_target(&mut self, target: &AffinePointTarget<C>, value: &AffinePoint<C>) {
+        assert!(value.is_valid() && value.zero == false, "Point is not on curve or is zero");
         self.set_biguint_target(&target.x.value, &value.x.to_canonical_biguint());
         self.set_biguint_target(&target.y.value, &value.y.to_canonical_biguint());
     }
