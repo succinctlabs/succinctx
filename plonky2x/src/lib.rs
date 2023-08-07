@@ -5,6 +5,9 @@
 
 extern crate alloc;
 
-pub mod hash;
+pub mod builder;
 pub mod ecc;
+pub mod eth;
+pub mod hash;
 pub mod num;
+pub mod vars;
