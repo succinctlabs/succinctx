@@ -1,23 +1,17 @@
-use std::marker::PhantomData;
-
 use curta::chip::ec::edwards::scalar_mul::generator::AffinePointTarget as CurtaAffinePointTarget;
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use num::BigUint;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
-use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::iop::witness::{PartitionWitness, Witness};
+use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use plonky2::util::serialization::{Buffer, IoResult};
 use plonky2::field::extension::Extendable;
-use plonky2::field::types::{Field, PrimeField, Sample};
+use plonky2::field::types::Field;
 
-use crate::ecc::ed25519::curve::curve_types::{AffinePoint, Curve, CurveScalar};
+use crate::ecc::ed25519::curve::curve_types::{AffinePoint, Curve};
 use crate::ecc::ed25519::curve::ed25519::Ed25519;
 use crate::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::hash::bit_operations::util::biguint_to_bits_target;
-use crate::num::biguint::GeneratedValuesBigUint;
 use crate::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget, ReadNonNativeTarget, WriteNonNativeTarget};
 use crate::num::nonnative::split_nonnative::CircuitBuilderSplit;
 
@@ -29,10 +23,8 @@ pub struct AffinePointTarget<C: Curve> {
     pub y: NonNativeTarget<C::BaseField>,
 }
 
-impl<C: Curve> AffinePointTarget<C> {
-    pub fn to_vec(&self) -> Vec<NonNativeTarget<C::BaseField>> {
-        vec![self.x.clone(), self.y.clone()]
-    }
+pub struct CompressedPointTarget {
+    pub bit_targets: Vec<BoolTarget>,
 }
 
 pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
@@ -63,16 +55,7 @@ pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
         p2: &AffinePointTarget<C>,
     ) -> AffinePointTarget<C>;
 
-    fn curve_conditional_add<C: Curve>(
-        &mut self,
-        p1: &AffinePointTarget<C>,
-        p2: &AffinePointTarget<C>,
-        b: BoolTarget,
-    ) -> AffinePointTarget<C>;
-
-    fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> Vec<BoolTarget>;
-
-    fn decompress_point<C: Curve>(&mut self, p: &[BoolTarget]) -> AffinePointTarget<C>;
+    fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointTarget;
 
     fn convert_to_curta_affine_point_target<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CurtaAffinePointTarget;
 
@@ -177,28 +160,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         AffinePointTarget { x: x3, y: y3 }
     }
 
-    fn curve_conditional_add<C: Curve>(
-        &mut self,
-        p1: &AffinePointTarget<C>,
-        p2: &AffinePointTarget<C>,
-        b: BoolTarget,
-    ) -> AffinePointTarget<C> {
-        let not_b = self.not(b);
-        let sum = self.curve_add(p1, p2);
-        let x_if_true = self.mul_nonnative_by_bool(&sum.x, b);
-        let y_if_true = self.mul_nonnative_by_bool(&sum.y, b);
-        let x_if_false = self.mul_nonnative_by_bool(&p1.x, not_b);
-        let y_if_false = self.mul_nonnative_by_bool(&p1.y, not_b);
-
-        let x = self.add_nonnative(&x_if_true, &x_if_false);
-        let y = self.add_nonnative(&y_if_true, &y_if_false);
-
-        AffinePointTarget { x, y }
-    }
-
     // This funciton will accept an affine point target and return
     // the point in compressed form (bit vector).
-    fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> Vec<BoolTarget> {
+    fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointTarget {
         let mut bits = biguint_to_bits_target::<F, D, 2>(self, &p.y.value);
         let x_bits_low_32 = self.split_le_base::<2>(p.x.value.get_limb(0).0, 32);
 
@@ -208,26 +172,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         let a_add_b = self.add(a, b);
         let ab = self.mul(a, b);
         bits[0] = BoolTarget::new_unsafe(self.sub(a_add_b, ab));
-        bits
+        CompressedPointTarget{bit_targets: bits}
     }
-
-    fn decompress_point<C: Curve>(&mut self, pv: &AffinePointTarget<C>) -> AffinePointTarget<C> {
-        assert_eq!(pv.len(), 256);
-        let p = self.add_virtual_affine_point_target();
-
-        self.add_simple_generator(CurvePointDecompressionGenerator::<F, D, C> {
-            pv: pv.to_vec(),
-            p: p.clone(),
-            _phantom: PhantomData,
-        });
-
-        let pv2 = self.compress_point(&p);
-        for i in 0..256 {
-            self.connect(pv[i].target, pv2[i].target);
-        }
-        p
-    }
-
 
     fn convert_to_curta_affine_point_target<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CurtaAffinePointTarget {
         let x_limbs = self.split_nonnative_to_16_bit_limbs(&p.x);
@@ -247,62 +193,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         let y = self.recombine_nonnative_16_bit_limbs(p.y.to_vec());
 
         AffinePointTarget{x, y}
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct CurvePointDecompressionGenerator<F: RichField + Extendable<D>, const D: usize, C: Curve> {
-    pv: Vec<BoolTarget>,
-    p: AffinePointTarget<C>,
-    _phantom: PhantomData<F>,
-}
-
-impl<F: RichField + Extendable<D>, const D: usize, C: Curve> SimpleGenerator<F, D>
-    for CurvePointDecompressionGenerator<F, D, C>
-{
-    fn id(&self) -> String {
-        "CurvePointDecompressionGenerator".to_string()
-    }
-
-    fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        dst.write_usize(self.pv.len())?;
-        for target in self.pv.iter() {
-            dst.write_target_bool(*target)?;
-        }
-        dst.write_target_affine_point(self.p.clone())
-    }
-
-    fn deserialize(src: &mut Buffer, _common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        let pv_len = src.read_usize()?;
-        let pv = (0..pv_len)
-            .map(|_| src.read_target_bool())
-            .collect::<Result<Vec<_>, _>>()?;
-        let p = src.read_target_affine_point()?;
-
-        Ok(Self { pv, p, _phantom: PhantomData })
-    }
-
-    fn dependencies(&self) -> Vec<Target> {
-        self.pv.iter().cloned().map(|l| l.target).collect()
-    }
-
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let mut bits = Vec::new();
-        for i in 0..256 {
-            bits.push(witness.get_bool_target(self.pv[i]));
-        }
-        let mut s: [u8; 32] = [0; 32];
-        for i in 0..32 {
-            for j in 0..8 {
-                if bits[i * 8 + j] {
-                    s[31 - i] += 1 << (7 - j);
-                }
-            }
-        }
-        let point = decompress_point(s.as_slice());
-
-        out_buffer.set_biguint_target(&self.p.x.value, &point.x.to_canonical_biguint());
-        out_buffer.set_biguint_target(&self.p.y.value, &point.y.to_canonical_biguint());
     }
 }
 
@@ -346,8 +236,6 @@ impl ReadAffinePoint for Buffer<'_> {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Neg;
-
     use anyhow::Result;
     use num::BigUint;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
@@ -363,7 +251,6 @@ mod tests {
     use crate::ecc::ed25519::gadgets::curve::CircuitBuilderCurve;
     use crate::hash::bit_operations::util::bits_to_biguint_target;
     use crate::num::biguint::CircuitBuilderBiguint;
-    use crate::num::nonnative::nonnative::CircuitBuilderNonNative;
 
     #[test]
     fn test_curve_point_is_valid() -> Result<()> {
@@ -450,7 +337,7 @@ mod tests {
         builder.curve_assert_valid(&g_plus_2g_expected);
 
         let g_target = builder.constant_affine_point(g);
-        let double_g_target = builder.curve_double(&g_target);
+        let double_g_target = builder.curve_add(&g_target, &g_target);
         let g_plus_2g_actual = builder.curve_add(&g_target, &double_g_target);
         builder.curve_assert_valid(&g_plus_2g_actual);
 
@@ -462,55 +349,6 @@ mod tests {
 
         data.verify(proof)
         
-    }
-
-    #[test]
-    fn test_curve_conditional_add() -> Result<()> {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
-        let config = CircuitConfig::standard_ecc_config();
-
-        let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
-
-        let g = Ed25519::GENERATOR_AFFINE;
-        let double_g = g.double();
-        let g_plus_2g = g + double_g;
-        let g_plus_2g_expected = builder.constant_affine_point(g_plus_2g);
-
-        let g_expected = builder.constant_affine_point(g);
-        let double_g_target = builder.curve_double(&g_expected);
-        let t = builder._true();
-        let f = builder._false();
-        let g_plus_2g_actual = builder.curve_conditional_add(&g_expected, &double_g_target, t);
-        let g_actual = builder.curve_conditional_add(&g_expected, &double_g_target, f);
-
-        builder.connect_affine_point(&g_plus_2g_expected, &g_plus_2g_actual);
-        builder.connect_affine_point(&g_expected, &g_actual);
-
-        let inner_data = builder.build::<C>();
-        let inner_proof = inner_data.prove(pw).unwrap();
-        inner_data.verify(inner_proof.clone()).unwrap();
-
-
-
-        let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
-        let inner_verifier_data = outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
-        outer_builder.verify_proof::<C>(&inner_proof_target, &inner_verifier_data, &inner_data.common);
-
-        let outer_data = outer_builder.build::<C>();
-
-        let mut outer_pw = PartialWitness::new();
-        outer_pw.set_proof_with_pis_target(&inner_proof_target, &inner_proof);
-        outer_pw.set_verifier_data_target(&inner_verifier_data, &inner_data.verifier_only);
-
-        let outer_proof = outer_data.prove(outer_pw).unwrap();
-    
-        outer_data.verify(outer_proof)
-
     }
 
     #[test]
@@ -527,12 +365,12 @@ mod tests {
 
         let rando =
             (CurveScalar(Ed25519Scalar::rand()) * Ed25519::GENERATOR_PROJECTIVE).to_affine();
-        let randot = builder.constant_affine_point(rando);
+        let rando_doubled = rando.double();
+        let expected_rando_doubled = builder.constant_affine_point(rando_doubled);
 
-        let two_target = builder.constant_nonnative(Ed25519Scalar::TWO);
-        let randot_doubled = builder.curve_double(&randot);
-        let randot_times_two = builder.curve_scalar_mul(&randot, &two_target);
-        builder.connect_affine_point(&randot_doubled, &randot_times_two);
+        let randot = builder.constant_affine_point(rando);
+        let randot_doubled = builder.curve_add(&randot, &randot);
+        builder.connect_affine_point(&randot_doubled, &expected_rando_doubled);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
@@ -540,55 +378,7 @@ mod tests {
         data.verify(proof)
     }
 
-    // from: https://github.com/polymerdao/plonky2-ed25519/blob/main/src/gadgets/curve.rs#L589
     #[test]
-    fn test_point_compress_decompress() -> Result<()> {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
-        let config = CircuitConfig::standard_ecc_config();
-
-        let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
-
-        let rando =
-            (CurveScalar(Ed25519Scalar::rand()) * Ed25519::GENERATOR_PROJECTIVE).to_affine();
-        assert!(rando.is_valid());
-
-        let randot = builder.constant_affine_point(rando);
-
-        let rando_compressed = builder.compress_point(&randot);
-        let rando_decompressed = builder.decompress_point(&rando_compressed);
-
-        builder.connect_affine_point(&randot, &rando_decompressed);
-
-        let inner_data = builder.build::<C>();
-        let inner_proof = inner_data.prove(pw).unwrap();
-        inner_data.verify(inner_proof.clone()).unwrap();
-
-
-
-        let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
-        let inner_verifier_data = outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
-        outer_builder.verify_proof::<C>(&inner_proof_target, &inner_verifier_data, &inner_data.common);
-
-        let outer_data = outer_builder.build::<C>();
-
-        let mut outer_pw = PartialWitness::new();
-        outer_pw.set_proof_with_pis_target(&inner_proof_target, &inner_proof);
-        outer_pw.set_verifier_data_target(&inner_verifier_data, &inner_data.verifier_only);
-
-        let outer_proof = outer_data.prove(outer_pw).unwrap();
-    
-        outer_data.verify(outer_proof)
-
-    }
-
-    #[test]
-    #[ignore]
-    // FIXME: failing
     fn test_compress_point() -> Result<()> {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -646,9 +436,9 @@ mod tests {
         let mut pub_key_compressed_actual = builder.compress_point(&pub_key_t);
 
         // TODO: This is really hacky.  bits_to_biguint_target expects the bit vector to be in big-endian format.
-        pub_key_compressed_actual.reverse();
+        pub_key_compressed_actual.bit_targets.reverse();
         let pub_key_compressed_actual_bigint =
-            bits_to_biguint_target(&mut builder, pub_key_compressed_actual);
+            bits_to_biguint_target(&mut builder, pub_key_compressed_actual.bit_targets);
 
         builder.curve_assert_valid(&pub_key_t);
         builder.connect_biguint(&pub_key_compressed_actual_bigint, &pub_key_compressed_t);
