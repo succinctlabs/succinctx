@@ -69,9 +69,9 @@ mod tests {
     use num::BigUint;
     use plonky2::field::types::Field;
 
+    use crate::ecc::ed25519::curve::curve_types::AffinePoint;
     use crate::ecc::ed25519::curve::eddsa::{verify_message, EDDSAPublicKey, EDDSASignature};
     use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
-    use crate::ecc::ed25519::gadgets::curve::decompress_point;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -96,14 +96,14 @@ mod tests {
 
         let msg_bits = to_bits(message.to_vec());
 
-        let sig_r = decompress_point(&signature[0..32]);
+        let sig_r = AffinePoint::new_from_compressed_point(&signature[0..32]);
         assert!(sig_r.is_valid());
 
         let sig_s_biguint = BigUint::from_bytes_le(&signature[32..64]);
         let sig_s = Ed25519Scalar::from_noncanonical_biguint(sig_s_biguint);
         let sig = EDDSASignature { r: sig_r, s: sig_s };
 
-        let pub_key = decompress_point(&pubkey_bytes[..]);
+        let pub_key = AffinePoint::new_from_compressed_point(&pubkey_bytes[..]);
         assert!(pub_key.is_valid());
 
         let result = verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key));

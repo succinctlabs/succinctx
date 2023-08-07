@@ -1,6 +1,4 @@
 use curta::chip::ec::edwards::scalar_mul::generator::AffinePointTarget as CurtaAffinePointTarget;
-use curve25519_dalek::edwards::CompressedEdwardsY;
-use num::BigUint;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -9,8 +7,6 @@ use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 
 use crate::ecc::ed25519::curve::curve_types::{AffinePoint, Curve};
-use crate::ecc::ed25519::curve::ed25519::Ed25519;
-use crate::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::hash::bit_operations::util::biguint_to_bits_target;
 use crate::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget, ReadNonNativeTarget, WriteNonNativeTarget};
 use crate::num::nonnative::split_nonnative::CircuitBuilderSplit;
@@ -194,19 +190,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
 
         AffinePointTarget{x, y}
     }
-}
-
-pub fn decompress_point(s: &[u8]) -> AffinePoint<Ed25519> {
-    let mut s32 = [0u8; 32];
-    s32.copy_from_slice(s);
-    let compressed = CompressedEdwardsY(s32);
-    let point = compressed.decompress().unwrap();
-    let x_biguint = BigUint::from_bytes_le(&point.get_x().as_bytes());
-    let y_biguint = BigUint::from_bytes_le(&point.get_y().as_bytes());
-    AffinePoint::nonzero(
-        Ed25519Base::from_noncanonical_biguint(x_biguint),
-        Ed25519Base::from_noncanonical_biguint(y_biguint),
-    )
 }
 
 pub trait WriteAffinePoint {
