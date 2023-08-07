@@ -8,3 +8,4 @@ extern crate alloc;
 pub mod hash;
 pub mod ecc;
 pub mod num;
+pub mod builder;
