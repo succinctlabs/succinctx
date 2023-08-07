@@ -1,5 +1,5 @@
 use crate::builder::BuilderAPI;
-use crate::vars::{ByteVariable, Variable};
+use crate::vars::ByteVariable;
 
 pub struct SimpleSerializeAPI {
     pub api: BuilderAPI,
