@@ -120,9 +120,9 @@ where
         // Calculate h = hash(sig.r + pk + msg) mod q
         let mut hash_msg = Vec::new();
         let a = builder.compress_point(&sig.r);
-        let r_compressed = reverse_byte_ordering(a);
+        let r_compressed = reverse_byte_ordering(a.bit_targets.to_vec());
         let b = builder.compress_point(&pub_key.0);
-        let pk_compressed = reverse_byte_ordering(b);
+        let pk_compressed = reverse_byte_ordering(b.bit_targets.to_vec());
 
         for i in 0..r_compressed.len() {
             hash_msg.push(r_compressed[i]);
@@ -206,7 +206,6 @@ mod tests {
     use crate::ecc::ed25519::curve::eddsa::{verify_message, EDDSAPublicKey, EDDSASignature};
     use crate::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
-    use crate::ecc::ed25519::gadgets::curve::decompress_point;
     use crate::ecc::ed25519::gadgets::eddsa::verify_signatures_circuit;
     use crate::num::biguint::WitnessBigUint;
 
@@ -343,10 +342,10 @@ mod tests {
 
         let msg_bits = to_bits(msg_bytes.to_vec());
 
-        let pub_key = decompress_point(&pub_key_bytes);
+        let pub_key = AffinePoint::new_from_compressed_point(&pub_key_bytes);
         assert!(pub_key.is_valid());
 
-        let sig_r = decompress_point(&sig_bytes[0..32]);
+        let sig_r = AffinePoint::new_from_compressed_point(&sig_bytes[0..32]);
         assert!(sig_r.is_valid());
 
         let sig_s_biguint = BigUint::from_bytes_le(&sig_bytes[32..64]);
