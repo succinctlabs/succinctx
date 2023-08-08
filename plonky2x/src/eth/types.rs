@@ -13,13 +13,13 @@ pub struct BLSPubkeyVariable(pub [BoolVariable; 512]);
 pub struct AddressVariable(pub [BoolVariable; 160]);
 
 impl VariableMethods<160> for AddressVariable {
-    fn get_bits<F: Field, W: Witness<F>>(&self, witness: W) -> [bool; 160] {
+    fn get_bits<F: Field, W: Witness<F>>(&self, witness: &W) -> [bool; 160] {
         // Create a temporary BytesVariable from self and use its logic
         let temp = BytesVariable::<160>(self.0);
         temp.get_bits(witness)
     }
 
-    fn get_bytes_le<F: Field, W: Witness<F>>(&self, witness: W) -> [u8; 20] {
+    fn get_bytes_le<F: Field, W: Witness<F>>(&self, witness: &W) -> [u8; 20] {
         // Create a temporary BytesVariable from self and use its logic
         let temp = BytesVariable::<160>(self.0);
         temp.get_bytes_le(witness)

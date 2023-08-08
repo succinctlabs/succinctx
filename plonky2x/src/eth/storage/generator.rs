@@ -77,7 +77,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         };
         let storageResult: EIP1186ProofResponse = get_proof_closure();
 
-        let bytes32_value: [u8; 32];
+        let mut bytes32_value = [0u8; 32];
         storageResult.storage_proof[0].value.to_big_endian(&mut bytes32_value);
         self.value.set_from_bytes(bytes32_value, out_buffer);
     }

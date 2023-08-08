@@ -9,14 +9,14 @@ use crate::utils::{le_bits_to_bytes, bytes_to_bits};
 pub struct BytesVariable<const N: usize>(pub [BoolVariable;N]);
 
 pub trait VariableMethods<const N: usize> {
-    fn get_bits<F: Field, W: Witness<F>>(&self, witness: W) -> [bool; N];
-    fn get_bytes_le<F: Field, W: Witness<F>>(&self, witness: W) -> [u8; N / 8];
+    fn get_bits<F: Field, W: Witness<F>>(&self, witness: &W) -> [bool; N];
+    fn get_bytes_le<F: Field, W: Witness<F>>(&self, witness: &W) -> [u8; N / 8];
     fn set_from_bits<F: Field, G: WitnessWrite<F>>(&self, values: [bool; N], out_buffer: &mut G);
     fn set_from_bytes<F: Field, G: WitnessWrite<F>>(&self, values: [u8; N / 8], out_buffer: &mut G);
 }
 
 impl<const N: usize> VariableMethods<N> for BytesVariable<N> {
-    fn get_bits<F: Field, W: Witness<F>>(&self, witness: W) -> [bool; N] {
+    fn get_bits<F: Field, W: Witness<F>>(&self, witness: &W) -> [bool; N] {
         self.0.iter()
             .map(|variable| witness.get_target(variable.0.0) == F::ONE)
             .collect::<Vec<bool>>()
@@ -24,7 +24,7 @@ impl<const N: usize> VariableMethods<N> for BytesVariable<N> {
             .unwrap()
     }
 
-    fn get_bytes_le<F: Field, W: Witness<F>>(&self, witness: W) -> [u8; N / 8] {
+    fn get_bytes_le<F: Field, W: Witness<F>>(&self, witness: &W) -> [u8; N / 8] {
         le_bits_to_bytes::<N>(self.get_bits(witness))
     }
 

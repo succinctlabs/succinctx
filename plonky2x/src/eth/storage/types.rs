@@ -1,5 +1,5 @@
 
-use crate::vars::{Bytes32Variable, Variable, U256Variable, BytesVariable, ByteVariable};
+use crate::vars::{Bytes32Variable, Variable, U256Variable, BytesVariable, ByteVariable, BoolVariable};
 use crate::eth::types::{AddressVariable};
 
 #[derive(Debug)]
@@ -18,7 +18,8 @@ pub struct AccountVariable {
 
 
 impl AccountVariable {
-    pub fn serialize(&self) -> Vec<ByteVariable> {
-        return self.code_hash.0[..].to_vec();
+    pub fn serialize(&self) -> Vec<BoolVariable> {
+        return vec![];
+        // return self.code_hash.0[..].to_vec();
     }
 }

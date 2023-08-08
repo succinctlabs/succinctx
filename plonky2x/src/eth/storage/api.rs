@@ -1,6 +1,6 @@
 
 use crate::builder::BuilderAPI;
-use crate::vars::{Bytes32Variable, Variable, U256Variable, BytesVariable, ByteVariable};
+use crate::vars::{Bytes32Variable, Variable, U256Variable, BytesVariable, ByteVariable, BoolVariable};
 use crate::eth::types::{AddressVariable};
 use ethers::providers::{Http, Middleware, Provider};
 
@@ -23,7 +23,7 @@ impl StorageProofAPI {
         _root: Bytes32Variable,
         _key: Bytes32Variable,
         _proof: ProofVariable,
-        _value: Vec<ByteVariable>,
+        _value: Vec<BoolVariable>,
     ) {
         todo!()
     }
@@ -74,12 +74,12 @@ impl StorageProofAPI {
             storage_proof,
             value, 
             _block_number,
-            provider
+            self.provider
         );
         self.api.api.add_simple_generator(generator);
 
         self.merkle_trie_constraint(_state_root, address_hash, account_proof, account.serialize());
-        self.merkle_trie_constraint(account.storage_hash, _location, storage_proof, value);
+        self.merkle_trie_constraint(account.storage_hash, _location, storage_proof, value.0.into());
         value
     }
 
