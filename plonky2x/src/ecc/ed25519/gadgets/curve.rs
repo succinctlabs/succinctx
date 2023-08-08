@@ -57,7 +57,7 @@ pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
 
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointTarget;
 
-    fn random_access_affine_point<C: Curve>(&mut self, access_index: Target, v: Vec<&AffinePointTarget<C>>) -> AffinePointTarget<C>;
+    fn random_access_affine_point<C: Curve>(&mut self, access_index: Target, v: Vec<AffinePointTarget<C>>) -> AffinePointTarget<C>;
 
     fn convert_to_curta_affine_point_target<C: Curve>(
         &mut self,
@@ -185,10 +185,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         }
     }
 
-    fn random_access_affine_point<C: Curve>(&mut self, access_index: Target, v: Vec<&AffinePointTarget<C>>) -> AffinePointTarget<C> {
+    fn random_access_affine_point<C: Curve>(&mut self, access_index: Target, v: Vec<AffinePointTarget<C>>) -> AffinePointTarget<C> {
         AffinePointTarget{
-            x: self.random_access_nonnative(access_index, v.iter().map(|p| &p.x).collect()),
-            y: self.random_access_nonnative(access_index, v.iter().map(|p| &p.y).collect()),
+            x: self.random_access_nonnative(access_index, v.iter().map(|p| p.x.clone()).collect::<Vec<_>>()),
+            y: self.random_access_nonnative(access_index, v.iter().map(|p| p.y.clone()).collect::<Vec<_>>()),
         }
     }
 

@@ -122,7 +122,7 @@ pub trait CircuitBuilderNonNative<F: RichField + Extendable<D>, const D: usize> 
         b: BoolTarget,
     ) -> NonNativeTarget<FF>;
 
-    fn random_access_nonnative<FF: PrimeField>(&mut self, access_index: Target, v: Vec<&NonNativeTarget<FF>>) -> NonNativeTarget<FF>;
+    fn random_access_nonnative<FF: PrimeField>(&mut self, access_index: Target, v: Vec<NonNativeTarget<FF>>) -> NonNativeTarget<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
@@ -451,7 +451,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         self.add_nonnative(&x_if_true, &x_if_false)
     }
 
-    fn random_access_nonnative<FF: PrimeField>(&mut self, access_index: Target, v: Vec<&NonNativeTarget<FF>>) -> NonNativeTarget<FF> {
+    fn random_access_nonnative<FF: PrimeField>(&mut self, access_index: Target, v: Vec<NonNativeTarget<FF>>) -> NonNativeTarget<FF> {
         let selected = self.random_access_biguint(
                 access_index,
                 v.iter().map(|x| &x.value).collect::<Vec<_>>(),
