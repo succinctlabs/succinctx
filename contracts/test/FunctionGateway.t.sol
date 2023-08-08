@@ -46,7 +46,11 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         gateway = address(new FunctionGateway(DEFAULT_SCALAR, feeVault, owner));
         consumer = address(new TestConsumer());
 
-        FUNCTION_ID = keccak256(abi.encode(owner, FUNCTION_NAME));
+        vm.prank(owner);
+        (FUNCTION_ID, verifier) = IFunctionRegistry(gateway).registerFunctionFromCreate(
+            type(TestFunctionVerifier).creationCode, FUNCTION_NAME
+        );
+
         expectedRequest = FunctionRequest({
             functionId: FUNCTION_ID,
             inputHash: keccak256(REQUEST),
@@ -58,9 +62,6 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
             callbackFulfilled: false
         });
         EXPECTED_REQUEST_ID = keccak256(abi.encode(FunctionGateway(gateway).nonce(), expectedRequest));
-
-        vm.prank(owner);
-        verifier = IFunctionRegistry(gateway).registerFunction(type(TestFunctionVerifier).creationCode, FUNCTION_NAME);
 
         vm.deal(sender, DEFAULT_FEE);
         vm.deal(consumer, DEFAULT_FEE);

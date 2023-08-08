@@ -10,34 +10,73 @@ contract FunctionRegistry is IFunctionRegistry {
     /// @dev Maps functionId's to their corresponding owners.
     mapping(bytes32 => address) public verifierOwners;
 
-    /// @notice Registers a function with the registry.
+    /// @notice Registers a function, using a pre-deployed verifier.
+    /// @param _verifier The address of the verifier.
+    /// @param _name The name of the function to be registered.
+    function registerFunction(address _verifier, string memory _name) external returns (bytes32 functionId) {
+        functionId = getFunctionId(msg.sender, _name);
+        if (address(verifiers[functionId]) != address(0)) {
+            revert FunctionAlreadyHasVerifier(functionId); // should call update instead
+        }
+        if (_verifier == address(0)) {
+            revert VerifierCannotBeZero();
+        }
+        verifiers[functionId] = _verifier;
+        verifierOwners[functionId] = msg.sender;
+
+        emit FunctionRegistered(functionId, _verifier, _name, msg.sender);
+    }
+
+    /// @notice Registers a function, using CREATE2 to deploy the verifier.
     /// @param _bytecode The bytecode of the verifier.
     /// @param _name The name of the function to be registered.
-    function registerFunction(bytes memory _bytecode, string memory _name) external returns (address verifierAddr) {
-        bytes32 functionId = getFunctionId(msg.sender, _name);
+    function registerFunctionFromCreate(bytes memory _bytecode, string memory _name)
+        external
+        returns (bytes32 functionId, address verifier)
+    {
+        functionId = getFunctionId(msg.sender, _name);
         if (address(verifiers[functionId]) != address(0)) {
             revert FunctionAlreadyHasVerifier(functionId); // should call update instead
         }
 
-        verifierAddr = _deploy(_bytecode, functionId);
-        verifiers[functionId] = verifierAddr;
+        verifier = _deploy(_bytecode, functionId);
+        verifiers[functionId] = verifier;
         verifierOwners[functionId] = msg.sender;
 
-        emit FunctionRegistered(functionId, verifierAddr, _name, msg.sender);
+        emit FunctionRegistered(functionId, verifier, _name, msg.sender);
     }
 
-    /// @notice Updates the function with a new verifier.
-    /// @param _bytecode The bytecode of the verifier.
+    /// @notice Updates the function, using a pre-deployed verifier.
+    /// @param _verifier The address of the verifier.
     /// @param _name The name of the function to be updated.
-    function updateFunction(bytes memory _bytecode, string memory _name) external returns (address verifierAddr) {
-        bytes32 functionId = getFunctionId(msg.sender, _name);
+    function updateFunction(address _verifier, string memory _name) external returns (bytes32 functionId) {
+        functionId = getFunctionId(msg.sender, _name);
         if (msg.sender != verifierOwners[functionId]) {
             revert NotFunctionOwner(msg.sender, verifierOwners[functionId]);
         }
-        verifierAddr = _deploy(_bytecode, functionId);
-        verifiers[functionId] = verifierAddr;
+        if (_verifier == address(0)) {
+            revert VerifierCannotBeZero();
+        }
+        verifiers[functionId] = _verifier;
 
-        emit FunctionVerifierUpdated(functionId, verifierAddr);
+        emit FunctionVerifierUpdated(functionId, _verifier);
+    }
+
+    /// @notice Updates the function, using CREATE2 to deploy the new verifier.
+    /// @param _bytecode The bytecode of the verifier.
+    /// @param _name The name of the function to be updated.
+    function updateFunctionFromCreate(bytes memory _bytecode, string memory _name)
+        external
+        returns (bytes32 functionId, address verifier)
+    {
+        functionId = getFunctionId(msg.sender, _name);
+        if (msg.sender != verifierOwners[functionId]) {
+            revert NotFunctionOwner(msg.sender, verifierOwners[functionId]);
+        }
+        verifier = _deploy(_bytecode, functionId);
+        verifiers[functionId] = verifier;
+
+        emit FunctionVerifierUpdated(functionId, verifier);
     }
 
     /// @notice Returns the functionId for a given owner and function name.
