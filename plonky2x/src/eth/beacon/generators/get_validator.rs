@@ -31,41 +31,32 @@ struct GetBeaconValidatorGenerator<F: RichField + Extendable<D>, const D: usize>
     _phantom: PhantomData<F>,
 }
 
-// impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-//     for GetBeaconValidatorGenerator<F, D>
-// {
-//     fn id(&self) -> String {
-//         "GetBeaconValidatorGenerator".to_string()
-//     }
+impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
+    for GetBeaconValidatorGenerator<F, D>
+{
+    fn id(&self) -> String {
+        "GetBeaconValidatorGenerator".to_string()
+    }
 
-//     fn dependencies(&self) -> Vec<Target> {
-//         vec![]
-//     }
+    fn dependencies(&self) -> Vec<Target> {
+        vec![]
+    }
 
-//     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-//         let header_root_bits = self
-//             .header_root
-//             .map(|x| witness.get_target(x.0 .0) == F::ONE);
-//         let header_root = hex::encode(le_bits_to_bytes::<256>(header_root_bits));
-//         println!("{}", header_root);
-//     }
+    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+        let header_root_bits = self
+            .header_root
+            .map(|x| witness.get_target(x.0 .0) == F::ONE);
+        let header_root = hex::encode(le_bits_to_bytes::<256>(header_root_bits));
+        println!("{}", header_root);
+    }
 
-//     fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-//         // dst.write_all(bytes)
-//         // dst.write_target(x)
-//         // dst.write_target(x)
-//         // dst.write_target(self.x)?;
-//         // dst.write_target(self.x_squared)
-//         // dst
-//     }
+    #[allow(unused_variables)]
+    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
+        todo!()
+    }
 
-//     fn deserialize(src: &mut Buffer, _common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-//         // let x = src.read_target()?;
-//         // let x_squared = src.read_target()?;
-//         // Ok(Self {
-//         //     x,
-//         //     x_squared,
-//         //     _phantom: PhantomData,
-//         // })
-//     }
+    #[allow(unused_variables)]
+    fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
+        todo!()
+    }
 }
