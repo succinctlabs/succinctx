@@ -1,18 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.5.0;
 
-import {IFunctionVerifier} from "src/interfaces/IFunctionVerifier.sol";
+interface IFunctionRegistryEvents {
+    event FunctionRegistered(bytes32 indexed functionId, address verifier, string name, address owner);
+    event FunctionVerifierUpdated(bytes32 indexed functionId, address verifier);
+    event FunctionOwnerUpdated(bytes32 indexed functionId, address owner);
+    event Deployed(bytes32 indexed bytecodeHash, bytes32 indexed salt, address indexed deployedAddress);
+}
 
 interface IFunctionRegistryErrors {
-    error FunctionAlreadyRegistered(bytes32 proofId);
-    error FunctionNotRegistered(bytes32 proofId);
+    error EmptyBytecode();
+    error FailedDeploy();
+    error VerifierCannotBeZero();
+    error FunctionAlreadyRegistered(bytes32 functionId);
     error NotFunctionOwner(address owner, address actualOwner);
 }
 
-interface IFunctionRegistry is IFunctionRegistryErrors {
-    function verifiers(bytes32 functionId) external view returns (IFunctionVerifier);
-    function verifierOwners(bytes32 functionId) external view returns (address);
-    function registerFunction(bytes32 functionId, address verifier, address owner) external;
-    function updateFunctionVerifier(bytes32 functionId, address verifier) external;
-    function updateFunctionOwner(bytes32 functionId, address owner) external;
+interface IFunctionRegistry is IFunctionRegistryEvents, IFunctionRegistryErrors {
+    function verifiers(bytes32 functionId) external view returns (address verifier);
+    function verifierOwners(bytes32 functionId) external view returns (address owner);
+    function registerFunction(address verifier, string memory name) external returns (bytes32 functionId);
+    function deployAndRegisterFunction(bytes memory bytecode, string memory name)
+        external
+        returns (bytes32 functionId, address verifier);
+    function updateFunction(address verifier, string memory name) external returns (bytes32 functionId);
+    function deployAndUpdateFunction(bytes memory bytecode, string memory _name)
+        external
+        returns (bytes32 functionId, address verifier);
+    function getFunctionId(address owner, string memory name) external pure returns (bytes32 functionId);
 }

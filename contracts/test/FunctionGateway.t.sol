@@ -18,7 +18,8 @@ import {SuccinctFeeVault} from "@telepathy-v2/payment/SuccinctFeeVault.sol";
 
 contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayErrors {
     // Example Function Request and expected values
-    bytes32 internal constant FUNCTION_ID = keccak256("functionId");
+    string internal constant FUNCTION_NAME = "test-verifier";
+    bytes32 internal FUNCTION_ID;
     bytes internal constant REQUEST = bytes("functionInput");
     bytes4 internal constant CALLBACK_SELECTOR = TestConsumer.handleRequest.selector;
     bytes internal constant CALLBACK_CONTEXT = abi.encode(0);
@@ -43,8 +44,12 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         sender = makeAddr("sender");
         feeVault = address(new SuccinctFeeVault(owner));
         gateway = address(new FunctionGateway(DEFAULT_SCALAR, feeVault, owner));
-        verifier = address(new TestFunctionVerifier());
         consumer = address(new TestConsumer());
+
+        vm.prank(owner);
+        (FUNCTION_ID, verifier) =
+            IFunctionRegistry(gateway).deployAndRegisterFunction(type(TestFunctionVerifier).creationCode, FUNCTION_NAME);
+
         expectedRequest = FunctionRequest({
             functionId: FUNCTION_ID,
             inputHash: keccak256(REQUEST),
@@ -56,8 +61,6 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
             callbackFulfilled: false
         });
         EXPECTED_REQUEST_ID = keccak256(abi.encode(FunctionGateway(gateway).nonce(), expectedRequest));
-
-        IFunctionRegistry(gateway).registerFunction(FUNCTION_ID, verifier, msg.sender);
 
         vm.deal(sender, DEFAULT_FEE);
         vm.deal(consumer, DEFAULT_FEE);
