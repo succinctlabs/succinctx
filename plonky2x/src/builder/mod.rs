@@ -7,6 +7,7 @@ use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 
 use crate::vars::{BoolVariable, Variable};
 
@@ -31,6 +32,11 @@ impl BuilderAPI {
     /// Build the circuit.
     pub fn build(self) -> CircuitData<F, C, D> {
         self.api.build()
+    }
+
+    /// Pass through to add simple generator
+    pub fn add_simple_generator(&mut self, generator: dyn SimpleGenerator<F, D>) {
+        self.api.add_simple_generator(generator)
     }
 
     /// Add returns res = i1 + i2.
