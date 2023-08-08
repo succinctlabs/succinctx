@@ -5,10 +5,10 @@ pragma solidity ^0.8.16;
 import {IFunctionGateway, FunctionRequest} from "./interfaces/IFunctionGateway.sol";
 import {IFunctionVerifier} from "./interfaces/IFunctionVerifier.sol";
 import {FunctionRegistry} from "./FunctionRegistry.sol";
+import {TimelockedUpgradeable} from "./upgrade/TimelockedUpgradeable.sol";
 import {IFeeVault} from "@telepathy-v2/payment/interfaces/IFeeVault.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
+contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgradeable {
     /// @dev The proof id for an aggregate proof.
     bytes32 public constant AGGREGATION_FUNCTION_ID = keccak256("AGGREGATION_FUNCTION_ID");
 
@@ -26,12 +26,15 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
 
     /// @notice A reference to the contract where fees are sent.
     /// @dev During the request functions, this is used to add msg.value to the sender's balance.
-    address public immutable feeVault;
+    address public feeVault;
 
-    constructor(uint256 _scalar, address _feeVault, address _owner) Ownable() {
+    function initialize(uint256 _scalar, address _feeVault, address _timelock, address _guardian)
+        external
+        initializer
+    {
         scalar = _scalar;
         feeVault = _feeVault;
-        _transferOwnership(_owner);
+        __TimelockedUpgradeable_init(_timelock, _guardian);
     }
 
     function request(bytes32 _functionId, bytes memory _input, bytes4 _callbackSelector, bytes memory _context)
@@ -195,7 +198,7 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
     }
 
     /// @notice Update the scalar.
-    function updateScalar(uint256 _scalar) external onlyOwner {
+    function updateScalar(uint256 _scalar) external onlyGuardian {
         scalar = _scalar;
 
         emit ScalarUpdated(_scalar);
@@ -240,4 +243,8 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
             }
         }
     }
+
+    /// @dev This empty reserved space to add new variables without shifting down storage.
+    ///      See: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    uint256[50] private __gap;
 }

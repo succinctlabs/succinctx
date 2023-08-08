@@ -1,0 +1,9 @@
+abi/*
+out/*
+broadcast/
+cache/
+logs/
+lcov.info
+*foundryScriptOutput.json
+
+.env.deployments

@@ -1,4 +1,6 @@
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
 @openzeppelin/=lib/openzeppelin-contracts/
+@openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/
+@safe/=lib/safe-contracts/contracts
 @telepathy-v2/=lib/telepathy-v2/contracts/src/

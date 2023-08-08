@@ -7,3 +7,9 @@
 [submodule "contracts/lib/telepathy-v2"]
 	path = contracts/lib/telepathy-v2
 	url = https://github.com/succinctlabs/telepathy-v2
+[submodule "contracts/lib/openzeppelin-contracts-upgradeable"]
+	path = contracts/lib/openzeppelin-contracts-upgradeable
+	url = https://github.com/openzeppelin/openzeppelin-contracts-upgradeable
+[submodule "contracts/lib/safe-contracts"]
+	path = contracts/lib/safe-contracts
+	url = https://github.com/safe-global/safe-contracts

@@ -49,6 +49,8 @@ contract TestConsumer {
 
         ++nonce;
     }
+
+    receive() external payable {}
 }
 
 // Attempts re-entry into the gateway contract.
@@ -81,6 +83,8 @@ contract AttackConsumer {
     function handleRequest(bytes memory, bytes memory) external {
         FunctionGateway(msg.sender).callback(requestId, output, context);
     }
+
+    receive() external payable {}
 }
 
 contract TestFunctionVerifier is IFunctionVerifier {
