@@ -5,12 +5,13 @@ import "forge-std/Vm.sol";
 import "forge-std/console.sol";
 import "forge-std/Test.sol";
 
-import {StorageOracle} from "../src/StorageOracle.sol";
-import {FunctionGateway} from "../src/platform/FunctionGateway.sol";
+import {StorageOracle} from "../src/examples/storage/StorageOracle.sol";
+import {NounsOwnership} from "../src/examples/storage/NounsOwnership.sol";
+import {FunctionGateway} from "../src/FunctionGateway.sol";
 
-import {IFunctionGatewayEvents, IFunctionGatewayErrors} from "../src/platform/IFunctionGateway.sol";
-import {MockFunctionGateway} from "../src/platform/MockFunctionGateway.sol";
-import {NounsOwnership} from "../src/NounsOwnership.sol";
+import {IFunctionGatewayEvents, IFunctionGatewayErrors} from "../src/interfaces/IFunctionGateway.sol";
+import {MockFunctionGateway} from "../src/mocks/MockFunctionGateway.sol";
+import {Proxy} from "src/upgrades/Proxy.sol";
 
 contract TestError is IFunctionGatewayErrors {
     error InvalidL1BlockHash();
@@ -38,6 +39,8 @@ contract NounsOwnershipTest is Test, TestError, TestEvents {
     uint256 internal constant SLOT = uint256(keccak256(abi.encode(NOUN_NUMBER, OWNERS_SLOT)));
     bytes32 internal constant FUNCTION_ID = keccak256("STORAGE");
 
+    address internal timelock;
+    address internal guardian;
     address internal gateway;
     address internal storageOracle;
     address internal nounsOwnership;
@@ -49,24 +52,23 @@ contract NounsOwnershipTest is Test, TestError, TestEvents {
             revert("RPC_420 not set, skipping test");
         }
 
+        timelock = makeAddr("timelock");
+        guardian = makeAddr("guardian");
         gateway = address(new MockFunctionGateway());
-        storageOracle = address(new StorageOracle(address(gateway), FUNCTION_ID));
+
+        // Deploy StorageOracle
+        address storageOracleImpl = address(new StorageOracle());
+        storageOracle = address(new Proxy(storageOracleImpl, ""));
+        StorageOracle(storageOracle).initialize(address(gateway), FUNCTION_ID, timelock, guardian);
+
         nounsOwnership = address(new NounsOwnership(storageOracle));
     }
 
     function test_ClaimOwnership() public {
         bytes32 requestId = NounsOwnership(nounsOwnership).claimOwnership(NOUN_NUMBER);
 
-        (
-            bytes32 functionId,
-            bytes32 inputHash,
-            bytes32 outputHash,
-            bytes32 contextHash,
-            address callbackAddress,
-            bytes4 callbackSelector,
-            bool proofFulfilled,
-            bool callbackFulfilled
-        ) = FunctionGateway(gateway).requests(requestId);
+        (bytes32 functionId,,,, address callbackAddress,, bool proofFulfilled, bool callbackFulfilled) =
+            FunctionGateway(gateway).requests(requestId);
         assertEq(FUNCTION_ID, functionId);
         assertEq(storageOracle, callbackAddress);
         assertEq(false, proofFulfilled);
