@@ -16,7 +16,7 @@ contract FunctionRegistry is IFunctionRegistry {
     function registerFunction(address _verifier, string memory _name) external returns (bytes32 functionId) {
         functionId = getFunctionId(msg.sender, _name);
         if (address(verifiers[functionId]) != address(0)) {
-            revert FunctionAlreadyHasVerifier(functionId); // should call update instead
+            revert FunctionAlreadyRegistered(functionId); // should call update instead
         }
         if (_verifier == address(0)) {
             revert VerifierCannotBeZero();
@@ -30,18 +30,18 @@ contract FunctionRegistry is IFunctionRegistry {
     /// @notice Registers a function, using CREATE2 to deploy the verifier.
     /// @param _bytecode The bytecode of the verifier.
     /// @param _name The name of the function to be registered.
-    function registerFunctionFromCreate(bytes memory _bytecode, string memory _name)
+    function deployAndRegisterFunction(bytes memory _bytecode, string memory _name)
         external
         returns (bytes32 functionId, address verifier)
     {
         functionId = getFunctionId(msg.sender, _name);
         if (address(verifiers[functionId]) != address(0)) {
-            revert FunctionAlreadyHasVerifier(functionId); // should call update instead
+            revert FunctionAlreadyRegistered(functionId); // should call update instead
         }
 
+        verifierOwners[functionId] = msg.sender;
         verifier = _deploy(_bytecode, functionId);
         verifiers[functionId] = verifier;
-        verifierOwners[functionId] = msg.sender;
 
         emit FunctionRegistered(functionId, verifier, _name, msg.sender);
     }
@@ -65,7 +65,7 @@ contract FunctionRegistry is IFunctionRegistry {
     /// @notice Updates the function, using CREATE2 to deploy the new verifier.
     /// @param _bytecode The bytecode of the verifier.
     /// @param _name The name of the function to be updated.
-    function updateFunctionFromCreate(bytes memory _bytecode, string memory _name)
+    function deployAndUpdateFunction(bytes memory _bytecode, string memory _name)
         external
         returns (bytes32 functionId, address verifier)
     {

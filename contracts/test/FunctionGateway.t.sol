@@ -47,9 +47,8 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         consumer = address(new TestConsumer());
 
         vm.prank(owner);
-        (FUNCTION_ID, verifier) = IFunctionRegistry(gateway).registerFunctionFromCreate(
-            type(TestFunctionVerifier).creationCode, FUNCTION_NAME
-        );
+        (FUNCTION_ID, verifier) =
+            IFunctionRegistry(gateway).deployAndRegisterFunction(type(TestFunctionVerifier).creationCode, FUNCTION_NAME);
 
         expectedRequest = FunctionRequest({
             functionId: FUNCTION_ID,
