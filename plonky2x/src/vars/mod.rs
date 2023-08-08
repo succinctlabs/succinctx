@@ -11,3 +11,5 @@ pub use bytes32::Bytes32Variable;
 pub use u256::U256Variable;
 pub use variable::Variable;
 pub use bytes::BytesVariable;
+pub use bytes::VariableMethods;
+// pub use bytes::macros::*;

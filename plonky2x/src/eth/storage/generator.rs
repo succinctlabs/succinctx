@@ -9,10 +9,10 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use ethers::providers::{Http, Middleware, Provider};
-use ethers::types::{Address, EIP1186ProofResponse};
+use ethers::types::{Address, EIP1186ProofResponse, H256};
+use tokio::runtime::Runtime;
 
-
-use crate::vars::{BoolVariable, Bytes32Variable, U256Variable};
+use crate::vars::{BoolVariable, Bytes32Variable, U256Variable, VariableMethods};
 use crate::eth::types::{AddressVariable};
 use super::types::{AccountVariable, ProofVariable};
 
@@ -55,6 +55,7 @@ impl<F: RichField + Extendable<D>, const D: usize> GetStorageProofGenerator<F,D>
     }
 }
 
+
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for GetStorageProofGenerator<F, D>
 {
@@ -67,22 +68,18 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         vec![]
     }
 
-    fn get_storage(&self) -> EIP1186ProofResponse {
-        // TODO construct blocking runtime
-        let result = self.provider.get_proof(address, vec![location], Some(self.block_number.into())).await?;
-    }
-
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let address_bits = self
-            .address.0.to_vec().iter().map(|x| witness.get_target(x.0) == F::ONE);
-        let address = Address::from(le_bits_to_bytes::<20>(address_bits));
-        let location = H256::from(le_bits_to_bytes::<32>(address_bits));
-        let storageResult: EIP1186ProofResponse = self::get_storage(address, location);
+        let address = Address::from(self.address.get_bytes_le(witness));
+        let location = H256::from(self.storage_key.get_bytes_le(witness));
+        let get_proof_closure = || -> EIP1186ProofResponse {
+            let rt = Runtime::new().unwrap();
+            rt.block_on(async { self.provider.get_proof(address, vec![location], Some(self.block_number.into())).await.unwrap() } )
+        };
+        let storageResult: EIP1186ProofResponse = get_proof_closure();
 
-        EIP1186ProofResponse
-        // Now load the result in the variables
-        // let header_root = hex::encode(le_bits_to_bytes::<256>(header_root_bits));
-        // println!("{}", header_root);
+        let bytes32_value: [u8; 32];
+        storageResult.storage_proof[0].value.to_big_endian(&mut bytes32_value);
+        self.value.set_from_bytes(bytes32_value, out_buffer);
     }
 
     #[allow(unused_variables)]
