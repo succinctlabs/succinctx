@@ -6,12 +6,12 @@ impl BuilderAPI {
         self.api.add_virtual_target().into()
     }
 
-    pub fn f(&mut self) -> BoolVariable {
+    pub fn _false(&mut self) -> BoolVariable {
         let zero = self.zero();
         zero.into()
     }
 
-    pub fn t(&mut self) -> BoolVariable {
+    pub fn _true(&mut self) -> BoolVariable {
         let one = self.one();
         one.into()
     }
