@@ -2,13 +2,13 @@
 use crate::vars::{Bytes32Variable, Variable, U256Variable, BytesVariable, ByteVariable, BoolVariable};
 use crate::eth::types::{AddressVariable};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ProofVariable {
-    proof: Bytes32Variable
+    pub proof: Bytes32Variable
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct AccountVariable {
     pub balance: U256Variable,
     pub code_hash: Bytes32Variable,

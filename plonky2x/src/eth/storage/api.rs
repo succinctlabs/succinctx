@@ -74,7 +74,7 @@ impl StorageProofAPI {
             storage_proof,
             value, 
             _block_number,
-            self.provider
+            self.provider.clone()
         );
         self.api.api.add_simple_generator(generator);
 
