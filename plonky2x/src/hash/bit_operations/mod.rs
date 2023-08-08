@@ -204,7 +204,7 @@ pub fn add_arr<F: RichField + Extendable<D>, const D: usize, const S: usize>(
     let b_biguint = bits_to_biguint_target(builder, b.to_vec());
     // Then add a and b are big uints
     let sum_biguint = builder.add_biguint(&a_biguint, &b_biguint);
-    let mut sum_bits = biguint_to_bits_target::<F, D, 2>(builder, &sum_biguint);
+    let mut sum_bits = biguint_to_bits_target::<F, D>(builder, &sum_biguint);
 
     // sum_bits is in big-endian format.
     // we need to return the S least significant bits in big-endian format

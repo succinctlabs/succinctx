@@ -60,13 +60,13 @@ pub fn uint32_to_bits<F: RichField + Extendable<D>, const D: usize>(
     bits.map(|x| x.unwrap())
 }
 
-pub fn biguint_to_bits_target<F: RichField + Extendable<D>, const D: usize, const B: usize>(
+pub fn biguint_to_bits_target<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     a: &BigUintTarget,
 ) -> Vec<BoolTarget> {
     let mut res = Vec::new();
     for i in (0..a.num_limbs()).rev() {
-        let bit_targets = builder.split_le_base::<B>(a.get_limb(i).0, 32);
+        let bit_targets = builder.split_le_base::<2>(a.get_limb(i).0, 32);
         for j in (0..32).rev() {
             res.push(BoolTarget::new_unsafe(bit_targets[j]));
         }
