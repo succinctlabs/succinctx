@@ -10,15 +10,15 @@ pub struct ProofVariable {
 
 #[derive(Debug)]
 pub struct AccountVariable {
-    balance: U256Variable,
-    code_hash: Bytes32Variable,
-    nonce: U256Variable,
-    storage_hash: Bytes32Variable
+    pub balance: U256Variable,
+    pub code_hash: Bytes32Variable,
+    pub nonce: U256Variable,
+    pub storage_hash: Bytes32Variable
 }
 
 
 impl AccountVariable {
-    pub fn serialize(&self) -> &[ByteVariable] {
-        return self.code_hash;
+    pub fn serialize(&self) -> Vec<ByteVariable> {
+        return self.code_hash.0[..].to_vec();
     }
 }

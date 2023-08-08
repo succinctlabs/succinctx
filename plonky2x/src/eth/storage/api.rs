@@ -1,25 +1,29 @@
+
 use crate::builder::BuilderAPI;
 use crate::vars::{Bytes32Variable, Variable, U256Variable, BytesVariable, ByteVariable};
 use crate::eth::types::{AddressVariable};
+use ethers::providers::{Http, Middleware, Provider};
 
 use super::types::{AccountVariable, ProofVariable};
 use super::generator::{GetStorageProofGenerator};
 
 pub struct StorageProofAPI {
     pub api: BuilderAPI,
+    pub provider: Provider<Http>,
 }
 
 impl StorageProofAPI {
-    pub fn new(api: BuilderAPI) -> Self {
-        Self { api }
+    pub fn new(api: BuilderAPI, provider: Provider<Http>) -> Self {
+        Self { api, provider }
     }
 
+    // Constraint that a merkle trie with root _root has _value at _key, with _proof as "evidence"
     pub fn merkle_trie_constraint(
         &mut self,
         _root: Bytes32Variable,
         _key: Bytes32Variable,
         _proof: ProofVariable,
-        _value: &[ByteVariable],
+        _value: Vec<ByteVariable>,
     ) {
         todo!()
     }
@@ -70,6 +74,7 @@ impl StorageProofAPI {
             storage_proof,
             value, 
             _block_number,
+            provider
         );
         self.api.api.add_simple_generator(generator);
 
