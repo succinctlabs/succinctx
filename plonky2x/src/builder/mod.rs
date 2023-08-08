@@ -1,5 +1,7 @@
 mod boolean;
 mod byte;
+mod bytes32;
+mod u256;
 
 use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;

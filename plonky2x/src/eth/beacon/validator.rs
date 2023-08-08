@@ -1,5 +1,5 @@
-use crate::eth::types::{BLSPubkeyVariable, Bytes32Variable, U256Variable};
-use crate::vars::BoolVariable;
+use crate::eth::types::BLSPubkeyVariable;
+use crate::vars::{BoolVariable, Bytes32Variable, U256Variable};
 
 #[derive(Debug, Clone)]
 pub struct BeaconValidatorVariable {
