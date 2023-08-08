@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.16;
 
-import {Secp256r1} from "./functions/secp256r1/Secp256r1.sol";
+import {Secp256r1} from "./Secp256r1.sol";
 
 contract Example {
     function a() external {
