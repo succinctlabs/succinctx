@@ -20,4 +20,5 @@ interface IFunctionRegistry is IFunctionRegistryEvents, IFunctionRegistryErrors 
     function verifierOwners(bytes32 functionId) external view returns (address owner);
     function registerFunction(bytes memory bytecode, string memory name) external returns (address verifier);
     function updateFunction(bytes memory bytecode, string memory name) external returns (address verifier);
+    function getFunctionId(address owner, string memory name) external pure returns (bytes32 functionId);
 }

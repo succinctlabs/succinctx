@@ -18,7 +18,8 @@ import {SuccinctFeeVault} from "@telepathy-v2/payment/SuccinctFeeVault.sol";
 
 contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayErrors {
     // Example Function Request and expected values
-    bytes32 internal constant FUNCTION_ID = keccak256("functionId");
+    string internal constant FUNCTION_NAME = "test-verifier";
+    bytes32 internal FUNCTION_ID;
     bytes internal constant REQUEST = bytes("functionInput");
     bytes4 internal constant CALLBACK_SELECTOR = TestConsumer.handleRequest.selector;
     bytes internal constant CALLBACK_CONTEXT = abi.encode(0);
@@ -29,7 +30,6 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
     uint256 internal constant DEFAULT_FEE = 0.1 ether;
     uint256 internal constant DEFAULT_GAS_LIMIT = 1000000;
     uint256 internal constant DEFAULT_SCALAR = 1;
-    string internal constant VERIFIER_NAME = "test-verifier";
 
     address internal owner;
     address internal sender;
@@ -45,6 +45,8 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         feeVault = address(new SuccinctFeeVault(owner));
         gateway = address(new FunctionGateway(DEFAULT_SCALAR, feeVault, owner));
         consumer = address(new TestConsumer());
+
+        FUNCTION_ID = keccak256(abi.encode(owner, FUNCTION_NAME));
         expectedRequest = FunctionRequest({
             functionId: FUNCTION_ID,
             inputHash: keccak256(REQUEST),
@@ -58,8 +60,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         EXPECTED_REQUEST_ID = keccak256(abi.encode(FunctionGateway(gateway).nonce(), expectedRequest));
 
         vm.prank(owner);
-        verifier = IFunctionRegistry(gateway).registerFunction(type(TestFunctionVerifier).creationCode, VERIFIER_NAME);
-        console.log("Verifier address: %s", verifier);
+        verifier = IFunctionRegistry(gateway).registerFunction(type(TestFunctionVerifier).creationCode, FUNCTION_NAME);
 
         vm.deal(sender, DEFAULT_FEE);
         vm.deal(consumer, DEFAULT_FEE);
