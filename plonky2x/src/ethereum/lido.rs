@@ -19,7 +19,7 @@ struct LidoMetadata {
 }
 
 impl LidoMetadata {
-    fn new(rpc_url: &str) -> Result<LidoMetadata, Box<dyn std::error::Error>> {
+    fn new(rpc_url: &str) -> eyre::Result<LidoMetadata> {
         let provider1 = Provider::<Http>::try_from(rpc_url)?;
         let NODE_OPERATOR_REGISTRY_ADDR: Address = "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5".parse()?;
         let SIGNING_KEYS_MAPPING_NAME: H256 = "0xeb2b7ad4d8ce5610cfb46470f03b14c197c2b751077c70209c5d0139f7c79ee9".parse()?;
@@ -29,7 +29,7 @@ impl LidoMetadata {
         Ok(LidoMetadata { provider: provider1, NODE_OPERATOR_REGISTRY_ADDR, SIGNING_KEYS_MAPPING_NAME, contract })
     }
 
-    async fn get_node_operator_info(&self, block: BlockId, operator_id: u64) -> Result<H256, Box<dyn std::error::Error>> {
+    async fn get_node_operator_info(&self, block: BlockId, operator_id: u64) -> eyre::Result<EIP1186ProofResponse> {
         // Get the storage value
         // Sanity check against calling the contract
         // Return [storagekey, storagevalue, storageproof]
@@ -44,10 +44,11 @@ impl LidoMetadata {
         println!("result.active: {:?}", result.0);
         println!("result.pubkey: {:?}", result.2);
         // TODO verify storage == H256(leftpad(result.pubkey, result.active))
-        // TODO use provider to get storage proof
-        // TODO verify said proof
-        // TODO: return (location, storage_value, storage_proof)
-        Ok(storage_value)
+        // TODO verify below proof
+        let proof = self.provider.get_proof(
+            self.NODE_OPERATOR_REGISTRY_ADDR, vec![location], Some(block.into())
+        ).await?;
+        Ok(proof)
     }
 
     fn get_key_offset(position: H256, node_operator_id: U256, key_index: U256) -> H256 {
@@ -61,8 +62,7 @@ impl LidoMetadata {
         H256::from(keccak256(buffer))
     }
 
-    async fn get_operator_key_info(&self, block: BlockId, operator_id: u64, key_idx: u64) -> eyre::Result<()> {
-
+    async fn get_operator_key_info(&self, block: BlockId, operator_id: u64, key_idx: u64) -> eyre::Result<EIP1186ProofResponse> {
         let signing_key: (Bytes, Bytes, Vec<bool>) = self.contract.get_signing_keys(
             U256::from(operator_id), U256::from(key_idx), U256::from(1)
         ).call().await?;
@@ -88,8 +88,11 @@ impl LidoMetadata {
         println!("Storage at {} in block {}: {:?}", self.NODE_OPERATOR_REGISTRY_ADDR, key_offset_plus_1_h256, storage_2);
 
         // TODO verify that signing_key.0 == truncate(concat(storage_1, storage_2), 48)
-        // TODO get storage proofs & return them along with key_offset
-        Ok(())
+
+        let proof = self.provider.get_proof(
+            self.NODE_OPERATOR_REGISTRY_ADDR, vec![key_offset, key_offset_plus_1_h256], Some(block.into())
+        ).await?;
+        Ok(proof)
     }
 }
 
@@ -103,12 +106,14 @@ mod tests {
         let lido_metadata = LidoMetadata::new(rpc_url).unwrap();
         let block = lido_metadata.provider.get_block_number().await.unwrap();
         let operator_id = 0;
-        let node_operator_storage = lido_metadata.get_node_operator_info(
+        let node_operator_proof = lido_metadata.get_node_operator_info(
             block.into(), operator_id
         ).await.unwrap();
+        println!("node_operator_proof {:?} {:?}", node_operator_proof.storage_proof[0].key, node_operator_proof.storage_proof[0].value);
         let key_idx = 0;
-        let node_pubkey_storage = lido_metadata.get_operator_key_info(
+        let operator_key_proof = lido_metadata.get_operator_key_info(
             block.into(), operator_id, key_idx
         ).await.unwrap();
+        // println!("operator_key_proof {:?}", operator_key_proof);
     }
 }

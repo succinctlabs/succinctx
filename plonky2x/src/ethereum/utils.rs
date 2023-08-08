@@ -1,7 +1,8 @@
 
 use ethers::abi::{AbiEncode, Token};
-use ethers::types::{H256, U256};
-use ethers::utils::keccak256;
+use ethers::types::{H256, U256, EIP1186ProofResponse, BlockId};
+use ethers::utils::{keccak256,serialize};
+use ethers::providers::{Http, JsonRpcClient, Middleware, Provider};
 
 // TODO: simply import these methods from foundry
 /// These are taken from: https://github.com/foundry-rs/foundry/blob/6672134672c8e442684d7d9c51fa8f8717b0f600/evm/src/utils.rs#L21
