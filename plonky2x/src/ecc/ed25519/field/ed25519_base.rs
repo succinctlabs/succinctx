@@ -49,7 +49,7 @@ fn biguint_from_array(arr: [u64; 4]) -> BigUint {
 
 //         let v3 = v.clone().square() * v;
 //         let v7 = v3.clone().square() * v;
-        
+
 //         let r = (u * v3) * (u * v7).exponentiate((p-five)/eight);
 //         let check = v * r.square();
 
@@ -98,7 +98,7 @@ fn biguint_from_array(arr: [u64; 4]) -> BigUint {
 //     //             } else {
 //     //                 None
 //     //             }
-//     //         }, 
+//     //         },
 //     //         None => None
 //     //     }
 //     // }
@@ -116,7 +116,7 @@ fn biguint_from_array(arr: [u64; 4]) -> BigUint {
 //     //     let u_biguint = u.to_canonical_biguint();
 //     //     let v_biguint = v.to_canonical_biguint();
 //     //     let x_candidate= (u/v).exponentiate((p.clone()+three)/eight);
-//     //     let neg_u_biguint = 
+//     //     let neg_u_biguint =
 //     // }
 // }
 
@@ -243,7 +243,6 @@ impl Field for Ed25519Base {
     fn from_noncanonical_u96(n: (u64, u32)) -> Self {
         Self([n.0, n.1 as u64, 0, 0])
     }
-
 }
 
 impl PrimeField for Ed25519Base {

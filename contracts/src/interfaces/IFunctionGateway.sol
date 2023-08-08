@@ -15,7 +15,8 @@ struct FunctionRequest {
 interface IFunctionGatewayEvents {
     event ProofRequested(
         uint256 indexed nonce,
-        bytes32 indexed requestId,
+        bytes32 indexed functionId,
+        bytes32 requestId,
         bytes inputs,
         bytes context,
         uint256 gasLimit,
