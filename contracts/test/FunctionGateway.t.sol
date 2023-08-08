@@ -57,8 +57,9 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         });
         EXPECTED_REQUEST_ID = keccak256(abi.encode(FunctionGateway(gateway).nonce(), expectedRequest));
 
-        address verifierImpl = address(new TestFunctionVerifier());
-        verifier = IFunctionRegistry(gateway).registerFunction(verifierImpl.code, VERIFIER_NAME);
+        vm.prank(owner);
+        verifier = IFunctionRegistry(gateway).registerFunction(type(TestFunctionVerifier).creationCode, VERIFIER_NAME);
+        console.log("Verifier address: %s", verifier);
 
         vm.deal(sender, DEFAULT_FEE);
         vm.deal(consumer, DEFAULT_FEE);

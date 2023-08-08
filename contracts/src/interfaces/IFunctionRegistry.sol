@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.16;
+pragma solidity >=0.5.0;
 
 interface IFunctionRegistryEvents {
     event FunctionRegistered(bytes32 indexed functionId, address verifier, string name, address owner);
