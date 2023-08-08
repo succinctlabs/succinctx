@@ -96,8 +96,8 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
         r.outputHash = _outputHash;
 
         // Verify the proof.
-        IFunctionVerifier verifier = verifiers[r.functionId];
-        if (!verifier.verify(r.inputHash, _outputHash, _proof)) {
+        address verifier = verifiers[r.functionId];
+        if (!IFunctionVerifier(verifier).verify(r.inputHash, _outputHash, _proof)) {
             revert InvalidProof(address(verifier), r.inputHash, _outputHash, _proof);
         }
 
@@ -131,7 +131,8 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
                 revert ProofAlreadyFulfilled(requestId);
             }
             inputHashes[i] = r.inputHash;
-            verificationKeyHashes[i] = verifiers[r.functionId].verificationKeyHash();
+            address verifier = verifiers[r.functionId];
+            verificationKeyHashes[i] = IFunctionVerifier(verifier).verificationKeyHash();
         }
 
         // Do some sanity checks.
@@ -153,9 +154,9 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
         }
 
         // Verify the aggregate proof.
-        IFunctionVerifier verifier = verifiers[AGGREGATION_FUNCTION_ID];
-        if (!verifier.verify(_inputsRoot, _outputsRoot, _aggregateProof)) {
-            revert InvalidProof(address(verifier), _inputsRoot, _outputsRoot, _aggregateProof);
+        address aggregationVerifier = verifiers[AGGREGATION_FUNCTION_ID];
+        if (!IFunctionVerifier(aggregationVerifier).verify(_inputsRoot, _outputsRoot, _aggregateProof)) {
+            revert InvalidProof(address(aggregationVerifier), _inputsRoot, _outputsRoot, _aggregateProof);
         }
 
         emit ProofBatchFulfilled(

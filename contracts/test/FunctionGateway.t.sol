@@ -29,6 +29,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
     uint256 internal constant DEFAULT_FEE = 0.1 ether;
     uint256 internal constant DEFAULT_GAS_LIMIT = 1000000;
     uint256 internal constant DEFAULT_SCALAR = 1;
+    string internal constant VERIFIER_NAME = "test-verifier";
 
     address internal owner;
     address internal sender;
@@ -43,7 +44,6 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         sender = makeAddr("sender");
         feeVault = address(new SuccinctFeeVault(owner));
         gateway = address(new FunctionGateway(DEFAULT_SCALAR, feeVault, owner));
-        verifier = address(new TestFunctionVerifier());
         consumer = address(new TestConsumer());
         expectedRequest = FunctionRequest({
             functionId: FUNCTION_ID,
@@ -57,7 +57,8 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         });
         EXPECTED_REQUEST_ID = keccak256(abi.encode(FunctionGateway(gateway).nonce(), expectedRequest));
 
-        IFunctionRegistry(gateway).registerFunction(FUNCTION_ID, verifier, msg.sender);
+        address verifierImpl = address(new TestFunctionVerifier());
+        verifier = IFunctionRegistry(gateway).registerFunction(verifierImpl.code, VERIFIER_NAME);
 
         vm.deal(sender, DEFAULT_FEE);
         vm.deal(consumer, DEFAULT_FEE);

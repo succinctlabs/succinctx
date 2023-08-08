@@ -1,50 +1,53 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.16;
 
-import {IFunctionVerifier} from "./interfaces/IFunctionVerifier.sol";
 import {IFunctionRegistry} from "./interfaces/IFunctionRegistry.sol";
 
 contract FunctionRegistry is IFunctionRegistry {
-    /// @dev Maps proof ids to their corresponding verifiers.
-    mapping(bytes32 => IFunctionVerifier) public verifiers;
+    /// @dev Maps functionId's to their corresponding verifiers.
+    mapping(bytes32 => address) public verifiers;
 
-    /// @dev Maps proof ids to their corresponding owners.
+    /// @dev Maps functionId's to their corresponding owners.
     mapping(bytes32 => address) public verifierOwners;
 
-    /// @dev Registers a proof with the registry.
-    /// @param _functionId The id of the proof to be registered.
-    /// @param _verifier The address of the verifier.
-    /// @param _owner The owner of the verifier.
-    function registerFunction(bytes32 _functionId, address _verifier, address _owner) external {
-        if (address(verifiers[_functionId]) != address(0)) {
-            revert FunctionAlreadyRegistered(_functionId);
+    /// @notice Registers a function with the registry.
+    /// @param _bytecode The bytecode of the verifier.
+    /// @param _name The name of the function to be registered.
+    function registerFunction(bytes memory _bytecode, string memory _name) external returns (address verifierAddr) {
+        bytes32 functionId = keccak256(abi.encode(msg.sender, _name));
+        if (address(verifiers[functionId]) != address(0)) {
+            revert FunctionAlreadyHasVerifier(functionId); // should call update instead
         }
-        verifiers[_functionId] = IFunctionVerifier(_verifier);
-        verifierOwners[_functionId] = _owner;
+
+        verifierAddr = _deploy(_bytecode, functionId);
+        verifiers[functionId] = verifierAddr;
+        verifierOwners[functionId] = msg.sender;
+
+        emit FunctionRegistered(functionId, verifierAddr, _name, msg.sender);
     }
 
-    /// @dev Updates the verifier of a proof.
-    /// @param _functionId The id of the proof to be updated.
-    /// @param _verifier The address of the verifier.
-    function updateFunctionVerifier(bytes32 _functionId, address _verifier) external {
-        if (address(verifiers[_functionId]) == address(0)) {
-            revert FunctionNotRegistered(_functionId);
-        } else if (msg.sender != verifierOwners[_functionId]) {
-            revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
+    /// @notice Updates the function with a new verifier.
+    /// @param _bytecode The bytecode of the verifier.
+    /// @param _name The name of the function to be updated.
+    function updateFunction(bytes memory _bytecode, string memory _name) external returns (address verifierAddr) {
+        bytes32 functionId = keccak256(abi.encode(msg.sender, _name));
+        if (msg.sender != verifierOwners[functionId]) {
+            revert NotFunctionOwner(msg.sender, verifierOwners[functionId]);
         }
-        verifiers[_functionId] = IFunctionVerifier(_verifier);
+        verifierAddr = _deploy(_bytecode, functionId);
+        verifiers[functionId] = verifierAddr;
+
+        emit FunctionVerifierUpdated(functionId, verifierAddr);
     }
 
-    /// @dev Updates the owner of a proof.
-    /// @param _functionId The id of the proof to be updated.
-    /// @param _owner The owner of the verifier.
-    function updateFunctionOwner(bytes32 _functionId, address _owner) external {
-        if (address(verifiers[_functionId]) == address(0)) {
-            revert FunctionNotRegistered(_functionId);
-        } else if (msg.sender != verifierOwners[_functionId]) {
-            revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
+    function _deploy(bytes memory _bytecode, bytes32 _salt) internal returns (address deployedAddr) {
+        if (_bytecode.length == 0) revert EmptyBytecode();
+
+        assembly {
+            deployedAddr := create2(0, add(_bytecode, 32), mload(_bytecode), _salt)
         }
-        verifierOwners[_functionId] = _owner;
+        if (deployedAddr == address(0)) revert FailedDeploy();
+
+        emit Deployed(keccak256(_bytecode), _salt, deployedAddr);
     }
 }
