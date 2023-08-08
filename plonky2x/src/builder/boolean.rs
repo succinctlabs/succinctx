@@ -2,6 +2,20 @@ use crate::builder::BuilderAPI;
 use crate::vars::BoolVariable;
 
 impl BuilderAPI {
+    pub fn init_bool(&mut self) -> BoolVariable {
+        self.api.add_virtual_target().into()
+    }
+
+    pub fn f(&mut self) -> BoolVariable {
+        let zero = self.zero();
+        zero.into()
+    }
+
+    pub fn t(&mut self) -> BoolVariable {
+        let one = self.one();
+        one.into()
+    }
+
     /// Computes the or of two bits or i1 | i2.
     pub fn or(&mut self, i1: BoolVariable, i2: BoolVariable) -> BoolVariable {
         self.add(i1.0, i2.0).into()

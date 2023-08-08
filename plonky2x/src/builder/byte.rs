@@ -6,4 +6,9 @@ impl BuilderAPI {
         let zero = self.zero();
         zero.into()
     }
+
+    pub fn one_byte(&mut self) -> ByteVariable {
+        let one = self.one();
+        one.into()
+    }
 }

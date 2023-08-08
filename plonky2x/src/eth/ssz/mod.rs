@@ -1,5 +1,5 @@
 use crate::builder::BuilderAPI;
-use crate::vars::ByteVariable;
+use crate::vars::{ByteVariable, Variable};
 
 pub struct SimpleSerializeAPI {
     pub api: BuilderAPI,
@@ -15,6 +15,15 @@ impl SimpleSerializeAPI {
         _root: [ByteVariable; 32],
         _leaf: [ByteVariable; 32],
         _proof: [[ByteVariable; 32]; DEPTH],
+    ) {
+    }
+
+    pub fn verify_proof_with_variable_gindex<const DEPTH: usize, const GINDEX: usize>(
+        &mut self,
+        _root: [ByteVariable; 32],
+        _leaf: [ByteVariable; 32],
+        _proof: [[ByteVariable; 32]; DEPTH],
+        _gindex: Variable,
     ) {
     }
 
