@@ -210,13 +210,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
     }
 }
 
-pub trait WitnessAffinePoint<F: PrimeField64, C: Curve>: Witness<F> {
-    fn get_affine_point_target(&self, target: AffinePointTarget<C>) -> AffinePoint<C>;
-    fn set_affine_point_target(&mut self, target: &AffinePointTarget<C>, value: &AffinePoint<C>);
+pub trait WitnessAffinePoint<F: PrimeField64>: Witness<F> {
+    fn get_affine_point_target<C: Curve>(&self, target: AffinePointTarget<C>) -> AffinePoint<C>;
+    fn set_affine_point_target<C: Curve>(&mut self, target: &AffinePointTarget<C>, value: &AffinePoint<C>);
 }
 
-impl<T: Witness<F>, F: PrimeField64, C: Curve> WitnessAffinePoint<F, C> for T {
-    fn get_affine_point_target(&self, target: AffinePointTarget<C>) -> AffinePoint<C> {
+impl<T: Witness<F>, F: PrimeField64> WitnessAffinePoint<F> for T {
+    fn get_affine_point_target<C: Curve>(&self, target: AffinePointTarget<C>) -> AffinePoint<C> {
         let x_biguint =
             C::BaseField::from_noncanonical_biguint(self.get_biguint_target(target.x.value));
         let y_biguint =
@@ -224,7 +224,7 @@ impl<T: Witness<F>, F: PrimeField64, C: Curve> WitnessAffinePoint<F, C> for T {
         AffinePoint::nonzero(x_biguint, y_biguint)
     }
 
-    fn set_affine_point_target(&mut self, target: &AffinePointTarget<C>, value: &AffinePoint<C>) {
+    fn set_affine_point_target<C: Curve>(&mut self, target: &AffinePointTarget<C>, value: &AffinePoint<C>) {
         assert!(value.is_valid() && value.zero == false, "Point is not on curve or is zero");
         self.set_biguint_target(&target.x.value, &value.x.to_canonical_biguint());
         self.set_biguint_target(&target.y.value, &value.y.to_canonical_biguint());
