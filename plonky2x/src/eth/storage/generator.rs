@@ -4,15 +4,15 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartitionWitness, Witness};
+use plonky2::iop::witness::{PartitionWitness};
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use plonky2::util::serialization::{Buffer, IoResult};
 
 use ethers::providers::{Http, Middleware, Provider};
-use ethers::types::{Address, EIP1186ProofResponse, H256};
-use tokio::runtime::Runtime;
 
-use crate::vars::{BoolVariable, Bytes32Variable, U256Variable, WitnessMethods, WitnessWriteMethods};
+
+
+use crate::vars::{Bytes32Variable, WitnessMethods};
 use crate::eth::types::{AddressVariable};
 use super::types::{AccountVariable, ProofVariable};
 
@@ -69,7 +69,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         vec![]
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+    fn run_once(&self, witness: &PartitionWitness<F>, _out_buffer: &mut GeneratedValues<F>) {
         witness.get_bits_le(self.address.into());
         // let address = Address::from(self.address.get_bytes_le(witness));
         // let location = H256::from(self.storage_key.get_bytes_le(witness));

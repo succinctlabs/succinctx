@@ -1,6 +1,6 @@
 
-use crate::vars::{Bytes32Variable, Variable, U256Variable, BytesVariable, ByteVariable, BoolVariable};
-use crate::eth::types::{AddressVariable};
+use crate::vars::{Bytes32Variable, U256Variable, BoolVariable};
+
 
 #[derive(Debug, Clone, Copy)]
 pub struct ProofVariable {

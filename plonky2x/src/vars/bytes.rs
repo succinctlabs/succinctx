@@ -1,11 +1,11 @@
-use core::str::Bytes;
+
 
 use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 use plonky2::field::types::Field;
 use plonky2::iop::generator::GeneratedValues;
 
-use super::{Variable, BoolVariable};
-use crate::builder::BuilderAPI;
+use super::{BoolVariable};
+
 use crate::utils::{le_bits_to_bytes, byte_to_bits_le};
 
 // BytesVariable stores the underlying BoolVariable slice as "LE"

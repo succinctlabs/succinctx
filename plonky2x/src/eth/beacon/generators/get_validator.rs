@@ -6,7 +6,7 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness};
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use plonky2::util::serialization::{Buffer, IoResult};
 
 use crate::eth::beacon::BeaconValidatorVariable;
 use crate::vars::BoolVariable;
@@ -42,7 +42,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         vec![]
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+    fn run_once(&self, witness: &PartitionWitness<F>, _out_buffer: &mut GeneratedValues<F>) {
         let header_root_bits = self
             .header_root
             .map(|x| witness.get_target(x.0 .0) == F::ONE);

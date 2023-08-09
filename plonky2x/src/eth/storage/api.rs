@@ -1,6 +1,6 @@
 
 use crate::builder::BuilderAPI;
-use crate::vars::{Bytes32Variable, Variable, U256Variable, BytesVariable, ByteVariable, BoolVariable};
+use crate::vars::{Bytes32Variable, U256Variable, BoolVariable};
 use crate::eth::types::{AddressVariable};
 use ethers::providers::{Http, Middleware, Provider};
 
