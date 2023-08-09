@@ -14,7 +14,8 @@ import {
 } from "src/interfaces/IFunctionGateway.sol";
 import {IFunctionRegistry} from "src/interfaces/IFunctionRegistry.sol";
 import {TestConsumer, AttackConsumer, TestFunctionVerifier} from "test/TestUtils.sol";
-import {SuccinctFeeVault} from "@telepathy-v2/payment/SuccinctFeeVault.sol";
+import {Proxy} from "src/upgrades/Proxy.sol";
+import {SuccinctFeeVault} from "src/payments/SuccinctFeeVault.sol";
 
 contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayErrors {
     // Example Function Request and expected values
@@ -28,25 +29,30 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
     bytes internal constant REQUEST_PROOF = hex"";
     bytes32 internal EXPECTED_REQUEST_ID;
     uint256 internal constant DEFAULT_FEE = 0.1 ether;
-    uint256 internal constant DEFAULT_GAS_LIMIT = 1000000;
     uint256 internal constant DEFAULT_SCALAR = 1;
 
-    address internal owner;
-    address internal sender;
+    address internal timelock;
+    address internal guardian;
+    address payable internal sender;
     address internal feeVault;
     address internal gateway;
     address internal verifier;
-    address internal consumer;
+    address payable internal consumer;
     FunctionRequest internal expectedRequest;
 
     function setUp() public {
-        owner = makeAddr("owner");
-        sender = makeAddr("sender");
-        feeVault = address(new SuccinctFeeVault(owner));
-        gateway = address(new FunctionGateway(DEFAULT_SCALAR, feeVault, owner));
-        consumer = address(new TestConsumer());
+        timelock = makeAddr("timelock");
+        guardian = makeAddr("guardian");
+        sender = payable(makeAddr("sender"));
+        feeVault = address(new SuccinctFeeVault(guardian));
+        consumer = payable(address(new TestConsumer()));
 
-        vm.prank(owner);
+        // Deploy FunctionGateway
+        address gatewayImpl = address(new FunctionGateway());
+        gateway = address(new Proxy(gatewayImpl, ""));
+        FunctionGateway(gateway).initialize(DEFAULT_SCALAR, feeVault, timelock, guardian);
+
+        vm.prank(sender);
         (FUNCTION_ID, verifier) =
             IFunctionRegistry(gateway).deployAndRegisterFunction(type(TestFunctionVerifier).creationCode, FUNCTION_NAME);
 
@@ -66,18 +72,56 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         vm.deal(consumer, DEFAULT_FEE);
     }
 
-    function test_Request() public {
+    function test_Request_WhenFromCall() public {
         uint256 prevNonce = FunctionGateway(gateway).nonce();
         assertEq(prevNonce, 0);
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
         emit ProofRequested(
-            prevNonce, FUNCTION_ID, EXPECTED_REQUEST_ID, REQUEST, CALLBACK_CONTEXT, DEFAULT_GAS_LIMIT, 0
+            prevNonce,
+            FUNCTION_ID,
+            EXPECTED_REQUEST_ID,
+            REQUEST,
+            CALLBACK_CONTEXT,
+            FunctionGateway(gateway).DEFAULT_GAS_LIMIT(),
+            0
         );
         vm.prank(consumer);
         bytes32 requestId = FunctionGateway(gateway).request{value: DEFAULT_FEE}(
             FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT
+        );
+        assertEq(EXPECTED_REQUEST_ID, requestId);
+
+        (
+            bytes32 functionId,
+            bytes32 inputHash,
+            bytes32 outputHash,
+            bytes32 contextHash,
+            address callbackAddress,
+            bytes4 callbackSelector,
+            bool proofFulfilled,
+            bool callbackFulfilled
+        ) = FunctionGateway(gateway).requests(requestId);
+        assertEq(prevNonce + 1, FunctionGateway(gateway).nonce());
+        assertEq(FUNCTION_ID, functionId);
+        assertEq(keccak256(REQUEST), inputHash);
+        assertEq(bytes32(0), outputHash);
+        assertEq(keccak256(CALLBACK_CONTEXT), contextHash);
+        assertEq(address(consumer), callbackAddress);
+        assertEq(CALLBACK_SELECTOR, callbackSelector);
+        assertEq(false, proofFulfilled);
+        assertEq(false, callbackFulfilled);
+    }
+
+    function test_Request_WhenFromContract() public {
+        uint256 prevNonce = FunctionGateway(gateway).nonce();
+        assertEq(prevNonce, 0);
+
+        // Request
+        vm.prank(sender);
+        bytes32 requestId = TestConsumer(payable(address(consumer))).sendRequest{value: DEFAULT_FEE}(
+            address(gateway), FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT
         );
         assertEq(EXPECTED_REQUEST_ID, requestId);
 
@@ -109,7 +153,13 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         // Request
         vm.expectEmit(true, true, true, true, gateway);
         emit ProofRequested(
-            prevNonce, FUNCTION_ID, EXPECTED_REQUEST_ID, REQUEST, CALLBACK_CONTEXT, DEFAULT_GAS_LIMIT, 0
+            prevNonce,
+            FUNCTION_ID,
+            EXPECTED_REQUEST_ID,
+            REQUEST,
+            CALLBACK_CONTEXT,
+            FunctionGateway(gateway).DEFAULT_GAS_LIMIT(),
+            0
         );
         vm.prank(consumer);
         bytes32 requestId = FunctionGateway(gateway).request(FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT);
@@ -136,45 +186,13 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         assertEq(false, callbackFulfilled);
     }
 
-    function test_Request_WhenFromConsumer() public {
+    function test_Fulfill_WhenFromContract() public {
         uint256 prevNonce = FunctionGateway(gateway).nonce();
         assertEq(prevNonce, 0);
 
         // Request
         vm.prank(sender);
-        bytes32 requestId = TestConsumer(address(consumer)).sendRequest{value: DEFAULT_FEE}(
-            address(gateway), FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT
-        );
-        assertEq(EXPECTED_REQUEST_ID, requestId);
-
-        (
-            bytes32 functionId,
-            bytes32 inputHash,
-            bytes32 outputHash,
-            bytes32 contextHash,
-            address callbackAddress,
-            bytes4 callbackSelector,
-            bool proofFulfilled,
-            bool callbackFulfilled
-        ) = FunctionGateway(gateway).requests(requestId);
-        assertEq(prevNonce + 1, FunctionGateway(gateway).nonce());
-        assertEq(FUNCTION_ID, functionId);
-        assertEq(keccak256(REQUEST), inputHash);
-        assertEq(bytes32(0), outputHash);
-        assertEq(keccak256(CALLBACK_CONTEXT), contextHash);
-        assertEq(address(consumer), callbackAddress);
-        assertEq(CALLBACK_SELECTOR, callbackSelector);
-        assertEq(false, proofFulfilled);
-        assertEq(false, callbackFulfilled);
-    }
-
-    function test_Fulfill_WhenFromConsumer() public {
-        uint256 prevNonce = FunctionGateway(gateway).nonce();
-        assertEq(prevNonce, 0);
-
-        // Request
-        vm.prank(sender);
-        bytes32 requestId = TestConsumer(address(consumer)).sendRequest{value: DEFAULT_FEE}(
+        bytes32 requestId = TestConsumer(payable(address(consumer))).sendRequest{value: DEFAULT_FEE}(
             address(gateway), FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT
         );
 
@@ -204,13 +222,13 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         assertEq(false, callbackFulfilled);
     }
 
-    function test_Callback_WhenFromConsumer() public {
+    function test_Callback_WhenFromContract() public {
         uint256 prevNonce = FunctionGateway(gateway).nonce();
         assertEq(prevNonce, 0);
 
         // Request
         vm.prank(sender);
-        bytes32 requestId = TestConsumer(address(consumer)).sendRequest{value: DEFAULT_FEE}(
+        bytes32 requestId = TestConsumer(payable(address(consumer))).sendRequest{value: DEFAULT_FEE}(
             address(gateway), FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT
         );
 
@@ -247,11 +265,11 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         assertEq(prevNonce, 0);
 
         // Setup attack consumer
-        consumer = address(new AttackConsumer());
+        consumer = payable(address(new AttackConsumer()));
 
         // Request
         vm.prank(sender);
-        bytes32 requestId = TestConsumer(address(consumer)).sendRequest(
+        bytes32 requestId = TestConsumer(payable(address(consumer))).sendRequest(
             address(gateway), FUNCTION_ID, REQUEST, CALLBACK_SELECTOR, CALLBACK_CONTEXT
         );
 
