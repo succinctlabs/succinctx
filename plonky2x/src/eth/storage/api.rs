@@ -91,3 +91,25 @@ impl StorageProofAPI {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use anyhow::Result;
+    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+    use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use plonky2::plonk::circuit_data::CircuitConfig;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use subtle_encoding::hex::decode;
+
+    #[test]
+    fn test_get_storage_at_location() -> Result<()>{
+        let 
+        Ok();
+
+    }
+
+
+}
+

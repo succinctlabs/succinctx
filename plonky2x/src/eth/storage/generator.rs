@@ -12,7 +12,7 @@ use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::{Address, EIP1186ProofResponse, H256};
 use tokio::runtime::Runtime;
 
-use crate::vars::{BoolVariable, Bytes32Variable, U256Variable, VariableMethods};
+use crate::vars::{BoolVariable, Bytes32Variable, U256Variable, WitnessMethods, WitnessWriteMethods};
 use crate::eth::types::{AddressVariable};
 use super::types::{AccountVariable, ProofVariable};
 
@@ -56,6 +56,7 @@ impl<F: RichField + Extendable<D>, const D: usize> GetStorageProofGenerator<F,D>
 }
 
 
+
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for GetStorageProofGenerator<F, D>
 {
@@ -69,17 +70,18 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let address = Address::from(self.address.get_bytes_le(witness));
-        let location = H256::from(self.storage_key.get_bytes_le(witness));
-        let get_proof_closure = || -> EIP1186ProofResponse {
-            let rt = Runtime::new().unwrap();
-            rt.block_on(async { self.provider.get_proof(address, vec![location], Some(self.block_number.into())).await.unwrap() } )
-        };
-        let storageResult: EIP1186ProofResponse = get_proof_closure();
+        witness.get_bits_le(self.address.into());
+        // let address = Address::from(self.address.get_bytes_le(witness));
+        // let location = H256::from(self.storage_key.get_bytes_le(witness));
+        // let get_proof_closure = || -> EIP1186ProofResponse {
+        //     let rt = Runtime::new().unwrap();
+        //     rt.block_on(async { self.provider.get_proof(address, vec![location], Some(self.block_number.into())).await.unwrap() } )
+        // };
+        // let storageResult: EIP1186ProofResponse = get_proof_closure();
 
-        let mut bytes32_value = [0u8; 32];
-        storageResult.storage_proof[0].value.to_big_endian(&mut bytes32_value);
-        self.value.set_from_bytes(bytes32_value, out_buffer);
+        // let mut bytes32_value = [0u8; 32];
+        // storageResult.storage_proof[0].value.to_big_endian(&mut bytes32_value);
+        // self.value.set_from_bytes(bytes32_value, out_buffer);
     }
 
     #[allow(unused_variables)]

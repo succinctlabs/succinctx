@@ -36,9 +36,9 @@ impl BuilderAPI {
 
     // /// Pass through to add simple generator
     /// TODO the types are being difficult here
-    // pub fn add_simple_generator(&mut self, generator: dyn SimpleGenerator<F, D>) {
-    //     self.api.add_simple_generator(generator)
-    // }
+    pub fn add_simple_generator<G: SimpleGenerator<F, D>>(&mut self, generator: G) {
+        self.api.add_simple_generator(generator)
+    }
 
     /// Add returns res = i1 + i2.
     pub fn add(&mut self, i1: Variable, i2: Variable) -> Variable {
