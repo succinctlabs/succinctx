@@ -49,7 +49,8 @@ contract NounsOwnershipTest is Test, TestError, TestEvents {
         try vm.envString("RPC_420") returns (string memory RPC_420) {
             vm.createSelectFork(RPC_420, BLOCK_NUMBER);
         } catch {
-            revert("RPC_420 not set, skipping test");
+            console.log("RPC_420 not set, skipping test");
+            return;
         }
 
         timelock = makeAddr("timelock");
