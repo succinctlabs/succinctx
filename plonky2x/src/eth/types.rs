@@ -1,10 +1,5 @@
-use core::str::Bytes;
-
 use crate::builder::BuilderAPI;
 use crate::vars::{BoolVariable, BytesVariable};
-use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
-use plonky2::field::types::Field;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 
 
 #[derive(Debug, Clone, Copy)]
