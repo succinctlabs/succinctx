@@ -1,6 +1,6 @@
 use plonky2::iop::target::Target;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Variable(pub Target);
 
 impl Variable {

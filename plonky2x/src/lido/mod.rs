@@ -7,7 +7,7 @@ use ethers::prelude::*;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::{Address, H256, U256};
 use ethers::utils::keccak256;
-use crate::eth::storage::get_map_storage_location;
+use crate::eth::storage::utils::get_map_storage_location;
 use crate::eth::utils::{u256_to_h256_be, h256_to_u256_be};
 
 abigen!(NodeOperatorRegistry, "./src/lido/node_operators_abi.json");

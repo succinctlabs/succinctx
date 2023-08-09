@@ -2,7 +2,7 @@ use plonky2::iop::target::{BoolTarget, Target};
 
 use super::Variable;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct BoolVariable(pub Variable);
 
 impl BoolVariable {
