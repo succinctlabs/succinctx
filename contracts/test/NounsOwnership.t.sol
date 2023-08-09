@@ -45,12 +45,19 @@ contract NounsOwnershipTest is Test, TestError, TestEvents {
     address internal storageOracle;
     address internal nounsOwnership;
 
+    bool internal skipTest;
+
+    modifier onlyWithFork() {
+        if (skipTest) return;
+        _;
+    }
+
     function setUp() public {
         try vm.envString("RPC_420") returns (string memory RPC_420) {
             vm.createSelectFork(RPC_420, BLOCK_NUMBER);
         } catch {
             console.log("RPC_420 not set, skipping test");
-            return;
+            skipTest = true;
         }
 
         timelock = makeAddr("timelock");
@@ -65,7 +72,7 @@ contract NounsOwnershipTest is Test, TestError, TestEvents {
         nounsOwnership = address(new NounsOwnership(storageOracle));
     }
 
-    function test_ClaimOwnership() public {
+    function test_ClaimOwnership() public onlyWithFork {
         bytes32 requestId = NounsOwnership(nounsOwnership).claimOwnership(NOUN_NUMBER);
 
         (bytes32 functionId,,,, address callbackAddress,, bool proofFulfilled, bool callbackFulfilled) =
@@ -76,7 +83,7 @@ contract NounsOwnershipTest is Test, TestError, TestEvents {
         assertEq(false, callbackFulfilled);
     }
 
-    function test_OwnerOf() public {
+    function test_OwnerOf() public onlyWithFork {
         bytes32 requestId = NounsOwnership(nounsOwnership).claimOwnership(NOUN_NUMBER);
 
         bytes memory output = abi.encode(NOUN_OWNER);
@@ -87,7 +94,7 @@ contract NounsOwnershipTest is Test, TestError, TestEvents {
         assertEq(NOUN_OWNER, owner);
     }
 
-    function test_LastUpdateBlock() public {
+    function test_LastUpdateBlock() public onlyWithFork {
         bytes32 requestId = NounsOwnership(nounsOwnership).claimOwnership(NOUN_NUMBER);
 
         bytes memory output = abi.encode(NOUN_OWNER);
