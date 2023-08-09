@@ -26,6 +26,10 @@ serde_json = "1.0.103"
 sha2 = "0.10.7"
 subtle-encoding = "0.5.1"
 num = { version = "0.4", default-features = false }
+reqwest = { version = "0.11.4", features = ["json"] }
+eyre = "0.6.8"
+tokio = { version = "1", features = ["full"] }
+dotenv = "0.15.0"
 
 [dev-dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = ["gate_testing"]}

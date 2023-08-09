@@ -6,14 +6,14 @@ use crate::builder::BuilderAPI;
 use crate::vars::BoolVariable;
 
 /// An API for methods relating to the consensus layer state of Ethereum.
-pub struct BeaconAPI {
-    pub api: BuilderAPI,
+pub struct BeaconAPI<'a> {
+    pub api: &'a mut BuilderAPI,
     pub consensus_rpc: String,
 }
 
-impl BeaconAPI {
+impl<'a> BeaconAPI<'a> {
     // Create a new BeaconAPI.
-    pub fn new(api: BuilderAPI, consensus_rpc: String) -> Self {
+    pub fn new(api: &'a mut BuilderAPI, consensus_rpc: String) -> Self {
         Self { api, consensus_rpc }
     }
 
@@ -33,7 +33,7 @@ impl BeaconAPI {
 
     pub fn get_validator(
         &mut self,
-        _header_root: [BoolVariable; 256],
+        _validator_root: [BoolVariable; 256],
         _idx: usize,
     ) -> BeaconValidatorVariable {
         let validator = self.init_validator();
