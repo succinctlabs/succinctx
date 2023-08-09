@@ -104,10 +104,8 @@ mod tests {
     use subtle_encoding::hex::decode;
 
     #[test]
-    fn test_get_storage_at_location() -> Result<()>{
-        let 
-        Ok();
-
+    fn test_get_storage_at_location() -> Result<()>{ 
+        Ok(())
     }
 
 
