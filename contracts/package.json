@@ -1,5 +1,5 @@
 {
-  "name": "@succinctlabs/sdk",
+  "name": "@succinctlabs/sdk-contracts",
   "version": "1.0.0",
   "license": "MIT",
   "packageManager": "yarn@3.3.0",
