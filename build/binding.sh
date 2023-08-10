@@ -4,7 +4,7 @@
 set -e
 
 # Add to this list for each contract you want to generate bindings for. Must be in the abi folder.
-CONTRACTS=(FunctionGateway FunctionRegistry StorageOracle)
+CONTRACTS=(SuccinctFeeVault FunctionGateway FunctionRegistry StorageOracle ERC1967Proxy)
 
 # Clear previous bindings so there is no leftovers (e.g. in case of rename).
 rm -rf ./bindings/*
