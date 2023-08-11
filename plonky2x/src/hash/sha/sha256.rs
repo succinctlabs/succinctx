@@ -13,8 +13,8 @@ pub struct Sha256Target {
 }
 
 const CHUNK_64_BYTES: usize = 64;
-// Real max length is 1 byte less than this, but we need to be able to copy from the message
-const SINGLE_CHUNK_MAX_MESSAGE_BYTES: usize = CHUNK_64_BYTES - 8;
+// Note: max length is 1 byte less than this
+const SINGLE_CHUNK_MAX_MESSAGE_BYTES: usize = CHUNK_64_BYTES - 9;
 
 fn get_initial_hash<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -65,7 +65,7 @@ fn reshape(u: Vec<BoolTarget>) -> Vec<[BoolTarget; 32]> {
     res
 }
 
-pub fn sha256_variable_length_single_chunk<F: RichField + Extendable<D>, const D: usize>(
+pub fn sha256_variable_single_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
     // Length in bits
@@ -80,15 +80,15 @@ pub fn sha256_variable_length_single_chunk<F: RichField + Extendable<D>, const D
 pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
-    // Length in bits (should be less than (SINGLE_CHUNK_MAX_MESSAGE_BYTES - 1) * 8)
+    // Length in bits (assumes less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
     length: Target,
 ) -> Vec<BoolTarget> {
     let mut msg_input = Vec::new();
 
     let mut select_bit = builder.constant_bool(true);
 
-    // 64 bits for length, 1 byte for pad
-    for i in 0..(512 - CHUNK_64_BYTES) {
+    // Maximum SINGLE_CHUNK_MAX_MESSAGE_BYTES bytes of message can be included in a single chunk
+    for i in 0..(SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8) {
         let idx_t = builder.constant(F::from_canonical_usize(i));
         let idx_length_eq_t = builder.is_equal(idx_t, length);
 
@@ -101,6 +101,12 @@ pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
         let bit_to_push = builder.and(select_bit, message[i]);
         let bit_to_push = builder.or(idx_length_eq_t, bit_to_push);
         msg_input.push(bit_to_push);
+    }
+
+    // Adds the padding bit if it has not been included so far
+    msg_input.push(select_bit);
+    for _ in 0..7 {
+        msg_input.push(builder.constant_bool(false));
     }
 
     let mut length_bits = builder.split_le(length, 64);
@@ -464,6 +470,7 @@ mod tests {
         .unwrap();
         let mut msg_bits = to_bits(msg.to_vec());
 
+        // Length of the message in bits (should be less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
         let length = builder.constant(F::from_canonical_usize(msg_bits.len()));
 
         msg_bits.extend(vec![false; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8 - msg_bits.len()]);
@@ -479,9 +486,7 @@ mod tests {
             .map(|b| builder.constant_bool(*b))
             .collect::<Vec<_>>();
 
-        // Set this to a subset of message less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8 bits
-    
-        let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets.clone().try_into().unwrap(), length);
+        let msg_hash = sha256_variable_single_chunk(&mut builder, &targets.clone().try_into().unwrap(), length);
 
         for i in 0..digest_bits.len() {
             if digest_bits[i] {
