@@ -395,7 +395,6 @@ mod tests {
         );
 
         for i in 0..msgs.len() {
-
             let msg_bits = to_bits(msgs[i].to_vec());
 
             let pub_key = AffinePoint::new_from_compressed_point(&pub_keys[i]);
@@ -408,7 +407,7 @@ mod tests {
             let sig_s = Ed25519Scalar::from_noncanonical_biguint(sig_s_biguint);
             let sig = EDDSASignature { r: sig_r, s: sig_s };
 
-            assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));   
+            assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
 
             for j in 0..msg_bits.len() {
                 pw.set_bool_target(eddsa_target.msgs[i][j], msg_bits[j]);
@@ -511,9 +510,24 @@ mod tests {
         let sig_bytes = hex::decode(sig).unwrap();
 
         test_eddsa_circuit_with_test_case(
-            vec![msg_bytes.to_vec(), msg_bytes.to_vec(), msg_bytes.to_vec(), msg_bytes.to_vec()],
-            vec![pub_key_bytes.to_vec(), pub_key_bytes.to_vec(), pub_key_bytes.to_vec(), pub_key_bytes.to_vec()],
-            vec![sig_bytes.to_vec(), sig_bytes.to_vec(), sig_bytes.to_vec(), sig_bytes.to_vec()],
+            vec![
+                msg_bytes.to_vec(),
+                msg_bytes.to_vec(),
+                msg_bytes.to_vec(),
+                msg_bytes.to_vec(),
+            ],
+            vec![
+                pub_key_bytes.to_vec(),
+                pub_key_bytes.to_vec(),
+                pub_key_bytes.to_vec(),
+                pub_key_bytes.to_vec(),
+            ],
+            vec![
+                sig_bytes.to_vec(),
+                sig_bytes.to_vec(),
+                sig_bytes.to_vec(),
+                sig_bytes.to_vec(),
+            ],
         )
     }
 }
