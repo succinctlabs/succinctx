@@ -24,6 +24,7 @@ struct Response<T> {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BeaconValidator {
+    pub pubkey: String,
     pub withdraw_credentials: String,
     pub effective_balance: u64,
     pub slashed: bool,

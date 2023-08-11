@@ -8,26 +8,17 @@ use plonky2::iop::witness::{PartitionWitness, Witness};
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
+use crate::eth::beacon::validator::BeaconValidatorWitnessWrite;
 use crate::eth::beacon::BeaconValidatorVariable;
-use crate::vars::BoolVariable;
-
-fn le_bits_to_bytes<const N: usize>(input: [bool; N]) -> [u8; N / 8] {
-    let mut output = [0; N / 8];
-    for i in 0..N {
-        for j in 0..8 {
-            if input[i * 8 + j] {
-                output[i] |= 1 << j;
-            }
-        }
-    }
-    output
-}
+use crate::ethutils::beacon::BeaconClient;
+use crate::vars::{Bytes32Variable, ReadableWitness};
 
 #[derive(Debug)]
 struct GetBeaconValidatorGenerator<F: RichField + Extendable<D>, const D: usize> {
-    header_root: [BoolVariable; 256],
-    idx: usize,
+    block_root: Bytes32Variable,
+    validator_idx: u64,
     validator: BeaconValidatorVariable,
+    client: BeaconClient,
     _phantom: PhantomData<F>,
 }
 
@@ -42,12 +33,15 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         vec![]
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, _out_buffer: &mut GeneratedValues<F>) {
-        let header_root_bits = self
-            .header_root
-            .map(|x| witness.get_target(x.0 .0) == F::ONE);
-        let header_root = hex::encode(le_bits_to_bytes::<256>(header_root_bits));
-        println!("{}", header_root);
+    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+        let block_root = witness.get_hex_string(self.block_root.into());
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt
+            .block_on(self.client.get_validator(block_root, self.validator_idx))
+            .unwrap();
+        let value = result.validator;
+        out_buffer.set_validator(self.validator, value);
+        // witness.get_bits
     }
 
     #[allow(unused_variables)]
