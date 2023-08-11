@@ -1,20 +1,13 @@
 
 use crate::builder::BuilderAPI;
-<<<<<<< HEAD
 use crate::vars::{Bytes32Variable, U256Variable, BoolVariable, WitnessWriteMethods, WitnessMethods};
 use crate::eth::types::{AddressVariable};
 use ethers::providers::{Http, Middleware, Provider};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
-=======
-use crate::vars::{Bytes32Variable, U256Variable, BoolVariable};
-use crate::eth::types::{AddressVariable};
-use ethers::providers::{Http, Middleware, Provider};
->>>>>>> main
 
 use super::types::{AccountVariable, ProofVariable};
 use super::generator::{GetStorageProofGenerator};
 
-<<<<<<< HEAD
 pub struct StorageProofAPI<'a> {
     pub api: &'a mut BuilderAPI,
     pub provider: Provider<Http>,
@@ -22,15 +15,6 @@ pub struct StorageProofAPI<'a> {
 
 impl<'a> StorageProofAPI<'a> {
     pub fn new(api: &'a mut BuilderAPI, provider: Provider<Http>) -> Self {
-=======
-pub struct StorageProofAPI {
-    pub api: BuilderAPI,
-    pub provider: Provider<Http>,
-}
-
-impl StorageProofAPI {
-    pub fn new(api: BuilderAPI, provider: Provider<Http>) -> Self {
->>>>>>> main
         Self { api, provider }
     }
 
@@ -42,11 +26,7 @@ impl StorageProofAPI {
         _proof: ProofVariable,
         _value: Vec<BoolVariable>,
     ) {
-<<<<<<< HEAD
         return
-=======
-        todo!()
->>>>>>> main
     }
 
     pub fn get_storage_at_position(
