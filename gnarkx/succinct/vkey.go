@@ -44,9 +44,11 @@ contract FunctionVerifier is IFunctionVerifier, Verifier {
         (uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c) =
             abi.decode(_proof, (uint256[2], uint256[2][2], uint256[2]));
 
-		uint256[2] memory input = [uint256(_inputHash), uint256(_outputHash)];
+        uint256[2] memory input = [uint256(_inputHash), uint256(_outputHash)];
+        input[0] = input[0] & ((1 << 253) - 1);
+        input[1] = input[1] & ((1 << 253) - 1);
 
-		return verifyProof(a, b, c, input);
+        return verifyProof(a, b, c, input);
     }
 
     function verificationKeyHash() external pure returns (bytes32) {
