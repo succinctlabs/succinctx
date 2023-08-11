@@ -68,7 +68,7 @@ fn reshape(u: Vec<BoolTarget>) -> Vec<[BoolTarget; 32]> {
 // Compute the SHA256 hash of variable length message that fits into a single chunk
 pub fn sha256_variable_length_single_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
+    message: &[BoolTarget],
     // Length in bits
     length: Target,
 ) -> Vec<BoolTarget> {
@@ -80,10 +80,11 @@ pub fn sha256_variable_length_single_chunk<F: RichField + Extendable<D>, const D
 // Pad a variable length, single SHA256 chunk from a message
 pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
+    message: &[BoolTarget],
     // Length in bits (assumes less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
     length: Target,
 ) -> Vec<BoolTarget> {
+    assert!(message.len() <= SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8);
     // 1) Adds all message bits before idx = length
     // 2) Adds padding bit when idx = length
     // 3) Add padding 0s when idx > length before length BE bits
@@ -92,7 +93,7 @@ pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
 
     let mut select_bit = builder.constant_bool(true);
 
-    for i in 0..(SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8) {
+    for i in 0..message.len() {
         let idx_t = builder.constant(F::from_canonical_usize(i));
         let idx_length_eq_t = builder.is_equal(idx_t, length);
 
@@ -109,6 +110,11 @@ pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
     // Adds the padding bit if it has not been included so far
     msg_input.push(select_bit);
     for _ in 0..7 {
+        msg_input.push(builder.constant_bool(false));
+    }
+
+    // Additional padding if necessary
+    for _ in 0..((SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8) - message.len()) {      
         msg_input.push(builder.constant_bool(false));
     }
 
@@ -460,7 +466,6 @@ mod tests {
 
     #[test]
     fn test_sha256_single_chunk_variable() -> Result<()> {
-
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -488,7 +493,7 @@ mod tests {
             .map(|b| builder.constant_bool(*b))
             .collect::<Vec<_>>();
 
-        let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets.clone().try_into().unwrap(), length);
+        let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets.clone(), length);
 
         for i in 0..digest_bits.len() {
             if digest_bits[i] {
