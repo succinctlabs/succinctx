@@ -64,7 +64,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, _out_buffer: &mut GeneratedValues<F>) {
-        witness.get_bits_le(self.address.into());
+        // witness.get_bits_le(self.address.into());
         // let address = Address::from(self.address.get_bytes_le(witness));
         // let location = H256::from(self.storage_key.get_bytes_le(witness));
         // let get_proof_closure = || -> EIP1186ProofResponse {

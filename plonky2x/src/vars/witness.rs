@@ -3,7 +3,19 @@ use plonky2::iop::generator::GeneratedValues;
 use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 
 use super::BytesVariable;
-use crate::utils::{byte_to_bits_le, le_bits_to_bytes};
+use crate::utils::le_bits_to_bytes;
+
+// pub trait Experiment<F: Field>: Witness<F> {
+//     fn get_bits_le<T: Variable>(&self, variable: T) -> Vec<bool>;
+//     fn get_bits_be<T: Variable>(&self, variable: T) -> Vec<bool>;
+//     fn get_bytes_le<T: Variable>(&self, variable: T) -> Vec<u8>;
+//     fn get_bytes_be<T: Variable>(&self, variable: T) -> Vec<u8>;
+
+//     fn set_bits_le<T: Variable>(&mut self, variable: T, values: &[bool]);
+//     fn set_bits_be<T: Variable>(&mut self, variable: T, values: &[bool]);
+//     fn set_bytes_le<T: Variable>(&mut self, variable: T, values: &[u8]);
+//     fn set_bytes_be<T: Variable>(&mut self, variable: T, values: &[u8]);
+// }
 
 pub trait ReadableWitness<F: Field>: Witness<F> {
     fn get_bits_le<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool>;
