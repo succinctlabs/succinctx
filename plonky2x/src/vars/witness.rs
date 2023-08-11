@@ -60,7 +60,7 @@ impl<'a, F: Field> ReadableWitness<F> for PartitionWitness<'a, F> {
 
     fn get_hex_string<const N: usize>(&self, bytes: BytesVariable<N>) -> String {
         let bytes = self.get_bytes_be(bytes);
-        hex::encode(bytes)
+        format!("0x{}", hex::encode(bytes))
     }
 }
 

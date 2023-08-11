@@ -110,7 +110,10 @@ mod tests {
         let node_operator_proof = lido_metadata.get_node_operator_info(
             block.into(), operator_id
         ).await.unwrap();
-        println!("node_operator_proof {:?} {:?}", node_operator_proof.storage_proof[0].key, node_operator_proof.storage_proof[0].value);
+        let full_block = lido_metadata.provider.get_block(block).await.unwrap();
+        let state_root = full_block.unwrap().state_root;
+        println!("block number {:?} state root {:?}", block, state_root);
+        println!("node_operator_proof {:?} {:?}", node_operator_proof.storage_proof[0].key, u256_to_h256_be(node_operator_proof.storage_proof[0].value));
         let key_idx = 0;
         let operator_key_proof = lido_metadata.get_operator_key_info(
             block.into(), operator_id, key_idx

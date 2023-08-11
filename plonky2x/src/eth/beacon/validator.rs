@@ -24,7 +24,7 @@ pub trait BeaconValidatorWitnessWrite<F: Field>: WriteableWitness<F> {
 
 impl<F: Field> BeaconValidatorWitnessWrite<F> for GeneratedValues<F> {
     fn set_validator(&mut self, variable: BeaconValidatorVariable, value: BeaconValidator) {
-        let bytes = hex::decode(value.pubkey).unwrap();
+        let bytes = hex::decode(value.pubkey.clone().drain(2..)).unwrap();
         self.set_bls_pubkey(variable.pubkey, bytes.into());
     }
 }

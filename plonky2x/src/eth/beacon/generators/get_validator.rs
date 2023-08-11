@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 
+use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -47,11 +48,12 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn dependencies(&self) -> Vec<Target> {
-        vec![]
+        self.block_root.0.into_iter().map(|x| x.0 .0).collect_vec()
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
         let block_root = witness.get_hex_string(self.block_root.into());
+        println!("{}", block_root);
         let rt = tokio::runtime::Runtime::new().unwrap();
         let result = rt
             .block_on(self.client.get_validator(block_root, self.validator_idx))
@@ -80,6 +82,7 @@ pub(crate) mod tests {
     use crate::builder::BuilderAPI;
     use crate::eth::beacon::BeaconAPI;
     use crate::ethutils::beacon::BeaconClient;
+    use crate::vars::bytes::WitnessWriteMethods;
 
     #[test]
     fn test_simple_circuit() {
@@ -95,13 +98,12 @@ pub(crate) mod tests {
         );
         api.api.add_simple_generator(generator);
 
-        // let pw = PartialWitness::new();
-        // let state_root_input_raw =
-        //     "0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e"
-        //         .parse::<H256>()
-        //         .unwrap();
-        // let state_root_input = state_root_input_raw.as_fixed_bytes();
-        // pw.set_from_bytes_be(block_root.into(), *state_root_input);
+        let mut pw = PartialWitness::new();
+        let block_root_raw = "0x6de59dc86b36b81bdae8cfdf9c9283e06fc78234a62cac274f2bef1fd1cfd209"
+            .parse::<H256>()
+            .unwrap();
+        let block_root_value = block_root_raw.as_fixed_bytes();
+        pw.set_from_bytes_be(block_root.into(), *block_root_value);
 
         let data = api.build();
         let proof = data.prove(pw).unwrap();

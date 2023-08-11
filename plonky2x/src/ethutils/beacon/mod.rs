@@ -84,6 +84,7 @@ impl BeaconClient {
             "{}/api/beacon/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
+        println!("{}", endpoint);
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
         let response: Response<GetBeaconValidator> = response.json().await?;

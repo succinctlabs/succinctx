@@ -1,6 +1,6 @@
 mod boolean;
 mod byte;
-mod bytes;
+pub mod bytes;
 mod bytes32;
 mod u256;
 mod variable;
