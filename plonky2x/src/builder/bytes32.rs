@@ -1,5 +1,5 @@
 use super::BuilderAPI;
-use crate::vars::{Bytes32Variable, BoolVariable};
+use crate::vars::{BoolVariable, Bytes32Variable};
 
 // pub struct Bytes32Variable(pub [BoolVariable; 256]);
 

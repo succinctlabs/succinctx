@@ -1,7 +1,6 @@
-
 use ethers::abi::{AbiEncode, Token};
 use ethers::types::{H256, U256};
-use ethers::utils::{keccak256};
+use ethers::utils::keccak256;
 
 pub fn get_map_storage_location(mapping_location: u128, map_key: u128) -> H256 {
     let encoded = [

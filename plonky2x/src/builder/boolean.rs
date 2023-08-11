@@ -43,11 +43,11 @@ impl BuilderAPI {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
-    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::field::types::Field;
-    use plonky2::iop::witness::Witness;
+    use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+
+    use super::*;
 
     #[test]
     fn test_init_bool_and_set() {
@@ -59,9 +59,9 @@ mod tests {
         let bool_var = api.init_bool();
 
         let mut pw = PartialWitness::new();
-        pw.set_target(bool_var.0.0, F::ONE);
+        pw.set_target(bool_var.0 .0, F::ONE);
 
-        let value = pw.try_get_target(bool_var.0.0).unwrap();
+        let value = pw.try_get_target(bool_var.0 .0).unwrap();
         assert_eq!(F::ONE, value);
     }
 }

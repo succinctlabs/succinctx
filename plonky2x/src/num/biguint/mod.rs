@@ -91,7 +91,11 @@ pub trait CircuitBuilderBiguint<F: RichField + Extendable<D>, const D: usize> {
 
     fn rem_biguint(&mut self, a: &BigUintTarget, b: &BigUintTarget) -> BigUintTarget;
 
-    fn random_access_biguint(&mut self, access_index: Target, v: Vec<&BigUintTarget>) -> BigUintTarget;
+    fn random_access_biguint(
+        &mut self,
+        access_index: Target,
+        v: Vec<&BigUintTarget>,
+    ) -> BigUintTarget;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
@@ -316,7 +320,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
         rem
     }
 
-    fn random_access_biguint(&mut self, access_index: Target, v: Vec<&BigUintTarget>) -> BigUintTarget {
+    fn random_access_biguint(
+        &mut self,
+        access_index: Target,
+        v: Vec<&BigUintTarget>,
+    ) -> BigUintTarget {
         // Check that all of the inputted biguint targets have the same number of limbs
         let num_limbs = v[0].num_limbs();
         for i in 1..v.len() {
@@ -326,9 +334,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
         let limbs = (0..num_limbs)
             .map(|i| {
                 U32Target(self.random_access(
-                            access_index,
-                        v.iter().map(|biguint| biguint.limbs[i].0).collect(),
-            ))})
+                    access_index,
+                    v.iter().map(|biguint| biguint.limbs[i].0).collect(),
+                ))
+            })
             .collect::<Vec<_>>();
 
         BigUintTarget { limbs }
