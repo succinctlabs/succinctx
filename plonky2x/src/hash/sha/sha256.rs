@@ -1,15 +1,20 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::BoolTarget;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::hash::bit_operations::util::{_right_rotate, _shr, uint32_to_bits};
 use crate::hash::bit_operations::{add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add};
+use crate::num::u32::gadgets::arithmetic_u32::{U32Target, CircuitBuilderU32};
 
 pub struct Sha256Target {
     pub message: Vec<BoolTarget>,
     pub digest: Vec<BoolTarget>,
 }
+
+const CHUNK_64_BYTES: usize = 64;
+// Note: max length is 1 byte less than this
+const SINGLE_CHUNK_MAX_MESSAGE_BYTES: usize = CHUNK_64_BYTES - 9;
 
 fn get_initial_hash<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -60,33 +65,70 @@ fn reshape(u: Vec<BoolTarget>) -> Vec<[BoolTarget; 32]> {
     res
 }
 
-// Generate the 32-byte SHA-256 hash of the message.
-// reference: https://github.com/thomdixon/pysha2/blob/master/sha2/sha256.py
-pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
+// Compute the SHA256 hash of variable length message that fits into a single chunk
+pub fn sha256_variable_length_single_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    message: &[BoolTarget],
+    message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
+    // Length in bits
+    length: Target,
 ) -> Vec<BoolTarget> {
+    let padded_message = pad_single_sha256_chunk::<F, D>(builder, message, length);
+
+    process_sha256(builder, &padded_message)
+}
+
+// Pad a variable length, single SHA256 chunk from a message
+pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
+    // Length in bits (assumes less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
+    length: Target,
+) -> Vec<BoolTarget> {
+    // 1) Adds all message bits before idx = length
+    // 2) Adds padding bit when idx = length
+    // 3) Add padding 0s when idx > length before length BE bits
+
     let mut msg_input = Vec::new();
 
-    msg_input.extend_from_slice(message);
+    let mut select_bit = builder.constant_bool(true);
 
-    let mdi = (message.len() / 8) % 64;
-    let length = (message.len() / 8) << 3; // length in bytes
-    let padlen = if mdi < 56 { 55 - mdi } else { 119 - mdi };
+    for i in 0..(SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8) {
+        let idx_t = builder.constant(F::from_canonical_usize(i));
+        let idx_length_eq_t = builder.is_equal(idx_t, length);
 
-    msg_input.push(builder.constant_bool(true));
+        // select_bit AND NOT(idx_length_eq_t)
+        let not_idx_length_eq_t = builder.not(idx_length_eq_t);
+        select_bit = builder.and(select_bit, not_idx_length_eq_t);
+
+        // Set bit to push: (select_bit && message[i]) || idx_length_eq_t
+        let bit_to_push = builder.and(select_bit, message[i]);
+        let bit_to_push = builder.or(idx_length_eq_t, bit_to_push);
+        msg_input.push(bit_to_push);
+    }
+
+    // Adds the padding bit if it has not been included so far
+    msg_input.push(select_bit);
     for _ in 0..7 {
         msg_input.push(builder.constant_bool(false));
     }
 
-    for _ in 0..padlen * 8 {
-        msg_input.push(builder.constant_bool(false));
+    let mut length_bits = builder.split_le(length, 64);
+
+    // Convert length to BE bits
+    length_bits.reverse();
+    for i in 0..CHUNK_64_BYTES {
+        msg_input.push(length_bits[i]);
     }
 
-    for i in (0..64).rev() {
-        // big endian binary representation of length
-        msg_input.push(builder.constant_bool((length >> i) & 1 == 1));
-    }
+    msg_input
+}
+
+// Process SHA256 on padded chunks
+// reference: https://github.com/thomdixon/pysha2/blob/master/sha2/sha256.py
+pub fn process_sha256<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    msg_input: &[BoolTarget],
+) -> Vec<BoolTarget> {
 
     let mut sha256_hash = get_initial_hash(builder);
     let round_constants = get_round_constants(builder);
@@ -193,6 +235,38 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
     digest
 }
 
+
+// Generate the 32-byte SHA-256 hash of the message.
+// reference: https://github.com/thomdixon/pysha2/blob/master/sha2/sha256.py
+pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    message: &[BoolTarget],
+) -> Vec<BoolTarget> {
+    let mut msg_input = Vec::new();
+
+    msg_input.extend_from_slice(message);
+
+    let mdi = (message.len() / 8) % 64;
+    let length = (message.len() / 8) << 3; // length in bytes
+    let padlen = if mdi < 56 { 55 - mdi } else { 119 - mdi };
+
+    msg_input.push(builder.constant_bool(true));
+    for _ in 0..7 {
+        msg_input.push(builder.constant_bool(false));
+    }
+
+    for _ in 0..padlen * 8 {
+        msg_input.push(builder.constant_bool(false));
+    }
+
+    for i in (0..64).rev() {
+        // big endian binary representation of length
+        msg_input.push(builder.constant_bool((length >> i) & 1 == 1));
+    }
+
+    process_sha256(builder, &msg_input)
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
@@ -201,6 +275,7 @@ mod tests {
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use subtle_encoding::hex::decode;
+    use plonky2::field::types::Field;
 
     use super::*;
 
@@ -361,6 +436,59 @@ mod tests {
             .map(|b| builder.constant_bool(*b))
             .collect::<Vec<_>>();
         let msg_hash = sha256(&mut builder, &targets);
+
+        for i in 0..digest_bits.len() {
+            if digest_bits[i] {
+                builder.assert_one(msg_hash[i].target);
+            } else {
+                builder.assert_zero(msg_hash[i].target);
+            }
+        }
+
+        let mut pw = PartialWitness::new();
+
+        for i in 0..msg_bits.len() {
+            pw.set_bool_target(targets[i], msg_bits[i]);
+        }
+
+        dbg!(builder.num_gates());
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+
+        data.verify(proof)
+    }
+
+    #[test]
+    fn test_sha256_single_chunk_variable() -> Result<()> {
+
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+
+        let msg = decode(
+            "00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d",
+        )
+        .unwrap();
+        let mut msg_bits = to_bits(msg.to_vec());
+
+        // Length of the message in bits (should be less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
+        let length = builder.constant(F::from_canonical_usize(msg_bits.len()));
+
+        msg_bits.extend(vec![false; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8 - msg_bits.len()]);
+
+        // dbg!(&msg_bits);
+        let expected_digest = "84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e";
+        dbg!(decode(expected_digest).unwrap());
+        let digest_bits = to_bits(decode(expected_digest).unwrap());
+
+
+        let targets = msg_bits
+            .iter()
+            .map(|b| builder.constant_bool(*b))
+            .collect::<Vec<_>>();
+
+        let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets.clone().try_into().unwrap(), length);
 
         for i in 0..digest_bits.len() {
             if digest_bits[i] {
