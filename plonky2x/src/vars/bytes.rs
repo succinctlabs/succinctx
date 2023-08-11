@@ -67,7 +67,6 @@ impl<F: Field> WitnessMethods<F> for PartialWitness<F> {
         bytes.0.iter()
         .flat_map(|byte| {
             byte.iter().map(|bit| {
-                println!("bit {:?}", bit.0.0);
                 self.try_get_target(bit.0.0).unwrap() == F::ONE
             })
         })
@@ -119,7 +118,8 @@ impl<'a, F:Field> WitnessWriteMethods<F> for GeneratedValues<F> {
     }
 
     fn set_from_bytes_be<const N: usize>(&mut self, bytes: BytesVariable<N>, values: [u8; N]) {
-        self.set_from_bytes_le(bytes, values)
+        let reversed: [u8; N] = values.iter().cloned().rev().collect::<Vec<u8>>().try_into().unwrap();
+        self.set_from_bytes_le(bytes, reversed)
     }
 }
 
@@ -129,7 +129,6 @@ impl<'a, F:Field> WitnessWriteMethods<F> for PartialWitness<F> {
         for i in 0..N {
             for j in 0..8 {
                 let a = if values[i*8 + j] { F::ONE } else { F::ZERO };
-                println!("Setting target {:?} with value {:?}", bytes.0[i][j].0.0, a);
                 self.set_target(bytes.0[i][j].0.0, a);
             }
         }
@@ -152,8 +151,8 @@ impl<'a, F:Field> WitnessWriteMethods<F> for PartialWitness<F> {
     }
 
     fn set_from_bytes_be<const N: usize>(&mut self, bytes: BytesVariable<N>, values: [u8; N]) {
-        println!("values {:?}", values);
-        self.set_from_bytes_le(bytes, values)
+        let reversed: [u8; N] = values.iter().cloned().rev().collect::<Vec<u8>>().try_into().unwrap();
+        self.set_from_bytes_le(bytes, reversed)
     }
 }
 
@@ -168,11 +167,7 @@ mod tests {
     use ethers::types::{H256, Address};
 
     #[test]
-    fn test_set_byte() {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
+    fn test_set_from_bytes_be() {
         let mut api = BuilderAPI::new();
         let bytes_var = api.init_bytes32();
 
@@ -182,9 +177,7 @@ mod tests {
         let mut pw = PartialWitness::<GoldilocksField>::new();
         pw.set_from_bytes_be(bytes_var.into(), *sample_bytes32);
 
-        println!("This is try get target {:?} {:?}", bytes_var.0[0].0.0, pw.try_get_target(bytes_var.0[0].0.0));
-
         let retrieved = pw.get_bytes_be(bytes_var.into());
-        println!("Value {:?}", retrieved);
+        assert_eq!(*sample_bytes32, retrieved);
     }
 }

@@ -109,6 +109,7 @@ mod tests {
 
     #[test]
     fn test_get_storage_at_location() {
+        // TODO: read this RPC url from an .env
         let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
         let mut api = BuilderAPI::new();

@@ -72,25 +72,15 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        println!("Running generator once");
-        println!("address {:?}", self.address);
-
+        // TODO: still have to set `account_proof` and `storage_proof`
         let address = Address::from(witness.get_bytes_be(self.address.into()));
-        println!("address {:?}", self.address);
         let location = H256::from(witness.get_bytes_be(self.storage_key.into()));
         let get_proof_closure = || -> EIP1186ProofResponse {
             let rt = Runtime::new().unwrap();
             rt.block_on(async { self.provider.get_proof(address, vec![location], Some(self.block_number.into())).await.unwrap() } )
         };
         let storage_result: EIP1186ProofResponse = get_proof_closure();
-        println!("address {:?}", address);
-        println!("proof response {:?}", storage_result);
-
-
-        // let mut bytes32_value = [0u8; 32];
-        // storageResult.storage_proof[0].value.to_big_endian(&mut bytes32_value);
         let h256_value = u256_to_h256_be(storage_result.storage_proof[0].value);
-        println!("Value from witness gen {:?}", h256_value);
         out_buffer.set_from_bytes_be(self.value.into(), *h256_value.as_fixed_bytes());
     }
 

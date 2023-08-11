@@ -8,4 +8,3 @@ impl From<Variable> for ByteVariable {
         Self(item)
     }
 }
-
