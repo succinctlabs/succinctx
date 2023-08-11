@@ -12,9 +12,9 @@ pub struct Sha256Target {
     pub digest: Vec<BoolTarget>,
 }
 
-const CHUNK_64_BYTES: usize = 64;
-// Note: max length is 1 byte less than this
-const SINGLE_CHUNK_MAX_MESSAGE_BYTES: usize = CHUNK_64_BYTES - 9;
+pub const CHUNK_64_BYTES: usize = 64;
+
+pub const SINGLE_CHUNK_MAX_MESSAGE_BYTES: usize = CHUNK_64_BYTES - 9;
 
 fn get_initial_hash<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
