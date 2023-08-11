@@ -65,19 +65,19 @@ fn reshape(u: Vec<BoolTarget>) -> Vec<[BoolTarget; 32]> {
     res
 }
 
-pub fn sha256_variable_length<F: RichField + Extendable<D>, const D: usize>(
+pub fn sha256_variable_length_single_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
     // Length in bits
     length: Target,
 ) -> Vec<BoolTarget> {
-    let padded_message = compute_variable_length_message_single_chunk::<F, D>(builder, message, length);
+    let padded_message = pad_single_sha256_chunk::<F, D>(builder, message, length);
 
     post_padding_sha256(builder, &padded_message)
 }
 
-// Single chunk variable message
-pub fn compute_variable_length_message_single_chunk<F: RichField + Extendable<D>, const D: usize>(
+// Compute SHA256 padding for variable_length_message
+pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
     // Length in bits (should be less than (SINGLE_CHUNK_MAX_MESSAGE_BYTES - 1) * 8)
@@ -114,7 +114,7 @@ pub fn compute_variable_length_message_single_chunk<F: RichField + Extendable<D>
     msg_input
 }
 
-// SHA256 bit operations
+// SHA256 with padded message
 // reference: https://github.com/thomdixon/pysha2/blob/master/sha2/sha256.py
 pub fn post_padding_sha256<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -481,7 +481,7 @@ mod tests {
 
         // Set this to a subset of message less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8 bits
     
-        let msg_hash = sha256_variable_length(&mut builder, &targets.clone().try_into().unwrap(), length);
+        let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets.clone().try_into().unwrap(), length);
 
         for i in 0..digest_bits.len() {
             if digest_bits[i] {
