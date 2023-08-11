@@ -4,9 +4,9 @@ use plonky2::iop::generator::GeneratedValues;
 
 use super::vars::{AddressVariable, BLSPubkeyVariable};
 use crate::ethutils::BLSPubkey;
-use crate::vars::WriteableWitness;
+use crate::vars::bytes::WitnessWriteMethods;
 
-pub trait EthWriteableWitness<F: Field>: WriteableWitness<F> {
+pub trait EthWriteableWitness<F: Field>: WitnessWriteMethods<F> {
     fn set_bls_pubkey(&mut self, variable: BLSPubkeyVariable, value: BLSPubkey) {}
     fn set_address(&mut self, variable: AddressVariable, address: Address) {}
 }

@@ -14,8 +14,8 @@ use tokio::runtime::Runtime;
 use super::types::{AccountVariable, ProofVariable};
 use crate::eth::utils::u256_to_h256_be;
 use crate::eth::vars::AddressVariable;
-use crate::vars::bytes::WitnessWriteMethods;
-use crate::vars::{Bytes32Variable, BytesVariable, ReadableWitness};
+use crate::vars::bytes::{WitnessMethods, WitnessWriteMethods};
+use crate::vars::{Bytes32Variable, BytesVariable};
 
 #[derive(Debug)]
 pub struct GetStorageProofGenerator<F: RichField + Extendable<D>, const D: usize> {

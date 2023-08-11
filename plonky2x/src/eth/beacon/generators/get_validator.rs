@@ -12,7 +12,8 @@ use plonky2::util::serialization::{Buffer, IoResult};
 use crate::eth::beacon::validator::BeaconValidatorWitnessWrite;
 use crate::eth::beacon::BeaconValidatorVariable;
 use crate::ethutils::beacon::BeaconClient;
-use crate::vars::{Bytes32Variable, ReadableWitness};
+use crate::vars::bytes::WitnessMethods;
+use crate::vars::Bytes32Variable;
 
 #[derive(Debug)]
 struct GetBeaconValidatorGenerator<F: RichField + Extendable<D>, const D: usize> {

@@ -6,7 +6,7 @@ pub struct BytesVariable<const N: usize>(pub [[BoolVariable; 8]; N]);
 use plonky2::field::types::Field;
 use plonky2::iop::generator::GeneratedValues;
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
+use plonky2::iop::witness::{PartialWitness, PartitionWitness, Witness, WitnessWrite};
 
 use crate::utils::{byte_to_bits_le, le_bits_to_bytes};
 
@@ -20,6 +20,7 @@ impl<const N: usize> BytesVariable<N> {
 }
 
 pub trait WitnessMethods<F: Field>: Witness<F> {
+    fn get_hex_string<const N: usize>(&self, bytes: BytesVariable<N>) -> String;
     fn get_bits_le<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool>;
     fn get_bits_be<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool>;
     fn get_bytes_le<const N: usize>(&self, bytes: BytesVariable<N>) -> [u8; N];
@@ -51,6 +52,46 @@ impl From<Bytes32Variable> for BytesVariable<32> {
 }
 
 impl<F: Field> WitnessMethods<F> for PartialWitness<F> {
+    fn get_hex_string<const N: usize>(&self, bytes: BytesVariable<N>) -> String {
+        let bytes = self.get_bytes_be(bytes);
+        format!("0x{}", hex::encode(bytes))
+    }
+
+    fn get_bits_le<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool> {
+        bytes
+            .0
+            .iter()
+            .flat_map(|byte| {
+                byte.iter()
+                    .map(|bit| self.try_get_target(bit.0 .0).unwrap() == F::ONE)
+            })
+            .collect::<Vec<bool>>()
+    }
+
+    fn get_bits_be<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool> {
+        let mut bits = self.get_bits_le(bytes);
+        bits.reverse();
+        bits
+    }
+
+    fn get_bytes_le<const N: usize>(&self, bytes: BytesVariable<N>) -> [u8; N] {
+        let bits = self.get_bits_le(bytes);
+        le_bits_to_bytes::<N>(bits.as_slice())
+    }
+
+    fn get_bytes_be<const N: usize>(&self, bytes: BytesVariable<N>) -> [u8; N] {
+        let mut bytes = self.get_bytes_le(bytes);
+        bytes.reverse();
+        bytes
+    }
+}
+
+impl<'a, F: Field> WitnessMethods<F> for PartitionWitness<'a, F> {
+    fn get_hex_string<const N: usize>(&self, bytes: BytesVariable<N>) -> String {
+        let bytes = self.get_bytes_be(bytes);
+        format!("0x{}", hex::encode(bytes))
+    }
+
     fn get_bits_le<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool> {
         bytes
             .0

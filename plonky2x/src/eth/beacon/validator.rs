@@ -4,7 +4,8 @@ use plonky2::iop::generator::GeneratedValues;
 use crate::eth::vars::BLSPubkeyVariable;
 use crate::eth::witness::EthWriteableWitness;
 use crate::ethutils::beacon::BeaconValidator;
-use crate::vars::{BoolVariable, Bytes32Variable, U256Variable, WriteableWitness};
+use crate::vars::bytes::WitnessWriteMethods;
+use crate::vars::{BoolVariable, Bytes32Variable, U256Variable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BeaconValidatorVariable {
@@ -18,7 +19,7 @@ pub struct BeaconValidatorVariable {
     pub withdrawable_epoch: U256Variable,
 }
 
-pub trait BeaconValidatorWitnessWrite<F: Field>: WriteableWitness<F> {
+pub trait BeaconValidatorWitnessWrite<F: Field>: WitnessWriteMethods<F> {
     fn set_validator(&mut self, variable: BeaconValidatorVariable, value: BeaconValidator);
 }
 
