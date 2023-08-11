@@ -5,15 +5,15 @@ pragma solidity ^0.8.16;
 import {IFunctionGateway, FunctionRequest} from "./interfaces/IFunctionGateway.sol";
 import {IFunctionVerifier} from "./interfaces/IFunctionVerifier.sol";
 import {FunctionRegistry} from "./FunctionRegistry.sol";
-import {IFeeVault} from "@telepathy-v2/payment/interfaces/IFeeVault.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {TimelockedUpgradeable} from "./upgrades/TimelockedUpgradeable.sol";
+import {IFeeVault} from "src/payments/interfaces/IFeeVault.sol";
 
-contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
+contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgradeable {
     /// @dev The proof id for an aggregate proof.
     bytes32 public constant AGGREGATION_FUNCTION_ID = keccak256("AGGREGATION_FUNCTION_ID");
 
     /// @dev The default gas limit for requests.
-    uint256 public DEFAULT_GAS_LIMIT = 1000000;
+    uint256 public constant DEFAULT_GAS_LIMIT = 1000000;
 
     /// @dev Keeps track of the nonce for generating request ids.
     uint256 public nonce;
@@ -26,12 +26,15 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
 
     /// @notice A reference to the contract where fees are sent.
     /// @dev During the request functions, this is used to add msg.value to the sender's balance.
-    address public immutable feeVault;
+    address public feeVault;
 
-    constructor(uint256 _scalar, address _feeVault, address _owner) Ownable() {
+    function initialize(uint256 _scalar, address _feeVault, address _timelock, address _guardian)
+        external
+        initializer
+    {
         scalar = _scalar;
         feeVault = _feeVault;
-        _transferOwnership(_owner);
+        __TimelockedUpgradeable_init(_timelock, _guardian);
     }
 
     function request(bytes32 _functionId, bytes memory _input, bytes4 _callbackSelector, bytes memory _context)
@@ -96,8 +99,8 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
         r.outputHash = _outputHash;
 
         // Verify the proof.
-        IFunctionVerifier verifier = verifiers[r.functionId];
-        if (!verifier.verify(r.inputHash, _outputHash, _proof)) {
+        address verifier = verifiers[r.functionId];
+        if (!IFunctionVerifier(verifier).verify(r.inputHash, _outputHash, _proof)) {
             revert InvalidProof(address(verifier), r.inputHash, _outputHash, _proof);
         }
 
@@ -131,7 +134,8 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
                 revert ProofAlreadyFulfilled(requestId);
             }
             inputHashes[i] = r.inputHash;
-            verificationKeyHashes[i] = verifiers[r.functionId].verificationKeyHash();
+            address verifier = verifiers[r.functionId];
+            verificationKeyHashes[i] = IFunctionVerifier(verifier).verificationKeyHash();
         }
 
         // Do some sanity checks.
@@ -153,9 +157,9 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
         }
 
         // Verify the aggregate proof.
-        IFunctionVerifier verifier = verifiers[AGGREGATION_FUNCTION_ID];
-        if (!verifier.verify(_inputsRoot, _outputsRoot, _aggregateProof)) {
-            revert InvalidProof(address(verifier), _inputsRoot, _outputsRoot, _aggregateProof);
+        address aggregationVerifier = verifiers[AGGREGATION_FUNCTION_ID];
+        if (!IFunctionVerifier(aggregationVerifier).verify(_inputsRoot, _outputsRoot, _aggregateProof)) {
+            revert InvalidProof(address(aggregationVerifier), _inputsRoot, _outputsRoot, _aggregateProof);
         }
 
         emit ProofBatchFulfilled(
@@ -195,7 +199,7 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
     }
 
     /// @notice Update the scalar.
-    function updateScalar(uint256 _scalar) external onlyOwner {
+    function updateScalar(uint256 _scalar) external onlyGuardian {
         scalar = _scalar;
 
         emit ScalarUpdated(_scalar);
@@ -240,4 +244,8 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, Ownable {
             }
         }
     }
+
+    /// @dev This empty reserved space to add new variables without shifting down storage.
+    ///      See: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    uint256[50] private __gap;
 }

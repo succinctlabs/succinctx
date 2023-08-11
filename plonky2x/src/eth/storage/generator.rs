@@ -1,6 +1,9 @@
 use core::marker::PhantomData;
 
+<<<<<<< HEAD
 use ethers::types::{Address, H256, EIP1186ProofResponse};
+=======
+>>>>>>> main
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -8,6 +11,7 @@ use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
+<<<<<<< HEAD
 use tokio::runtime::Runtime;
 
 use ethers::providers::{Http, Provider, Middleware};
@@ -15,6 +19,13 @@ use ethers::providers::{Http, Provider, Middleware};
 use crate::vars::{Bytes32Variable, WitnessMethods, WitnessWriteMethods, BytesVariable};
 use crate::eth::types::{AddressVariable};
 use crate::eth::utils::{u256_to_h256_be};
+=======
+
+use ethers::providers::{Http, Provider};
+
+use crate::vars::{Bytes32Variable, WitnessMethods};
+use crate::eth::types::{AddressVariable};
+>>>>>>> main
 use super::types::{AccountVariable, ProofVariable};
 
 

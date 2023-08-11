@@ -2,7 +2,7 @@ use curta::chip::ec::edwards::scalar_mul::generator::AffinePointTarget as CurtaA
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::{Field, PrimeField, PrimeField64};
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::BoolTarget;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::Witness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::util::serialization::{Buffer, IoResult};
@@ -56,6 +56,8 @@ pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
     ) -> AffinePointTarget<C>;
 
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointTarget;
+
+    fn random_access_affine_point<C: Curve>(&mut self, access_index: Target, v: Vec<AffinePointTarget<C>>) -> AffinePointTarget<C>;
 
     fn convert_to_curta_affine_point_target<C: Curve>(
         &mut self,
@@ -183,6 +185,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         }
     }
 
+    fn random_access_affine_point<C: Curve>(&mut self, access_index: Target, v: Vec<AffinePointTarget<C>>) -> AffinePointTarget<C> {
+        AffinePointTarget{
+            x: self.random_access_nonnative(access_index, v.iter().map(|p| p.x.clone()).collect::<Vec<_>>()),
+            y: self.random_access_nonnative(access_index, v.iter().map(|p| p.y.clone()).collect::<Vec<_>>()),
+        }
+    }
+
     fn convert_to_curta_affine_point_target<C: Curve>(
         &mut self,
         p: &AffinePointTarget<C>,
@@ -225,7 +234,7 @@ impl<T: Witness<F>, F: PrimeField64> WitnessAffinePoint<F> for T {
     }
 
     fn set_affine_point_target<C: Curve>(&mut self, target: &AffinePointTarget<C>, value: &AffinePoint<C>) {
-        assert!(value.is_valid() && value.zero == false, "Point is not on curve or is zero");
+        assert!(value.is_valid() && !value.zero, "Point is not on curve or is zero");
         self.set_biguint_target(&target.x.value, &value.x.to_canonical_biguint());
         self.set_biguint_target(&target.y.value, &value.y.to_canonical_biguint());
     }

@@ -21,8 +21,10 @@ docs/
 # Dotenv file
 .env
 
+# Local contract deployments
+.env.deployments
+
 node_modules
-.env
 coverage
 coverage.json
 typechain
