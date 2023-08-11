@@ -35,6 +35,7 @@ impl LidoUtils {
         // Sanity check against calling the contract
         // Return [storagekey, storagevalue, storageproof]
         let location: H256 = get_map_storage_location(0, operator_id.into());
+        println!("Location: {:?}", location);
         let storage_value = self.provider
             .get_storage_at(NODE_OPERATOR_REGISTRY_ADDR.parse::<Address>()?, location, Some(block.into()))
             .await?;
