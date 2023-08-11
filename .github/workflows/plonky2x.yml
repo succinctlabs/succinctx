@@ -34,11 +34,10 @@ jobs:
           override: true
 
       - name: Run cargo check
-        working-directory: ./plonky2x
         uses: actions-rs/cargo@v1
         # continue-on-error: true # WARNING: only for this example, remove it!
         with:
-          command: check
+          command: check --manifest-path plonky2x/Cargo.toml
 
   test:
     name: Test Suite
@@ -55,11 +54,10 @@ jobs:
           override: true
 
       - name: Run cargo test
-        working-directory: ./plonky2x
         uses: actions-rs/cargo@v1
         # continue-on-error: true # WARNING: only for this example, remove it!
         with:
-          command: test
+          command: test --manifest-path plonky2x/Cargo.toml
 
   lints:
     name: Lints
@@ -77,17 +75,15 @@ jobs:
           components: rustfmt, clippy
 
       - name: Run cargo fmt
-        working-directory: ./plonky2x
         uses: actions-rs/cargo@v1
         # continue-on-error: true # WARNING: only for this example, remove it!
         with:
           command: fmt
-          args: --all -- --check
+          args: --all --manifest-path plonky2x/Cargo.toml -- --check
 
       - name: Run cargo clippy
-        working-directory: ./plonky2x
         uses: actions-rs/cargo@v1
         # continue-on-error: true # WARNING: only for this example, remove it!
         with:
           command: clippy
-          args: -- -D warnings
+          args: --manifest-path plonky2x/Cargo.toml -- -D warnings
