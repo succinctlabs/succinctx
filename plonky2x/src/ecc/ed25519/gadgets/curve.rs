@@ -281,6 +281,22 @@ mod tests {
     use crate::ecc::ed25519::gadgets::curve::CircuitBuilderCurve;
     use crate::hash::bit_operations::util::biguint_to_bits_target;
     use crate::num::biguint::CircuitBuilderBiguint;
+    use num::BigUint;
+
+    fn to_bits(msg: Vec<u8>) -> Vec<bool> {
+        let mut res = Vec::new();
+        for i in 0..msg.len() {
+            let char = msg[i];
+            for j in 0..8 {
+                if (char & (1 << 7 - j)) != 0 {
+                    res.push(true);
+                } else {
+                    res.push(false);
+                }
+            }
+        }
+        res
+    }
 
     #[test]
     fn test_curve_point_is_valid() -> Result<()> {
@@ -415,26 +431,37 @@ mod tests {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
+        type Curve = Ed25519;
 
         let config = CircuitConfig::standard_ecc_config();
 
-        let pw = PartialWitness::new();
+        let mut pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
-        let priv_key = Ed25519Scalar::from_canonical_usize(5);
-        let g = Ed25519::GENERATOR_AFFINE;
-        let pub_key_affine = (CurveScalar(priv_key) * g.to_projective()).to_affine();
+        let pub_key = "de25aec935b10f657b43fa97e5a8d4e523bdb0f9972605f0b064eff7b17048ba";
+        let pub_key_affine: AffinePoint<Curve> = AffinePoint::new_from_compressed_point(&hex::decode(pub_key).unwrap());
         let pub_key_affine_t = builder.constant_affine_point(pub_key_affine);
 
         let pub_key_compressed = pub_key_affine.compress_point();
-        let expected_pub_key_compressed_t = builder.constant_biguint(&pub_key_compressed);
-        let expected_bits_t = biguint_to_bits_target(&mut builder, &expected_pub_key_compressed_t);
+        let pub_key_bits = to_bits(pub_key_compressed.to_bytes_le());
+        // let expected_pub_key_compressed_t = builder.constant_biguint(&pub_key_compressed);
+        // let expected_bits_t = biguint_to_bits_target(&mut builder, &expected_pub_key_compressed_t);
 
         builder.curve_assert_valid(&pub_key_affine_t);
-        let pub_key_keycompressed_t = builder.compress_point(&pub_key_affine_t);
-        assert!(pub_key_keycompressed_t.bit_targets.len() == expected_bits_t.len());
-        for (i, bit) in pub_key_keycompressed_t.bit_targets.iter().enumerate() {
-            builder.connect(bit.target, expected_bits_t[i].target);
+        let mut pub_key_keycompressed_t = builder.compress_point(&pub_key_affine_t);
+        assert!(pub_key_keycompressed_t.bit_targets.len() == pub_key_bits.len());
+        let mut ptr = 0;
+        // Convert to LE
+        for (byte_num, bits) in pub_key_keycompressed_t
+        .bit_targets
+        .chunks_mut(8)
+        .rev()
+        .enumerate()
+        {
+            for (bit_num, bit) in bits.iter().enumerate() {
+                pw.set_bool_target(*bit, pub_key_bits[ptr]);
+                ptr += 1;
+            }
         }
 
         let data = builder.build::<C>();
