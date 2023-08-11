@@ -65,6 +65,7 @@ fn reshape(u: Vec<BoolTarget>) -> Vec<[BoolTarget; 32]> {
     res
 }
 
+// Compute the SHA256 hash of variable length message that fits into a single chunk
 pub fn sha256_variable_single_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
@@ -86,7 +87,7 @@ pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
     // 1) Adds all message bits before idx = length
     // 2) Adds padding bit when idx = length
     // 3) Add padding 0s when idx > length before length BE bits
-    
+
     let mut msg_input = Vec::new();
 
     let mut select_bit = builder.constant_bool(true);
@@ -122,9 +123,9 @@ pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
     msg_input
 }
 
-// SHA256 with padded message
+// Process SHA256 on padded chunks
 // reference: https://github.com/thomdixon/pysha2/blob/master/sha2/sha256.py
-pub fn post_padding_sha256<F: RichField + Extendable<D>, const D: usize>(
+pub fn process_sha256<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     msg_input: &[BoolTarget],
 ) -> Vec<BoolTarget> {
@@ -263,7 +264,7 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
         msg_input.push(builder.constant_bool((length >> i) & 1 == 1));
     }
 
-    post_padding_sha256(builder, &msg_input)
+    process_sha256(builder, &msg_input)
 }
 
 #[cfg(test)]
