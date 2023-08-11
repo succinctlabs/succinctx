@@ -24,6 +24,21 @@ impl From<AddressVariable> for BytesVariable<20> {
 impl BuilderAPI {
     /// Initialize a new BLSPubkeyVariable.
     pub fn init_bls_pubkey(&mut self) -> BLSPubkeyVariable {
-        BLSPubkeyVariable([self.init_bool(); 512])
+        let mut bytes = [BoolVariable::default(); 512];
+        for i in 0..512 {
+            bytes[i] = self.init_bool();
+        }
+        BLSPubkeyVariable(bytes)
     }
+
+
+    /// Initialize a new Bytes32Variable.
+    pub fn init_address(&mut self) -> AddressVariable {
+        let mut bytes = [BoolVariable::default(); 160];
+        for i in 0..160 {
+            bytes[i] = self.init_bool();
+        }
+        AddressVariable(bytes)
+    }
+
 }
