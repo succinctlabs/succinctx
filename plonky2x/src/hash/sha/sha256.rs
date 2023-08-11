@@ -13,6 +13,8 @@ pub struct Sha256Target {
 }
 
 const CHUNK_64_BYTES: usize = 64;
+// Real max length is 1 byte less than this, but we need to be able to copy from the message
+const SINGLE_CHUNK_MAX_MESSAGE_BYTES: usize = CHUNK_64_BYTES - 8;
 
 fn get_initial_hash<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -65,7 +67,7 @@ fn reshape(u: Vec<BoolTarget>) -> Vec<[BoolTarget; 32]> {
 
 pub fn sha256_variable_length<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    message: &[BoolTarget],
+    message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
     // Length in bits
     length: Target,
 ) -> Vec<BoolTarget> {
@@ -77,15 +79,16 @@ pub fn sha256_variable_length<F: RichField + Extendable<D>, const D: usize>(
 // Single chunk variable message
 pub fn compute_variable_length_message_single_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    message: &[BoolTarget],
-    // Length in bits
+    message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
+    // Length in bits (should be less than (SINGLE_CHUNK_MAX_MESSAGE_BYTES - 1) * 8)
     length: Target,
 ) -> Vec<BoolTarget> {
     let mut msg_input = Vec::new();
 
     let mut select_bit = builder.constant_bool(true);
 
-    for i in 0..(512-32) {
+    // 64 bits for length, 1 byte for pad
+    for i in 0..(512 - CHUNK_64_BYTES) {
         let idx_t = builder.constant(F::from_canonical_usize(i));
         let idx_length_eq_t = builder.is_equal(idx_t, length);
 
@@ -100,12 +103,12 @@ pub fn compute_variable_length_message_single_chunk<F: RichField + Extendable<D>
         msg_input.push(bit_to_push);
     }
 
-    for i in 0..32 {
-        // Convert length to BE bits
-        let mut length_bits = builder.split_le(length, 32);
-        length_bits.reverse();
-        msg_input.push(length_bits[i]);
+    let mut length_bits = builder.split_le(length, 64);
 
+    // Convert length to BE bits
+    length_bits.reverse();
+    for i in 0..CHUNK_64_BYTES {
+        msg_input.push(length_bits[i]);
     }
 
     msg_input
@@ -449,30 +452,36 @@ mod tests {
 
     #[test]
     fn test_sha256_single_chunk_variable() -> Result<()> {
-        let msg = decode(
-            "00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d",
-        )
-        .unwrap();
-        let msg_bits = to_bits(msg.to_vec());
-        // dbg!(&msg_bits);
-        let expected_digest = "84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e";
-        dbg!(decode(expected_digest).unwrap());
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
 
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
 
+        let msg = decode(
+            "00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d",
+        )
+        .unwrap();
+        let mut msg_bits = to_bits(msg.to_vec());
+
+        let length = builder.constant(F::from_canonical_usize(msg_bits.len()));
+
+        msg_bits.extend(vec![false; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8 - msg_bits.len()]);
+
+        // dbg!(&msg_bits);
+        let expected_digest = "84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e";
+        dbg!(decode(expected_digest).unwrap());
+        let digest_bits = to_bits(decode(expected_digest).unwrap());
+
+
         let targets = msg_bits
             .iter()
             .map(|b| builder.constant_bool(*b))
             .collect::<Vec<_>>();
 
-        // Set this to a subset of message less than 55 * 8 bits
-        let length = builder.constant(F::from_canonical_usize(msg_bits.len()));
+        // Set this to a subset of message less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8 bits
     
-        let msg_hash = sha256_variable_length(&mut builder, &targets, length);
+        let msg_hash = sha256_variable_length(&mut builder, &targets.clone().try_into().unwrap(), length);
 
         for i in 0..digest_bits.len() {
             if digest_bits[i] {
