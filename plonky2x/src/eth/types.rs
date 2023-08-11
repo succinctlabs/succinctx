@@ -2,8 +2,7 @@ use crate::builder::BuilderAPI;
 use crate::vars::{BoolVariable, BytesVariable};
 
 #[derive(Debug, Clone, Copy)]
-pub struct BLSPubkeyVariable(pub [BoolVariable; 512]);
-// impl_variable_methods!(BLSPubkeyVariable, 512);
+pub struct BLSPubkeyVariable(pub [BoolVariable; 384]);
 
 #[derive(Debug, Clone, Copy)]
 pub struct AddressVariable(pub [BoolVariable; 160]);
@@ -23,8 +22,8 @@ impl From<AddressVariable> for BytesVariable<20> {
 impl BuilderAPI {
     /// Initialize a new BLSPubkeyVariable.
     pub fn init_bls_pubkey(&mut self) -> BLSPubkeyVariable {
-        let mut bytes = [BoolVariable::default(); 512];
-        for i in 0..512 {
+        let mut bytes = [BoolVariable::default(); 384];
+        for i in 0..384 {
             bytes[i] = self.init_bool();
         }
         BLSPubkeyVariable(bytes)

@@ -4,3 +4,4 @@ pub mod ssz;
 pub mod storage;
 pub mod types;
 pub mod utils;
+pub mod witness;

@@ -8,6 +8,7 @@ extern crate alloc;
 pub mod builder;
 pub mod ecc;
 pub mod eth;
+pub mod ethutils;
 pub mod hash;
 pub mod lido;
 pub mod num;
