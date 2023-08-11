@@ -1,12 +1,10 @@
 use super::BuilderAPI;
-use crate::vars::{Bytes32Variable, BoolVariable};
-
-// pub struct Bytes32Variable(pub [BoolVariable; 256]);
+use crate::vars::{BoolVariable, Bytes32Variable};
 
 impl BuilderAPI {
     /// Initialize a new Bytes32Variable.
     pub fn init_bytes32(&mut self) -> Bytes32Variable {
-        let mut bytes = [BoolVariable::default(); 256]; // Assuming default is available for BoolVariable
+        let mut bytes = [BoolVariable::default(); 256];
         for i in 0..256 {
             bytes[i] = self.init_bool();
         }

@@ -1,7 +1,6 @@
 use crate::builder::BuilderAPI;
 use crate::vars::{BoolVariable, BytesVariable};
 
-
 #[derive(Debug, Clone, Copy)]
 pub struct BLSPubkeyVariable(pub [BoolVariable; 512]);
 // impl_variable_methods!(BLSPubkeyVariable, 512);
@@ -31,7 +30,6 @@ impl BuilderAPI {
         BLSPubkeyVariable(bytes)
     }
 
-
     /// Initialize a new Bytes32Variable.
     pub fn init_address(&mut self) -> AddressVariable {
         let mut bytes = [BoolVariable::default(); 160];
@@ -40,5 +38,4 @@ impl BuilderAPI {
         }
         AddressVariable(bytes)
     }
-
 }

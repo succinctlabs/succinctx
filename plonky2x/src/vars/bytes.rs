@@ -1,24 +1,23 @@
-
-
-use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite, PartialWitness};
 use plonky2::field::types::Field;
 use plonky2::iop::generator::GeneratedValues;
+use plonky2::iop::target::Target;
+use plonky2::iop::witness::{PartialWitness, PartitionWitness, Witness, WitnessWrite};
 
-use super::{BoolVariable};
-
-use crate::utils::{le_bits_to_bytes, byte_to_bits_le};
+use super::BoolVariable;
+use crate::utils::{byte_to_bits_le, le_bits_to_bytes};
 
 // BytesVariable stores the underlying BoolVariable slice as "LE"
 #[derive(Debug, Clone, Copy)]
-pub struct BytesVariable<const N: usize>(pub [[BoolVariable;8];N]);
+pub struct BytesVariable<const N: usize>(pub [[BoolVariable; 8]; N]);
 
 impl<const N: usize> BytesVariable<N> {
     pub fn to_targets(&self) -> Vec<Target> {
-        self.0.iter().flat_map(|byte| byte.iter().map(|bit| bit.0.0)).collect::<Vec<Target>>()
+        self.0
+            .iter()
+            .flat_map(|byte| byte.iter().map(|bit| bit.0 .0))
+            .collect::<Vec<Target>>()
     }
 }
-
 
 pub trait WitnessMethods<F: Field>: Witness<F> {
     fn get_bits_le<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool>;
@@ -37,11 +36,11 @@ pub trait WitnessWriteMethods<F: Field>: WitnessWrite<F> {
 
 impl<'a, F: Field> WitnessMethods<F> for PartitionWitness<'a, F> {
     fn get_bits_le<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool> {
-        bytes.0.iter()
-        .flat_map(|byte| {
-            byte.iter().map(|bit| self.get_target(bit.0.0) == F::ONE)
-        })
-        .collect::<Vec<bool>>()
+        bytes
+            .0
+            .iter()
+            .flat_map(|byte| byte.iter().map(|bit| self.get_target(bit.0 .0) == F::ONE))
+            .collect::<Vec<bool>>()
     }
 
     fn get_bits_be<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool> {
@@ -64,13 +63,14 @@ impl<'a, F: Field> WitnessMethods<F> for PartitionWitness<'a, F> {
 
 impl<F: Field> WitnessMethods<F> for PartialWitness<F> {
     fn get_bits_le<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool> {
-        bytes.0.iter()
-        .flat_map(|byte| {
-            byte.iter().map(|bit| {
-                self.try_get_target(bit.0.0).unwrap() == F::ONE
+        bytes
+            .0
+            .iter()
+            .flat_map(|byte| {
+                byte.iter()
+                    .map(|bit| self.try_get_target(bit.0 .0).unwrap() == F::ONE)
             })
-        })
-        .collect::<Vec<bool>>()
+            .collect::<Vec<bool>>()
     }
 
     fn get_bits_be<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool> {
@@ -91,19 +91,19 @@ impl<F: Field> WitnessMethods<F> for PartialWitness<F> {
     }
 }
 
-impl<'a, F:Field> WitnessWriteMethods<F> for GeneratedValues<F> {
+impl<'a, F: Field> WitnessWriteMethods<F> for GeneratedValues<F> {
     fn set_from_bits_le<const N: usize>(&mut self, bytes: BytesVariable<N>, values: &[bool]) {
         for i in 0..N {
             for j in 0..8 {
-                let a = if values[i*8 + j] { F::ONE } else { F::ZERO };
-                self.set_target(bytes.0[i][j].0.0, a);
+                let a = if values[i * 8 + j] { F::ONE } else { F::ZERO };
+                self.set_target(bytes.0[i][j].0 .0, a);
             }
         }
     }
 
     fn set_from_bits_be<const N: usize>(&mut self, bytes: BytesVariable<N>, values: &[bool]) {
         let mut reversed: Vec<bool> = vec![];
-        for i in values.len() .. 0 {
+        for i in values.len()..0 {
             reversed.push(values[i])
         }
         self.set_from_bits_le(bytes, &reversed)
@@ -118,25 +118,31 @@ impl<'a, F:Field> WitnessWriteMethods<F> for GeneratedValues<F> {
     }
 
     fn set_from_bytes_be<const N: usize>(&mut self, bytes: BytesVariable<N>, values: [u8; N]) {
-        let reversed: [u8; N] = values.iter().cloned().rev().collect::<Vec<u8>>().try_into().unwrap();
+        let reversed: [u8; N] = values
+            .iter()
+            .cloned()
+            .rev()
+            .collect::<Vec<u8>>()
+            .try_into()
+            .unwrap();
         self.set_from_bytes_le(bytes, reversed)
     }
 }
 
 // TODO make this a macro with the above
-impl<'a, F:Field> WitnessWriteMethods<F> for PartialWitness<F> {
+impl<'a, F: Field> WitnessWriteMethods<F> for PartialWitness<F> {
     fn set_from_bits_le<const N: usize>(&mut self, bytes: BytesVariable<N>, values: &[bool]) {
         for i in 0..N {
             for j in 0..8 {
-                let a = if values[i*8 + j] { F::ONE } else { F::ZERO };
-                self.set_target(bytes.0[i][j].0.0, a);
+                let a = if values[i * 8 + j] { F::ONE } else { F::ZERO };
+                self.set_target(bytes.0[i][j].0 .0, a);
             }
         }
     }
 
     fn set_from_bits_be<const N: usize>(&mut self, bytes: BytesVariable<N>, values: &[bool]) {
         let mut reversed: Vec<bool> = vec![];
-        for i in values.len() .. 0 {
+        for i in values.len()..0 {
             reversed.push(values[i])
         }
         self.set_from_bits_le(bytes, &reversed)
@@ -151,7 +157,13 @@ impl<'a, F:Field> WitnessWriteMethods<F> for PartialWitness<F> {
     }
 
     fn set_from_bytes_be<const N: usize>(&mut self, bytes: BytesVariable<N>, values: [u8; N]) {
-        let reversed: [u8; N] = values.iter().cloned().rev().collect::<Vec<u8>>().try_into().unwrap();
+        let reversed: [u8; N] = values
+            .iter()
+            .cloned()
+            .rev()
+            .collect::<Vec<u8>>()
+            .try_into()
+            .unwrap();
         self.set_from_bytes_le(bytes, reversed)
     }
 }
@@ -159,19 +171,22 @@ impl<'a, F:Field> WitnessWriteMethods<F> for PartialWitness<F> {
 #[cfg(test)]
 mod tests {
 
-    use crate::builder::BuilderAPI;
-    use super::*;
+    use ethers::types::{Address, H256};
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::field::types::Field;
-    use ethers::types::{H256, Address};
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+
+    use super::*;
+    use crate::builder::BuilderAPI;
 
     #[test]
     fn test_set_from_bytes_be() {
         let mut api = BuilderAPI::new();
         let bytes_var = api.init_bytes32();
 
-        let sample = "0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e".parse::<H256>().unwrap();
+        let sample = "0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e"
+            .parse::<H256>()
+            .unwrap();
         let sample_bytes32 = sample.as_fixed_bytes();
 
         let mut pw = PartialWitness::<GoldilocksField>::new();

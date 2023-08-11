@@ -57,7 +57,11 @@ pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
 
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointTarget;
 
-    fn random_access_affine_point<C: Curve>(&mut self, access_index: Target, v: Vec<AffinePointTarget<C>>) -> AffinePointTarget<C>;
+    fn random_access_affine_point<C: Curve>(
+        &mut self,
+        access_index: Target,
+        v: Vec<AffinePointTarget<C>>,
+    ) -> AffinePointTarget<C>;
 
     fn convert_to_curta_affine_point_target<C: Curve>(
         &mut self,
@@ -185,10 +189,20 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         }
     }
 
-    fn random_access_affine_point<C: Curve>(&mut self, access_index: Target, v: Vec<AffinePointTarget<C>>) -> AffinePointTarget<C> {
-        AffinePointTarget{
-            x: self.random_access_nonnative(access_index, v.iter().map(|p| p.x.clone()).collect::<Vec<_>>()),
-            y: self.random_access_nonnative(access_index, v.iter().map(|p| p.y.clone()).collect::<Vec<_>>()),
+    fn random_access_affine_point<C: Curve>(
+        &mut self,
+        access_index: Target,
+        v: Vec<AffinePointTarget<C>>,
+    ) -> AffinePointTarget<C> {
+        AffinePointTarget {
+            x: self.random_access_nonnative(
+                access_index,
+                v.iter().map(|p| p.x.clone()).collect::<Vec<_>>(),
+            ),
+            y: self.random_access_nonnative(
+                access_index,
+                v.iter().map(|p| p.y.clone()).collect::<Vec<_>>(),
+            ),
         }
     }
 
@@ -221,7 +235,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
 
 pub trait WitnessAffinePoint<F: PrimeField64>: Witness<F> {
     fn get_affine_point_target<C: Curve>(&self, target: AffinePointTarget<C>) -> AffinePoint<C>;
-    fn set_affine_point_target<C: Curve>(&mut self, target: &AffinePointTarget<C>, value: &AffinePoint<C>);
+    fn set_affine_point_target<C: Curve>(
+        &mut self,
+        target: &AffinePointTarget<C>,
+        value: &AffinePoint<C>,
+    );
 }
 
 impl<T: Witness<F>, F: PrimeField64> WitnessAffinePoint<F> for T {
@@ -233,8 +251,15 @@ impl<T: Witness<F>, F: PrimeField64> WitnessAffinePoint<F> for T {
         AffinePoint::nonzero(x_biguint, y_biguint)
     }
 
-    fn set_affine_point_target<C: Curve>(&mut self, target: &AffinePointTarget<C>, value: &AffinePoint<C>) {
-        assert!(value.is_valid() && !value.zero, "Point is not on curve or is zero");
+    fn set_affine_point_target<C: Curve>(
+        &mut self,
+        target: &AffinePointTarget<C>,
+        value: &AffinePoint<C>,
+    ) {
+        assert!(
+            value.is_valid() && !value.zero,
+            "Point is not on curve or is zero"
+        );
         self.set_biguint_target(&target.x.value, &value.x.to_canonical_biguint());
         self.set_biguint_target(&target.y.value, &value.y.to_canonical_biguint());
     }

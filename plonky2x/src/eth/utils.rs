@@ -1,4 +1,3 @@
-
 use ethers::types::{H256, U256};
 
 // TODO: simply import these methods from foundry
@@ -26,4 +25,3 @@ pub fn h256_to_u256_be(storage: H256) -> U256 {
 pub fn h256_to_u256_le(storage: H256) -> U256 {
     U256::from_little_endian(storage.as_bytes())
 }
-
