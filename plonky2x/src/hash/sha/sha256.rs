@@ -66,7 +66,7 @@ fn reshape(u: Vec<BoolTarget>) -> Vec<[BoolTarget; 32]> {
 }
 
 // Compute the SHA256 hash of variable length message that fits into a single chunk
-pub fn sha256_variable_single_chunk<F: RichField + Extendable<D>, const D: usize>(
+pub fn sha256_variable_length_single_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8],
     // Length in bits
@@ -74,7 +74,7 @@ pub fn sha256_variable_single_chunk<F: RichField + Extendable<D>, const D: usize
 ) -> Vec<BoolTarget> {
     let padded_message = pad_single_sha256_chunk::<F, D>(builder, message, length);
 
-    post_padding_sha256(builder, &padded_message)
+    process_sha256(builder, &padded_message)
 }
 
 // Pad a variable length, single SHA256 chunk from a message
@@ -270,13 +270,12 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use subtle_encoding::hex::decode;
-    use plonky2::field::types::{Field, PrimeField64};
+    use plonky2::field::types::Field;
 
     use super::*;
 
@@ -489,7 +488,7 @@ mod tests {
             .map(|b| builder.constant_bool(*b))
             .collect::<Vec<_>>();
 
-        let msg_hash = sha256_variable_single_chunk(&mut builder, &targets.clone().try_into().unwrap(), length);
+        let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets.clone().try_into().unwrap(), length);
 
         for i in 0..digest_bits.len() {
             if digest_bits[i] {
