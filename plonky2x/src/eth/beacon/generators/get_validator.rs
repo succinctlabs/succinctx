@@ -75,6 +75,8 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use std::env;
+
     use ethers::types::H256;
     use plonky2::iop::witness::PartialWitness;
 
@@ -94,7 +96,7 @@ pub(crate) mod tests {
             block_root,
             0,
             validator,
-            BeaconClient::new("https://beaconapi.succinct.xyz".into()),
+            BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap().into()),
         );
         api.api.add_simple_generator(generator);
 
