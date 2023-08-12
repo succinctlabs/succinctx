@@ -1,4 +1,5 @@
 pub mod beacon;
+pub mod deserialize_bigint;
 
 pub struct Address(pub [bool; 160]);
 

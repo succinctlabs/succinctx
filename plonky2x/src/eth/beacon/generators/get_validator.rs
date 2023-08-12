@@ -9,7 +9,7 @@ use plonky2::iop::witness::{PartitionWitness, Witness};
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
-use crate::eth::beacon::validator::BeaconValidatorWitnessWrite;
+use crate::eth::beacon::vars::BeaconValidatorWitnessWrite;
 use crate::eth::beacon::BeaconValidatorVariable;
 use crate::ethutils::beacon::BeaconClient;
 use crate::vars::{Bytes32Variable, WitnessMethods};

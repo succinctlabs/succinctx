@@ -1,7 +1,7 @@
 mod generators;
-mod validator;
+mod vars;
 
-use self::validator::BeaconValidatorVariable;
+use self::vars::BeaconValidatorVariable;
 use crate::builder::BuilderAPI;
 use crate::vars::BoolVariable;
 

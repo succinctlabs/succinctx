@@ -1,10 +1,9 @@
-mod deserialize_bigint;
-
-use deserialize_bigint::deserialize_bigint;
 use eyre::Result;
 use num::BigInt;
 use reqwest::Client;
 use serde::Deserialize;
+
+use super::deserialize_bigint::deserialize_bigint;
 
 /// A client used for connecting and querying a beacon node as well as Succinct's Beacon APIs.
 #[derive(Debug)]
