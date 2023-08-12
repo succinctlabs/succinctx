@@ -4,7 +4,7 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use super::generator::GetStorageProofGenerator;
 use super::types::{AccountVariable, ProofVariable};
 use crate::builder::BuilderAPI;
-use crate::eth::types::AddressVariable;
+use crate::eth::vars::AddressVariable;
 use crate::vars::{
     BoolVariable, Bytes32Variable, U256Variable, WitnessMethods, WitnessWriteMethods,
 };

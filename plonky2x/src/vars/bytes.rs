@@ -20,6 +20,7 @@ impl<const N: usize> BytesVariable<N> {
 }
 
 pub trait WitnessMethods<F: Field>: Witness<F> {
+    fn get_hex_string<const N: usize>(&self, bytes: BytesVariable<N>) -> String;
     fn get_bits_le<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool>;
     fn get_bits_be<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool>;
     fn get_bytes_le<const N: usize>(&self, bytes: BytesVariable<N>) -> [u8; N];
@@ -35,6 +36,11 @@ pub trait WitnessWriteMethods<F: Field>: WitnessWrite<F> {
 }
 
 impl<'a, F: Field> WitnessMethods<F> for PartitionWitness<'a, F> {
+    fn get_hex_string<const N: usize>(&self, bytes: BytesVariable<N>) -> String {
+        let bytes = self.get_bytes_be(bytes);
+        format!("0x{}", hex::encode(bytes))
+    }
+
     fn get_bits_le<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool> {
         bytes
             .0
@@ -62,6 +68,11 @@ impl<'a, F: Field> WitnessMethods<F> for PartitionWitness<'a, F> {
 }
 
 impl<F: Field> WitnessMethods<F> for PartialWitness<F> {
+    fn get_hex_string<const N: usize>(&self, bytes: BytesVariable<N>) -> String {
+        let bytes = self.get_bytes_be(bytes);
+        format!("0x{}", hex::encode(bytes))
+    }
+
     fn get_bits_le<const N: usize>(&self, bytes: BytesVariable<N>) -> Vec<bool> {
         bytes
             .0

@@ -12,8 +12,8 @@ use plonky2::util::serialization::{Buffer, IoResult};
 use tokio::runtime::Runtime;
 
 use super::types::{AccountVariable, ProofVariable};
-use crate::eth::types::AddressVariable;
 use crate::eth::utils::u256_to_h256_be;
+use crate::eth::vars::AddressVariable;
 use crate::vars::{Bytes32Variable, BytesVariable, WitnessMethods, WitnessWriteMethods};
 
 #[derive(Debug)]
