@@ -88,6 +88,8 @@ pub(crate) mod tests {
 
     #[test]
     fn test_simple_circuit() {
+        dotenv::dotenv().ok();
+
         let mut api = BuilderAPI::new();
         let block_root = api.init_bytes32();
         let mut beacon_api = BeaconAPI::new(&mut api, "".into());
