@@ -58,7 +58,7 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
         uint256 _gasLimit,
         address _refundAccount
     ) public payable returns (bytes32) {
-        bytes32 inputHash = keccak256(_input);
+        bytes32 inputHash = sha256(_input);
         bytes32 contextHash = keccak256(_context);
         FunctionRequest memory r = FunctionRequest({
             functionId: _functionId,

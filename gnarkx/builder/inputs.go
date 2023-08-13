@@ -36,3 +36,13 @@ func (r *InputReader) ReadBytes32() [32]vars.Byte {
 	}
 	return out
 }
+
+func (r *InputReader) ReadUint64() vars.U64 {
+	out := vars.NewU64()
+	for i := 0; i < 8; i++ {
+		out = r.api.MulU64(out, vars.U64{Value: vars.Variable{Value: 256}})
+		byte := r.readByte()
+		out = r.api.AddU64(out, vars.U64{Value: byte.Value})
+	}
+	return out
+}

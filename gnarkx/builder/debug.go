@@ -12,3 +12,7 @@ func (a *API) PrintVarBytes(vars []vars.Byte) {
 	}
 	a.api.Println(fvars)
 }
+
+func (a *API) PrintU64(u64 vars.U64) {
+	a.api.Println(u64.Value)
+}
