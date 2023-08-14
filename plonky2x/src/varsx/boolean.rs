@@ -18,18 +18,18 @@ impl CircuitVariable for BoolVariable {
         Self(target)
     }
 
-    fn constant(builder: &mut CircuitBuilder, value: Self::Value) -> Self {
+    fn constant(builder: &mut CircuitBuilder, value: bool) -> Self {
         let target = builder
             .api
             .constant(GoldilocksField::from_canonical_u64(value as u64));
         Self(target)
     }
 
-    fn value<'a>(&self, witness: &PartitionWitness<'a, GoldilocksField>) -> Self::Value {
+    fn value<'a>(&self, witness: &PartitionWitness<'a, GoldilocksField>) -> bool {
         witness.get_target(self.0) == GoldilocksField::from_canonical_u64(1)
     }
 
-    fn set(&self, buffer: &mut GeneratedValues<GoldilocksField>, value: Self::Value) {
+    fn set(&self, buffer: &mut GeneratedValues<GoldilocksField>, value: bool) {
         buffer.set_target(self.0, GoldilocksField::from_canonical_u64(value as u64));
     }
 }

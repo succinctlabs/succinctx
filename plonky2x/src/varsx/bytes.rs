@@ -16,7 +16,7 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         Self((0..N).map(|_| ByteVariable::init(builder)).collect())
     }
 
-    fn constant(builder: &mut CircuitBuilder, value: Self::Value) -> Self {
+    fn constant(builder: &mut CircuitBuilder, value: Vec<u8>) -> Self {
         assert!(value.len() == N, "vector of values has wrong length");
         Self(
             value
@@ -26,11 +26,11 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         )
     }
 
-    fn value<'a>(&self, witness: &PartitionWitness<'a, GoldilocksField>) -> Self::Value {
+    fn value<'a>(&self, witness: &PartitionWitness<'a, GoldilocksField>) -> Vec<u8> {
         self.0.iter().map(|b| b.value(witness)).collect()
     }
 
-    fn set(&self, buffer: &mut GeneratedValues<GoldilocksField>, value: Self::Value) {
+    fn set(&self, buffer: &mut GeneratedValues<GoldilocksField>, value: Vec<u8>) {
         assert!(value.len() == N, "vector of values has wrong length");
         for (b, v) in self.0.iter().zip(value) {
             b.set(buffer, v);

@@ -19,18 +19,18 @@ impl CircuitVariable for U32Variable {
         Self(target)
     }
 
-    fn constant(builder: &mut CircuitBuilder, value: Self::Value) -> Self {
+    fn constant(builder: &mut CircuitBuilder, value: u32) -> Self {
         let target = builder
             .api
             .constant(GoldilocksField::from_canonical_u32(value));
         Self(target)
     }
 
-    fn value<'a>(&self, witness: &PartitionWitness<'a, GoldilocksField>) -> Self::Value {
+    fn value<'a>(&self, witness: &PartitionWitness<'a, GoldilocksField>) -> u32 {
         witness.get_target(self.0).0 as u32
     }
 
-    fn set(&self, witness: &mut GeneratedValues<GoldilocksField>, value: Self::Value) {
+    fn set(&self, witness: &mut GeneratedValues<GoldilocksField>, value: u32) {
         witness.set_target(self.0, GoldilocksField::from_canonical_u32(value));
     }
 }

@@ -1,6 +1,7 @@
 mod boolean;
 mod byte;
 mod bytes;
+mod bytes32;
 mod uint256;
 mod uint32;
 mod variable;

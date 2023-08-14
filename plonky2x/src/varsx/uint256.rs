@@ -18,7 +18,7 @@ impl CircuitVariable for U256Variable {
         Self((0..4).map(|_| U32Variable::init(builder)).collect_vec())
     }
 
-    fn constant(builder: &mut CircuitBuilder, value: Self::Value) -> Self {
+    fn constant(builder: &mut CircuitBuilder, value: U256) -> Self {
         let limbs = to_limbs(value);
         Self(
             (0..4)
@@ -27,7 +27,7 @@ impl CircuitVariable for U256Variable {
         )
     }
 
-    fn value<'a>(&self, witness: &PartitionWitness<'a, GoldilocksField>) -> Self::Value {
+    fn value<'a>(&self, witness: &PartitionWitness<'a, GoldilocksField>) -> U256 {
         to_u256([
             self.0[0].value(witness),
             self.0[1].value(witness),
@@ -36,7 +36,7 @@ impl CircuitVariable for U256Variable {
         ])
     }
 
-    fn set(&self, witness: &mut GeneratedValues<GoldilocksField>, value: Self::Value) {
+    fn set(&self, witness: &mut GeneratedValues<GoldilocksField>, value: U256) {
         let limbs = to_limbs(value);
         for i in 0..4 {
             self.0[i].set(witness, limbs[i]);
