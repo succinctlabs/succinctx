@@ -152,7 +152,17 @@ fn select_chunk<F: RichField + Extendable<D>, const D: usize>(
     res.map(|x| BoolTarget::new_unsafe(x.unwrap()))
 }
 
-pub fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize,>(
+fn calculate_num_chunks(length: usize) -> usize {
+    let msg_with_min_padding_len = length + 129;
+
+    let additional_padding_len = 1024 - (msg_with_min_padding_len % 1024);
+    
+    let msg_length_with_all_padding = msg_with_min_padding_len + additional_padding_len;
+
+    msg_length_with_all_padding / 1024
+}
+
+fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize,>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget],
     // Pass in the last chunk number in the message as a target
@@ -163,13 +173,7 @@ pub fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize,>(
 ) -> Vec<BoolTarget>{
     let mut msg_input = Vec::new();
 
-    let msg_with_min_padding_len = message.len() + 129;
-
-    let additional_padding_len = 1024 - (msg_with_min_padding_len % 1024);
-    
-    let max_msg_length = msg_with_min_padding_len + additional_padding_len;
-
-    let max_num_chunks = max_msg_length / 1024;
+    let max_num_chunks = calculate_num_chunks(message.len());
 
     let mut length_bits = builder.split_le(length, 128);
     // Convert length to BE bits
@@ -268,49 +272,6 @@ fn process_sha512_variable<F: RichField + Extendable<D>, const D: usize>(
     }
     digest
 
-}
-
-pub fn sha512_variable<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    message: &[BoolTarget],
-    length: Target,
-    last_chunk: Target,
-) -> Vec<BoolTarget> {
-    let mut msg_input = Vec::new();
-    msg_input.extend_from_slice(message);
-
-    let _: u128 = message.len().try_into().expect("message too long");
-
-    let msg_input = pad_sha512_variable(builder, &msg_input, last_chunk, length);
-
-    process_sha512_variable(builder, &msg_input, last_chunk)
-}
-
-pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    message: &[BoolTarget],
-) -> Vec<BoolTarget> {
-    let mut msg_input = Vec::new();
-    msg_input.extend_from_slice(message);
-
-    let msg_bit_len: u128 = message.len().try_into().expect("message too long");
-
-    // minimum_padding = 1 + 128 (min 1 bit for the pad, and 128 bit for the msg size)
-    let msg_with_min_padding_len = msg_bit_len + 129;
-
-    let additional_padding_len = 1024 - (msg_with_min_padding_len % 1024);
-
-    msg_input.push(builder.constant_bool(true));
-    for _i in 0..additional_padding_len {
-        msg_input.push(builder.constant_bool(false));
-    }
-
-    for i in (0..128).rev() {
-        let has_bit = (msg_bit_len & (1 << i)) != 0;
-        msg_input.push(builder.constant_bool(has_bit));
-    }
-
-    process_sha512(builder, &msg_input)
 }
 
 fn process_sha512<F: RichField + Extendable<D>, const D: usize>(
@@ -422,6 +383,49 @@ fn process_sha512_chunk<F: RichField + Extendable<D>, const D: usize>(
     }
 
     zip_add(sha512_hash, [a, b, c, d, e, f, g, h], builder)
+}
+
+pub fn sha512_variable<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    message: &[BoolTarget],
+    length: Target,
+    last_chunk: Target,
+) -> Vec<BoolTarget> {
+    let mut msg_input = Vec::new();
+    msg_input.extend_from_slice(message);
+
+    let _: u128 = message.len().try_into().expect("message too long");
+
+    let msg_input = pad_sha512_variable(builder, &msg_input, last_chunk, length);
+
+    process_sha512_variable(builder, &msg_input, last_chunk)
+}
+
+pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    message: &[BoolTarget],
+) -> Vec<BoolTarget> {
+    let mut msg_input = Vec::new();
+    msg_input.extend_from_slice(message);
+
+    let msg_bit_len: u128 = message.len().try_into().expect("message too long");
+
+    // minimum_padding = 1 + 128 (min 1 bit for the pad, and 128 bit for the msg size)
+    let msg_with_min_padding_len = msg_bit_len + 129;
+
+    let additional_padding_len = 1024 - (msg_with_min_padding_len % 1024);
+
+    msg_input.push(builder.constant_bool(true));
+    for _i in 0..additional_padding_len {
+        msg_input.push(builder.constant_bool(false));
+    }
+
+    for i in (0..128).rev() {
+        let has_bit = (msg_bit_len & (1 << i)) != 0;
+        msg_input.push(builder.constant_bool(has_bit));
+    }
+
+    process_sha512(builder, &msg_input)
 }
 
 #[cfg(test)]
@@ -574,7 +578,8 @@ mod tests {
 
         // Pass in the bit length of the message to hash as a target
         let length_t = builder.constant(F::from_canonical_usize(msg_bits.len()));
-        let last_chunk_t = builder.constant(F::from_canonical_usize(0));
+        let last_chunk = calculate_num_chunks(msg_bits.len()) - 1;
+        let last_chunk_t = builder.constant(F::from_canonical_usize(last_chunk));
         let digest = sha512_variable(&mut builder, &message, length_t, last_chunk_t);
         let pw = PartialWitness::new();
 
