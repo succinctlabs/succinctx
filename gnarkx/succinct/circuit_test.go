@@ -90,10 +90,12 @@ func TestSimpleCircuit(t *testing.T) {
 	truncatedInputHash := byteutils.TruncateBytes32([32]byte(expectedInputHash), 253)
 	truncatedOutputHash := byteutils.TruncateBytes32([32]byte(expectedOutputHash), 253)
 
-	inputHash := proof.InputHash.Bytes()
-	output := vars.GetValuesUnsafe(*c.Circuit.GetOutputBytes())
-	outputHash := proof.OutputHash.Bytes()
+	resultInput := proof.Input
+	inputHash := c.InputHash.Value.(*big.Int).Bytes()
+	output := proof.Output
+	outputHash := c.OutputHash.Value.(*big.Int).Bytes()
 
+	assert.True(t, bytes.Equal(input, resultInput))
 	assert.True(t, bytes.Equal(inputHash, truncatedInputHash[:]))
 	assert.True(t, bytes.Equal(output, expectedOutput))
 	assert.True(t, bytes.Equal(outputHash, truncatedOutputHash[:]))

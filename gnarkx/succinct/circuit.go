@@ -10,7 +10,6 @@ import (
 	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/succinctlabs/sdk/gnarkx/builder"
 	"github.com/succinctlabs/sdk/gnarkx/hash/sha256"
 	"github.com/succinctlabs/sdk/gnarkx/types"
@@ -141,13 +140,8 @@ func (f *CircuitFunction) Prove(inputBytes []byte, build *CircuitBuild) (*types.
 	output.C[0] = new(big.Int).SetBytes(proofBytes[fpSize*6 : fpSize*7])
 	output.C[1] = new(big.Int).SetBytes(proofBytes[fpSize*7 : fpSize*8])
 
-	inputHashBytes := make([]byte, 32)
-	f.InputHash.Value.(*big.Int).FillBytes(inputHashBytes)
-	output.InputHash = common.Hash(inputHashBytes)
-
-	outputHashBytes := make([]byte, 32)
-	f.OutputHash.Value.(*big.Int).FillBytes(outputHashBytes)
-	output.OutputHash = common.Hash(outputHashBytes)
+	output.Input = inputBytes
+	output.Output = vars.GetValuesUnsafe(*f.Circuit.GetOutputBytes())
 
 	return output, nil
 }
