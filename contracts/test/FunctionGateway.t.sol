@@ -25,7 +25,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
     bytes4 internal constant CALLBACK_SELECTOR = TestConsumer.handleRequest.selector;
     bytes internal constant CALLBACK_CONTEXT = abi.encode(0);
     bytes internal constant REQUEST_OUTPUT = abi.encode(true);
-    bytes32 internal constant REQUEST_OUTPUT_HASH = keccak256(REQUEST_OUTPUT);
+    bytes32 internal constant REQUEST_OUTPUT_HASH = sha256(REQUEST_OUTPUT);
     bytes internal constant REQUEST_PROOF = hex"";
     bytes32 internal EXPECTED_REQUEST_ID;
     uint256 internal constant DEFAULT_FEE = 0.1 ether;
@@ -58,7 +58,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
 
         expectedRequest = FunctionRequest({
             functionId: FUNCTION_ID,
-            inputHash: keccak256(REQUEST),
+            inputHash: sha256(REQUEST),
             outputHash: bytes32(0),
             contextHash: keccak256(CALLBACK_CONTEXT),
             callbackAddress: consumer,
@@ -105,7 +105,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         ) = FunctionGateway(gateway).requests(requestId);
         assertEq(prevNonce + 1, FunctionGateway(gateway).nonce());
         assertEq(FUNCTION_ID, functionId);
-        assertEq(keccak256(REQUEST), inputHash);
+        assertEq(sha256(REQUEST), inputHash);
         assertEq(bytes32(0), outputHash);
         assertEq(keccak256(CALLBACK_CONTEXT), contextHash);
         assertEq(address(consumer), callbackAddress);
@@ -137,7 +137,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         ) = FunctionGateway(gateway).requests(requestId);
         assertEq(prevNonce + 1, FunctionGateway(gateway).nonce());
         assertEq(FUNCTION_ID, functionId);
-        assertEq(keccak256(REQUEST), inputHash);
+        assertEq(sha256(REQUEST), inputHash);
         assertEq(bytes32(0), outputHash);
         assertEq(keccak256(CALLBACK_CONTEXT), contextHash);
         assertEq(address(consumer), callbackAddress);
@@ -177,7 +177,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         ) = FunctionGateway(gateway).requests(requestId);
         assertEq(prevNonce + 1, FunctionGateway(gateway).nonce());
         assertEq(FUNCTION_ID, functionId);
-        assertEq(keccak256(REQUEST), inputHash);
+        assertEq(sha256(REQUEST), inputHash);
         assertEq(bytes32(0), outputHash);
         assertEq(keccak256(CALLBACK_CONTEXT), contextHash);
         assertEq(address(consumer), callbackAddress);
@@ -213,7 +213,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         ) = FunctionGateway(gateway).requests(requestId);
         assertEq(prevNonce + 1, FunctionGateway(gateway).nonce());
         assertEq(FUNCTION_ID, functionId);
-        assertEq(keccak256(REQUEST), inputHash);
+        assertEq(sha256(REQUEST), inputHash);
         assertEq(REQUEST_OUTPUT_HASH, outputHash);
         assertEq(keccak256(CALLBACK_CONTEXT), contextHash);
         assertEq(address(consumer), callbackAddress);
@@ -251,7 +251,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         ) = FunctionGateway(gateway).requests(requestId);
         assertEq(prevNonce + 1, FunctionGateway(gateway).nonce());
         assertEq(FUNCTION_ID, functionId);
-        assertEq(keccak256(REQUEST), inputHash);
+        assertEq(sha256(REQUEST), inputHash);
         assertEq(REQUEST_OUTPUT_HASH, outputHash);
         assertEq(keccak256(CALLBACK_CONTEXT), contextHash);
         assertEq(address(consumer), callbackAddress);

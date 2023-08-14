@@ -1,5 +1,7 @@
 package byteutils
 
+import "math/big"
+
 func ReverseBytes(data []byte) []byte {
 	length := len(data)
 	reversed := make([]byte, length)
@@ -47,4 +49,13 @@ func ToBytes32FromBytesRightPad(data []byte) [32]byte {
 	}
 	copy(res[:], data)
 	return res
+}
+
+func TruncateBytes32(data [32]byte, nbBits int) [32]byte {
+	value := new(big.Int).SetBytes(data[:])
+	mask := new(big.Int).Lsh(big.NewInt(1), uint(nbBits))
+	mask.Sub(mask, big.NewInt(1))
+	result := new(big.Int).And(value, mask)
+	out := make([]byte, 32)
+	return [32]byte(result.FillBytes(out))
 }

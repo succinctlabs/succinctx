@@ -197,7 +197,7 @@ func Hash(api builder.API, in []vars.Byte) [32]vars.Byte {
 // Computes sha256(in) && ((1 << nbBits) - 1).
 func HashAndTruncate(api builder.API, in []vars.Byte, nbBits int) vars.Variable {
 	// Compute the untruncated hash.
-	hash := Hash(api, in)
+	hash := vars.ReverseBytes32(Hash(api, in))
 
 	// Accumulate with byte digits until we get to the last relevant byte.
 	acc := vars.ZERO
