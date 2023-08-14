@@ -158,6 +158,7 @@ pub fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize,>(
     // Pass in the last chunk number in the message as a target
     last_chunk_t: Target,
     // This should be less than (max_num_chunks * 1024) - 129
+    // Length in bits of the target
     length: Target
 ) -> Vec<BoolTarget>{
     let mut msg_input = Vec::new();
