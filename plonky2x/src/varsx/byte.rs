@@ -3,14 +3,14 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::iop::generator::GeneratedValues;
 use plonky2::iop::witness::PartitionWitness;
 
-use super::{BasicVariable, BoolVariable};
+use super::{BoolVariable, CircuitVariable};
 use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.
 pub struct ByteVariable(Vec<BoolVariable>);
 
-impl BasicVariable for ByteVariable {
+impl CircuitVariable for ByteVariable {
     type Value = u8;
 
     fn init(builder: &mut CircuitBuilder) -> Self {

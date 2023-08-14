@@ -1,18 +1,17 @@
 use ethers::types::U256;
 use itertools::Itertools;
 use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::types::Field;
 use plonky2::iop::generator::GeneratedValues;
-use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
+use plonky2::iop::witness::PartitionWitness;
 
-use super::{BasicVariable, U32Variable};
+use super::{CircuitVariable, U32Variable};
 use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
 pub struct U256Variable(Vec<U32Variable>);
 
-impl BasicVariable for U256Variable {
+impl CircuitVariable for U256Variable {
     type Value = U256;
 
     fn init(builder: &mut CircuitBuilder) -> Self {

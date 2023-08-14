@@ -16,7 +16,7 @@ pub use variable::*;
 
 use crate::builder::CircuitBuilder;
 
-pub trait BasicVariable {
+pub trait CircuitVariable {
     /// The underlying type of the variable if it were not in a circuit.
     type Value;
 
@@ -35,12 +35,12 @@ pub trait BasicVariable {
 
 impl CircuitBuilder {
     /// Initializes a variable with no value in the circuit.
-    pub fn init<V: BasicVariable>(&mut self) -> V {
+    pub fn init<V: CircuitVariable>(&mut self) -> V {
         V::init(self)
     }
 
     /// Initializes a variable with a constant value in the circuit.
-    pub fn constant<V: BasicVariable>(&mut self, value: V::Value) -> V {
+    pub fn constant<V: CircuitVariable>(&mut self, value: V::Value) -> V {
         V::constant(self, value)
     }
 }

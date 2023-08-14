@@ -2,14 +2,14 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::iop::generator::GeneratedValues;
 use plonky2::iop::witness::PartitionWitness;
 
-use super::BasicVariable;
+use super::CircuitVariable;
 use crate::builder::CircuitBuilder;
 use crate::varsx::ByteVariable;
 
 /// A variable in the circuit representing a byte value.
 pub struct BytesVariable<const N: usize>(Vec<ByteVariable>);
 
-impl<const N: usize> BasicVariable for BytesVariable<N> {
+impl<const N: usize> CircuitVariable for BytesVariable<N> {
     type Value = Vec<u8>;
 
     fn init(builder: &mut CircuitBuilder) -> Self {

@@ -4,14 +4,14 @@ use plonky2::iop::generator::GeneratedValues;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 
-use super::BasicVariable;
+use super::CircuitVariable;
 use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
 pub struct U32Variable(Target);
 
-impl BasicVariable for U32Variable {
+impl CircuitVariable for U32Variable {
     type Value = u32;
 
     fn init(builder: &mut CircuitBuilder) -> Self {

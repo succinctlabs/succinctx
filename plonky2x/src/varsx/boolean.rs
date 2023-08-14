@@ -4,13 +4,13 @@ use plonky2::iop::generator::GeneratedValues;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 
-use super::BasicVariable;
+use super::CircuitVariable;
 use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a boolean value.
 pub struct BoolVariable(Target);
 
-impl BasicVariable for BoolVariable {
+impl CircuitVariable for BoolVariable {
     type Value = bool;
 
     fn init(builder: &mut CircuitBuilder) -> Self {

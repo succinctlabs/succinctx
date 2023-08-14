@@ -3,13 +3,13 @@ use plonky2::iop::generator::GeneratedValues;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 
-use super::BasicVariable;
+use super::CircuitVariable;
 use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit. It represents a value between `[0, 2**64 - 2**32 + 1)`.
 pub struct Variable(pub Target);
 
-impl BasicVariable for Variable {
+impl CircuitVariable for Variable {
     type Value = GoldilocksField;
 
     fn init(builder: &mut CircuitBuilder) -> Self {
