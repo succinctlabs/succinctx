@@ -1,8 +1,6 @@
 use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::types::Field;
 use plonky2::iop::generator::GeneratedValues;
-use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
+use plonky2::iop::witness::PartitionWitness;
 
 use super::BasicVariable;
 use crate::builder::CircuitBuilder;
@@ -19,6 +17,7 @@ impl<const N: usize> BasicVariable for BytesVariable<N> {
     }
 
     fn constant(builder: &mut CircuitBuilder, value: Self::Value) -> Self {
+        assert!(value.len() == N, "vector of values has wrong length");
         Self(
             value
                 .into_iter()
@@ -32,6 +31,7 @@ impl<const N: usize> BasicVariable for BytesVariable<N> {
     }
 
     fn set(&self, buffer: &mut GeneratedValues<GoldilocksField>, value: Self::Value) {
+        assert!(value.len() == N, "vector of values has wrong length");
         for (b, v) in self.0.iter().zip(value) {
             b.set(buffer, v);
         }

@@ -1,6 +1,8 @@
 mod boolean;
 mod byte;
 mod bytes;
+mod uint256;
+mod uint32;
 mod variable;
 
 pub use boolean::*;
@@ -9,6 +11,7 @@ pub use bytes::*;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::iop::generator::GeneratedValues;
 use plonky2::iop::witness::PartitionWitness;
+pub use uint32::*;
 pub use variable::*;
 
 use crate::builder::CircuitBuilder;
@@ -30,7 +33,6 @@ pub trait BasicVariable {
     fn set(&self, witness: &mut GeneratedValues<GoldilocksField>, value: Self::Value);
 }
 
-// TODO: Move to builder.
 impl CircuitBuilder {
     /// Initializes a variable with no value in the circuit.
     pub fn init<V: BasicVariable>(&mut self) -> V {
