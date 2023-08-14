@@ -17,7 +17,8 @@ type Groth16Proof struct {
 	OutputHash common.Hash    `json:"output"`
 }
 
-func (g *Groth16Proof) Save(file string) error {
+// Export saves the proof to a file.
+func (g *Groth16Proof) Export(file string) error {
 	// Write the proof to a JSON-compatible format.
 
 	// Create the proof file.

@@ -37,6 +37,7 @@ func (r *InputReader) ReadBytes32() [32]vars.Byte {
 	return out
 }
 
+// ReadUint64 reads a uint64 in big-endian from the input stream.
 func (r *InputReader) ReadUint64() vars.U64 {
 	out := vars.NewU64()
 	for i := 0; i < 8; i++ {
