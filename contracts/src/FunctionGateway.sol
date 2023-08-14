@@ -180,7 +180,7 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
             revert RequestNotFound(_requestId);
         } else if (r.contextHash != keccak256(_context)) {
             revert ContextMismatch(_requestId, _context);
-        } else if (r.outputHash != keccak256(_output)) {
+        } else if (r.outputHash != sha256(_output)) {
             revert OutputMismatch(_requestId, _output);
         } else if (!r.proofFulfilled) {
             revert ProofNotFulfilled(_requestId);

@@ -25,7 +25,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
     bytes4 internal constant CALLBACK_SELECTOR = TestConsumer.handleRequest.selector;
     bytes internal constant CALLBACK_CONTEXT = abi.encode(0);
     bytes internal constant REQUEST_OUTPUT = abi.encode(true);
-    bytes32 internal constant REQUEST_OUTPUT_HASH = keccak256(REQUEST_OUTPUT);
+    bytes32 internal constant REQUEST_OUTPUT_HASH = sha256(REQUEST_OUTPUT);
     bytes internal constant REQUEST_PROOF = hex"";
     bytes32 internal EXPECTED_REQUEST_ID;
     uint256 internal constant DEFAULT_FEE = 0.1 ether;
