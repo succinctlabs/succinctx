@@ -2,10 +2,8 @@ package succinct
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"math/big"
-	"os"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
@@ -63,7 +61,6 @@ func (f *CircuitFunction) SetWitness(inputBytes []byte) {
 
 	// Set inputHash = sha256(inputBytes) && ((1 << 253) - 1).
 	inputHash := sha256utils.HashAndTruncate(inputBytes, 253)
-	fmt.Println("inputHash", inputHash)
 	f.InputHash.Set(inputHash)
 
 	// Set outputHash = sha256(outputBytes) && ((1 << 253) - 1).
@@ -90,134 +87,45 @@ func (f *CircuitFunction) Define(baseApi frontend.API) error {
 }
 
 // Build the circuit and serialize the r1cs, proving key, and verifying key to files.
-func (circuit *CircuitFunction) Build() {
+func (circuit *CircuitFunction) Build() (*CircuitBuild, error) {
 	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, circuit)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	pk, vk, err := groth16.Setup(r1cs)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	// Make build directory.
-	err = os.MkdirAll("build", 0755)
-	if err != nil {
-		fmt.Printf("Failed to create directory: %v\n", err)
-		return
-	}
-
-	// Write R1CS.
-	r1csFile, err := os.Create("build/r1cs.bin")
-	if err != nil {
-		fmt.Println("Failed to create file:", err)
-		return
-	}
-	defer r1csFile.Close()
-
-	_, err = r1cs.WriteTo(r1csFile)
-	if err != nil {
-		fmt.Println("Failed to write data:", err)
-		return
-	}
-
-	// Create the proving key file.
-	pkFile, err := os.Create("build/pkey.bin")
-	if err != nil {
-		fmt.Println("Failed to create file:", err)
-		return
-	}
-	defer pkFile.Close()
-
-	// Write proving key.
-	_, err = pk.WriteTo(pkFile)
-	if err != nil {
-		fmt.Println("Failed to write data:", err)
-		return
-	}
-
-	// Write verification key.
-	vkFile, err := os.Create("build/vkey.bin")
-	if err != nil {
-		fmt.Println("Failed to create file:", err)
-		return
-	}
-	defer vkFile.Close()
-
-	_, err = vk.WriteTo(vkFile)
-	if err != nil {
-		fmt.Println("Failed to write data:", err)
-		return
-	}
-
-	// Write verifier smart contract into a file.
-	verifierFile, err := os.Create("build/FunctionVerifier.sol")
-	if err != nil {
-		fmt.Println("Failed to create file:", err)
-		return
-	}
-	defer verifierFile.Close()
-
-	svk := &SuccinctVerifyingKey{VerifyingKey: vk}
-	err = svk.ExportIFunctionVerifierSolidity(verifierFile)
-	if err != nil {
-		fmt.Println("Failed to export solidity verifier:", err)
-		return
-	}
-
+	return &CircuitBuild{
+		pk:   pk,
+		vk:   vk,
+		r1cs: r1cs,
+	}, nil
 }
 
 // Generates a proof for f(inputs, witness) = outputs based on a circuit.
-func (f *CircuitFunction) Prove(inputBytes []byte) {
-	r1cs := groth16.NewCS(ecc.BN254)
-
-	// Read the proving key file.
-	pkFile, err := os.Open("build/pkey.bin")
-	if err != nil {
-		panic(fmt.Errorf("failed to open file: %w", err))
-	}
-	defer pkFile.Close()
-
-	// Deserialize the proving key.
-	pk := groth16.NewProvingKey(ecc.BN254)
-	_, err = pk.ReadFrom(pkFile)
-	if err != nil {
-		panic(fmt.Errorf("failed to read data: %w", err))
-	}
-
-	// Read the R1CS file.
-	r1csFile, err := os.Open("build/r1cs.bin")
-	if err != nil {
-		panic(fmt.Errorf("failed to open file: %w", err))
-	}
-	defer r1csFile.Close()
-
-	// Deserialize the R1CS.
-	_, err = r1cs.ReadFrom(r1csFile)
-	if err != nil {
-		panic(fmt.Errorf("failed to read data: %w", err))
-	}
+func (f *CircuitFunction) Prove(inputBytes []byte, build *CircuitBuild) (*types.Groth16Proof, error) {
 
 	// Register hints which are used for automatic constraint generation.
 	solver.RegisterHint()
 
-	// Create the witness.
+	// Fill in the witness values.
 	f.SetWitness(inputBytes)
 
-	// Calculate the rest of the witness.
+	// Calculate the actual witness.
 	witness, err := frontend.NewWitness(f, ecc.BN254.ScalarField())
 	if err != nil {
-		panic(fmt.Errorf("failed to create witness: %w", err))
+		return nil, fmt.Errorf("failed to create witness: %w", err)
 	}
 
 	// Generate the proof.
-	proof, err := groth16.Prove(r1cs, pk, witness)
+	proof, err := groth16.Prove(build.r1cs, build.pk, witness)
 	if err != nil {
-		panic(fmt.Errorf("failed to generate proof: %w", err))
+		return nil, fmt.Errorf("failed to generate proof: %w", err)
 	}
 
-	// Write the proof to a JSON-compatible format.
 	const fpSize = 4 * 8
 	var buf bytes.Buffer
 	proof.WriteRawTo(&buf)
@@ -232,22 +140,8 @@ func (f *CircuitFunction) Prove(inputBytes []byte) {
 	output.C[0] = new(big.Int).SetBytes(proofBytes[fpSize*6 : fpSize*7])
 	output.C[1] = new(big.Int).SetBytes(proofBytes[fpSize*7 : fpSize*8])
 
-	// Create the proof file.
-	proofFile, err := os.Create("proof.json")
-	if err != nil {
-		panic(fmt.Errorf("failed to create file: %w", err))
-	}
-	defer proofFile.Close()
+	output.Input = inputBytes
+	output.Output = vars.GetValuesUnsafe(*f.Circuit.GetOutputBytes())
 
-	// Marshal the proof to JSON.
-	jsonString, err := json.Marshal(output)
-	if err != nil {
-		panic(fmt.Errorf("failed to marshal output: %w", err))
-	}
-
-	// Write the proof to the file.
-	_, err = proofFile.Write(jsonString)
-	if err != nil {
-		panic(fmt.Errorf("failed to write data: %w", err))
-	}
+	return output, nil
 }
