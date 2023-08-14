@@ -156,9 +156,9 @@ fn select_chunk<F: RichField + Extendable<D>, const D: usize>(
 pub fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize,>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget],
-    // Pass in the number of chunks in the message as a target
-    num_chunks_t: Target,
-    // This should be less than (num_chunks * 1024) - 129
+    // Pass in the last chunk number in the message as a target
+    last_chunk_t: Target,
+    // This should be less than (max_num_chunks * 1024) - 129
     length: Target
 ) -> Vec<BoolTarget>{
     let mut msg_input = Vec::new();
@@ -180,10 +180,12 @@ pub fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize,>(
         let chunk_offset = 1024 * i;
         let curr_chunk_t = builder.constant(F::from_canonical_usize(i));
         // Check if this is the chunk where length should be added
-        let chunk_select_bit = builder.is_equal(num_chunks_t, curr_chunk_t);
+        let chunk_select_bit = builder.is_equal(last_chunk_t, curr_chunk_t);
         // Always message || padding || nil
         for j in 0..1024-CHUNK_128_BYTES {
             let idx = chunk_offset + j;
+            let idx = std::cmp::min(idx, message.len() - 1);
+
             let idx_t = builder.constant(F::from_canonical_usize(idx));
             let idx_length_eq_t = builder.is_equal(idx_t, length);
 
@@ -201,8 +203,10 @@ pub fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize,>(
         // Message || padding || length || nil
         for j in 1024-CHUNK_128_BYTES..1024 {
             let idx = chunk_offset + j;
+            let idx = std::cmp::min(idx, message.len() - 1);
+
             // Should only be true in the last valid chunk
-            let length_bit = builder.and(length_bits[i % CHUNK_128_BYTES], chunk_select_bit);
+            let length_bit = builder.and(length_bits[j % CHUNK_128_BYTES], chunk_select_bit);
 
             // TODO: chunk_select_bit && (step_select_bit || length_bit) should never be true concurrently -> add constraint for this?
 
@@ -229,7 +233,7 @@ pub fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize,>(
 fn process_sha512_variable<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     msg_input: &[BoolTarget],
-    num_chunks: Target,
+    last_chunk: Target,
 ) -> Vec<BoolTarget> {
     let mut sha512_hash = get_initial_hash(builder);
     let round_constants = get_round_constants(builder);
@@ -246,7 +250,7 @@ fn process_sha512_variable<F: RichField + Extendable<D>, const D: usize>(
 
         // Check if this is the last chunk
         let curr_chunk_t = builder.constant(F::from_canonical_usize(chunk_start / 1024));
-        let is_last_block = builder.is_equal(num_chunks, curr_chunk_t);
+        let is_last_block = builder.is_equal(last_chunk, curr_chunk_t);
 
         noop_select = BoolTarget::new_unsafe(
             builder.select(
@@ -270,16 +274,16 @@ pub fn sha512_variable<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget],
     length: Target,
-    num_chunks: Target,
+    last_chunk: Target,
 ) -> Vec<BoolTarget> {
     let mut msg_input = Vec::new();
     msg_input.extend_from_slice(message);
 
     let _: u128 = message.len().try_into().expect("message too long");
 
-    let msg_input = pad_sha512_variable(builder, &msg_input, num_chunks, length);
+    let msg_input = pad_sha512_variable(builder, &msg_input, last_chunk, length);
 
-    process_sha512_variable(builder, &msg_input, num_chunks)
+    process_sha512_variable(builder, &msg_input, last_chunk)
 }
 
 pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
@@ -562,9 +566,9 @@ mod tests {
             .map(|b| builder.constant_bool(*b))
             .collect::<Vec<_>>();
         // Subtract 8 for additional 0x00 byte at end
-        let length_t = builder.constant(F::from_canonical_usize(msg.len() - 8));
-        let num_chunks_t = builder.constant(F::from_canonical_usize(1));
-        let digest = sha512_variable(&mut builder, &message, length_t, num_chunks_t);
+        let length_t = builder.constant(F::from_canonical_usize(msg_bits.len() - 8));
+        let last_chunk_t = builder.constant(F::from_canonical_usize(0));
+        let digest = sha512_variable(&mut builder, &message, length_t, last_chunk_t);
         let pw = PartialWitness::new();
 
         for i in 0..digest_bits.len() {
