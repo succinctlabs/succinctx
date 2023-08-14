@@ -4,7 +4,6 @@ use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::iop::target::Target;
 
-use crate::builder;
 use crate::hash::bit_operations::util::{_right_rotate, _shr, uint64_to_bits};
 use crate::hash::bit_operations::{add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add};
 
@@ -550,10 +549,16 @@ mod tests {
 
     #[test]
     fn test_sha512_large_msg_variable() -> Result<()> {
-
-        // Only take first 77 bytes
-        let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c61627300").unwrap();
+        // This test tests both the variable length and the no-op skip for processing each chunk of the sha512
+        // Append 52 bytes to the 77-byte message to make it 129 bytes long (longer than the 128 byte chunk size)
+        let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
         let msg_bits = to_bits(msg.to_vec());
+
+        let additional_msg = decode("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111").unwrap();
+        
+        let concat_msg = [&msg[..], &additional_msg[..]].concat();
+        let concat_msg_bits = to_bits(concat_msg.to_vec());
+
         let expected_digest = "4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39";
         let digest_bits = to_bits(decode(expected_digest).unwrap());
 
@@ -561,12 +566,13 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        let message = msg_bits
+        let message = concat_msg_bits
             .iter()
             .map(|b| builder.constant_bool(*b))
             .collect::<Vec<_>>();
-        // Subtract 8 for additional 0x00 byte at end
-        let length_t = builder.constant(F::from_canonical_usize(msg_bits.len() - 8));
+
+        // Pass in the bit length of the message to hash as a target
+        let length_t = builder.constant(F::from_canonical_usize(msg_bits.len()));
         let last_chunk_t = builder.constant(F::from_canonical_usize(0));
         let digest = sha512_variable(&mut builder, &message, length_t, last_chunk_t);
         let pw = PartialWitness::new();
