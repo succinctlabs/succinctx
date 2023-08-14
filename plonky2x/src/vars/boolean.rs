@@ -1,38 +1,44 @@
-use plonky2::iop::target::{BoolTarget, Target};
+use plonky2::iop::generator::GeneratedValues;
+use plonky2::iop::target::Target;
+use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 
-use super::Variable;
+use super::{CircuitVariable, Variable};
+use crate::builder::{CircuitBuilder, ExtendableField};
 
-#[derive(Debug, Clone, Copy, Default)]
+/// A variable in the circuit representing a boolean value.
 pub struct BoolVariable(pub Variable);
 
-impl BoolVariable {
-    pub fn from_variable(value: Variable) -> Self {
-        Self(value)
+impl<F: ExtendableField> CircuitVariable<F> for BoolVariable {
+    type ValueType = bool;
+
+    fn init(builder: &mut CircuitBuilder<F>) -> Self {
+        Self(Variable::init(builder))
     }
 
-    pub fn from_target(value: Target) -> Self {
-        Self(Variable::from_target(value))
+    fn constant(builder: &mut CircuitBuilder<F>, value: bool) -> Self {
+        Self(Variable::constant(
+            builder,
+            F::from_canonical_u64(value as u64),
+        ))
     }
 
-    pub fn from_bool_target(value: BoolTarget) -> Self {
-        Self(Variable::from_target(value.target))
+    fn value<'a>(&self, witness: &PartitionWitness<'a, F>) -> bool {
+        witness.get_target(self.0 .0) == F::from_canonical_u64(1)
     }
-}
 
-impl From<Variable> for BoolVariable {
-    fn from(item: Variable) -> Self {
-        Self(item)
+    fn set(&self, buffer: &mut GeneratedValues<F>, value: bool) {
+        buffer.set_target(self.0 .0, F::from_canonical_u64(value as u64));
     }
 }
 
 impl From<Target> for BoolVariable {
-    fn from(item: Target) -> Self {
-        Self(Variable::from_target(item))
+    fn from(v: Target) -> Self {
+        Self(Variable(v))
     }
 }
 
-impl From<BoolTarget> for BoolVariable {
-    fn from(item: BoolTarget) -> Self {
-        Self(Variable::from_target(item.target))
+impl From<Variable> for BoolVariable {
+    fn from(v: Variable) -> Self {
+        Self(v)
     }
 }

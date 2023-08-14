@@ -1,8 +1,8 @@
 use super::vars::{AddressVariable, BLSPubkeyVariable};
-use crate::builder::BuilderAPI;
+use crate::builder::CircuitBuilder;
 use crate::vars::BoolVariable;
 
-impl BuilderAPI {
+impl CircuitBuilder {
     /// Initialize a new BLSPubkeyVariable.
     pub fn init_bls_pubkey(&mut self) -> BLSPubkeyVariable {
         let mut bytes = [BoolVariable::default(); 384];

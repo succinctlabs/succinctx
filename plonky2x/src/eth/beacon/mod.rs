@@ -2,18 +2,18 @@ mod generators;
 mod vars;
 
 use self::vars::BeaconValidatorVariable;
-use crate::builder::BuilderAPI;
+use crate::builder::CircuitBuilder;
 use crate::vars::BoolVariable;
 
 /// An API for methods relating to the consensus layer state of Ethereum.
 pub struct BeaconAPI<'a> {
-    pub api: &'a mut BuilderAPI,
+    pub api: &'a mut CircuitBuilder,
     pub consensus_rpc: String,
 }
 
 impl<'a> BeaconAPI<'a> {
     // Create a new BeaconAPI.
-    pub fn new(api: &'a mut BuilderAPI, consensus_rpc: String) -> Self {
+    pub fn new(api: &'a mut CircuitBuilder, consensus_rpc: String) -> Self {
         Self { api, consensus_rpc }
     }
 

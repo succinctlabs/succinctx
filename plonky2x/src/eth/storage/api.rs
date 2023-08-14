@@ -3,19 +3,19 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 
 use super::generator::GetStorageProofGenerator;
 use super::types::{AccountVariable, ProofVariable};
-use crate::builder::BuilderAPI;
+use crate::builder::CircuitBuilder;
 use crate::eth::vars::AddressVariable;
 use crate::vars::{
     BoolVariable, Bytes32Variable, U256Variable, WitnessMethods, WitnessWriteMethods,
 };
 
 pub struct StorageProofAPI<'a> {
-    pub api: &'a mut BuilderAPI,
+    pub api: &'a mut CircuitBuilder,
     pub provider: Provider<Http>,
 }
 
 impl<'a> StorageProofAPI<'a> {
-    pub fn new(api: &'a mut BuilderAPI, provider: Provider<Http>) -> Self {
+    pub fn new(api: &'a mut CircuitBuilder, provider: Provider<Http>) -> Self {
         Self { api, provider }
     }
 
@@ -130,7 +130,7 @@ mod tests {
         // TODO: read this RPC url from an .env
         let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
-        let mut api = BuilderAPI::new();
+        let mut api = CircuitBuilder::new();
         // Instantiate the variables going into the circuit
         // TODO: technically we should also register all these inputs as public
         // Public inputs are the initial value (provided below) and the result (which is generated).

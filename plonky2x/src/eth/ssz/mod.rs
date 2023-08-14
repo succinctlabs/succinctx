@@ -1,12 +1,12 @@
-use crate::builder::BuilderAPI;
+use crate::builder::CircuitBuilder;
 use crate::vars::{Bytes32Variable, Variable};
 
 pub struct SimpleSerializeAPI {
-    pub api: BuilderAPI,
+    pub api: CircuitBuilder,
 }
 
 impl SimpleSerializeAPI {
-    pub fn new(api: BuilderAPI) -> Self {
+    pub fn new(api: CircuitBuilder) -> Self {
         Self { api }
     }
 

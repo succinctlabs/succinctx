@@ -2,6 +2,7 @@
 #![allow(clippy::needless_range_loop)]
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
+#![feature(trait_alias)]
 
 extern crate alloc;
 
@@ -10,7 +11,6 @@ pub mod ecc;
 pub mod eth;
 pub mod ethutils;
 pub mod hash;
-pub mod lido;
 pub mod num;
 pub mod utils;
 pub mod vars;

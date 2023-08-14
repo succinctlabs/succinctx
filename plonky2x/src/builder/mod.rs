@@ -1,43 +1,51 @@
 mod boolean;
-mod byte;
-mod bytes32;
-mod u256;
 
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::SimpleGenerator;
 use plonky2::iop::target::BoolTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::circuit_builder::CircuitBuilder as _CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
-use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+use plonky2::plonk::config::GenericConfig;
 
-use crate::vars::{BoolVariable, Variable};
+use crate::vars::{BoolVariable, CircuitVariable, Variable};
 
 const D: usize = 2;
-type C = PoseidonGoldilocksConfig;
-type F = <C as GenericConfig<D>>::F;
+
+pub trait ExtendableField = RichField + Extendable<D>;
 
 /// This is the API that we recommend developers use for writing circuits. It is a wrapper around
-/// the basic plonky2 API.
-pub struct BuilderAPI {
-    pub api: CircuitBuilder<F, D>,
+/// the basic plonky2 builder.
+pub struct CircuitBuilder<F: ExtendableField> {
+    pub api: _CircuitBuilder<F, D>,
 }
 
-impl BuilderAPI {
+impl<F: ExtendableField> CircuitBuilder<F> {
     /// Creates a new API for building circuits.
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
-        let api = CircuitBuilder::new(config);
+        let api = _CircuitBuilder::new(config);
         Self { api }
     }
 
     /// Build the circuit.
-    pub fn build(self) -> CircuitData<F, C, D> {
+    pub fn build<C: GenericConfig<D, F = F>>(self) -> CircuitData<F, C, D> {
         self.api.build()
     }
 
-    // /// Pass through to add simple generator
-    /// TODO the types are being difficult here
+    /// Add simple generator.
     pub fn add_simple_generator<G: SimpleGenerator<F, D>>(&mut self, generator: G) {
         self.api.add_simple_generator(generator)
+    }
+
+    /// Initializes a variable with no value in the circuit.
+    pub fn init<V: CircuitVariable<F>>(&mut self) -> V {
+        V::init(self)
+    }
+
+    /// Initializes a variable with a constant value in the circuit.
+    pub fn constant<V: CircuitVariable<F>>(&mut self, value: V::ValueType) -> V {
+        V::constant(self, value)
     }
 
     /// Add returns res = i1 + i2.
@@ -107,7 +115,7 @@ impl BuilderAPI {
     /// Returns 1 if i1 is zero, 0 otherwise as a boolean.
     pub fn is_zero(&mut self, i1: Variable) -> BoolVariable {
         let zero = self.api.zero();
-        self.api.is_equal(i1.0, zero).into()
+        self.api.is_equal(i1.0, zero).target.into()
     }
 
     /// Fails if i1 != i2.
@@ -116,30 +124,35 @@ impl BuilderAPI {
     }
 
     pub fn zero(&mut self) -> Variable {
-        Variable::from_target(self.api.zero())
+        self.api.zero().into()
     }
 
     pub fn one(&mut self) -> Variable {
-        Variable::from_target(self.api.one())
+        self.api.one().into()
     }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::iop::witness::PartialWitness;
+    use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
-    use crate::builder::BuilderAPI;
+    use crate::builder::CircuitBuilder;
 
     #[test]
     fn test_simple_circuit() {
-        let mut api = BuilderAPI::new();
-        let zero = api.zero();
-        let one = api.one();
-        let sum = api.add(zero, one);
-        api.assert_is_equal(sum, one);
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+
+        let mut builder = CircuitBuilder::<F>::new();
+        let zero = builder.zero();
+        let one = builder.one();
+        let sum = builder.add(zero, one);
+        builder.assert_is_equal(sum, one);
 
         let pw = PartialWitness::new();
-        let data = api.build();
+        let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
         data.verify(proof).unwrap();
     }
