@@ -102,6 +102,15 @@ func SetBytes32(b *[32]Byte, i1 [32]byte) {
 	}
 }
 
+// ReverseBytes32 returns a bytes32 with the bytes reversed.
+func ReverseBytes32(b [32]Byte) [32]Byte {
+	var result [32]Byte
+	for i := 0; i < 32; i++ {
+		result[i] = b[32-i-1]
+	}
+	return result
+}
+
 // Creates a new bytes32 as a variable in a circuit from a u64. The u64 will placed in the first
 // 8 bytes of the bytes32 (aka "little endian").
 func SetBytes32FromU64LE(b *[32]Byte, i1 uint64) {

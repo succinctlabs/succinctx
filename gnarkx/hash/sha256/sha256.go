@@ -197,11 +197,7 @@ func Hash(api builder.API, in []vars.Byte) [32]vars.Byte {
 // Computes sha256(in) && ((1 << nbBits) - 1).
 func HashAndTruncate(api builder.API, in []vars.Byte, nbBits int) vars.Variable {
 	// Compute the untruncated hash.
-	rawHash := Hash(api, in)
-	hash := make([]vars.Byte, 32)
-	for i := 0; i < 32; i++ {
-		hash[i] = rawHash[32-i-1]
-	}
+	hash := vars.ReverseBytes32(Hash(api, in))
 
 	// Accumulate with byte digits until we get to the last relevant byte.
 	acc := vars.ZERO
@@ -221,31 +217,3 @@ func HashAndTruncate(api builder.API, in []vars.Byte, nbBits int) vars.Variable 
 	}
 	return acc
 }
-
-// Computes sha256(in) && ((1 << nbBits) - 1).
-// func HashAndTruncate(api builder.API, in []vars.Byte, nbBits int) vars.Variable {
-// 	// Compute the untruncated hash.
-// 	rawHash := Hash(api, in)
-// 	hash := make([]vars.Byte, 32)
-// 	for i := 0; i < 32; i++ {
-// 		hash[i] = rawHash[32-i-1]
-// 	}
-
-// 	// Accumulate with byte digits until we get to the last relevant byte.
-// 	acc := vars.ZERO
-// 	nbBytes := nbBits / 8
-// 	for i := 32 - nbBytes; i < nbBytes; i++ {
-// 		power := vars.NewVariableFromString(new(big.Int).Lsh(big.NewInt(1), uint(i*8)).String())
-// 		acc = api.Add(acc, api.Mul(power, hash[i].Value))
-// 	}
-
-// 	// Accumulate the leftmost partial byte (in case nbBits is not a multiple of 8)
-// 	lastByte := hash[32-nbBytes-1]
-// 	lastByteBits := api.ToBitsFromByte(lastByte)
-// 	lastByteNbBits := nbBits % 8
-// 	for i := 8 - lastByteNbBits; i < lastByteNbBits; i++ {
-// 		power := vars.NewVariableFromString(new(big.Int).Lsh(big.NewInt(1), uint(i+nbBytes*8)).String())
-// 		acc = api.Add(acc, api.Mul(power, lastByteBits[i].Value))
-// 	}
-// 	return acc
-// }

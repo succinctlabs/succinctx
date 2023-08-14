@@ -65,7 +65,7 @@ func (f *CircuitFunction) SetWitness(inputBytes []byte) {
 
 	// Set inputHash = sha256(inputBytes) && ((1 << 253) - 1).
 	inputHash := sha256utils.HashAndTruncate(inputBytes, 253)
-	fmt.Println("inputHash", inputHash)
+	fmt.Println("inputHash", hex.EncodeToString(inputHash.Bytes()))
 	f.InputHash.Set(inputHash)
 
 	// Set outputHash = sha256(outputBytes) && ((1 << 253) - 1).
@@ -73,7 +73,7 @@ func (f *CircuitFunction) SetWitness(inputBytes []byte) {
 	outputBytesValues := vars.GetValuesUnsafe(*outputBytes)
 	fmt.Println("outputBytes", hex.EncodeToString(outputBytesValues))
 	outputHash := sha256utils.HashAndTruncate(outputBytesValues, 253)
-	fmt.Println("outputHash", outputHash)
+	fmt.Println("outputHash", hex.EncodeToString(outputHash.Bytes()))
 	f.OutputHash.Set(outputHash)
 }
 

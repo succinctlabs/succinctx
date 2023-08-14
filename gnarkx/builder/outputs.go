@@ -25,11 +25,8 @@ func NewOutputWriter(api API) *OutputWriter {
 // Writes a single u64 to the output stream.
 func (w *OutputWriter) WriteU64(i1 vars.U64) {
 	bytes := w.api.ToBytes32FromU64LE(i1)
-	for i := 0; i < 24; i++ {
-		w.bytes = append(w.bytes, vars.ZERO_BYTE)
-	}
 	for i := 0; i < 8; i++ {
-		w.bytes = append(w.bytes, bytes[i])
+		w.bytes = append(w.bytes, bytes[8-i-1])
 	}
 }
 
