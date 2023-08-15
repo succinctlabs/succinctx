@@ -19,7 +19,7 @@ var proveCmd = &cobra.Command{
 func init() {
 	proveCmd.Flags().StringVarP(&inputBytes, "input", "i", "", "input bytes to prove with 0x prefix")
 	proveCmd.Flags().StringVarP(&inputABI, "abi", "a", "", "ABI signature of the input types, e.g. \"(uint256,address,uint8,bool,string)\"")
-	proveCmd.Flags().StringVarP(&inputValues, "values", "v", "", "comma-separated values corresponding to the ABI signature")
+	proveCmd.Flags().StringVarP(&inputValues, "values", "v", "", "comma-separated values corresponding to the types in the ABI signature")
 	rootCmd.AddCommand(proveCmd)
 }
 
@@ -38,11 +38,11 @@ func proveCLI() {
 
 	// Prove the circuit
 	if err := proveCircuit(input); err != nil {
-		fmt.Printf("Failed to prove the circuit: %v\n", err)
+		fmt.Printf("Failed to generate a proof for the circuit: %v\n", err)
 		return
 	}
 
-	fmt.Println("Circuit proved successfully.")
+	fmt.Println("Proof generated successfully.")
 }
 
 // Run the generated main.go file with the --prove flag and input bytes
@@ -52,7 +52,7 @@ func proveCircuit(input string) error {
 	proveCmd.Stdout = os.Stdout
 	proveCmd.Stderr = os.Stderr
 	if err := proveCmd.Run(); err != nil {
-		return fmt.Errorf("failed to prove the circuit: %w", err)
+		return fmt.Errorf("failed to run proof generation: %w", err)
 	}
 
 	return nil
