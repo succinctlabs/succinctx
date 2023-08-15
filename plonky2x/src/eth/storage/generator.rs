@@ -1,7 +1,8 @@
+use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use ethers::providers::{Http, Middleware, Provider};
-use ethers::types::{Address, EIP1186ProofResponse, H256};
+use ethers::providers::{JsonRpcClient, Middleware, Provider};
+use ethers::types::EIP1186ProofResponse;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -11,39 +12,47 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 use tokio::runtime::Runtime;
 
-use super::types::{AccountVariable, ProofVariable};
+use super::vars::{EthAccountVariable, EthProofVariable};
+use crate::builder::CircuitBuilder;
 use crate::eth::utils::u256_to_h256_be;
 use crate::eth::vars::AddressVariable;
-use crate::vars::{Bytes32Variable, BytesVariable, WitnessMethods, WitnessWriteMethods};
+use crate::vars::{Bytes32Variable, CircuitVariable};
 
-#[derive(Debug)]
-pub struct GetStorageProofGenerator<F: RichField + Extendable<D>, const D: usize> {
-    address: AddressVariable,
-    storage_key: Bytes32Variable,
-    account_value: AccountVariable,
-    account_proof: ProofVariable,
-    storage_proof: ProofVariable,
-    value: Bytes32Variable,
-    block_number: u64,
-    provider: Provider<Http>,
+#[derive(Debug, Clone)]
+pub struct EthStorageProofGenerator<
+    P: Clone + JsonRpcClient + 'static,
+    F: RichField + Extendable<D>,
+    const D: usize,
+> {
+    pub address: AddressVariable,
+    pub storage_key: Bytes32Variable,
+    pub account: EthAccountVariable,
+    pub account_proof: EthProofVariable,
+    pub storage_proof: EthProofVariable,
+    pub value: Bytes32Variable,
+    pub block_number: u64,
+    pub provider: Provider<P>,
     _phantom: PhantomData<F>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> GetStorageProofGenerator<F, D> {
+impl<P: Clone + JsonRpcClient + 'static, F: RichField + Extendable<D>, const D: usize>
+    EthStorageProofGenerator<P, F, D>
+{
     pub fn new(
+        builder: &mut CircuitBuilder<F, D>,
+        provider: Provider<P>,
         address: AddressVariable,
         storage_key: Bytes32Variable,
-        account_value: AccountVariable,
-        account_proof: ProofVariable,
-        storage_proof: ProofVariable,
-        value: Bytes32Variable,
         block_number: u64,
-        provider: Provider<Http>,
-    ) -> GetStorageProofGenerator<F, D> {
-        return GetStorageProofGenerator {
+    ) -> EthStorageProofGenerator<P, F, D> {
+        let account = builder.init::<EthAccountVariable>();
+        let account_proof = builder.init::<EthProofVariable>();
+        let storage_proof = builder.init::<EthProofVariable>();
+        let value = builder.init::<Bytes32Variable>();
+        return EthStorageProofGenerator {
             address,
             storage_key,
-            account_value,
+            account,
             account_proof,
             storage_proof,
             value: value,
@@ -54,23 +63,23 @@ impl<F: RichField + Extendable<D>, const D: usize> GetStorageProofGenerator<F, D
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for GetStorageProofGenerator<F, D>
+impl<P: Clone + JsonRpcClient + 'static, F: RichField + Extendable<D>, const D: usize>
+    SimpleGenerator<F, D> for EthStorageProofGenerator<P, F, D>
 {
     fn id(&self) -> String {
         "GetStorageProofGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
-        let mut res = BytesVariable::<20>::from(self.address).to_targets();
-        res.append(&mut BytesVariable::<32>::from(self.storage_key).to_targets());
-        res
+        vec![self.address.targets(), self.storage_key.targets()]
+            .into_iter()
+            .flatten()
+            .collect()
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        // TODO: still have to set `account_proof` and `storage_proof`
-        let address = Address::from(witness.get_bytes_be(self.address.into()));
-        let location = H256::from(witness.get_bytes_be(self.storage_key.into()));
+    fn run_once(&self, witness: &PartitionWitness<F>, buffer: &mut GeneratedValues<F>) {
+        let address = self.address.value(witness);
+        let location = self.storage_key.value(witness);
         let get_proof_closure = || -> EIP1186ProofResponse {
             let rt = Runtime::new().unwrap();
             rt.block_on(async {
@@ -81,8 +90,8 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
             })
         };
         let storage_result: EIP1186ProofResponse = get_proof_closure();
-        let h256_value = u256_to_h256_be(storage_result.storage_proof[0].value);
-        out_buffer.set_from_bytes_be(self.value.into(), *h256_value.as_fixed_bytes());
+        let value = u256_to_h256_be(storage_result.storage_proof[0].value);
+        self.value.set(buffer, value);
     }
 
     #[allow(unused_variables)]

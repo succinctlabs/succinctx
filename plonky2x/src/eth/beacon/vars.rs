@@ -1,7 +1,7 @@
 use plonky2::field::types::Field;
 use plonky2::iop::generator::GeneratedValues;
 
-use crate::eth::vars::{BLSPubkeyVariable, EthWriteableWitness};
+use crate::eth::varsx::{BLSPubkeyVariable, EthWriteableWitness};
 use crate::ethutils::beacon::BeaconValidator;
 use crate::vars::{BoolVariable, Bytes32Variable, U256Variable, WitnessWriteMethods};
 

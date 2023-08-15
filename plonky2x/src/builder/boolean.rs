@@ -1,11 +1,10 @@
-use crate::builder::BuilderAPI;
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+
+use crate::builder::CircuitBuilder;
 use crate::vars::BoolVariable;
 
-impl BuilderAPI {
-    pub fn init_bool(&mut self) -> BoolVariable {
-        self.api.add_virtual_target().into()
-    }
-
+impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn _false(&mut self) -> BoolVariable {
         let zero = self.zero();
         zero.into()
@@ -42,26 +41,24 @@ impl BuilderAPI {
 
 #[cfg(test)]
 mod tests {
-
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use super::*;
 
     #[test]
     fn test_init_bool_and_set() {
+        type F = GoldilocksField;
         const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
 
-        let mut api = BuilderAPI::new();
-        let bool_var = api.init_bool();
+        let mut builder = CircuitBuilder::<F, D>::new();
+        let b = builder.init::<BoolVariable>();
 
         let mut pw = PartialWitness::new();
-        pw.set_target(bool_var.0 .0, F::ONE);
+        pw.set_target(b.0 .0, GoldilocksField::ONE);
 
-        let value = pw.try_get_target(bool_var.0 .0).unwrap();
-        assert_eq!(F::ONE, value);
+        let value = pw.try_get_target(b.0 .0).unwrap();
+        assert_eq!(GoldilocksField::ONE, value);
     }
 }

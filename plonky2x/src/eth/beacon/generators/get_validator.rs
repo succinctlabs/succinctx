@@ -81,7 +81,7 @@ pub(crate) mod tests {
     use plonky2::iop::witness::PartialWitness;
 
     use super::GetBeaconValidatorGenerator;
-    use crate::builder::BuilderAPI;
+    use crate::builder::CircuitBuilder;
     use crate::eth::beacon::BeaconAPI;
     use crate::ethutils::beacon::BeaconClient;
     use crate::vars::WitnessWriteMethods;
@@ -90,7 +90,7 @@ pub(crate) mod tests {
     fn test_simple_circuit() {
         dotenv::dotenv().ok();
 
-        let mut api = BuilderAPI::new();
+        let mut api = CircuitBuilder::new();
         let block_root = api.init_bytes32();
         let mut beacon_api = BeaconAPI::new(&mut api, "".into());
         let validator = beacon_api.init_validator();

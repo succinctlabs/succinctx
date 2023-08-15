@@ -1,11 +1,11 @@
-use crate::builder::BuilderAPI;
+// use crate::builder::CircuitBuilder;
 
-pub struct RecursiveLengthPrefixAPI {
-    pub api: BuilderAPI,
-}
+// pub struct RecursiveLengthPrefixAPI {
+//     pub api: CircuitBuilder,
+// }
 
-impl RecursiveLengthPrefixAPI {
-    pub fn new(api: BuilderAPI) -> Self {
-        Self { api }
-    }
-}
+// impl RecursiveLengthPrefixAPI {
+//     pub fn new(api: CircuitBuilder) -> Self {
+//         Self { api }
+//     }
+// }

@@ -6,12 +6,13 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 use super::{CircuitVariable, Variable};
 use crate::builder::CircuitBuilder;
 
-/// A variable in the circuit representing a boolean value.
+/// A variable in the circuit representing a u32 value. Under the hood, it is represented as
+/// a single field element.
 #[derive(Debug, Clone, Copy)]
-pub struct BoolVariable(pub Variable);
+pub struct U32Variable(pub Variable);
 
-impl CircuitVariable for BoolVariable {
-    type ValueType = bool;
+impl CircuitVariable for U32Variable {
+    type ValueType = u32;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -31,22 +32,11 @@ impl CircuitVariable for BoolVariable {
     }
 
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
-        witness.get_target(self.0 .0) == F::from_canonical_u64(1)
+        let v = witness.get_target(self.0 .0);
+        v.to_canonical_u64() as u32
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
-        witness.set_target(self.0 .0, F::from_canonical_u64(value as u64));
-    }
-}
-
-impl From<Target> for BoolVariable {
-    fn from(v: Target) -> Self {
-        Self(Variable(v))
-    }
-}
-
-impl From<Variable> for BoolVariable {
-    fn from(v: Variable) -> Self {
-        Self(v)
+        witness.set_target(self.0 .0, F::from_canonical_u32(value));
     }
 }

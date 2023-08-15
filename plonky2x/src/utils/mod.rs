@@ -1,3 +1,11 @@
+pub macro bytes32($hex_literal:expr) {
+    $hex_literal.parse::<ethers::types::H256>().unwrap()
+}
+
+pub macro address($hex_literal:expr) {
+    $hex_literal.parse::<ethers::types::Address>().unwrap()
+}
+
 // pub fn le_bits_to_bytes<const N: usize>(input: [bool; N*8]) -> [u8; N] {
 //     let mut output = [0; N];
 //     for i in 0..N {
