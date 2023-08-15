@@ -4,29 +4,81 @@ package main
 import (
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/succinctlabs/sdk/gnarkx/succinct"
+	"github.com/succinctlabs/sdk/gnarkx/utils/abi"
 )
 
 func main() {
 	proveFlag := flag.Bool("prove", false, "prove the circuit")
-	inputBytesString := flag.String("input", "", "input bytes to prove with 0x prefix")
+	fixtureFlag := flag.Bool("fixture", false, "generate a test fixture")
+	inputBytes := flag.String("input", "", "input bytes to prove with 0x prefix")
+	inputSignature := flag.String("signature", "", "signature of the input types, e.g. \"(uint256,address,uint8,bool,string)\"")
+	inputValues := flag.String("values", "", "comma-separated values corresponding to the signature")
 	flag.Parse()
 
 	circuit := succinct.NewCircuitFunction(NewCircuit())
 
-	if *proveFlag {
-		fmt.Println("proving circuit, assuming artifacts are already built")
-		inputBytes, err := hexutil.Decode(*inputBytesString)
-		if err != nil {
-			fmt.Println("Failed to decode input bytes:", err)
+	var input []byte
+	var err error
+	if *proveFlag || *fixtureFlag {
+		if *inputBytes != "" {
+			input, err = hexutil.Decode(*inputBytes)
+			if err != nil {
+				fmt.Println("Failed to decode input bytes:", err)
+				return
+			}
+		} else if *inputSignature != "" && *inputValues != "" {
+			values := strings.Split(*inputValues, ",")
+			input, err = abi.EncodePacked(*inputSignature, values)
+			if err != nil {
+				fmt.Println("Error:", err)
+				return
+			}
+		} else {
+			fmt.Println("Must provide either input bytes, or input signature + values")
 			return
 		}
-		circuit.Prove(inputBytes)
+	}
+
+	if *proveFlag {
+		fmt.Println("proving circuit for input:", hexutil.Encode(input))
+		circuitBuild, err := succinct.ImportCircuitBuild()
+		if err != nil {
+			fmt.Println("Failed to import circuit build:", err)
+			return
+		}
+		proof, err := circuit.Prove(input, circuitBuild)
+		if err != nil {
+			fmt.Println("Failed to prove circuit:", err)
+		}
+		err = proof.Export("proof.json")
+		if err != nil {
+			fmt.Println("Failed to export proof:", err)
+		}
+		return
+	}
+
+	if *fixtureFlag {
+		fmt.Println("generating fixture for input:", hexutil.Encode(input))
+		fixture, err := circuit.GenerateFixture(input)
+		if err != nil {
+			fmt.Println("Failed to generate fixture:", err)
+		}
+		err = fixture.Export("fixture.json")
+		if err != nil {
+			fmt.Println("Failed to export fixture:", err)
+		}
 		return
 	}
 
 	fmt.Println("compiling and building circuit artifacts")
-	circuit.Build()
+	build, err := circuit.Build()
+	if err != nil {
+		fmt.Println("Failed to build circuit:", err)
+		return
+	}
+	build.Export()
 }
