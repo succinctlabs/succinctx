@@ -7,7 +7,6 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
-	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/succinctlabs/sdk/gnarkx/builder"
@@ -107,10 +106,6 @@ func (circuit *CircuitFunction) Build() (*CircuitBuild, error) {
 
 // Generates a proof for f(inputs, witness) = outputs based on a circuit.
 func (f *CircuitFunction) Prove(inputBytes []byte, build *CircuitBuild) (*types.Groth16Proof, error) {
-
-	// Register hints which are used for automatic constraint generation.
-	solver.RegisterHint()
-
 	// Fill in the witness values.
 	f.SetWitness(inputBytes)
 
