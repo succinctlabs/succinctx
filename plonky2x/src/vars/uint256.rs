@@ -1,32 +1,41 @@
+use array_macro::array;
 use ethers::types::U256;
 use itertools::Itertools;
-use plonky2::iop::generator::GeneratedValues;
-use plonky2::iop::witness::PartitionWitness;
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::target::Target;
+use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, U32Variable};
-use crate::builder::{CircuitBuilder, ExtendableField};
+use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
-pub struct U256Variable(pub Vec<U32Variable>);
+#[derive(Debug, Clone, Copy)]
+pub struct U256Variable(pub [U32Variable; 4]);
 
-impl<F: ExtendableField> CircuitVariable<F> for U256Variable {
+impl CircuitVariable for U256Variable {
     type ValueType = U256;
 
-    fn init(builder: &mut CircuitBuilder<F>) -> Self {
-        Self((0..4).map(|_| U32Variable::init(builder)).collect_vec())
+    fn init<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Self {
+        Self(array![U32Variable::init(builder); 4])
     }
 
-    fn constant(builder: &mut CircuitBuilder<F>, value: U256) -> Self {
+    fn constant<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        value: Self::ValueType,
+    ) -> Self {
         let limbs = to_limbs(value);
-        Self(
-            (0..4)
-                .map(|i| U32Variable::constant(builder, limbs[i]))
-                .collect_vec(),
-        )
+        Self(array![i => U32Variable::constant(builder, limbs[i]); 4])
     }
 
-    fn value<'a>(&self, witness: &PartitionWitness<'a, F>) -> U256 {
+    fn targets(&self) -> Vec<Target> {
+        self.0.iter().flat_map(|v| v.targets()).collect_vec()
+    }
+
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         to_u256([
             self.0[0].value(witness),
             self.0[1].value(witness),
@@ -35,7 +44,7 @@ impl<F: ExtendableField> CircuitVariable<F> for U256Variable {
         ])
     }
 
-    fn set(&self, witness: &mut GeneratedValues<F>, value: U256) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
         let limbs = to_limbs(value);
         for i in 0..4 {
             self.0[i].set(witness, limbs[i]);

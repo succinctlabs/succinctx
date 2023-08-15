@@ -10,17 +10,13 @@ use plonky2::plonk::config::GenericConfig;
 
 use crate::vars::{BoolVariable, CircuitVariable, Variable};
 
-const D: usize = 2;
-
-pub trait ExtendableField = RichField + Extendable<D>;
-
 /// This is the API that we recommend developers use for writing circuits. It is a wrapper around
 /// the basic plonky2 builder.
-pub struct CircuitBuilder<F: ExtendableField> {
+pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {
     pub api: _CircuitBuilder<F, D>,
 }
 
-impl<F: ExtendableField> CircuitBuilder<F> {
+impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     /// Creates a new API for building circuits.
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
@@ -39,12 +35,12 @@ impl<F: ExtendableField> CircuitBuilder<F> {
     }
 
     /// Initializes a variable with no value in the circuit.
-    pub fn init<V: CircuitVariable<F>>(&mut self) -> V {
+    pub fn init<V: CircuitVariable>(&mut self) -> V {
         V::init(self)
     }
 
     /// Initializes a variable with a constant value in the circuit.
-    pub fn constant<V: CircuitVariable<F>>(&mut self, value: V::ValueType) -> V {
+    pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType) -> V {
         V::constant(self, value)
     }
 
@@ -144,8 +140,9 @@ pub(crate) mod tests {
     fn test_simple_circuit() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
 
-        let mut builder = CircuitBuilder::<F>::new();
+        let mut builder = CircuitBuilder::<F, D>::new();
         let zero = builder.zero();
         let one = builder.one();
         let sum = builder.add(zero, one);

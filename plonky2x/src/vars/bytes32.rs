@@ -1,40 +1,52 @@
 use ethers::types::H256;
-use plonky2::iop::generator::GeneratedValues;
-use plonky2::iop::witness::PartitionWitness;
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::target::Target;
+use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::CircuitVariable;
-use crate::builder::{CircuitBuilder, ExtendableField};
+use crate::builder::CircuitBuilder;
 use crate::vars::BytesVariable;
 
 /// A variable in the circuit representing a byte32 value.
+#[derive(Debug, Clone, Copy)]
 pub struct Bytes32Variable(pub BytesVariable<32>);
 
-impl<F: ExtendableField> CircuitVariable<F> for Bytes32Variable {
+impl CircuitVariable for Bytes32Variable {
     type ValueType = H256;
 
-    fn init(builder: &mut CircuitBuilder<F>) -> Self {
+    fn init<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Self {
         Self(BytesVariable::init(builder))
     }
 
-    fn constant(builder: &mut CircuitBuilder<F>, value: H256) -> Self {
+    fn constant<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        value: Self::ValueType,
+    ) -> Self {
         let bytes = to_padded_bytes(value);
         Self(BytesVariable::constant(builder, bytes.to_vec()))
     }
 
-    fn value<'a>(&self, witness: &PartitionWitness<'a, F>) -> H256 {
+    fn targets(&self) -> Vec<Target> {
+        self.0.targets()
+    }
+
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         let bytes = self.0.value(witness);
         H256::from_slice(&bytes[..])
     }
 
-    fn set(&self, buffer: &mut GeneratedValues<F>, value: H256) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
         let bytes = to_padded_bytes(value);
-        self.0.set(buffer, bytes.to_vec());
+        self.0.set(witness, bytes.to_vec());
     }
 }
 
 fn to_padded_bytes(value: H256) -> Vec<u8> {
     let slice = value.as_bytes();
-    let mut bytes = [0u8; 256];
+    let mut bytes = [0u8; 32];
     bytes[..slice.len()].copy_from_slice(slice);
     bytes.to_vec()
 }

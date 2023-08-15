@@ -1,30 +1,45 @@
+use array_macro::array;
 use itertools::Itertools;
-use plonky2::iop::generator::GeneratedValues;
-use plonky2::iop::witness::PartitionWitness;
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::target::Target;
+use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{BoolVariable, CircuitVariable};
-use crate::builder::{CircuitBuilder, ExtendableField};
+use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.
-pub struct ByteVariable(pub Vec<BoolVariable>);
+#[derive(Debug, Clone, Copy)]
+pub struct ByteVariable(pub [BoolVariable; 8]);
 
-impl<F: ExtendableField> CircuitVariable<F> for ByteVariable {
+impl CircuitVariable for ByteVariable {
     type ValueType = u8;
 
-    fn init(builder: &mut CircuitBuilder<F>) -> Self {
-        Self((0..8).map(|_| BoolVariable::init(builder)).collect_vec())
+    fn init<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Self {
+        Self(array![_ => BoolVariable::init(builder); 8])
     }
 
-    fn constant(builder: &mut CircuitBuilder<F>, value: u8) -> Self {
-        let value_be_bits = (0..8).map(|i| ((1 << (7 - i)) & value) != 0);
-        let targets_be_bits = value_be_bits
-            .map(|bit| BoolVariable::constant(builder, bit))
-            .collect();
-        Self(targets_be_bits)
+    fn constant<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        value: Self::ValueType,
+    ) -> Self {
+        let value_be_bits = (0..8).map(|i| ((1 << (7 - i)) & value) != 0).collect_vec();
+        Self(array![i => BoolVariable::constant(builder, value_be_bits[i]); 8])
     }
 
-    fn value<'a>(&self, witness: &PartitionWitness<'a, F>) -> u8 {
+    fn targets(&self) -> Vec<Target> {
+        self.0
+            .clone()
+            .into_iter()
+            .map(|x| x.targets())
+            .flatten()
+            .collect()
+    }
+
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         let mut acc: u64 = 0;
         for i in 0..8 {
             let term = (1 << (7 - i)) * (BoolVariable::value(&self.0[i], witness) as u64);
@@ -33,12 +48,12 @@ impl<F: ExtendableField> CircuitVariable<F> for ByteVariable {
         acc as u8
     }
 
-    fn set(&self, buffer: &mut GeneratedValues<F>, value: u8) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
         let value_be_bits = (0..8)
             .map(|i| ((1 << (7 - i)) & value) != 0)
             .collect::<Vec<_>>();
         for i in 0..8 {
-            BoolVariable::set(&self.0[i], buffer, value_be_bits[i]);
+            BoolVariable::set(&self.0[i], witness, value_be_bits[i]);
         }
     }
 }

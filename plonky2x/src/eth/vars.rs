@@ -1,45 +1,72 @@
-use plonky2::field::types::Field;
-use plonky2::iop::generator::GeneratedValues;
-use plonky2::iop::witness::WitnessWrite;
+use ethers::types::H160;
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::target::Target;
+use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use crate::ethutils::{Address, BLSPubkey};
-use crate::vars::{BoolVariable, BytesVariable, WitnessWriteMethods};
+use crate::builder::CircuitBuilder;
+use crate::vars::{BytesVariable, CircuitVariable};
 
 #[derive(Debug, Clone, Copy)]
-pub struct BLSPubkeyVariable(pub [BoolVariable; 384]);
+pub struct BLSPubkeyVariable(pub BytesVariable<48>);
 
-#[derive(Debug, Clone, Copy)]
-pub struct AddressVariable(pub [BoolVariable; 160]);
+impl CircuitVariable for BLSPubkeyVariable {
+    type ValueType = Vec<u8>;
 
-impl From<AddressVariable> for BytesVariable<20> {
-    fn from(value: AddressVariable) -> Self {
-        let mut result: [[BoolVariable; 8]; 20] = Default::default();
+    fn init<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Self {
+        Self(BytesVariable::init(builder))
+    }
 
-        for (i, item) in value.0.iter().enumerate() {
-            result[i / 8][i % 8] = *item;
-        }
+    fn constant<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        value: Self::ValueType,
+    ) -> Self {
+        Self(BytesVariable::constant(builder, value))
+    }
 
-        BytesVariable::<20>(result)
+    fn targets(&self) -> Vec<Target> {
+        self.0.targets()
+    }
+
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+        self.0.value(witness)
+    }
+
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+        self.0.set(witness, value)
     }
 }
 
-pub trait EthWriteableWitness<F: Field>: WitnessWriteMethods<F> {
-    fn set_bls_pubkey(&mut self, variable: BLSPubkeyVariable, value: BLSPubkey) {}
-    fn set_address(&mut self, variable: AddressVariable, address: Address) {}
-}
+#[derive(Debug, Clone, Copy)]
+pub struct AddressVariable(pub BytesVariable<20>);
 
-impl<F: Field> EthWriteableWitness<F> for GeneratedValues<F> {
-    fn set_bls_pubkey(&mut self, variable: BLSPubkeyVariable, value: BLSPubkey) {
-        for i in 0..384 {
-            let v = if value.0[i] { F::ONE } else { F::ZERO };
-            self.set_target(variable.0[i].0 .0, v);
-        }
+impl CircuitVariable for AddressVariable {
+    type ValueType = H160;
+
+    fn init<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Self {
+        Self(BytesVariable::init(builder))
     }
 
-    fn set_address(&mut self, variable: AddressVariable, value: Address) {
-        for i in 0..160 {
-            let v = if value.0[i] { F::ONE } else { F::ZERO };
-            self.set_target(variable.0[i].0 .0, v);
-        }
+    fn constant<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        value: Self::ValueType,
+    ) -> Self {
+        Self(BytesVariable::constant(builder, value.as_bytes().to_vec()))
+    }
+
+    fn targets(&self) -> Vec<Target> {
+        self.0.targets()
+    }
+
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+        H160::from_slice(&self.0.value(witness))
+    }
+
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+        self.0.set(witness, value.as_bytes().to_vec())
     }
 }

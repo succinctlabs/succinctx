@@ -1,31 +1,29 @@
-use ethers::providers::{Http, Middleware, Provider};
-use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+use ethers::providers::{Http, Provider};
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
 
 use super::generator::GetStorageProofGenerator;
-use super::types::{AccountVariable, ProofVariable};
+use super::vars::{EthAccountVariable, EthProofVariable};
 use crate::builder::CircuitBuilder;
 use crate::eth::vars::AddressVariable;
-use crate::vars::{
-    BoolVariable, Bytes32Variable, U256Variable, WitnessMethods, WitnessWriteMethods,
-};
+use crate::vars::{BoolVariable, Bytes32Variable, U256Variable};
 
-pub struct StorageProofAPI<'a> {
-    pub api: &'a mut CircuitBuilder,
+pub struct StorageProofAPI<'a, F: RichField + Extendable<D>, const D: usize> {
+    pub api: &'a mut CircuitBuilder<F, D>,
     pub provider: Provider<Http>,
 }
 
-impl<'a> StorageProofAPI<'a> {
-    pub fn new(api: &'a mut CircuitBuilder, provider: Provider<Http>) -> Self {
+impl<'a, F: RichField + Extendable<D>, const D: usize> StorageProofAPI<'a, F, D> {
+    pub fn new(api: &'a mut CircuitBuilder<F, D>, provider: Provider<Http>) -> Self {
         Self { api, provider }
     }
 
-    // Constraint that a merkle trie with root _root has _value at _key, with _proof as "evidence"
     pub fn merkle_trie_constraint(
         &mut self,
         _root: Bytes32Variable,
         _key: Bytes32Variable,
-        _proof: ProofVariable,
-        _value: Vec<BoolVariable>,
+        _proof: EthProofVariable,
+        _value: &Vec<BoolVariable>,
     ) {
         return;
     }
@@ -55,27 +53,13 @@ impl<'a> StorageProofAPI<'a> {
         _location: Bytes32Variable,
         _block_number: u64,
     ) -> Bytes32Variable {
-        let account = AccountVariable {
-            balance: self.api.init_u256(),
-            code_hash: self.api.init_bytes32(),
-            nonce: self.api.init_u256(),
-            storage_hash: self.api.init_bytes32(),
-        };
-        let account_proof = ProofVariable {
-            proof: self.api.init_bytes32(),
-        };
-        let storage_proof = ProofVariable {
-            proof: self.api.init_bytes32(),
-        };
+        let account = self.api.init::<EthAccountVariable>();
+        let account_proof = self.api.init::<EthProofVariable>();
+        let storage_proof = self.api.init::<EthProofVariable>();
+        let address_hash = self.api.init::<Bytes32Variable>();
+        let value = self.api.init::<Bytes32Variable>();
 
-        // TODO bytes32 addressHash = keccak256(abi.encodePacked(contractAddress));
-        let address_hash = self.api.init_bytes32();
-        let value = self.api.init_bytes32();
-
-        let generator: GetStorageProofGenerator<
-            plonky2::field::goldilocks_field::GoldilocksField,
-            2,
-        > = GetStorageProofGenerator::new(
+        let generator: GetStorageProofGenerator<F, D> = GetStorageProofGenerator::new(
             _address,
             _location,
             account,
@@ -85,20 +69,15 @@ impl<'a> StorageProofAPI<'a> {
             _block_number,
             self.provider.clone(),
         );
-        self.api.api.add_simple_generator(generator);
+        self.api.add_simple_generator(generator);
 
         self.merkle_trie_constraint(
             _state_root,
             address_hash,
             account_proof,
-            account.serialize(),
+            &account.serialize(),
         );
-        self.merkle_trie_constraint(
-            account.storage_hash,
-            _location,
-            storage_proof,
-            value.0.into(),
-        );
+        self.merkle_trie_constraint(account.storage_hash, _location, storage_proof, &vec![]);
         value
     }
 
@@ -113,74 +92,61 @@ impl<'a> StorageProofAPI<'a> {
 
 #[cfg(test)]
 mod tests {
-    use core::ops::Add;
+    use std::env;
 
-    use anyhow::Result;
     use ethers::types::{Address, H256};
-    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
-    use plonky2::plonk::circuit_builder::CircuitBuilder;
-    use plonky2::plonk::circuit_data::CircuitConfig;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use subtle_encoding::hex::decode;
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::iop::witness::PartialWitness;
+    use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::*;
+    use crate::utils::{address, bytes32};
+    use crate::vars::CircuitVariable;
 
     #[test]
     fn test_get_storage_at_location() {
-        // TODO: read this RPC url from an .env
-        let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
-        let provider = Provider::<Http>::try_from(rpc_url).unwrap();
-        let mut api = CircuitBuilder::new();
-        // Instantiate the variables going into the circuit
-        // TODO: technically we should also register all these inputs as public
-        // Public inputs are the initial value (provided below) and the result (which is generated).
-        // builder.register_public_input(initial);
-        // builder.register_public_input(cur_target);
-        let state_root = api.init_bytes32();
-        let address = api.init_address();
-        let location = api.init_bytes32();
-        let claimed_value = api.init_bytes32();
-        let block_number = 17880427u64;
+        dotenv::dotenv().ok();
 
-        let mut storage_api = StorageProofAPI::new(&mut api, provider);
-        let value =
-            storage_api.get_storage_at_location(state_root, address, location, block_number);
-        // api.assert_is_equal_bytes32(claimed_value, value);
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let rpc_url = env::var("EXECUTION_RPC_URL").unwrap();
+        let provider = Provider::<Http>::try_from(rpc_url).unwrap();
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        let state_root = builder.init::<Bytes32Variable>();
+        let address = builder.init::<AddressVariable>();
+        let location = builder.init::<Bytes32Variable>();
+        let claimed_value = builder.init::<Bytes32Variable>();
+        let block_number = 17880427u64;
+        let mut storage = StorageProofAPI::new(&mut builder, provider);
+        let value = storage.get_storage_at_location(state_root, address, location, block_number);
 
         let mut pw = PartialWitness::new();
-
-        let state_root_input_raw =
-            "0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e"
-                .parse::<H256>()
-                .unwrap();
-        let state_root_input = state_root_input_raw.as_fixed_bytes();
-        pw.set_from_bytes_be(state_root.into(), *state_root_input);
-
-        let address_input_raw = "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"
-            .parse::<Address>()
-            .unwrap();
-        let address_input = address_input_raw.as_fixed_bytes();
-        pw.set_from_bytes_be(address.into(), *address_input);
-
-        let location_input_raw =
-            "0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"
-                .parse::<H256>()
-                .unwrap();
-        let location_input = location_input_raw.as_fixed_bytes();
-        pw.set_from_bytes_be(location.into(), *location_input);
-
-        let claimed_value_raw =
-            "0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"
-                .parse::<H256>()
-                .unwrap();
-        let claimed_value_input = claimed_value_raw.as_fixed_bytes();
-        pw.set_from_bytes_be(claimed_value.into(), *claimed_value_input);
+        state_root.set(
+            &mut pw,
+            bytes32!("0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e"),
+        );
+        address.set(
+            &mut pw,
+            address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"),
+        );
+        location.set(
+            &mut pw,
+            bytes32!("0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"),
+        );
+        claimed_value.set(
+            &mut pw,
+            bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
+        );
 
         println!("Building circuit");
-        let data = api.build();
+        let data = builder.build::<C>();
         println!("Proving circuit");
         println!("Address {:?}", address);
-        println!("Address in witness {:?}", pw.get_bytes_be(address.into()));
+        println!("Address in witness {:?}", address.value(&pw));
+        println!("{:?}", value);
         let proof = data.prove(pw).unwrap();
         data.verify(proof).unwrap();
     }
