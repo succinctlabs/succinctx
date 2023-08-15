@@ -20,7 +20,7 @@ impl CircuitVariable for U256Variable {
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
     ) -> Self {
-        Self(array![U32Variable::init(builder); 4])
+        Self(array![_ => U32Variable::init(builder); 4])
     }
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(

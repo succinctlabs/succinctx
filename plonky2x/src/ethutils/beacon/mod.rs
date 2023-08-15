@@ -6,7 +6,7 @@ use serde::Deserialize;
 use super::deserialize_bigint::deserialize_bigint;
 
 /// A client used for connecting and querying a beacon node as well as Succinct's Beacon APIs.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BeaconClient {
     rpc_url: String,
 }
@@ -24,7 +24,7 @@ struct Response<T> {
 #[serde(rename_all = "camelCase")]
 pub struct BeaconValidator {
     pub pubkey: String,
-    pub withdraw_credentials: String,
+    pub withdrawal_credentials: String,
     pub effective_balance: u64,
     pub slashed: bool,
     pub activation_eligibility_epoch: u64,
@@ -83,7 +83,6 @@ impl BeaconClient {
             "{}/api/beacon/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
-        println!("{}", endpoint);
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
         let response: Response<GetBeaconValidator> = response.json().await?;
