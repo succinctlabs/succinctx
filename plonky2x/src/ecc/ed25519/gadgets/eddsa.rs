@@ -787,20 +787,11 @@ mod tests {
         test_eddsa_circuit_with_test_case(
             vec![
                 msg_bytes.to_vec(),
-                msg_bytes.to_vec(),
-                msg_bytes.to_vec(),
-                msg_bytes.to_vec(),
             ],
             vec![
                 pub_key_bytes.to_vec(),
-                pub_key_bytes.to_vec(),
-                pub_key_bytes.to_vec(),
-                pub_key_bytes.to_vec(),
             ],
             vec![
-                sig_bytes.to_vec(),
-                sig_bytes.to_vec(),
-                sig_bytes.to_vec(),
                 sig_bytes.to_vec(),
             ],
         )
@@ -808,9 +799,9 @@ mod tests {
 
     #[test]
     fn test_variable_eddsa_circuit_with_celestia_test_case() -> Result<()> {
-        let msg = "6b080211de3202000000000022480a208909e1b73b7d987e95a7541d96ed484c17a4b0411e98ee4b7c890ad21302ff8c12240801122061263df4855e55fcab7aab0a53ee32cf4f29a1101b56de4a9d249d44e4cf96282a0b089dce84a60610ebb7a81932076d6f6368612d33";
-        let pubkey = "77d8fe19357540c479649c7943639b72973093f4c74391dc7a2291d112b9bd64";
-        let sig = "9dbab016b0d985150842b9d22220601829efbcb3ee3e43b74e8707dec4fd26d43f1173c00e8c7aef1d7b0a49c2fb9d1a3ddeb798feb74a8abf4c51e90beffe04";
+        let msg = "6c080211f82a00000000000022480a2036f2d954fe1ba37c5036cb3c6b366d0daf68fccbaa370d9490361c51a0a38b61122408011220cddf370e891591c9d912af175c966cd8dfa44b2c517e965416b769eb4b9d5d8d2a0c08f6b097a50610dffbcba90332076d6f6368612d33";
+        let pubkey = "de25aec935b10f657b43fa97e5a8d4e523bdb0f9972605f0b064eff7b17048ba";
+        let sig = "091576e9e3ad0e5ba661f7398e1adb3976ba647b579b8e4a224d1d02b591ade6aedb94d3bf55d258f089d6413155a57adfd4932418a798c2d68b29850f6fb50b";
 
         let msg_bytes = hex::decode(msg).unwrap();
         let pub_key_bytes = hex::decode(pubkey).unwrap();
@@ -819,20 +810,11 @@ mod tests {
         test_variable_eddsa_circuit_with_test_case(
             vec![
                 msg_bytes.to_vec(),
-                msg_bytes.to_vec(),
-                msg_bytes.to_vec(),
-                msg_bytes.to_vec(),
             ],
             vec![
                 pub_key_bytes.to_vec(),
-                pub_key_bytes.to_vec(),
-                pub_key_bytes.to_vec(),
-                pub_key_bytes.to_vec(),
             ],
             vec![
-                sig_bytes.to_vec(),
-                sig_bytes.to_vec(),
-                sig_bytes.to_vec(),
                 sig_bytes.to_vec(),
             ],
         )
