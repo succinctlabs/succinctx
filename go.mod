@@ -3,7 +3,7 @@ module github.com/succinctlabs/sdk
 go 1.20
 
 require (
-	github.com/consensys/gnark v0.8.1-0.20230731090741-7ca4af9b9ad0
+	github.com/consensys/gnark v0.8.1-0.20230803132917-bd4a39719a96
 	github.com/consensys/gnark-crypto v0.11.1-0.20230724160225-800ddb59f51b
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/spf13/cobra v1.5.0

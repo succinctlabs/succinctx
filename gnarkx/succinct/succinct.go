@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-func Run(c SuccinctCircuit) {
+func Run(c Circuit) {
 	proveFlag := flag.Bool("prove", false, "prove the circuit")
 	fixtureFlag := flag.Bool("fixture", false, "generate a test fixture")
 	inputStr := flag.String("input", "", "input bytes to prove with 0x prefix")
