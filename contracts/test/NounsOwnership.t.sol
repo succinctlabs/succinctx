@@ -112,9 +112,7 @@ contract NounsOwnershipTest is Test, TestError, TestEvents {
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/test/fixtures/nouns-fixture.json");
         MockFunctionGateway(gateway).loadFixture(path);
-        MockFunctionGateway(gateway).callbackWithFixture(
-            storageOracle, StorageOracle.handleStorageSlot.selector, context
-        );
+        NounsOwnership(nounsOwnership).claimOwnership(NOUN_NUMBER);
 
         address owner = NounsOwnership(nounsOwnership).ownerOf(NOUN_NUMBER);
         assertEq(NOUN_OWNER, owner);

@@ -7,43 +7,23 @@ import {stdJson} from "forge-std/StdJson.sol";
 import {IFunctionGateway, FunctionRequest} from "../interfaces/IFunctionGateway.sol";
 
 contract MockFunctionGateway is IFunctionGateway {
-    struct CircuitFixture {
-        bytes input;
-        bytes output;
-    }
-
     VmSafe private constant vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
-    CircuitFixture[] private fixtures;
-    uint256 private fixtureNonce;
-
     uint256 public DEFAULT_GAS_LIMIT = 1000000;
     uint256 public nonce;
+    uint256 public scalar = 1;
     mapping(bytes32 => FunctionRequest) public requests;
-    uint256 scalar = 1;
+    mapping(bytes32 => bytes) public outputs;
 
     function loadFixture(string memory _path) external {
         string memory json;
         try vm.readFile(_path) returns (string memory data) {
             json = data;
         } catch {
-            console.log("Warning: unable to read config");
-            return;
+            revert("MockFunctionGateway: fixture not found");
         }
         bytes memory input = stdJson.readBytes(json, "$.input");
         bytes memory output = stdJson.readBytes(json, "$.output");
-        fixtures.push(CircuitFixture(input, output));
-    }
-
-    function callbackWithFixture(address _callbackAddress, bytes4 _callbackSelector, bytes memory _context) external {
-        CircuitFixture memory fixture = fixtures[fixtureNonce];
-        fixtureNonce++;
-
-        (bool status,) = _callbackAddress.call(abi.encodeWithSelector(_callbackSelector, fixture.output, _context));
-        if (!status) {
-            revert CallbackFailed(_callbackAddress, _callbackSelector);
-        }
-
-        emit CallbackFulfilled(0, fixture.output, _context);
+        outputs[sha256(input)] = output;
     }
 
     function setRequest(bytes32 _requestId, FunctionRequest memory _request) public {
@@ -84,6 +64,20 @@ contract MockFunctionGateway is IFunctionGateway {
 
         emit ProofRequested(nonce, _functionId, requestId, _input, _context, _gasLimit, calculateFeeAmount(_gasLimit));
         nonce++;
+
+        // If fixture has been pre-loaded, automatically fulfill and callback.
+        bytes memory output = outputs[inputHash];
+        if (output.length > 0) {
+            r.outputHash = keccak256(output);
+            r.proofFulfilled = true;
+            r.callbackFulfilled = true;
+
+            (bool status,) = msg.sender.call(abi.encodeWithSelector(_callbackSelector, output, _context));
+            if (!status) {
+                revert CallbackFailed(msg.sender, _callbackSelector);
+            }
+        }
+
         return requestId;
     }
 
