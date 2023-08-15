@@ -1,5 +1,6 @@
 mod boolean;
 
+use ethers::providers::{Http, Provider};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::SimpleGenerator;
@@ -8,12 +9,15 @@ use plonky2::plonk::circuit_builder::CircuitBuilder as _CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::GenericConfig;
 
+use crate::ethutils::beacon::BeaconClient;
 use crate::vars::{BoolVariable, CircuitVariable, Variable};
 
 /// This is the API that we recommend developers use for writing circuits. It is a wrapper around
 /// the basic plonky2 builder.
 pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {
     pub api: _CircuitBuilder<F, D>,
+    pub execution_client: Option<Provider<Http>>,
+    pub beacon_client: Option<BeaconClient>,
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
@@ -21,7 +25,19 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
         let api = _CircuitBuilder::new(config);
-        Self { api }
+        Self {
+            api,
+            beacon_client: None,
+            execution_client: None,
+        }
+    }
+
+    pub fn set_execution_client(&mut self, client: Provider<Http>) {
+        self.execution_client = Some(client);
+    }
+
+    pub fn set_beacon_client(&mut self, client: BeaconClient) {
+        self.beacon_client = Some(client);
     }
 
     /// Build the circuit.
@@ -30,8 +46,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Add simple generator.
-    pub fn add_simple_generator<G: SimpleGenerator<F, D>>(&mut self, generator: G) {
-        self.api.add_simple_generator(generator)
+    pub fn add_simple_generator<G: SimpleGenerator<F, D> + Clone>(&mut self, generator: &G) {
+        self.api.add_simple_generator(generator.clone())
     }
 
     /// Initializes a variable with no value in the circuit.
