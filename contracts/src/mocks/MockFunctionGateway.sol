@@ -1,13 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
+import {VmSafe} from "forge-std/Vm.sol";
+import {stdJson} from "forge-std/StdJson.sol";
 import {IFunctionGateway, FunctionRequest} from "../interfaces/IFunctionGateway.sol";
 
 contract MockFunctionGateway is IFunctionGateway {
+    VmSafe private constant vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
     uint256 public DEFAULT_GAS_LIMIT = 1000000;
     uint256 public nonce;
+    uint256 public scalar = 1;
     mapping(bytes32 => FunctionRequest) public requests;
-    uint256 scalar = 1;
+    mapping(bytes32 => bytes) public outputs;
+
+    function loadFixture(string memory _path) external {
+        string memory json;
+        try vm.readFile(_path) returns (string memory data) {
+            json = data;
+        } catch {
+            revert("MockFunctionGateway: fixture not found");
+        }
+        bytes memory input = stdJson.readBytes(json, "$.input");
+        bytes memory output = stdJson.readBytes(json, "$.output");
+        outputs[sha256(input)] = output;
+    }
 
     function setRequest(bytes32 _requestId, FunctionRequest memory _request) public {
         requests[_requestId] = _request;
@@ -47,6 +63,20 @@ contract MockFunctionGateway is IFunctionGateway {
 
         emit ProofRequested(nonce, _functionId, requestId, _input, _context, _gasLimit, calculateFeeAmount(_gasLimit));
         nonce++;
+
+        // If fixture has been pre-loaded, automatically fulfill and callback.
+        bytes memory output = outputs[inputHash];
+        if (output.length > 0) {
+            r.outputHash = keccak256(output);
+            r.proofFulfilled = true;
+            r.callbackFulfilled = true;
+
+            (bool status,) = msg.sender.call(abi.encodeWithSelector(_callbackSelector, output, _context));
+            if (!status) {
+                revert CallbackFailed(msg.sender, _callbackSelector);
+            }
+        }
+
         return requestId;
     }
 

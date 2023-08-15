@@ -104,6 +104,19 @@ contract NounsOwnershipTest is Test, TestError, TestEvents {
         uint256 blockNumber = NounsOwnership(nounsOwnership).lastUpdatedBlock(NOUN_NUMBER);
         assertEq(BLOCK_NUMBER, blockNumber);
     }
+
+    function test_OwnerOf_WithFixture() public onlyWithFork {
+        bytes memory context = abi.encode(BLOCK_NUMBER, NOUNS_ACCOUNT, SLOT);
+
+        // Use input and output from fixture
+        string memory root = vm.projectRoot();
+        string memory path = string.concat(root, "/test/fixtures/nouns-fixture.json");
+        MockFunctionGateway(gateway).loadFixture(path);
+        NounsOwnership(nounsOwnership).claimOwnership(NOUN_NUMBER);
+
+        address owner = NounsOwnership(nounsOwnership).ownerOf(NOUN_NUMBER);
+        assertEq(NOUN_OWNER, owner);
+    }
 }
 
 // Nouns NFT contract: https://etherscan.io/address/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03
