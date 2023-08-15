@@ -23,4 +23,4 @@ keystore
 
 # Ignoring files generated from CLI build
 *.bin
-**/Verifier.sol
+**/FunctionVerifier.sol
