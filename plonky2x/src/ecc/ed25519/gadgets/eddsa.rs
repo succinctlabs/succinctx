@@ -630,7 +630,7 @@ mod tests {
         assert!(msgs.len() == pub_keys.len());
         assert!(pub_keys.len() == sigs.len());
 
-        // TODO: Need to update to handle variable message len
+        // TODO: Length in bytes
         let msg_len = msgs[0].len();
 
         type F = GoldilocksField;
@@ -641,7 +641,7 @@ mod tests {
 
         let mut pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        const MAX_MSG_LEN: usize = 256;
+        const MAX_MSG_LEN: usize = 128;
         // Length of sig.r and pk_compressed in hash_msg
         const COMPRESSED_SIG_AND_PK_LEN: usize = 512;
         let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, C, D, MAX_MSG_LEN>(
@@ -668,12 +668,12 @@ mod tests {
                 pw.set_bool_target(eddsa_target.msgs[i][j], msg_bits[j]);
             }
 
-            for j in msg_bits.len()..(MAX_MSG_LEN*8)-COMPRESSED_SIG_AND_PK_LEN {
+            for j in msg_bits.len()..(MAX_MSG_LEN*8) {
                 pw.set_bool_target(eddsa_target.msgs[i][j], false);
             }
 
             // Add 512 bits for the length of sig.r and pk_compressed in hash_msg
-            let hash_msg_len = msg_len + COMPRESSED_SIG_AND_PK_LEN;
+            let hash_msg_len = (msg_len * 8) + COMPRESSED_SIG_AND_PK_LEN;
 
             pw.set_target(
                 eddsa_target.msgs_lengths[i],
