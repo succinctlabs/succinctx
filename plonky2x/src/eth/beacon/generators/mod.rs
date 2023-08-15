@@ -1,1 +1,2 @@
-mod get_validator;
+pub mod validator;
+pub mod validators;

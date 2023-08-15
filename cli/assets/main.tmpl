@@ -2,31 +2,9 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/succinctlabs/sdk/gnarkx/succinct"
 )
 
 func main() {
-	proveFlag := flag.Bool("prove", false, "prove the circuit")
-	inputBytesString := flag.String("input", "", "input bytes to prove with 0x prefix")
-	flag.Parse()
-
-	circuit := succinct.NewCircuitFunction(NewCircuit())
-
-	if *proveFlag {
-		fmt.Println("proving circuit, assuming artifacts are already built")
-		inputBytes, err := hexutil.Decode(*inputBytesString)
-		if err != nil {
-			fmt.Println("Failed to decode input bytes:", err)
-			return
-		}
-		circuit.Prove(inputBytes)
-		return
-	}
-
-	fmt.Println("compiling and building circuit artifacts")
-	circuit.Build()
+	succinct.Run(NewCircuit())
 }

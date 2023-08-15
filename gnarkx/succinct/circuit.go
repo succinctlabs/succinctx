@@ -7,7 +7,6 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
-	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/succinctlabs/sdk/gnarkx/builder"
@@ -27,16 +26,6 @@ type CircuitFunction struct {
 
 	// The circuit definies the computation of the function.
 	Circuit Circuit
-}
-
-// The interface a circuit interacting with the Succinct Hub must implement. These methods are used
-// for loading witnesses into the circuit, defining constraints, and reading and writing data to
-// Ethereum.
-type Circuit interface {
-	SetWitness(inputBytes []byte)
-	Define(api frontend.API) error
-	GetInputBytes() *[]vars.Byte
-	GetOutputBytes() *[]vars.Byte
 }
 
 // Creates a new circuit function based on a circuit that implements the Circuit interface.
@@ -107,10 +96,6 @@ func (circuit *CircuitFunction) Build() (*CircuitBuild, error) {
 
 // Generates a proof for f(inputs, witness) = outputs based on a circuit.
 func (f *CircuitFunction) Prove(inputBytes []byte, build *CircuitBuild) (*types.Groth16Proof, error) {
-
-	// Register hints which are used for automatic constraint generation.
-	solver.RegisterHint()
-
 	// Fill in the witness values.
 	f.SetWitness(inputBytes)
 
@@ -144,4 +129,14 @@ func (f *CircuitFunction) Prove(inputBytes []byte, build *CircuitBuild) (*types.
 	output.Output = vars.GetValuesUnsafe(*f.Circuit.GetOutputBytes())
 
 	return output, nil
+}
+
+// Generates a JSON fixture for use in Solidity tests with MockFunctionGateway.sol.
+func (f *CircuitFunction) GenerateFixture(inputBytes []byte) (types.Fixture, error) {
+	f.SetWitness(inputBytes)
+	fixture := types.Fixture{
+		Input:  inputBytes,
+		Output: vars.GetValuesUnsafe(*f.Circuit.GetOutputBytes()),
+	}
+	return fixture, nil
 }

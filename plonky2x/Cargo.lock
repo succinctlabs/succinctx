@@ -72,6 +72,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b13c32d80ecc7ab747b80c3784bce54ee8a7a0cc4fbda9bf4cda2cf6fe90854"
 
 [[package]]
+name = "array-macro"
+version = "2.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "457661fa6716c30b73d7c41400a8a78780d20523b83a9441dabec28e93f27cf4"
+
+[[package]]
 name = "arrayvec"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2392,6 +2398,7 @@ name = "plonky2x"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "array-macro",
  "curta",
  "curve25519-dalek",
  "digest 0.10.7",
@@ -2411,6 +2418,7 @@ dependencies = [
  "sha2 0.10.7",
  "subtle-encoding",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
