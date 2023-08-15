@@ -40,6 +40,26 @@ func EncodePacked(signature string, values []string) ([]byte, error) {
 			val := big.NewInt(0)
 			val.SetString(values[i], 10)
 			binary.Write(&buffer, binary.BigEndian, common.LeftPadBytes(val.Bytes(), 32))
+		case "uint160":
+			val := big.NewInt(0)
+			val.SetString(values[i], 10)
+			binary.Write(&buffer, binary.BigEndian, common.LeftPadBytes(val.Bytes(), 20))
+		case "uint128":
+			val := big.NewInt(0)
+			val.SetString(values[i], 10)
+			binary.Write(&buffer, binary.BigEndian, common.LeftPadBytes(val.Bytes(), 16))
+		case "uint64":
+			val := uint64(0)
+			fmt.Sscanf(values[i], "%d", &val)
+			binary.Write(&buffer, binary.BigEndian, common.LeftPadBytes(common.BigToHash(big.NewInt(int64(val))).Bytes(), 8))
+		case "uint32":
+			val := uint32(0)
+			fmt.Sscanf(values[i], "%d", &val)
+			binary.Write(&buffer, binary.BigEndian, common.LeftPadBytes(common.BigToHash(big.NewInt(int64(val))).Bytes(), 4))
+		case "uint16":
+			val := uint16(0)
+			fmt.Sscanf(values[i], "%d", &val)
+			binary.Write(&buffer, binary.BigEndian, common.LeftPadBytes(common.BigToHash(big.NewInt(int64(val))).Bytes(), 2))
 		case "uint8":
 			val := uint8(0)
 			fmt.Sscanf(values[i], "%d", &val)
