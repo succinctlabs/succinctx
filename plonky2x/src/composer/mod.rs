@@ -1,19 +1,39 @@
+use core::marker::PhantomData;
+
+use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::CircuitData;
-use plonky2::plonk::config::PoseidonGoldilocksConfig;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use crate::builder::CircuitBuilder;
 use crate::vars::CircuitVariable;
 
-type F = GoldilocksField;
-type C = PoseidonGoldilocksConfig;
-const D: usize = 2;
+pub struct CircuitComposer<F, C, const D: usize>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+{
+    _phantom1: PhantomData<F>,
+    _phantom2: PhantomData<C>,
+}
 
-pub struct CircuitComposer {}
+impl<F, C, const D: usize> CircuitComposer<F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+{
+    pub fn new() -> Self {
+        Self {
+            _phantom1: Default::default(),
+            _phantom2: Default::default(),
+        }
+    }
 
-impl CircuitComposer {
     /// This function maps a vector of inputs (which may contain both compile time constants and values
     /// of variables) to a vector of built circuits and proofs when evaluated on those same inputs.
     pub fn map<I: CircuitVariable, S>(
@@ -105,11 +125,8 @@ impl CircuitComposer {
 #[cfg(test)]
 pub(crate) mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::plonk::circuit_data::CircuitData;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
-    use plonky2::plonk::proof::ProofWithPublicInputs;
 
-    use crate::builder::CircuitBuilder;
     use crate::composer::CircuitComposer;
     use crate::vars::{CircuitVariable, Variable};
 
@@ -119,25 +136,19 @@ pub(crate) mod tests {
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
-        let composer = CircuitComposer {};
+        let composer = CircuitComposer::<F, C, D>::new();
         let inputs: Vec<u64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
-        let l1 = composer.map(
-            inputs,
-            |i1: &Variable, builder: &mut CircuitBuilder<F, D>| {
-                builder.api.register_public_inputs(i1.targets().as_slice());
-            },
-        );
+        let l1 = composer.map(inputs, |i1: &Variable, builder| {
+            builder.api.register_public_inputs(i1.targets().as_slice());
+        });
 
         println!("finished mapping");
 
-        let l2: (CircuitData<F, C, D>, ProofWithPublicInputs<F, C, D>) = composer.reduce(
-            l1,
-            |i1: &Variable, i2: &Variable, builder: &mut CircuitBuilder<F, D>| {
-                let sum = builder.add(*i1, *i2);
-                builder.api.register_public_inputs(sum.targets().as_slice());
-            },
-        );
+        let l2 = composer.reduce(l1, |i1: &Variable, i2: &Variable, builder| {
+            let sum = builder.add(*i1, *i2);
+            builder.api.register_public_inputs(sum.targets().as_slice());
+        });
 
         println!("finished reducing");
 
