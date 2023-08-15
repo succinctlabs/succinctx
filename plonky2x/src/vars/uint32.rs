@@ -31,6 +31,11 @@ impl CircuitVariable for U32Variable {
         vec![self.0 .0]
     }
 
+    fn from_targets(targets: &[Target]) -> Self {
+        assert_eq!(targets.len(), 1);
+        Self(Variable(targets[0]))
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         let v = witness.get_target(self.0 .0);
         v.to_canonical_u64() as u32

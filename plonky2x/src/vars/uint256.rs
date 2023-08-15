@@ -35,6 +35,11 @@ impl CircuitVariable for U256Variable {
         self.0.iter().flat_map(|v| v.targets()).collect_vec()
     }
 
+    fn from_targets(targets: &[Target]) -> Self {
+        assert_eq!(targets.len(), 4);
+        Self(array![i => U32Variable::from_targets(&[targets[i]]); 4])
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         to_u256([
             self.0[0].value(witness),

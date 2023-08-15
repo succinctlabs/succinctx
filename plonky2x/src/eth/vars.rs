@@ -30,6 +30,10 @@ impl CircuitVariable for BLSPubkeyVariable {
         self.0.targets()
     }
 
+    fn from_targets(targets: &[Target]) -> Self {
+        Self(BytesVariable::from_targets(targets))
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         self.0.value(witness)
     }
@@ -60,6 +64,10 @@ impl CircuitVariable for AddressVariable {
 
     fn targets(&self) -> Vec<Target> {
         self.0.targets()
+    }
+
+    fn from_targets(targets: &[Target]) -> Self {
+        Self(BytesVariable::from_targets(targets))
     }
 
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {

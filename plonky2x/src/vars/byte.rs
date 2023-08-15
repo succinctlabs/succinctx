@@ -39,6 +39,11 @@ impl CircuitVariable for ByteVariable {
             .collect()
     }
 
+    fn from_targets(targets: &[Target]) -> Self {
+        assert_eq!(targets.len(), 8);
+        Self(array![i => BoolVariable::from_targets(&[targets[i]]); 8])
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         let mut acc: u64 = 0;
         for i in 0..8 {

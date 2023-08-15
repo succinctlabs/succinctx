@@ -9,6 +9,7 @@
 extern crate alloc;
 
 pub mod builder;
+pub mod composer;
 pub mod ecc;
 pub mod eth;
 pub mod ethutils;

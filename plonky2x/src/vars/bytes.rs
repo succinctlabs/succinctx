@@ -38,6 +38,11 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         self.0.iter().flat_map(|b| b.targets()).collect()
     }
 
+    fn from_targets(targets: &[Target]) -> Self {
+        assert_eq!(targets.len(), N * 8);
+        Self(array![i => ByteVariable::from_targets(&targets[i*8..(i+1)*8]); N])
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         self.0.iter().map(|b| b.value(witness)).collect()
     }

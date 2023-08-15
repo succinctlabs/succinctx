@@ -77,6 +77,35 @@ impl CircuitVariable for BeaconValidatorVariable {
         targets
     }
 
+    fn from_targets(targets: &[Target]) -> Self {
+        let mut ptr = 0;
+        let pubkey = BLSPubkeyVariable::from_targets(&targets[ptr..ptr + 384]);
+        ptr += 384;
+        let withdrawal_credentials = Bytes32Variable::from_targets(&targets[ptr..ptr + 256]);
+        ptr += 256;
+        let effective_balance = U256Variable::from_targets(&targets[ptr..ptr + 4]);
+        ptr += 4;
+        let slashed = BoolVariable::from_targets(&targets[ptr..ptr + 1]);
+        ptr += 1;
+        let activation_eligibility_epoch = U256Variable::from_targets(&targets[ptr..ptr + 4]);
+        ptr += 4;
+        let activation_epoch = U256Variable::from_targets(&targets[ptr..ptr + 4]);
+        ptr += 4;
+        let exit_epoch = U256Variable::from_targets(&targets[ptr..ptr + 4]);
+        ptr += 4;
+        let withdrawable_epoch = U256Variable::from_targets(&targets[ptr..ptr + 4]);
+        Self {
+            pubkey,
+            withdrawal_credentials,
+            effective_balance,
+            slashed,
+            activation_eligibility_epoch,
+            activation_epoch,
+            exit_epoch,
+            withdrawable_epoch,
+        }
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         BeaconValidator {
             pubkey: hex!(self.pubkey.value(witness)),

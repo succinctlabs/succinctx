@@ -30,6 +30,11 @@ impl CircuitVariable for BoolVariable {
         vec![self.0 .0]
     }
 
+    fn from_targets(targets: &[Target]) -> Self {
+        assert_eq!(targets.len(), 1);
+        Self(Variable(targets[0]))
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         witness.get_target(self.0 .0) == F::from_canonical_u64(1)
     }

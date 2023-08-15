@@ -33,6 +33,11 @@ impl CircuitVariable for Variable {
         vec![self.0]
     }
 
+    fn from_targets(targets: &[Target]) -> Self {
+        assert_eq!(targets.len(), 1);
+        Self(targets[0])
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> u64 {
         witness.get_target(self.0).as_canonical_u64()
     }

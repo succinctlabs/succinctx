@@ -55,6 +55,18 @@ impl CircuitVariable for BeaconValidatorsVariable {
         targets
     }
 
+    #[allow(unused_variables)]
+    fn from_targets(targets: &[Target]) -> Self {
+        let mut ptr = 0;
+        let block_root = Bytes32Variable::from_targets(&targets[ptr..ptr + 256]);
+        ptr += 256;
+        let validators_root = Bytes32Variable::from_targets(&targets[ptr..ptr + 256]);
+        Self {
+            block_root,
+            validators_root,
+        }
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         BeaconValidatorsValue {
             block_root: self.block_root.value(witness),

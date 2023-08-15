@@ -33,6 +33,10 @@ impl CircuitVariable for Bytes32Variable {
         self.0.targets()
     }
 
+    fn from_targets(targets: &[Target]) -> Self {
+        Self(BytesVariable::from_targets(targets))
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
         let bytes = self.0.value(witness);
         H256::from_slice(&bytes[..])
