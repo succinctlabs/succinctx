@@ -152,7 +152,7 @@ fn select_chunk<F: RichField + Extendable<D>, const D: usize>(
     res.map(|x| BoolTarget::new_unsafe(x.unwrap()))
 }
 
-fn calculate_num_chunks(length: usize) -> usize {
+pub fn calculate_num_chunks(length: usize) -> usize {
     let msg_with_min_padding_len = length + 129;
 
     let additional_padding_len = 1024 - (msg_with_min_padding_len % 1024);
