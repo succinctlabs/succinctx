@@ -17,6 +17,7 @@ bin/
 .go
 
 *.json
+!nouns-fixture.json
 
 keystore
 

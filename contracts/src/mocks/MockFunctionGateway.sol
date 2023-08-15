@@ -1,13 +1,50 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
+import "forge-std/console.sol";
+import {VmSafe} from "forge-std/Vm.sol";
+import {stdJson} from "forge-std/StdJson.sol";
 import {IFunctionGateway, FunctionRequest} from "../interfaces/IFunctionGateway.sol";
 
 contract MockFunctionGateway is IFunctionGateway {
+    struct CircuitFixture {
+        bytes input;
+        bytes output;
+    }
+
+    VmSafe private constant vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
+    CircuitFixture[] private fixtures;
+    uint256 private fixtureNonce;
+
     uint256 public DEFAULT_GAS_LIMIT = 1000000;
     uint256 public nonce;
     mapping(bytes32 => FunctionRequest) public requests;
     uint256 scalar = 1;
+
+    function loadFixture(string memory _path) external {
+        string memory json;
+        try vm.readFile(_path) returns (string memory data) {
+            json = data;
+        } catch {
+            console.log("Warning: unable to read config");
+            return;
+        }
+        bytes memory input = stdJson.readBytes(json, "$.input");
+        bytes memory output = stdJson.readBytes(json, "$.output");
+        fixtures.push(CircuitFixture(input, output));
+    }
+
+    function callbackWithFixture(address _callbackAddress, bytes4 _callbackSelector, bytes memory _context) external {
+        CircuitFixture memory fixture = fixtures[fixtureNonce];
+        fixtureNonce++;
+
+        (bool status,) = _callbackAddress.call(abi.encodeWithSelector(_callbackSelector, fixture.output, _context));
+        if (!status) {
+            revert CallbackFailed(_callbackAddress, _callbackSelector);
+        }
+
+        emit CallbackFulfilled(0, fixture.output, _context);
+    }
 
     function setRequest(bytes32 _requestId, FunctionRequest memory _request) public {
         requests[_requestId] = _request;
