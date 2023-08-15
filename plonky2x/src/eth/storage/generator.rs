@@ -1,7 +1,8 @@
+use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use ethers::providers::{Http, Middleware, Provider};
-use ethers::types::{Address, EIP1186ProofResponse, H256};
+use ethers::providers::{JsonRpcClient, Middleware, Provider};
+use ethers::types::EIP1186ProofResponse;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -12,38 +13,46 @@ use plonky2::util::serialization::{Buffer, IoResult};
 use tokio::runtime::Runtime;
 
 use super::vars::{EthAccountVariable, EthProofVariable};
+use crate::builder::CircuitBuilder;
 use crate::eth::utils::u256_to_h256_be;
 use crate::eth::vars::AddressVariable;
 use crate::vars::{Bytes32Variable, CircuitVariable};
 
-#[derive(Debug)]
-pub struct GetStorageProofGenerator<F: RichField + Extendable<D>, const D: usize> {
-    address: AddressVariable,
-    storage_key: Bytes32Variable,
-    account_value: EthAccountVariable,
-    account_proof: EthProofVariable,
-    storage_proof: EthProofVariable,
-    value: Bytes32Variable,
-    block_number: u64,
-    provider: Provider<Http>,
+#[derive(Debug, Clone)]
+pub struct EthStorageProofGenerator<
+    P: Clone + JsonRpcClient + 'static,
+    F: RichField + Extendable<D>,
+    const D: usize,
+> {
+    pub address: AddressVariable,
+    pub storage_key: Bytes32Variable,
+    pub account: EthAccountVariable,
+    pub account_proof: EthProofVariable,
+    pub storage_proof: EthProofVariable,
+    pub value: Bytes32Variable,
+    pub block_number: u64,
+    pub provider: Provider<P>,
     _phantom: PhantomData<F>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> GetStorageProofGenerator<F, D> {
+impl<P: Clone + JsonRpcClient + 'static, F: RichField + Extendable<D>, const D: usize>
+    EthStorageProofGenerator<P, F, D>
+{
     pub fn new(
+        builder: &mut CircuitBuilder<F, D>,
+        provider: Provider<P>,
         address: AddressVariable,
         storage_key: Bytes32Variable,
-        account_value: EthAccountVariable,
-        account_proof: EthProofVariable,
-        storage_proof: EthProofVariable,
-        value: Bytes32Variable,
         block_number: u64,
-        provider: Provider<Http>,
-    ) -> GetStorageProofGenerator<F, D> {
-        return GetStorageProofGenerator {
+    ) -> EthStorageProofGenerator<P, F, D> {
+        let account = builder.init::<EthAccountVariable>();
+        let account_proof = builder.init::<EthProofVariable>();
+        let storage_proof = builder.init::<EthProofVariable>();
+        let value = builder.init::<Bytes32Variable>();
+        return EthStorageProofGenerator {
             address,
             storage_key,
-            account_value,
+            account,
             account_proof,
             storage_proof,
             value: value,
@@ -54,8 +63,8 @@ impl<F: RichField + Extendable<D>, const D: usize> GetStorageProofGenerator<F, D
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for GetStorageProofGenerator<F, D>
+impl<P: Clone + JsonRpcClient + 'static, F: RichField + Extendable<D>, const D: usize>
+    SimpleGenerator<F, D> for EthStorageProofGenerator<P, F, D>
 {
     fn id(&self) -> String {
         "GetStorageProofGenerator".to_string()

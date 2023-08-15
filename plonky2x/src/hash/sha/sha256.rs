@@ -5,7 +5,6 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::hash::bit_operations::util::{_right_rotate, _shr, uint32_to_bits};
 use crate::hash::bit_operations::{add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add};
-use crate::num::u32::gadgets::arithmetic_u32::{U32Target, CircuitBuilderU32};
 
 pub struct Sha256Target {
     pub message: Vec<BoolTarget>,
@@ -114,7 +113,7 @@ pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
     }
 
     // Additional padding if necessary
-    for _ in 0..((SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8) - message.len()) {      
+    for _ in 0..((SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8) - message.len()) {
         msg_input.push(builder.constant_bool(false));
     }
 
@@ -135,7 +134,6 @@ pub fn process_sha256<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     msg_input: &[BoolTarget],
 ) -> Vec<BoolTarget> {
-
     let mut sha256_hash = get_initial_hash(builder);
     let round_constants = get_round_constants(builder);
 
@@ -241,7 +239,6 @@ pub fn process_sha256<F: RichField + Extendable<D>, const D: usize>(
     digest
 }
 
-
 // Generate the 32-byte SHA-256 hash of the message.
 // reference: https://github.com/thomdixon/pysha2/blob/master/sha2/sha256.py
 pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
@@ -276,12 +273,12 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use subtle_encoding::hex::decode;
-    use plonky2::field::types::Field;
 
     use super::*;
 
@@ -480,13 +477,15 @@ mod tests {
         // Length of the message in bits (should be less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
         let length = builder.constant(F::from_canonical_usize(msg_bits.len()));
 
-        msg_bits.extend(vec![false; SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8 - msg_bits.len()]);
+        msg_bits.extend(vec![
+            false;
+            SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8 - msg_bits.len()
+        ]);
 
         // dbg!(&msg_bits);
         let expected_digest = "84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e";
         dbg!(decode(expected_digest).unwrap());
         let digest_bits = to_bits(decode(expected_digest).unwrap());
-
 
         let targets = msg_bits
             .iter()
