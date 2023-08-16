@@ -7,7 +7,7 @@ use plonky2::iop::target::Target;
 use crate::hash::bit_operations::util::{_right_rotate, _shr, uint64_to_bits};
 use crate::hash::bit_operations::{add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add};
 
-pub struct Sha512Target {
+pub struct Sha512VariableTarget {
     pub message: Vec<BoolTarget>,
     pub hash_msg_length_bits: Target,
     pub digest: Vec<BoolTarget>,
@@ -248,7 +248,7 @@ fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize, const MAX_N
 fn process_sha512_variable<F: RichField + Extendable<D>, const D: usize, const MAX_NUM_CHUNKS: usize>(
     builder: &mut CircuitBuilder<F, D>,
     msg_input: &[BoolTarget],
-    last_chunk: Target,
+    last_chunk_t: Target,
 ) -> Vec<BoolTarget> {
     let mut sha512_hash = get_initial_hash(builder);
     let round_constants = get_round_constants(builder);
@@ -265,7 +265,7 @@ fn process_sha512_variable<F: RichField + Extendable<D>, const D: usize, const M
 
         // Check if this is the last chunk
         let curr_chunk_t = builder.constant(F::from_canonical_usize(chunk_start / 1024));
-        let is_last_block = builder.is_equal(last_chunk, curr_chunk_t);
+        let is_last_block = builder.is_equal(last_chunk_t, curr_chunk_t);
 
         noop_select = BoolTarget::new_unsafe(
             builder.select(
@@ -288,7 +288,7 @@ fn process_sha512_variable<F: RichField + Extendable<D>, const D: usize, const M
 // Number of chunks in hash_msg_input
 pub fn sha512_variable<F: RichField + Extendable<D>, const D: usize, const MAX_NUM_CHUNKS: usize>(
     builder: &mut CircuitBuilder<F, D>,
-) -> Sha512Target {
+) -> Sha512VariableTarget {
 
     let hash_msg_length_bits = builder.add_virtual_target();
 
@@ -306,7 +306,7 @@ pub fn sha512_variable<F: RichField + Extendable<D>, const D: usize, const MAX_N
     // Padding may require an additional chunk (should be computed outside of the circuit)
     let digest = process_sha512_variable::<F, D, MAX_NUM_CHUNKS>(builder, &hash_msg_input, last_block_num);
 
-    return Sha512Target { message: msg_input, hash_msg_length_bits, digest }
+    return Sha512VariableTarget { message: msg_input, hash_msg_length_bits, digest }
 }
 
 fn process_sha512<F: RichField + Extendable<D>, const D: usize>(
@@ -587,7 +587,7 @@ mod tests {
         type F = <C as GenericConfig<D>>::F;
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
 
-        // TODO: Compute properly from maximum signed message size
+        // Note: This should be computed from the maximum SHA512 size for the circuit
         const MAX_NUM_CHUNKS: usize = 2;
 
         let sha512_target = sha512_variable::<F, D, MAX_NUM_CHUNKS>(&mut builder);

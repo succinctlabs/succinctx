@@ -346,7 +346,6 @@ mod tests {
 
         let circuit_builder_start_time = SystemTime::now();
         let data = builder.build::<C>();
-        dbg!(data.verifier_only.circuit_digest);
         
         let circuit_builder_time = circuit_builder_start_time.elapsed().unwrap();
 
