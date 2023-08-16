@@ -33,6 +33,8 @@ reqwest = { version = "0.11.4", features = ["json"] }
 dotenv = "0.15.0"
 array-macro = "2.1.5"
 tracing = "0.1.37"
+num-bigint = { version = "0.4", features = ["rand"] }
+
 
 [dev-dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = ["gate_testing"]}

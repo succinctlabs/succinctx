@@ -2410,6 +2410,7 @@ dependencies = [
  "itertools 0.10.5",
  "log",
  "num",
+ "num-bigint",
  "plonky2",
  "rand",
  "reqwest",
