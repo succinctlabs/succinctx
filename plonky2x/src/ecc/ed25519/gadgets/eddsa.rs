@@ -43,7 +43,6 @@ pub struct EDDSATargets<C: Curve> {
 pub struct EDDSAVariableTargets<C: Curve> {
     pub msgs: Vec<Vec<BoolTarget>>,
     pub msgs_lengths: Vec<Target>,
-    pub msgs_last_chunks: Vec<Target>,
     pub sigs: Vec<EDDSASignatureTarget<C>>,
     pub pub_keys: Vec<EDDSAPublicKeyTarget<C>>,
 }
@@ -108,7 +107,6 @@ where
     // Create the eddsa circuit's virtual targets.
     let mut msgs = Vec::new();
     let mut msgs_lengths = Vec::new();
-    let mut msgs_last_chunks = Vec::new();
     let mut sigs = Vec::new();
     let mut pub_keys = Vec::new();
     let mut curta_pub_keys = Vec::new();
@@ -130,9 +128,7 @@ where
         let compressed_sig_and_pk_t = builder.constant(F::from_canonical_usize(COMPRESSED_SIG_AND_PK_LEN_BITS));
         let hash_msg_length = builder.add(msg_length, compressed_sig_and_pk_t);
 
-        let last_chunk = builder.add_virtual_target();
         msgs_lengths.push(msg_length);
-        msgs_last_chunks.push(last_chunk);
 
         // There is already a calculation for the number of limbs needed for the underlying biguint targets.
         let sig = EDDSASignatureTarget {
@@ -241,7 +237,6 @@ where
     EDDSAVariableTargets {
         msgs,
         msgs_lengths,
-        msgs_last_chunks,
         pub_keys,
         sigs,
     }
@@ -692,21 +687,12 @@ mod tests {
                 pw.set_bool_target(eddsa_target.msgs[i][j], false);
             }
 
-            // Add 512 bits for the length of sig.r and pk_compressed in hash_msg
-            let hash_msg_len = (msg_len * 8) + COMPRESSED_SIG_AND_PK_LEN_BITS;
+            let msg_len = msg_bits.len();
 
             pw.set_target(
                 eddsa_target.msgs_lengths[i],
-                F::from_canonical_usize(hash_msg_len),
+                F::from_canonical_usize(msg_len),
             );
-
-            let last_chunk = calculate_num_chunks(hash_msg_len) - 1;
-
-            pw.set_target(
-                eddsa_target.msgs_last_chunks[i],
-                F::from_canonical_usize(last_chunk),
-            );
-
 
             pw.set_biguint_target(
                 &eddsa_target.pub_keys[i].0.x.value,
