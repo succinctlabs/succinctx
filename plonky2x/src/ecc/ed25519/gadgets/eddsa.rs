@@ -399,8 +399,6 @@ mod tests {
     use crate::num::biguint::WitnessBigUint;
     use crate::hash::sha::sha512::calculate_num_chunks;
 
-    use super::*;
-
     static INIT: Once = Once::new();
 
     fn setup() {
