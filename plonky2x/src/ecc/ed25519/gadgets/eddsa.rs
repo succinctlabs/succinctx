@@ -91,7 +91,7 @@ pub fn verify_variable_signatures_circuit<
     E: CubicParameters<F>,
     Config: GenericConfig<D, F = F, FE = F::Extension> + 'static,
     const D: usize,
-    // Maximum length message from all of the messages in bits
+    // Maximum length of a signed message in bits.
     const MAX_MSG_LEN_BITS: usize,
     // Maximum number of chunks in the SHA512 (Note: Include the length of sig.r and pk_compressed)
     const MAX_NUM_CHUNKS: usize,
@@ -122,9 +122,9 @@ where
         }
 
         // Targets for the message length and number of chunks
-        // TODO: Every msg_length should be less than MAX_MSG_LEN * 8
+        // TODO: Should we range check that msg_length is less than MAX_MSG_LEN * 8?
         let msg_length = builder.add_virtual_target();
-        // Add 512 bits for the sig.r and pk_compressed
+        // Note: Add 512 bits for the sig.r and pk_compressed
         let compressed_sig_and_pk_t = builder.constant(F::from_canonical_usize(COMPRESSED_SIG_AND_PK_LEN_BITS));
         let hash_msg_length = builder.add(msg_length, compressed_sig_and_pk_t);
 
