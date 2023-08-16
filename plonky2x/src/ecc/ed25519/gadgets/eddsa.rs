@@ -91,8 +91,8 @@ pub fn verify_variable_signatures_circuit<
     E: CubicParameters<F>,
     Config: GenericConfig<D, F = F, FE = F::Extension> + 'static,
     const D: usize,
-    // Maximum length message from all of the messages in bytes
-    const MAX_MSG_LEN: usize,
+    // Maximum length message from all of the messages in bits
+    const MAX_MSG_LEN_BITS: usize,
     // Maximum number of chunks in the SHA512 (Note: Include the length of sig.r and pk_compressed)
     const MAX_NUM_CHUNKS: usize,
 >(
@@ -116,7 +116,7 @@ where
 
     for _i in 0..num_sigs {
         let mut msg = Vec::new();
-        for _ in 0..MAX_MSG_LEN * 8 {
+        for _ in 0..MAX_MSG_LEN_BITS {
             // Note that add_virtual_bool_target_safe will do a range check to verify each element is 0 or 1.
             msg.push(builder.add_virtual_bool_target_safe());
         }
@@ -157,11 +157,11 @@ where
             hash_msg.push(pk_compressed[i]);
         }
 
-        for i in 0..MAX_MSG_LEN * 8 {
+        for i in 0..MAX_MSG_LEN_BITS {
             hash_msg.push(msg[i]);
         }
 
-        for i in (MAX_MSG_LEN*8 + COMPRESSED_SIG_AND_PK_LEN_BITS)..(MAX_NUM_CHUNKS*1024) {
+        for i in (MAX_MSG_LEN_BITS + COMPRESSED_SIG_AND_PK_LEN_BITS)..(MAX_NUM_CHUNKS*1024) {
             hash_msg.push(builder._false());
         }
 
@@ -653,10 +653,10 @@ mod tests {
 
         let mut pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        const MAX_MSG_LEN: usize = 128;
-        const MAX_NUM_CHUNKS: usize = calculate_num_chunks(MAX_MSG_LEN * 8);
+        const MAX_MSG_LEN_BITS: usize = 128 * 8;
+        const MAX_NUM_CHUNKS: usize = calculate_num_chunks(MAX_MSG_LEN_BITS);
         // Length of sig.r and pk_compressed in hash_msg
-        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, C, D, MAX_MSG_LEN, MAX_NUM_CHUNKS>(
+        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, C, D, MAX_MSG_LEN_BITS, MAX_NUM_CHUNKS>(
             &mut builder,
             msgs.len(),
         );
@@ -680,7 +680,7 @@ mod tests {
                 pw.set_bool_target(eddsa_target.msgs[i][j], msg_bits[j]);
             }
 
-            for j in msg_bits.len()..(MAX_MSG_LEN*8) {
+            for j in msg_bits.len()..(MAX_MSG_LEN_BITS) {
                 pw.set_bool_target(eddsa_target.msgs[i][j], false);
             }
 
