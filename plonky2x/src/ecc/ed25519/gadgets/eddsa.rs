@@ -20,6 +20,7 @@ use crate::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget}
 use crate::num::u32::gadgets::arithmetic_u32::U32Target;
 
 const MAX_NUM_SIGS: usize = 256;
+const COMPRESSED_SIG_AND_PK_LEN_BITS: usize = 512;
 
 #[derive(Clone, Debug)]
 pub struct EDDSAPublicKeyTarget<C: Curve>(pub AffinePointTarget<C>);
@@ -93,6 +94,8 @@ pub fn verify_variable_signatures_circuit<
     const D: usize,
     // Maximum length message from all of the messages in bytes
     const MAX_MSG_LEN: usize,
+    // Maximum number of chunks in the SHA512 (Note: Include the length of sig.r and pk_compressed)
+    const MAX_NUM_CHUNKS: usize,
 >(
     builder: &mut CircuitBuilder<F, D>,
     num_sigs: usize,
@@ -119,11 +122,14 @@ where
             // Note that add_virtual_bool_target_safe will do a range check to verify each element is 0 or 1.
             msg.push(builder.add_virtual_bool_target_safe());
         }
+
         // Targets for the message length and number of chunks
-        // Note: msg_length needs to add 512 bits for the length of sig.r and pk_compressed in hash_msg
-        // Note: last_chunks needs to match this calculation
         // TODO: Every msg_length should be less than MAX_MSG_LEN * 8
         let msg_length = builder.add_virtual_target();
+        // Add 512 bits for the sig.r and pk_compressed
+        let compressed_sig_and_pk_t = builder.constant(F::from_canonical_usize(COMPRESSED_SIG_AND_PK_LEN_BITS));
+        let hash_msg_length = builder.add(msg_length, compressed_sig_and_pk_t);
+
         let last_chunk = builder.add_virtual_target();
         msgs_lengths.push(msg_length);
         msgs_last_chunks.push(last_chunk);
@@ -147,22 +153,32 @@ where
         let b = builder.compress_point(&pub_key.0);
         let pk_compressed = reverse_byte_ordering(b.bit_targets.to_vec());
 
-        for i in 0..r_compressed.len() {
+        for i in 0..256 {
             hash_msg.push(r_compressed[i]);
         }
 
-        for i in 0..pk_compressed.len() {
+        for i in 0..256 {
             hash_msg.push(pk_compressed[i]);
         }
 
-        for i in 0..msg.len() {
+        for i in 0..MAX_MSG_LEN * 8 {
             hash_msg.push(msg[i]);
         }
+
+        for i in (MAX_MSG_LEN*8 + COMPRESSED_SIG_AND_PK_LEN_BITS)..(MAX_NUM_CHUNKS*1024) {
+            hash_msg.push(builder._false());
+        }
+
         msgs.push(msg);
 
-        // Note: sha512_variable will take into account the length of sig.r and pk_compressed (which are before msg[i])
-        let digest_bits_target = sha512_variable(builder, &hash_msg, msg_length, last_chunk);
-        let digest = biguint_from_le_bytes(builder, digest_bits_target);
+        let sha512_targets = sha512_variable::<F, D, MAX_NUM_CHUNKS>(builder);
+        builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_length);
+        
+        for i in 0..MAX_NUM_CHUNKS*1024 {
+            builder.connect(sha512_targets.message[i].target, hash_msg[i].target);
+        }
+
+        let digest = biguint_from_le_bytes(builder, sha512_targets.digest);
         let h_scalar = builder.reduce::<Ed25519Scalar>(&digest);
 
         let h_scalar_limbs = h_scalar.value.limbs.iter().map(|x| x.0).collect::<Vec<_>>();
@@ -388,6 +404,8 @@ mod tests {
     use crate::num::biguint::WitnessBigUint;
     use crate::hash::sha::sha512::calculate_num_chunks;
 
+    use super::*;
+
     static INIT: Once = Once::new();
 
     fn setup() {
@@ -504,6 +522,8 @@ mod tests {
 
         let circuit_builder_start_time = SystemTime::now();
         let data = builder.build::<C>();
+        dbg!(data.verifier_only.circuit_digest);
+        
         let circuit_builder_time = circuit_builder_start_time.elapsed().unwrap();
 
         let proof_start_time = SystemTime::now();
@@ -642,9 +662,9 @@ mod tests {
         let mut pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         const MAX_MSG_LEN: usize = 128;
+        const MAX_NUM_CHUNKS: usize = calculate_num_chunks(MAX_MSG_LEN * 8);
         // Length of sig.r and pk_compressed in hash_msg
-        const COMPRESSED_SIG_AND_PK_LEN: usize = 512;
-        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, C, D, MAX_MSG_LEN>(
+        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, C, D, MAX_MSG_LEN, MAX_NUM_CHUNKS>(
             &mut builder,
             msgs.len(),
         );
@@ -673,7 +693,7 @@ mod tests {
             }
 
             // Add 512 bits for the length of sig.r and pk_compressed in hash_msg
-            let hash_msg_len = (msg_len * 8) + COMPRESSED_SIG_AND_PK_LEN;
+            let hash_msg_len = (msg_len * 8) + COMPRESSED_SIG_AND_PK_LEN_BITS;
 
             pw.set_target(
                 eddsa_target.msgs_lengths[i],
