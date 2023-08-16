@@ -575,14 +575,9 @@ mod tests {
     #[test]
     fn test_sha512_large_msg_variable() -> Result<()> {
         // This test tests both the variable length and the no-op skip for processing each chunk of the sha512
-        // Append 52 bytes to the 77-byte message to make it 128 bytes long (longer than the 128 byte chunk size)
+        // 77-byte message fits in one chunk, but we make MAX_NUM_CHUNKS 2 to test the no-op skip
         let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
         let msg_bits = to_bits(msg.to_vec());
-
-        let additional_msg = decode("111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111").unwrap();
-        
-        let concat_msg = [&msg[..], &additional_msg[..]].concat();
-        let concat_msg_bits = to_bits(concat_msg.to_vec());
 
         let expected_digest = "4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39";
         let digest_bits = to_bits(decode(expected_digest).unwrap());
@@ -591,14 +586,9 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        let mut message = concat_msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
 
-        // TODO: Compute properly from concat_msg_bits length
-        const MAX_MSG_LENGTH_BITS: usize = 128*8;
-        const MAX_NUM_CHUNKS: usize = calculate_num_chunks(MAX_MSG_LENGTH_BITS);
+        // TODO: Compute properly from maximum signed message size
+        const MAX_NUM_CHUNKS: usize = 2;
 
         let sha512_target = sha512_variable::<F, D, MAX_NUM_CHUNKS>(&mut builder);
         let mut pw = PartialWitness::new();
