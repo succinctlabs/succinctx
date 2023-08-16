@@ -9,8 +9,9 @@ use ethers::types::{Address, EIP1186ProofResponse, H256};
 use crate::utils::{bytes32, address};
 
 pub mod utils;
-
+pub mod template;
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+    // TODO: implement verify_decoded_list following the function in template
     pub fn verify_decoded_list<const L: usize, const M: usize>(&mut self, list: [Bytes32Variable; L], encoding: BytesVariable::<M>) {
         // L = 2 or 17
         // M is the max encoding length and should be checked as a function of L
@@ -42,21 +43,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_rlp_decode() {
-        let mut stream = RlpStream::new();
-        stream.begin_list(1);
-        let h256 =
-            "0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e"
-                .parse::<H256>()
-                .unwrap();
-        let u256 = h256_to_u256_be(h256);
-        stream.append::<U256>(&u256.into());
-        let encoding = stream.out().freeze();
-        println!("encoding {:x?}", encoding);
-    }
-
-    #[test]
-    fn test_mpt_proof() {
+    fn test_verify_decoded_list() {
         let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
