@@ -645,9 +645,6 @@ mod tests {
         assert!(msgs.len() == pub_keys.len());
         assert!(pub_keys.len() == sigs.len());
 
-        // TODO: Length in bytes
-        let msg_len = msgs[0].len();
-
         type F = GoldilocksField;
         type E = GoldilocksCubicParameters;
         type C = PoseidonGoldilocksConfig;
@@ -716,6 +713,9 @@ mod tests {
         }
 
         let inner_data = builder.build::<C>();
+        let circuit_digest = inner_data.verifier_only.circuit_digest;
+        println!("circuit_digest: {:?}", circuit_digest);
+
         let inner_proof = inner_data.prove(pw).unwrap();
         inner_data.verify(inner_proof.clone()).unwrap();
 
