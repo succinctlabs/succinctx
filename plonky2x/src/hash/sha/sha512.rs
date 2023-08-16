@@ -633,7 +633,6 @@ mod tests {
         let proof = data.prove(pw).unwrap();
 
         data.verify(proof)
-        // Ok(())
     }
 
     #[test]
