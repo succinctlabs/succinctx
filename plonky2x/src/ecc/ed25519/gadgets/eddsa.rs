@@ -346,7 +346,6 @@ mod tests {
 
         let circuit_builder_start_time = SystemTime::now();
         let data = builder.build::<C>();
-        
         let circuit_builder_time = circuit_builder_start_time.elapsed().unwrap();
 
         let proof_start_time = SystemTime::now();

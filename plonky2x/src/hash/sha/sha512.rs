@@ -13,8 +13,9 @@ pub struct Sha512VariableTarget {
     pub digest: Vec<BoolTarget>,
 }
 
-pub const CHUNK_128_BYTES: usize = 128;
-pub const CHUNK_1024_BITS: usize = CHUNK_128_BYTES * 8;
+pub const SELECT_CHUNK_SIZE_64: usize = 64;
+pub const LENGTH_BITS_128: usize = 128;
+pub const CHUNK_1024_BITS: usize = 1024;
 
 pub fn get_initial_hash<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -144,24 +145,25 @@ pub fn reshape(u: Vec<BoolTarget>) -> Vec<[BoolTarget; 64]> {
 fn select_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     b: BoolTarget,
-    x: [BoolTarget; 64],
-    y: [BoolTarget; 64]
-) -> [BoolTarget; 64] {
-    let mut res = [None; 64];
-    for i in 0..64 {
+    x: [BoolTarget; SELECT_CHUNK_SIZE_64],
+    y: [BoolTarget; SELECT_CHUNK_SIZE_64]
+) -> [BoolTarget; SELECT_CHUNK_SIZE_64] {
+    let mut res = [None; SELECT_CHUNK_SIZE_64];
+    for i in 0..SELECT_CHUNK_SIZE_64 {
         res[i] = Some(builder.select(b, x[i].target, y[i].target));
     }
     res.map(|x| BoolTarget::new_unsafe(x.unwrap()))
 }
 
 const fn calculate_num_chunks(length: usize) -> usize {
-    let msg_with_min_padding_len = length + 129;
+    // Add 128 bits for the length and 1 bit for the padding bit
+    let msg_with_min_padding_len = length + LENGTH_BITS_128 + 1;
 
-    let additional_padding_len = 1024 - (msg_with_min_padding_len % 1024);
+    let additional_padding_len = CHUNK_1024_BITS - (msg_with_min_padding_len % CHUNK_1024_BITS);
     
     let msg_length_with_all_padding = msg_with_min_padding_len + additional_padding_len;
 
-    msg_length_with_all_padding / 1024
+    msg_length_with_all_padding / CHUNK_1024_BITS
 }
 
 
@@ -171,25 +173,25 @@ fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize, const MAX_N
     // Message should have length MAX_NUM_CHUNKS
     message: &[BoolTarget],
     // Pass in the last chunk number in the message as a target
-    last_chunk_t: Target,
+    last_chunk: Target,
     // This should be less than (MAX_NUM_CHUNKS * 1024) - 129
     // Length in bits of the target
     hash_msg_length_bits: Target
 ) -> Vec<BoolTarget> {
     let mut msg_input = Vec::new();
 
-    let mut length_bits = builder.split_le(hash_msg_length_bits, 128);
+    let mut length_bits = builder.split_le(hash_msg_length_bits, 64);
     // Convert length to BE bits
     length_bits.reverse();
 
-    let mut step_select_bit = builder.constant_bool(true);
+    let mut add_message_bit_selector = builder.constant_bool(true);
     for i in 0..MAX_NUM_CHUNKS {
-        let chunk_offset = 1024 * i;
+        let chunk_offset = CHUNK_1024_BITS * i;
         let curr_chunk_t = builder.constant(F::from_canonical_usize(i));
         // Check if this is the chunk where length should be added
-        let chunk_select_bit = builder.is_equal(last_chunk_t, curr_chunk_t);
+        let add_length_bit_selector = builder.is_equal(last_chunk, curr_chunk_t);
         // Always message || padding || nil
-        for j in 0..CHUNK_1024_BITS-128 {
+        for j in 0..CHUNK_1024_BITS-LENGTH_BITS_128 {
             let idx = chunk_offset + j;
 
             let idx_t = builder.constant(F::from_canonical_usize(idx));
@@ -197,43 +199,43 @@ fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize, const MAX_N
 
             // select_bit AND NOT(idx_length_eq_t)
             let not_idx_length_eq_t = builder.not(idx_length_eq_t);
-            step_select_bit = BoolTarget::new_unsafe(
+            add_message_bit_selector = BoolTarget::new_unsafe(
                 builder.select(
-                        step_select_bit,
+                        add_message_bit_selector,
                         not_idx_length_eq_t.target,
-                        step_select_bit.target)
+                        add_message_bit_selector.target)
             );
 
             // Set bit to push: (select_bit && message[i]) || idx_length_eq_t
-            let bit_to_push = builder.and(step_select_bit, message[idx]);
+            let bit_to_push = builder.and(add_message_bit_selector, message[idx]);
             let bit_to_push = builder.or(idx_length_eq_t, bit_to_push);
             msg_input.push(bit_to_push);
 
         }
 
         // Message || padding || length || nil
-        for j in CHUNK_1024_BITS-128..CHUNK_1024_BITS {
+        for j in CHUNK_1024_BITS-LENGTH_BITS_128..CHUNK_1024_BITS {
             let idx = chunk_offset + j;
 
-            // Should only be true in the last valid chunk
-            let length_bit = builder.and(length_bits[j % CHUNK_128_BYTES], chunk_select_bit);
+            // Only true if in the last valid chunk
+            let length_bit = builder.and(length_bits[j % LENGTH_BITS_128], add_length_bit_selector);
 
-            // TODO: chunk_select_bit && (step_select_bit || length_bit) should never be true concurrently -> add constraint for this?
+            // TODO: add_length_bit_selector && (add_message_bit_selector || length_bit) should never be true concurrently -> add constraint for this?
 
             let idx_t = builder.constant(F::from_canonical_usize(idx));
             let idx_length_eq_t = builder.is_equal(idx_t, hash_msg_length_bits);
 
             // select_bit AND NOT(idx_length_eq_t)
             let not_idx_length_eq_t = builder.not(idx_length_eq_t);
-            step_select_bit = BoolTarget::new_unsafe(
+            add_message_bit_selector = BoolTarget::new_unsafe(
                 builder.select(
-                        step_select_bit,
+                        add_message_bit_selector,
                         not_idx_length_eq_t.target,
-                        step_select_bit.target)
+                        add_message_bit_selector.target)
             );
             
             // Set bit to push: (select_bit && message[i]) || idx_length_eq_t
-            let bit_to_push = builder.and(step_select_bit, message[idx]);
+            let bit_to_push = builder.and(add_message_bit_selector, message[idx]);
             let bit_to_push = builder.or(idx_length_eq_t, bit_to_push);
 
             let bit_to_push = builder.or(length_bit, bit_to_push);
@@ -248,7 +250,7 @@ fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize, const MAX_N
 fn process_sha512_variable<F: RichField + Extendable<D>, const D: usize, const MAX_NUM_CHUNKS: usize>(
     builder: &mut CircuitBuilder<F, D>,
     msg_input: &[BoolTarget],
-    last_chunk_t: Target,
+    last_chunk: Target,
 ) -> Vec<BoolTarget> {
     let mut sha512_hash = get_initial_hash(builder);
     let round_constants = get_round_constants(builder);
@@ -256,7 +258,7 @@ fn process_sha512_variable<F: RichField + Extendable<D>, const D: usize, const M
     let mut noop_select = builder.constant_bool(false);
     // Process the input with 1024 bit chunks
     for chunk_start in (0..MAX_NUM_CHUNKS*CHUNK_1024_BITS).step_by(1024) {
-        let chunk = msg_input[chunk_start..chunk_start + 1024].to_vec();
+        let chunk = msg_input[chunk_start..chunk_start + CHUNK_1024_BITS].to_vec();
 
         let new_sha512_hash = process_sha512_chunk(builder, round_constants, sha512_hash, chunk);
         for i in 0..8 {
@@ -264,8 +266,8 @@ fn process_sha512_variable<F: RichField + Extendable<D>, const D: usize, const M
         }
 
         // Check if this is the last chunk
-        let curr_chunk_t = builder.constant(F::from_canonical_usize(chunk_start / 1024));
-        let is_last_block = builder.is_equal(last_chunk_t, curr_chunk_t);
+        let curr_chunk_t = builder.constant(F::from_canonical_usize(chunk_start / CHUNK_1024_BITS));
+        let is_last_block = builder.is_equal(last_chunk, curr_chunk_t);
 
         noop_select = BoolTarget::new_unsafe(
             builder.select(
@@ -317,8 +319,8 @@ fn process_sha512<F: RichField + Extendable<D>, const D: usize>(
     let round_constants = get_round_constants(builder);
 
     // Process the input with 1024 bit chunks
-    for chunk_start in (0..msg_input.len()).step_by(1024) {
-        let chunk = msg_input[chunk_start..chunk_start + 1024].to_vec();
+    for chunk_start in (0..msg_input.len()).step_by(CHUNK_1024_BITS) {
+        let chunk = msg_input[chunk_start..chunk_start + CHUNK_1024_BITS].to_vec();
 
         sha512_hash = process_sha512_chunk(builder, round_constants, sha512_hash, chunk);
     }
@@ -427,12 +429,13 @@ pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
     let mut msg_input = Vec::new();
     msg_input.extend_from_slice(message);
 
-    let msg_bit_len: u128 = message.len().try_into().expect("message too long");
+    // TODO: Range check size of msg_bit_len?
+    let msg_bit_len: usize = message.len();
 
     // minimum_padding = 1 + 128 (min 1 bit for the pad, and 128 bit for the msg size)
-    let msg_with_min_padding_len = msg_bit_len + 129;
+    let msg_with_min_padding_len = msg_bit_len + LENGTH_BITS_128 + 1;
 
-    let additional_padding_len = 1024 - (msg_with_min_padding_len % 1024);
+    let additional_padding_len = CHUNK_1024_BITS - (msg_with_min_padding_len % CHUNK_1024_BITS);
 
     msg_input.push(builder.constant_bool(true));
     for _i in 0..additional_padding_len {
