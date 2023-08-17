@@ -97,8 +97,6 @@ pub fn verify_variable_signatures_circuit<
     const D: usize,
     // Maximum length of a signed message in bits.
     const MAX_MSG_LEN_BITS: usize,
-    // // Maximum number of chunks in the SHA512 (Note: Include the length of sig.r and pk_compressed)
-    const MAX_NUM_CHUNKS: usize,
 >(
     builder: &mut CircuitBuilder<F, D>,
     num_sigs: usize,
@@ -108,7 +106,8 @@ where
 {
     assert!(num_sigs > 0 && num_sigs <= MAX_NUM_SIGS);
 
-    // const MAX_NUM_CHUNKS: usize = calculate_num_chunks(MAX_MSG_LEN_BITS);
+    // Note: This will calculate number of chunks in the message, including the compressed sig and pk bits (512 bits).
+    let max_num_chunks: usize = calculate_eddsa_num_chunks(MAX_MSG_LEN_BITS);
 
     // Create the eddsa circuit's virtual targets.
     let mut msgs = Vec::new();
@@ -167,16 +166,16 @@ where
             hash_msg.push(msg[i]);
         }
 
-        for i in (MAX_MSG_LEN_BITS + COMPRESSED_SIG_AND_PK_LEN_BITS)..(MAX_NUM_CHUNKS*1024) {
+        for i in (MAX_MSG_LEN_BITS + COMPRESSED_SIG_AND_PK_LEN_BITS)..(max_num_chunks*1024) {
             hash_msg.push(builder._false());
         }
 
         msgs.push(msg);
 
-        let sha512_targets = sha512_variable::<F, D, MAX_NUM_CHUNKS>(builder);
+        let sha512_targets = sha512_variable::<F, D>(builder, max_num_chunks);
         builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_length);
         
-        for i in 0..MAX_NUM_CHUNKS*1024 {
+        for i in 0..max_num_chunks*1024 {
             builder.connect(sha512_targets.message[i].target, hash_msg[i].target);
         }
 
@@ -656,9 +655,8 @@ mod tests {
         let mut pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         const MAX_MSG_LEN_BITS: usize = 128 * 8;
-        const MAX_NUM_CHUNKS: usize = calculate_num_chunks(MAX_MSG_LEN_BITS);
         // Length of sig.r and pk_compressed in hash_msg
-        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, C, D, MAX_MSG_LEN_BITS, MAX_NUM_CHUNKS>(
+        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, C, D, MAX_MSG_LEN_BITS>(
             &mut builder,
             msgs.len(),
         );
