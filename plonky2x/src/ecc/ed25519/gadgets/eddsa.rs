@@ -85,7 +85,7 @@ fn biguint_from_le_bytes<F: RichField + Extendable<D>, const D: usize>(
     BigUintTarget { limbs: u32_targets }
 }
 
-pub const fn calculate_num_chunks(msg_len: usize) -> usize {
+pub const fn calculate_eddsa_num_chunks(msg_len: usize) -> usize {
     ((msg_len + COMPRESSED_SIG_AND_PK_LEN_BITS + LENGTH_BITS_128 + 1) / CHUNK_BITS_1024) + 1
 }
 
