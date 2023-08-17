@@ -14,7 +14,7 @@ use plonky2::iop::target::Target;
 use crate::ecc::ed25519::curve::curve_types::Curve;
 use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
 use crate::ecc::ed25519::gadgets::curve::{AffinePointTarget, CircuitBuilderCurve};
-use crate::hash::sha::sha512::{sha512, sha512_variable};
+use crate::hash::sha::sha512::{sha512, sha512_variable, LENGTH_BITS_128, CHUNK_BITS_1024};
 use crate::num::biguint::BigUintTarget;
 use crate::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
 use crate::num::u32::gadgets::arithmetic_u32::U32Target;
@@ -85,6 +85,10 @@ fn biguint_from_le_bytes<F: RichField + Extendable<D>, const D: usize>(
     BigUintTarget { limbs: u32_targets }
 }
 
+pub const fn calculate_num_chunks(msg_len: usize) -> usize {
+    ((msg_len + COMPRESSED_SIG_AND_PK_LEN_BITS + LENGTH_BITS_128 + 1) / CHUNK_BITS_1024) + 1
+}
+
 pub fn verify_variable_signatures_circuit<
     F: RichField + Extendable<D>,
     C: Curve,
@@ -93,7 +97,7 @@ pub fn verify_variable_signatures_circuit<
     const D: usize,
     // Maximum length of a signed message in bits.
     const MAX_MSG_LEN_BITS: usize,
-    // Maximum number of chunks in the SHA512 (Note: Include the length of sig.r and pk_compressed)
+    // // Maximum number of chunks in the SHA512 (Note: Include the length of sig.r and pk_compressed)
     const MAX_NUM_CHUNKS: usize,
 >(
     builder: &mut CircuitBuilder<F, D>,
@@ -103,6 +107,8 @@ where
     Config::Hasher: AlgebraicHasher<F>,
 {
     assert!(num_sigs > 0 && num_sigs <= MAX_NUM_SIGS);
+
+    // const MAX_NUM_CHUNKS: usize = calculate_num_chunks(MAX_MSG_LEN_BITS);
 
     // Create the eddsa circuit's virtual targets.
     let mut msgs = Vec::new();
@@ -515,7 +521,6 @@ mod tests {
 
         let circuit_builder_start_time = SystemTime::now();
         let data = builder.build::<C>();
-        
         let circuit_builder_time = circuit_builder_start_time.elapsed().unwrap();
 
         let proof_start_time = SystemTime::now();
