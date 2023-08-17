@@ -166,7 +166,7 @@ where
             hash_msg.push(msg[i]);
         }
 
-        for i in (MAX_MSG_LEN_BITS + COMPRESSED_SIG_AND_PK_LEN_BITS)..(max_num_chunks*1024) {
+        for i in (MAX_MSG_LEN_BITS + COMPRESSED_SIG_AND_PK_LEN_BITS)..(max_num_chunks*CHUNK_BITS_1024) {
             hash_msg.push(builder._false());
         }
 
@@ -175,7 +175,7 @@ where
         let sha512_targets = sha512_variable::<F, D>(builder, max_num_chunks);
         builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_length);
         
-        for i in 0..max_num_chunks*1024 {
+        for i in 0..max_num_chunks*CHUNK_BITS_1024 {
             builder.connect(sha512_targets.message[i].target, hash_msg[i].target);
         }
 
