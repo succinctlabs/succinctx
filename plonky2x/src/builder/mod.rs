@@ -1,4 +1,5 @@
 mod boolean;
+mod proof;
 
 use ethers::providers::{Http, Provider};
 use plonky2::field::extension::Extendable;

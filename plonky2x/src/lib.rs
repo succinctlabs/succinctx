@@ -14,6 +14,7 @@ pub mod ecc;
 pub mod eth;
 pub mod ethutils;
 pub mod hash;
+pub mod mapreduce;
 pub mod num;
 pub mod utils;
 pub mod vars;

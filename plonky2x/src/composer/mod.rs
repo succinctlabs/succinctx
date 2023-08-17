@@ -88,6 +88,7 @@ where
                 let vd1 = builder
                     .api
                     .add_virtual_verifier_data(pfs[j * 2].0.common.config.fri_config.cap_height);
+                println!("{}", pfs[j * 2].0.common.config.fri_config.cap_height);
                 let vd2 = builder.api.add_virtual_verifier_data(
                     pfs[j * 2 + 1].0.common.config.fri_config.cap_height,
                 );
@@ -95,6 +96,8 @@ where
                 builder
                     .api
                     .verify_proof::<C>(&p1, &vd1, &pfs[j * 2].0.common);
+
+                println!("{:#?}", pfs[j * 2].0.common);
                 builder
                     .api
                     .verify_proof::<C>(&p2, &vd2, &pfs[j * 2 + 1].0.common);
