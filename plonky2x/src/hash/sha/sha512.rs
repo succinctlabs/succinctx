@@ -180,7 +180,7 @@ fn pad_sha512_variable<F: RichField + Extendable<D>, const D: usize, const MAX_N
 ) -> Vec<BoolTarget> {
     let mut msg_input = Vec::new();
 
-    let mut length_bits = builder.split_le(hash_msg_length_bits, 64);
+    let mut length_bits = builder.split_le(hash_msg_length_bits, 128);
     // Convert length to BE bits
     length_bits.reverse();
 
