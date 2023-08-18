@@ -8,8 +8,8 @@ pub macro address($hex_literal:expr) {
 
 pub macro bytes($hex_literal:expr) {{
     let hex_string = $hex_literal;
-    let stripped = if hex_string.starts_with("0x") {
-        &hex_string[2..]
+    let stripped = if let Some(stripped) = hex_string.strip_prefix("0x") {
+        stripped
     } else {
         &hex_string
     };

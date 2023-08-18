@@ -54,7 +54,7 @@ impl CircuitVariable for U256Variable {
 
 fn to_limbs(value: U256) -> [u32; 4] {
     let mut bytes = [0u8; 32];
-    value.to_little_endian(&mut bytes.as_mut());
+    value.to_little_endian(&mut bytes);
     [
         u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
         u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]),
