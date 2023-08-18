@@ -433,10 +433,10 @@ pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
     msg_input.extend_from_slice(message);
 
     // TODO: Range check size of msg_bit_len?
-    let msg_bit_len: usize = message.len();
+    let msg_bit_len: u128 = message.len().try_into().expect("message too long");
 
     // minimum_padding = 1 + 128 (min 1 bit for the pad, and 128 bit for the msg size)
-    let msg_with_min_padding_len = msg_bit_len + LENGTH_BITS_128 + 1;
+    let msg_with_min_padding_len = msg_bit_len as usize + LENGTH_BITS_128 + 1;
 
     let additional_padding_len = CHUNK_BITS_1024 - (msg_with_min_padding_len % CHUNK_BITS_1024);
 
