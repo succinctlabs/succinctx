@@ -22,7 +22,7 @@ pub struct BeaconValidatorVariable {
 }
 
 impl CircuitVariable for BeaconValidatorVariable {
-    type ValueType = BeaconValidator;
+    type ValueType<F> = BeaconValidator;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -41,7 +41,7 @@ impl CircuitVariable for BeaconValidatorVariable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
         Self {
             pubkey: BLSPubkeyVariable::constant(builder, bytes!(value.pubkey)),
@@ -77,7 +77,7 @@ impl CircuitVariable for BeaconValidatorVariable {
         targets
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         BeaconValidator {
             pubkey: hex!(self.pubkey.value(witness)),
             withdrawal_credentials: hex!(self.withdrawal_credentials.value(witness)),
@@ -90,7 +90,7 @@ impl CircuitVariable for BeaconValidatorVariable {
         }
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         self.pubkey.set(witness, bytes!(value.pubkey));
         self.withdrawal_credentials
             .set(witness, bytes32!(value.withdrawal_credentials));

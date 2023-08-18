@@ -12,7 +12,7 @@ use crate::builder::CircuitBuilder;
 pub struct U32Variable(pub Variable);
 
 impl CircuitVariable for U32Variable {
-    type ValueType = u32;
+    type ValueType<F> = u32;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -22,21 +22,21 @@ impl CircuitVariable for U32Variable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
-        Self(Variable::constant(builder, value as u64))
+        Self(Variable::constant(builder, F::from_canonical_u32(value)))
     }
 
     fn targets(&self) -> Vec<Target> {
         vec![self.0 .0]
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         let v = witness.get_target(self.0 .0);
         v.to_canonical_u64() as u32
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         witness.set_target(self.0 .0, F::from_canonical_u32(value));
     }
 }

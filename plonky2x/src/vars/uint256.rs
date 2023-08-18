@@ -15,7 +15,7 @@ use crate::builder::CircuitBuilder;
 pub struct U256Variable(pub [U32Variable; 4]);
 
 impl CircuitVariable for U256Variable {
-    type ValueType = U256;
+    type ValueType<F> = U256;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -25,7 +25,7 @@ impl CircuitVariable for U256Variable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
         let limbs = to_limbs(value);
         Self(array![i => U32Variable::constant(builder, limbs[i]); 4])
@@ -35,7 +35,7 @@ impl CircuitVariable for U256Variable {
         self.0.iter().flat_map(|v| v.targets()).collect_vec()
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         to_u256([
             self.0[0].value(witness),
             self.0[1].value(witness),
@@ -44,7 +44,7 @@ impl CircuitVariable for U256Variable {
         ])
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         let limbs = to_limbs(value);
         for i in 0..4 {
             self.0[i].set(witness, limbs[i]);

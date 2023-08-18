@@ -22,7 +22,7 @@ use crate::builder::CircuitBuilder;
 
 pub trait CircuitVariable {
     /// The underlying type of the variable if it were not in a circuit.
-    type ValueType;
+    type ValueType<F>;
 
     /// Initializes the variable with no value in the circuit.
     fn init<F: RichField + Extendable<D>, const D: usize>(
@@ -32,15 +32,15 @@ pub trait CircuitVariable {
     /// Initializes the variable with a constant value in the circuit.
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self;
 
     /// Returns the underlying targets used by the variable.
     fn targets(&self) -> Vec<Target>;
 
     /// Gets the value of the variable from the witness.
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType;
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F>;
 
     /// Sets the value of the variable in the witness.
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType);
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>);
 }
