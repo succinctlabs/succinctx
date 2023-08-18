@@ -13,7 +13,7 @@ use crate::vars::ByteVariable;
 pub struct BytesVariable<const N: usize>(pub [ByteVariable; N]);
 
 impl<const N: usize> CircuitVariable for BytesVariable<N> {
-    type ValueType<F> = Vec<u8>;
+    type ValueType<F> = [u8; N];
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -39,7 +39,7 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
     }
 
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        self.0.iter().map(|b| b.value(witness)).collect()
+        self.0.map(|b| b.value(witness))
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {

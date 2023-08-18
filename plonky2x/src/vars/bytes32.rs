@@ -25,8 +25,7 @@ impl CircuitVariable for Bytes32Variable {
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        let bytes = to_padded_bytes(value);
-        Self(BytesVariable::constant(builder, bytes.to_vec()))
+        Self(BytesVariable::constant(builder, value.0))
     }
 
     fn targets(&self) -> Vec<Target> {
@@ -39,14 +38,13 @@ impl CircuitVariable for Bytes32Variable {
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        let bytes = to_padded_bytes(value);
-        self.0.set(witness, bytes.to_vec());
+        self.0.set(witness, value.0);
     }
 }
 
-fn to_padded_bytes(value: H256) -> Vec<u8> {
-    let slice = value.as_bytes();
-    let mut bytes = [0u8; 32];
-    bytes[..slice.len()].copy_from_slice(slice);
-    bytes.to_vec()
-}
+// fn to_padded_bytes(value: H256) -> Vec<u8> {
+//     let slice = value.as_bytes();
+//     let mut bytes = [0u8; 32];
+//     bytes[..slice.len()].copy_from_slice(slice);
+//     bytes.to_vec()
+// }

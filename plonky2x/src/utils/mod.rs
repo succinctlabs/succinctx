@@ -13,7 +13,14 @@ pub macro bytes($hex_literal:expr) {{
     } else {
         &hex_string
     };
-    hex::decode(stripped).expect("Invalid hex string")
+    hex::decode(stripped)
+        .expect("Invalid hex string")
+        .try_into()
+        .expect(&format!(
+            "Wrong byte length {} for hex string {}",
+            stripped.len(),
+            hex_string
+        ))
 }}
 
 pub macro hex($bytes:expr) {{

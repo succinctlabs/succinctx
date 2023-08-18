@@ -5,7 +5,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::CircuitVariable;
 use crate::builder::CircuitBuilder;
-use crate::ops::{Add, Sub};
+use crate::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
 
 /// A variable in the circuit. It represents a field element`.
 #[derive(Debug, Clone, Copy)]
@@ -55,10 +55,46 @@ impl<F: RichField + Extendable<D>, const D: usize> Add<F, D> for Variable {
     }
 }
 
-
 impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for Variable {
     type Output = Variable;
     fn sub(self, rhs: Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
         Variable(builder.api.sub(self.0, rhs.0))
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Mul<F, D> for Variable {
+    type Output = Variable;
+    fn mul(self, rhs: Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        Variable(builder.api.mul(self.0, rhs.0))
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Neg<F, D> for Variable {
+    type Output = Variable;
+    fn neg(self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        Variable(builder.api.neg(self.0))
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Div<F, D> for Variable {
+    type Output = Variable;
+    fn div(self, rhs: Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        Variable(builder.api.div(self.0, rhs.0))
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for Variable {
+    type Output = Variable;
+
+    fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
+        Variable(builder.api.zero())
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> One<F, D> for Variable {
+    type Output = Variable;
+
+    fn one(builder: &mut CircuitBuilder<F, D>) -> Self {
+        Variable(builder.api.one())
     }
 }
