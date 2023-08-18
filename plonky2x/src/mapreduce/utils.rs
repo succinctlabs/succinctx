@@ -124,7 +124,6 @@ pub fn write_circuit_to_build_dir<F: RichField + Extendable<D>, C, const D: usiz
     // Write bytes to "./build/{hex!(circuit_digest).bin}"
     let dir = Path::new("./build");
     create_dir_all(dir).unwrap();
-    let elements = data.verifier_only.circuit_digest.elements;
     let path = dir.join(format!("{}.bin", name));
     let mut file = File::create(path).unwrap();
     file.write_all(&bytes).unwrap();

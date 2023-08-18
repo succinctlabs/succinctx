@@ -4,6 +4,7 @@ pub mod utils;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
+use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -19,8 +20,11 @@ use crate::mapreduce::utils::{read_circuit_from_build_dir, write_circuit_to_buil
 use crate::utils::hex;
 use crate::vars::CircuitVariable;
 
+/// This generator can generate a batch of recursive proof that proves statements of the form:
+///     f(I: CircuitVariable) -> O: CircuitVariable.
+/// In general, it is useful for doing map-reduce style or tree-like computations.
 #[derive(Debug, Clone)]
-pub struct RecursiveProofGenerator<
+pub struct BatchRecursiveProofGenerator<
     F: RichField + Extendable<D>,
     C,
     I: CircuitVariable + Debug + Clone + Sync + Send + 'static,
@@ -38,14 +42,14 @@ pub struct RecursiveProofGenerator<
     pub input_inner: I,
 
     /// The input target from the outer circuit used to set the inner input target.
-    pub input_outer: I,
+    pub input_outer: Vec<I>,
 
     /// The output target within the outer circuit. It is used to store the output of the inner
     /// circuit.
-    pub output_outer: O,
+    pub output_outer: Vec<O>,
 
     /// The proof that verifies that f_inner(input) = output within the outer circuit.
-    pub proof_outer: ProofWithPublicInputsTarget<D>,
+    pub proof_outer: Vec<ProofWithPublicInputsTarget<D>>,
 
     pub _phantom1: PhantomData<F>,
 
@@ -55,54 +59,92 @@ pub struct RecursiveProofGenerator<
 impl<
         F: RichField + Extendable<D>,
         C,
+        I: CircuitVariable + Debug + Clone + Sync + Send + 'static,
+        O: CircuitVariable + Debug + Clone + Sync + Send + 'static,
+        const D: usize,
+    > BatchRecursiveProofGenerator<F, C, I, O, D>
+where
+    C: GenericConfig<D, F = F> + 'static,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+{
+    pub fn new(
+        circuit_id: String,
+        input_inner: I,
+        input_outer: Vec<I>,
+        output_outer: Vec<O>,
+        proof_outer: Vec<ProofWithPublicInputsTarget<D>>,
+    ) -> Self {
+        assert_eq!(input_outer.len(), output_outer.len());
+        assert_eq!(output_outer.len(), proof_outer.len());
+        Self {
+            circuit_id,
+            input_inner,
+            input_outer,
+            output_outer,
+            proof_outer,
+            _phantom1: PhantomData::<F>,
+            _phantom2: PhantomData::<C>,
+        }
+    }
+}
+
+impl<
+        F: RichField + Extendable<D>,
+        C,
         I: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
         O: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
         const D: usize,
-    > SimpleGenerator<F, D> for RecursiveProofGenerator<F, C, I, O, D>
+    > SimpleGenerator<F, D> for BatchRecursiveProofGenerator<F, C, I, O, D>
 where
     C: GenericConfig<D, F = F> + 'static,
     <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
 {
     fn id(&self) -> String {
-        "MapGenerator".to_string()
+        "BatchRecursiveProofGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
-        self.input_outer.targets()
+        let mut targets = Vec::new();
+        for i in 0..self.input_outer.len() {
+            targets.extend(self.input_outer[i].targets());
+        }
+        targets
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
         // Read the inner circuit from the build folder.
         let data = read_circuit_from_build_dir::<F, C, D>(&self.circuit_id);
 
-        // Set the inputs to the inner circuit.
-        let mut pw = PartialWitness::new();
-        let input_value = self.input_outer.value(witness);
-        self.input_inner.set(&mut pw, input_value);
+        for i in 0..self.input_outer.len() {
+            // Set the inputs to the inner circuit.
+            let mut pw = PartialWitness::new();
+            let input_value = self.input_outer[i].value(witness);
+            self.input_inner.set(&mut pw, input_value);
 
-        // Generate the inner proof.
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof.clone()).unwrap();
+            // Generate the inner proof.
+            let proof = data.prove(pw).unwrap();
+            data.verify(proof.clone()).unwrap();
 
-        // Set the proof target in the outer circuit with the generated proof.
-        out_buffer.set_proof_with_pis_target(&self.proof_outer, &proof);
+            // Set the proof target in the outer circuit with the generated proof.
+            out_buffer.set_proof_with_pis_target(&self.proof_outer[i], &proof);
 
-        // Set the output target in the outer circuit with the output of the inner circuit.
-        let output_targets = self.output_outer.targets();
-        for i in 0..output_targets.len() {
-            out_buffer.set_target(output_targets[i], proof.public_inputs[i]);
+            // Set the output target in the outer circuit with the output of the inner circuit.
+            let output_targets = self.output_outer[i].targets();
+            for i in 0..output_targets.len() {
+                out_buffer.set_target(output_targets[i], proof.public_inputs[i]);
+            }
+
+            println!("successfully generated inner proof within generator");
         }
-
-        println!("successfully generated proof within generator");
     }
 
+    #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        println!("serialize map generator");
         todo!()
     }
 
+    #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        println!("deserialize map generator");
         todo!()
     }
 }
@@ -117,7 +159,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         &mut self,
         inputs: Vec<I>,
         m: M,
-    ) where
+    ) -> Vec<O>
+    where
         C: GenericConfig<D, F = F> + 'static,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
         M: Fn(I, &mut CircuitBuilder<F, D>) -> O,
@@ -172,28 +215,26 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             }
         }
 
-        // Initialize proofs which will be witnessed from the generator.
-        let mut proofs = Vec::new();
-        for _ in 0..inputs.len() {
-            let proof = self.api.add_virtual_proof_with_pis(&data.common);
-            proofs.push(proof);
+        // Setup the generator.
+        let proofs = (0..inputs.len())
+            .map(|_| self.api.add_virtual_proof_with_pis(&data.common))
+            .collect_vec();
+        let outputs = (0..inputs.len()).map(|_| self.init::<O>()).collect_vec();
+        let generator = BatchRecursiveProofGenerator::<F, C, I, O, D>::new(
+            digest,
+            input_inner,
+            inputs.clone(),
+            outputs,
+            proofs.clone(),
+        );
+        self.api.add_simple_generator(generator.clone());
+
+        // Verify the generated proofs.
+        for i in 0..inputs.len() {
+            self.api.verify_proof::<C>(&proofs[i], &vd, &data.common)
         }
 
-        for i in 0..proofs.len() {
-            let generator = RecursiveProofGenerator {
-                circuit_id: digest.clone(),
-                input_inner: input_inner.clone(),
-                input_outer: inputs[i].to_owned(),
-                output_outer: self.init::<O>(),
-                proof_outer: proofs[i].to_owned(),
-                _phantom1: PhantomData::<F>,
-                _phantom2: PhantomData::<C>,
-            };
-            self.api
-                .register_public_inputs(generator.output_outer.targets().as_slice());
-            self.api.verify_proof::<C>(&proofs[0], &vd, &data.common);
-            self.api.add_simple_generator(generator);
-        }
+        generator.output_outer
     }
 }
 
@@ -204,7 +245,7 @@ pub(crate) mod tests {
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use crate::builder::CircuitBuilder;
-    use crate::vars::Variable;
+    use crate::vars::{CircuitVariable, Variable};
 
     #[test]
     fn test_simple_circuit() {
@@ -218,11 +259,16 @@ pub(crate) mod tests {
         let b = builder.constant::<Variable>(1);
         let c = builder.constant::<Variable>(2);
 
-        builder.map::<Variable, Variable, C, _>(vec![a, b, c], |input, builder| {
+        let outputs = builder.map::<Variable, Variable, C, _>(vec![a, b, c], |input, builder| {
             let constant = builder.constant::<Variable>(1);
             let sum = builder.add(input, constant);
             sum
         });
+        for i in 0..outputs.len() {
+            builder
+                .api
+                .register_public_inputs(outputs[i].targets().as_slice());
+        }
 
         println!("compiling outer circuit");
         let data = builder.build::<C>();
