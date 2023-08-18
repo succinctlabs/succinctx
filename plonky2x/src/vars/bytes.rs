@@ -13,7 +13,7 @@ use crate::vars::ByteVariable;
 pub struct BytesVariable<const N: usize>(pub [ByteVariable; N]);
 
 impl<const N: usize> CircuitVariable for BytesVariable<N> {
-    type ValueType = Vec<u8>;
+    type ValueType<F> = Vec<u8>;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -23,7 +23,7 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
         assert!(
             value.len() == N,
@@ -38,11 +38,11 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         self.0.iter().flat_map(|b| b.targets()).collect()
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         self.0.iter().map(|b| b.value(witness)).collect()
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         assert!(
             value.len() == N,
             "vector of values has wrong length: expected {} got {}",

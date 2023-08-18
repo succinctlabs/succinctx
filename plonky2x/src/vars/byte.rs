@@ -14,7 +14,7 @@ use crate::builder::CircuitBuilder;
 pub struct ByteVariable(pub [BoolVariable; 8]);
 
 impl CircuitVariable for ByteVariable {
-    type ValueType = u8;
+    type ValueType<F> = u8;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -24,7 +24,7 @@ impl CircuitVariable for ByteVariable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
         let value_be_bits = (0..8).map(|i| ((1 << (7 - i)) & value) != 0).collect_vec();
         Self(array![i => BoolVariable::constant(builder, value_be_bits[i]); 8])
@@ -39,7 +39,7 @@ impl CircuitVariable for ByteVariable {
             .collect()
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         let mut acc: u64 = 0;
         for i in 0..8 {
             let term = (1 << (7 - i)) * (BoolVariable::value(&self.0[i], witness) as u64);
@@ -48,7 +48,7 @@ impl CircuitVariable for ByteVariable {
         acc as u8
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         let value_be_bits = (0..8)
             .map(|i| ((1 << (7 - i)) & value) != 0)
             .collect::<Vec<_>>();
