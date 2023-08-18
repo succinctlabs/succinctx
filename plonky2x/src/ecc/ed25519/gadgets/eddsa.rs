@@ -381,7 +381,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Once;
     use std::time::SystemTime;
 
     use anyhow::Result;
@@ -402,19 +401,7 @@ mod tests {
     use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
     use crate::ecc::ed25519::gadgets::eddsa::{verify_signatures_circuit, verify_variable_signatures_circuit};
     use crate::num::biguint::WitnessBigUint;
-    use crate::hash::sha::sha512::calculate_num_chunks;
     use crate::utils::setup_logger;
-
-    // static INIT: Once = Once::new();
-
-    // fn setup() {
-    //     INIT.call_once(|| {
-    //         let mut builder_logger = env_logger::Builder::from_default_env();
-    //         builder_logger.format_timestamp(None);
-    //         builder_logger.filter_level(log::LevelFilter::Trace);
-    //         let _ = builder_logger.try_init();
-    //     });
-    // }
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
