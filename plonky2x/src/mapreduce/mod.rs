@@ -44,16 +44,14 @@ pub struct BatchRecursiveProofGenerator<
     /// The input target from the outer circuit used to set the inner input target.
     pub input_outer: Vec<I>,
 
-    /// The output target within the outer circuit. It is used to store the output of the inner
-    /// circuit.
-    pub output_outer: Vec<O>,
-
     /// The proof that verifies that f_inner(input) = output within the outer circuit.
     pub proof_outer: Vec<ProofWithPublicInputsTarget<D>>,
 
     pub _phantom1: PhantomData<F>,
 
     pub _phantom2: PhantomData<C>,
+
+    pub _phantom3: PhantomData<O>,
 }
 
 impl<
@@ -71,19 +69,17 @@ where
         circuit_id: String,
         input_inner: I,
         input_outer: Vec<I>,
-        output_outer: Vec<O>,
         proof_outer: Vec<ProofWithPublicInputsTarget<D>>,
     ) -> Self {
-        assert_eq!(input_outer.len(), output_outer.len());
-        assert_eq!(output_outer.len(), proof_outer.len());
+        assert_eq!(input_outer.len(), proof_outer.len());
         Self {
             circuit_id,
             input_inner,
             input_outer,
-            output_outer,
             proof_outer,
             _phantom1: PhantomData::<F>,
             _phantom2: PhantomData::<C>,
+            _phantom3: PhantomData::<O>,
         }
     }
 }
@@ -128,12 +124,6 @@ where
             // Set the proof target in the outer circuit with the generated proof.
             out_buffer.set_proof_with_pis_target(&self.proof_outer[i], &proof);
 
-            // Set the output target in the outer circuit with the output of the inner circuit.
-            let output_targets = self.output_outer[i].targets();
-            for i in 0..output_targets.len() {
-                out_buffer.set_target(output_targets[i], proof.public_inputs[i]);
-            }
-
             println!("successfully generated inner proof within generator");
         }
     }
@@ -170,6 +160,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             let mut builder = CircuitBuilder::<F, D>::new();
             let input_inner = builder.init::<I>();
             let output_inner = m(input_inner.clone(), &mut builder);
+            builder
+                .api
+                .register_public_inputs(input_inner.targets().as_slice());
             builder
                 .api
                 .register_public_inputs(output_inner.targets().as_slice());
@@ -219,12 +212,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let proofs = (0..inputs.len())
             .map(|_| self.api.add_virtual_proof_with_pis(&data.common))
             .collect_vec();
-        let outputs = (0..inputs.len()).map(|_| self.init::<O>()).collect_vec();
+
         let generator = BatchRecursiveProofGenerator::<F, C, I, O, D>::new(
             digest,
             input_inner,
             inputs.clone(),
-            outputs,
             proofs.clone(),
         );
         self.api.add_simple_generator(generator.clone());
@@ -234,7 +226,25 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             self.api.verify_proof::<C>(&proofs[i], &vd, &data.common)
         }
 
-        generator.output_outer
+        // Connect inner inputs to outer inputs and inner outputs to outer inputs.
+        let outputs = (0..inputs.len()).map(|_| self.init::<O>()).collect_vec();
+        for i in 0..inputs.len() {
+            let mut ptr = 0;
+            let input_targets = inputs[i].targets();
+            for j in 0..input_targets.len() {
+                self.api
+                    .connect(proofs[i].public_inputs[ptr + j], input_targets[j])
+            }
+
+            ptr += input_targets.len();
+            let output_targets = outputs[i].targets();
+            for j in 0..output_targets.len() {
+                self.api
+                    .connect(proofs[i].public_inputs[ptr + j], output_targets[j])
+            }
+        }
+
+        outputs
     }
 }
 
@@ -258,12 +268,15 @@ pub(crate) mod tests {
         let a = builder.constant::<Variable>(0);
         let b = builder.constant::<Variable>(1);
         let c = builder.constant::<Variable>(2);
+        let d = builder.constant::<Variable>(3);
 
-        let outputs = builder.map::<Variable, Variable, C, _>(vec![a, b, c], |input, builder| {
+        let inputs = vec![a, b, c, d];
+        let outputs = builder.map::<Variable, Variable, C, _>(inputs, |input, builder| {
             let constant = builder.constant::<Variable>(1);
             let sum = builder.add(input, constant);
             sum
         });
+
         for i in 0..outputs.len() {
             builder
                 .api
