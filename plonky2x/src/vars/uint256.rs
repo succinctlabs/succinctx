@@ -11,7 +11,7 @@ use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct U256Variable(pub [U32Variable; 4]);
 
 impl CircuitVariable for U256Variable {

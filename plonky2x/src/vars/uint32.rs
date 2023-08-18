@@ -8,7 +8,7 @@ use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct U32Variable(pub Variable);
 
 impl CircuitVariable for U32Variable {

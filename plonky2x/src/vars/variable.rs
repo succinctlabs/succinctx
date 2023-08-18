@@ -8,7 +8,7 @@ use super::CircuitVariable;
 use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit. It represents a value between `[0, 2**64 - 2**32 + 1)`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Variable(pub Target);
 
 impl CircuitVariable for Variable {

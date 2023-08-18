@@ -7,7 +7,7 @@ use super::{CircuitVariable, Variable};
 use crate::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a boolean value.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct BoolVariable(pub Variable);
 
 impl CircuitVariable for BoolVariable {
