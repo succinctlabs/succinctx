@@ -23,7 +23,10 @@ impl CircuitVariable for BoolVariable {
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        Self(Variable::constant(builder, F::from_canonical_u8(value as u8)))
+        Self(Variable::constant(
+            builder,
+            F::from_canonical_u8(value as u8),
+        ))
     }
 
     fn targets(&self) -> Vec<Target> {

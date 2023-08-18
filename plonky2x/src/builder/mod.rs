@@ -60,11 +60,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         V::constant(self, value)
     }
 
-    /// Add returns res = i1 + i2.
-    pub fn add(&mut self, i1: Variable, i2: Variable) -> Variable {
-        self.api.add(i1.0, i2.0).into()
-    }
-
     /// Add returns res = i1 + i2 + ...
     pub fn add_many(&mut self, values: &[Variable]) -> Variable {
         let mut acc = values[0].0;
@@ -72,11 +67,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             acc = self.api.add(acc, values[i].0);
         }
         acc.into()
-    }
-
-    /// Sub returns res = i1 - i2.
-    pub fn sub(&mut self, i1: Variable, i2: Variable) -> Variable {
-        self.api.sub(i1.0, i2.0).into()
     }
 
     /// Sub returns res = i1 - i2 - ...

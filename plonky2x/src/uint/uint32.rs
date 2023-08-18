@@ -3,8 +3,8 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{CircuitVariable, Variable};
 use crate::builder::CircuitBuilder;
+use crate::vars::{CircuitVariable, Variable};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
