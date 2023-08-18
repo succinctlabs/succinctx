@@ -591,7 +591,7 @@ dependencies = [
  "itertools 0.10.5",
  "log",
  "num",
- "plonky2 0.1.4",
+ "plonky2",
  "plonky2_maybe_rayon",
  "rand",
  "serde",
@@ -2340,30 +2340,6 @@ checksum = "e3d7ddaed09e0eb771a79ab0fd64609ba0afb0a8366421957936ad14cbd13630"
 
 [[package]]
 name = "plonky2"
-version = "0.1.3"
-source = "git+https://github.com/succinctlabs/plonky2.git?rev=02d8d85877f18bf4b6b97f1bfae62160de528a21#02d8d85877f18bf4b6b97f1bfae62160de528a21"
-dependencies = [
- "ahash",
- "anyhow",
- "getrandom",
- "hashbrown 0.14.0",
- "itertools 0.11.0",
- "keccak-hash",
- "log",
- "num",
- "plonky2_field",
- "plonky2_maybe_rayon",
- "plonky2_util",
- "rand",
- "rand_chacha",
- "serde",
- "serde_json",
- "static_assertions",
- "unroll",
-]
-
-[[package]]
-name = "plonky2"
 version = "0.1.4"
 source = "git+https://github.com/mir-protocol/plonky2.git#c9eed2bbf935c8da540df11de53edd2a78ed3497"
 dependencies = [
@@ -2379,6 +2355,7 @@ dependencies = [
  "plonky2_maybe_rayon",
  "plonky2_util",
  "rand",
+ "rand_chacha",
  "serde",
  "serde_json",
  "static_assertions",
@@ -2433,7 +2410,7 @@ dependencies = [
  "itertools 0.10.5",
  "log",
  "num",
- "plonky2 0.1.3",
+ "plonky2",
  "rand",
  "reqwest",
  "serde",

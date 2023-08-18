@@ -3,59 +3,24 @@ pub mod utils;
 
 use core::fmt::Debug;
 use core::marker::PhantomData;
-use std::fs::{self, create_dir_all, File};
-use std::io::Write;
-use std::path::Path;
 
 use plonky2::field::extension::Extendable;
-use plonky2::gates::arithmetic_base::ArithmeticBaseGenerator;
-use plonky2::gates::poseidon::PoseidonGenerator;
-use plonky2::gates::poseidon_mds::PoseidonMdsGenerator;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::generator::{
-    ConstantGenerator, GeneratedValues, RandomValueGenerator, SimpleGenerator,
-};
+use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartialWitness, PartitionWitness};
-use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData};
-use plonky2::plonk::config::{
-    AlgebraicHasher, GenericConfig, GenericHashOut, PoseidonGoldilocksConfig,
-};
-use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
-use plonky2::recursion::dummy_circuit::DummyProofGenerator;
-use plonky2::util::serialization::{
-    Buffer, DefaultGateSerializer, DefaultGeneratorSerializer, IoResult, WitnessGeneratorSerializer,
-};
+use plonky2::iop::witness::{PartialWitness, PartitionWitness, WitnessWrite};
+use plonky2::plonk::circuit_data::CommonCircuitData;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::proof::ProofWithPublicInputsTarget;
+use plonky2::util::serialization::{Buffer, IoResult};
 
 use crate::builder::CircuitBuilder;
-use crate::impl_generator_serializer;
+use crate::mapreduce::utils::{read_circuit_from_build_dir, write_circuit_to_build_dir};
 use crate::utils::hex;
 use crate::vars::CircuitVariable;
 
-pub struct CustomGeneratorSerializer<C: GenericConfig<D>, const D: usize> {
-    pub _phantom: PhantomData<C>,
-}
-
-impl<F: RichField + Extendable<D>, C, const D: usize> WitnessGeneratorSerializer<F, D>
-    for CustomGeneratorSerializer<C, D>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static,
-    C::Hasher: AlgebraicHasher<F>,
-{
-    impl_generator_serializer! {
-        CustomGeneratorSerializer,
-        DummyProofGenerator<F, C, D>, "DummyProofGenerator",
-        ArithmeticBaseGenerator<F, D>, "ArithmeticBaseGenerator",
-        ConstantGenerator<F>, "ConstantGenerator",
-        PoseidonGenerator<F, D>, "PoseidonGenerator",
-        PoseidonMdsGenerator<D>, "PoseidonMdsGenerator",
-        RandomValueGenerator, "RandomValueGenerator"
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct MapGenerator<
+pub struct RecursiveProofGenerator<
     F: RichField + Extendable<D>,
     C,
     I: CircuitVariable + Debug + Clone + Sync + Send + 'static,
@@ -65,12 +30,25 @@ pub struct MapGenerator<
     C: GenericConfig<D, F = F> + 'static,
     <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
 {
-    pub circuit_digest: String,
-    pub input: I,
+    /// The circuit digest is used as an "id" to know which inner circuit to run from the build
+    /// folder.
+    pub circuit_id: String,
+
+    /// The input target within the inner circuit. It should encapsulate all public inputs.
     pub input_inner: I,
-    pub proof: ProofWithPublicInputsTarget<D>,
-    pub output: O,
+
+    /// The input target from the outer circuit used to set the inner input target.
+    pub input_outer: I,
+
+    /// The output target within the outer circuit. It is used to store the output of the inner
+    /// circuit.
+    pub output_outer: O,
+
+    /// The proof that verifies that f_inner(input) = output within the outer circuit.
+    pub proof_outer: ProofWithPublicInputsTarget<D>,
+
     pub _phantom1: PhantomData<F>,
+
     pub _phantom2: PhantomData<C>,
 }
 
@@ -80,7 +58,7 @@ impl<
         I: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
         O: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
         const D: usize,
-    > SimpleGenerator<F, D> for MapGenerator<F, C, I, O, D>
+    > SimpleGenerator<F, D> for RecursiveProofGenerator<F, C, I, O, D>
 where
     C: GenericConfig<D, F = F> + 'static,
     <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
@@ -90,27 +68,31 @@ where
     }
 
     fn dependencies(&self) -> Vec<Target> {
-        self.input.targets()
+        self.input_outer.targets()
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        println!("{}", self.circuit_digest);
-        let bytes = fs::read(format!("./build/{}.bin", self.circuit_digest)).unwrap();
+        // Read the inner circuit from the build folder.
+        let data = read_circuit_from_build_dir::<F, C, D>(&self.circuit_id);
 
-        // Save the compiled circuit to disk.
-        let gate_serializer = DefaultGateSerializer;
-        let generator_serializer = CustomGeneratorSerializer::<C, D> {
-            _phantom: PhantomData,
-        };
-        let data =
-            CircuitData::<F, C, D>::from_bytes(&bytes, &gate_serializer, &generator_serializer)
-                .unwrap();
-        println!("{:?}", data);
-
+        // Set the inputs to the inner circuit.
         let mut pw = PartialWitness::new();
-        self.input_inner.set(&mut pw, self.input.value(witness));
+        let input_value = self.input_outer.value(witness);
+        self.input_inner.set(&mut pw, input_value);
+
+        // Generate the inner proof.
         let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
+        data.verify(proof.clone()).unwrap();
+
+        // Set the proof target in the outer circuit with the generated proof.
+        out_buffer.set_proof_with_pis_target(&self.proof_outer, &proof);
+
+        // Set the output target in the outer circuit with the output of the inner circuit.
+        let output_targets = self.output_outer.targets();
+        for i in 0..output_targets.len() {
+            out_buffer.set_target(output_targets[i], proof.public_inputs[i]);
+        }
+
         println!("successfully generated proof within generator");
     }
 
@@ -141,98 +123,77 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         M: Fn(I, &mut CircuitBuilder<F, D>) -> O,
     {
         // Build the inner circuit.
-        let data = {
+        let (data, input_inner) = {
             let mut builder = CircuitBuilder::<F, D>::new();
             let input_inner = builder.init::<I>();
-            m(input_inner.clone(), &mut builder);
-            builder.build::<C>()
+            let output_inner = m(input_inner.clone(), &mut builder);
+            builder
+                .api
+                .register_public_inputs(output_inner.targets().as_slice());
+            (builder.build::<C>(), input_inner)
         };
-        println!("{:?}", data);
+        println!("built inner circuit");
 
-        // Save the compiled circuit to disk.
-        let gate_serializer = DefaultGateSerializer;
-        let generator_serializer = CustomGeneratorSerializer::<C, D> {
-            _phantom: PhantomData,
-        };
-
-        let bytes = data
-            .to_bytes(&gate_serializer, &generator_serializer)
-            .unwrap();
-
-        let dir = Path::new("./build");
-        create_dir_all(dir).unwrap();
-
-        let elements = data.verifier_only.circuit_digest.elements;
-        let digest = hex!(elements
+        // Calculate the circuit digest.
+        let digest = hex!(data
+            .verifier_only
+            .circuit_digest
+            .elements
             .iter()
             .map(|e| e.to_canonical_u64().to_be_bytes())
             .flatten()
             .collect::<Vec<u8>>());
-        let path = dir.join(format!("{}.bin", digest));
-        let mut file = File::create(path).unwrap();
-        file.write_all(&bytes).unwrap();
 
-        let data =
-            CircuitData::<F, C, D>::from_bytes(&bytes, &gate_serializer, &generator_serializer)
-                .unwrap();
+        // Save the compiled circuit to disk.
+        write_circuit_to_build_dir(&data, &digest);
+        println!("saved circuit to disk at {}", digest);
 
-        // // Set the verifier data target to be the verifier data, which is a constant.
-        // let vd = self
-        //     .api
-        //     .add_virtual_verifier_data(data.common.config.fri_config.cap_height);
+        // Set the verifier data target to be the verifier data, which is a constant.
+        let vd = self
+            .api
+            .add_virtual_verifier_data(data.common.config.fri_config.cap_height);
 
-        // // Set the circuit digest.
-        // for i in 0..vd.circuit_digest.elements.len() {
-        //     let constant = self
-        //         .api
-        //         .constant(data.verifier_only.circuit_digest.elements[i]);
-        //     self.api.connect(vd.circuit_digest.elements[i], constant);
-        // }
+        // Set the circuit digest.
+        for i in 0..vd.circuit_digest.elements.len() {
+            let constant = self
+                .api
+                .constant(data.verifier_only.circuit_digest.elements[i]);
+            self.api.connect(vd.circuit_digest.elements[i], constant);
+        }
 
-        // // Set the constant sigmas cap.
-        // for i in 0..vd.constants_sigmas_cap.0.len() {
-        //     let cap = vd.constants_sigmas_cap.0[i].elements;
-        //     for j in 0..cap.len() {
-        //         let constant = self
-        //             .api
-        //             .constant(data.verifier_only.constants_sigmas_cap.0[i].elements[j]);
-        //         self.api.connect(cap[j], constant);
-        //     }
-        // }
+        // Set the constant sigmas cap.
+        for i in 0..vd.constants_sigmas_cap.0.len() {
+            let cap = vd.constants_sigmas_cap.0[i].elements;
+            for j in 0..cap.len() {
+                let constant = self
+                    .api
+                    .constant(data.verifier_only.constants_sigmas_cap.0[i].elements[j]);
+                self.api.connect(cap[j], constant);
+            }
+        }
 
-        // // Initialize proofs which will be witnessed from the generator.
-        // let mut proofs = Vec::new();
-        // for _ in 0..inputs.len() {
-        //     let proof = self.api.add_virtual_proof_with_pis(&data.common);
-        //     proofs.push(proof);
-        // }
+        // Initialize proofs which will be witnessed from the generator.
+        let mut proofs = Vec::new();
+        for _ in 0..inputs.len() {
+            let proof = self.api.add_virtual_proof_with_pis(&data.common);
+            proofs.push(proof);
+        }
 
-        // let generator = MapGenerator {
-        //     circuit_digest: digest,
-        //     input: inputs[0].to_owned(),
-        //     input_inner,
-        //     proof: proofs[0].to_owned(),
-        //     output: self.init::<O>(),
-        //     _phantom1: PhantomData::<F>,
-        //     _phantom2: PhantomData::<C>,
-        // };
-        // self.api.add_simple_generator(generator);
-
-        // Run the generator.
-
-        // generator to generate the proofs
-        // data = desrailzie(circuit_digest.bin)
-        // pf1 = data.prove(input)
-
-        // for i in 0..inputs.len() {
-        //     self.api.verify_proof::<C>(&proofs[i], &vd, &data.common);
-        // }
-
-        // let mut outputs = Vec::new();
-        // for i in 0..inputs.len() {
-        //     let output = O::from_targets(proofs[i].public_inputs.as_slice());
-        //     outputs.push(output)
-        // }
+        for i in 0..proofs.len() {
+            let generator = RecursiveProofGenerator {
+                circuit_id: digest.clone(),
+                input_inner: input_inner.clone(),
+                input_outer: inputs[i].to_owned(),
+                output_outer: self.init::<O>(),
+                proof_outer: proofs[i].to_owned(),
+                _phantom1: PhantomData::<F>,
+                _phantom2: PhantomData::<C>,
+            };
+            self.api
+                .register_public_inputs(generator.output_outer.targets().as_slice());
+            self.api.verify_proof::<C>(&proofs[0], &vd, &data.common);
+            self.api.add_simple_generator(generator);
+        }
     }
 }
 
@@ -263,9 +224,14 @@ pub(crate) mod tests {
             sum
         });
 
-        let pw = PartialWitness::new();
+        println!("compiling outer circuit");
         let data = builder.build::<C>();
+
+        println!("proving outer circuit");
+        let pw = PartialWitness::new();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
+        data.verify(proof.clone()).unwrap();
+
+        println!("result: {:?}", proof.public_inputs);
     }
 }

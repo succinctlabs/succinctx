@@ -1,3 +1,21 @@
+use core::marker::PhantomData;
+use std::fs::{self, create_dir_all, File};
+use std::io::Write;
+use std::path::Path;
+
+use plonky2::field::extension::Extendable;
+use plonky2::gates::arithmetic_base::ArithmeticBaseGenerator;
+use plonky2::gates::poseidon::PoseidonGenerator;
+use plonky2::gates::poseidon_mds::PoseidonMdsGenerator;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::generator::{ConstantGenerator, RandomValueGenerator};
+use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::recursion::dummy_circuit::DummyProofGenerator;
+use plonky2::util::serialization::{
+    Buffer, DefaultGateSerializer, IoResult, WitnessGeneratorSerializer,
+};
+
 #[macro_export]
 macro_rules! impl_generator_serializer {
     ($serializer:ty, $( $generator:ty, $name:expr ),* $(,)* ) => {
@@ -64,4 +82,75 @@ macro_rules! read_generator_impl {
             Err(plonky2::util::serialization::IoError)
         }
     }};
+}
+
+pub fn read_circuit_from_build_dir<F: RichField + Extendable<D>, C, const D: usize>(
+    name: &String,
+) -> CircuitData<F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F> + 'static,
+    C::Hasher: AlgebraicHasher<F>,
+{
+    let gate_serializer = DefaultGateSerializer;
+    let generator_serializer = CustomGeneratorSerializer::<C, D> {
+        _phantom: PhantomData,
+    };
+    let bytes = fs::read(format!("./build/{}.bin", name)).unwrap();
+    let data = CircuitData::<F, C, D>::from_bytes(&bytes, &gate_serializer, &generator_serializer)
+        .unwrap();
+    data
+}
+
+pub fn write_circuit_to_build_dir<F: RichField + Extendable<D>, C, const D: usize>(
+    data: &CircuitData<F, C, D>,
+    name: &String,
+) where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F> + 'static,
+    C::Hasher: AlgebraicHasher<F>,
+{
+    // Setup serializers.
+    let gate_serializer = DefaultGateSerializer;
+    let generator_serializer = CustomGeneratorSerializer::<C, D> {
+        _phantom: PhantomData,
+    };
+
+    // Serialize to bytes.
+    let bytes = data
+        .to_bytes(&gate_serializer, &generator_serializer)
+        .unwrap();
+
+    // Write bytes to "./build/{hex!(circuit_digest).bin}"
+    let dir = Path::new("./build");
+    create_dir_all(dir).unwrap();
+    let elements = data.verifier_only.circuit_digest.elements;
+    let path = dir.join(format!("{}.bin", name));
+    let mut file = File::create(path).unwrap();
+    file.write_all(&bytes).unwrap();
+
+    // Assert that the circuit can be deserialized from bytes.
+    CircuitData::<F, C, D>::from_bytes(&bytes, &gate_serializer, &generator_serializer).unwrap();
+}
+
+pub struct CustomGeneratorSerializer<C: GenericConfig<D>, const D: usize> {
+    pub _phantom: PhantomData<C>,
+}
+
+impl<F: RichField + Extendable<D>, C, const D: usize> WitnessGeneratorSerializer<F, D>
+    for CustomGeneratorSerializer<C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F> + 'static,
+    C::Hasher: AlgebraicHasher<F>,
+{
+    impl_generator_serializer! {
+        CustomGeneratorSerializer,
+        DummyProofGenerator<F, C, D>, "DummyProofGenerator",
+        ArithmeticBaseGenerator<F, D>, "ArithmeticBaseGenerator",
+        ConstantGenerator<F>, "ConstantGenerator",
+        PoseidonGenerator<F, D>, "PoseidonGenerator",
+        PoseidonMdsGenerator<D>, "PoseidonMdsGenerator",
+        RandomValueGenerator, "RandomValueGenerator"
+    }
 }

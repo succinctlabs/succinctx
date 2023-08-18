@@ -12,7 +12,7 @@ std = ["plonky2/std", "anyhow/std", "itertools/use_std"]
 timing = ["plonky2/timing"]
 
 [dependencies]
-plonky2 = { git = "https://github.com/succinctlabs/plonky2.git", default-features = false, rev = "02d8d85877f18bf4b6b97f1bfae62160de528a21"}
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false}
 anyhow = "1.0.71"
 curve25519-dalek = { git = "https://github.com/succinctlabs/curve25519-dalek.git", branch = "feature/edwards-point-getters" }
 curta = { git = "https://github.com/succinctlabs/curta.git" }
@@ -35,6 +35,6 @@ array-macro = "2.1.5"
 tracing = "0.1.37"
 
 [dev-dependencies]
-plonky2 = { git = "https://github.com/succinctlabs/plonky2.git", features = ["gate_testing"], rev = "02d8d85877f18bf4b6b97f1bfae62160de528a21"}
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = ["gate_testing"]}
 env_logger = { version = "0.9.0", default-features = false }
 rand = "0.8.4"
