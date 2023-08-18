@@ -57,7 +57,7 @@ impl CircuitVariable for AddressVariable {
     ) -> Self {
         Self(BytesVariable::constant(
             builder,
-            value.as_bytes().try_into().expect("Wrong slice length"),
+            value.as_bytes().try_into().expect("wrong slice length"),
         ))
     }
 
@@ -72,7 +72,7 @@ impl CircuitVariable for AddressVariable {
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         self.0.set(
             witness,
-            value.as_bytes().try_into().expect("Wrong slice length"),
+            value.as_bytes().try_into().expect("wrong slice length"),
         )
     }
 }
