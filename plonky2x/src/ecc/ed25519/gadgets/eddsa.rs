@@ -3,7 +3,7 @@ use core::fmt::Debug;
 use curta::chip::ec::edwards::ed25519::Ed25519 as CurtaEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::ScalarMulEd25519Gadget;
 use curta::chip::ec::edwards::EdwardsParameters;
-use curta::plonky2::field::CubicParameters;
+use curta::math::extension::CubicParameters;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;

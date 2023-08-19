@@ -1,4 +1,4 @@
-use curta::plonky2::field::PrimeField64;
+use curta::math::field::PrimeField64;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
