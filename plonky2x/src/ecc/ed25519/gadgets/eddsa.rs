@@ -381,7 +381,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Once;
     use std::time::SystemTime;
 
     use anyhow::Result;
@@ -402,20 +401,7 @@ mod tests {
     use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
     use crate::ecc::ed25519::gadgets::eddsa::{verify_signatures_circuit, verify_variable_signatures_circuit};
     use crate::num::biguint::WitnessBigUint;
-    use crate::hash::sha::sha512::calculate_num_chunks;
-
-    static INIT: Once = Once::new();
-
-    fn setup() {
-        INIT.call_once(|| {
-            let mut builder_logger = env_logger::Builder::from_default_env();
-            builder_logger.format_timestamp(None);
-            builder_logger.filter_level(log::LevelFilter::Trace);
-            builder_logger
-                .try_init()
-                .expect("Failed to initialize logger");
-        });
-    }
+    use crate::utils::setup_logger;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -545,7 +531,7 @@ mod tests {
         pub_keys: Vec<Vec<u8>>,
         sigs: Vec<Vec<u8>>,
     ) -> Result<()> {
-        setup();
+        setup_logger();
 
         assert!(msgs.len() == pub_keys.len());
         assert!(pub_keys.len() == sigs.len());
@@ -641,7 +627,7 @@ mod tests {
         pub_keys: Vec<Vec<u8>>,
         sigs: Vec<Vec<u8>>,
     ) -> Result<()> {
-        setup();
+        setup_logger();
 
         assert!(msgs.len() == pub_keys.len());
         assert!(pub_keys.len() == sigs.len());
