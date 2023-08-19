@@ -263,7 +263,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let map_circuit_input_path = format!("./build/map-{}.target", map_circuit_id);
         save_circuit(&map_circuit, map_circuit_path);
         save_circuit_variable(map_circuit_input, map_circuit_input_path);
-        println!("built map circuit");
 
         // For each reduce layer, we need to build a reduce circuit which reduces two input proofs
         // to an output O.
@@ -291,7 +290,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             save_proof_with_pis_target(reduce_circuit_input_right, reduce_circuit_input_right_path);
 
             reduce_circuits.push(reduce_circuit);
-            println!("built reduce circuit {}/{}", i + 1, nb_reduce_layers);
         }
 
         // Create generator to generate map and reduce proofs for each layer.
