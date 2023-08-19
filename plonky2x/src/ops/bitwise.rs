@@ -1,15 +1,13 @@
-//! Circuit builder interfaces for bitwise operations
-//!
+//! Circuit builder interfaces for bitwise operations.
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
 use crate::builder::CircuitBuilder;
 
-/// The bitwise and operation
+/// The bitwise AND operation.
 ///
-/// Computes lhs & rhs.
-/// This operation is invoked by builder.and(lhs, rhs)
+/// Types implementing this trait can be used within the `builder.and(lhs, rhs)` method.
 pub trait BitAnd<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
 
@@ -25,10 +23,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The bitwise or operation
+/// The bitwise OR operation.
 ///
-/// Computes lhs | rhs.
-/// This operation is invoked by builder.or(lhs, rhs)
+/// Types implementing this trait can be used within the `builder.or(lhs, rhs)` method.
 pub trait BitOr<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
 
@@ -44,10 +41,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The bitwise xor operation
+/// The bitwise XOR operation.
 ///
-/// Computes lhs ^ rhs.
-/// This operation is invoked by builder.xor(lhs, rhs)
+/// Types implementing this trait can be used within the `builder.xor(lhs, rhs)` method.
 pub trait BitXor<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
 
@@ -63,10 +59,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The bitwise not operation
+/// The bitwise NOT operation.
 ///
-/// Computes !lhs.
-/// This operation is invoked by builder.not(lhs)
+/// Types implementing this trait can be used within the `builder.not(variable)` method.
 pub trait Not<F: RichField + Extendable<D>, const D: usize> {
     type Output;
 
@@ -74,18 +69,17 @@ pub trait Not<F: RichField + Extendable<D>, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn not<Lhs>(&mut self, lhs: Lhs) -> <Lhs as Not<F, D>>::Output
+    pub fn not<T>(&mut self, variable: T) -> <T as Not<F, D>>::Output
     where
-        Lhs: Not<F, D>,
+        T: Not<F, D>,
     {
-        lhs.not(self)
+        variable.not(self)
     }
 }
 
-/// The left shift operation
+/// The left shift operation.
 ///
-/// Computes lhs << rhs.
-/// This operation is invoked by builder.shl(lhs, rhs)
+/// Types implementing this trait can be used within the `builder.shl(lhs, rhs)` method.
 pub trait Shl<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
 
@@ -101,10 +95,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The right shift operation
+/// The right shift operation.
 ///
-/// Computes lhs >> rhs.
-/// This operation is invoked by builder.shr(lhs, rhs)
+/// Types implementing this trait can be used within the `builder.shr(lhs, rhs)` method.
 pub trait Shr<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
 
@@ -120,10 +113,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The rotate left operation
+/// The rotate left operation.
 ///
-/// Computes lhs.rotate_left(rhs).
-/// This operation is invoked by builder.rotate_left(lhs, rhs)
+/// Types implementing this trait can be used within the `builder.rotate_left(lhs, rhs)` method.
 pub trait RotateLeft<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
 
@@ -143,10 +135,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The rotate right operation
+/// The rotate right operation.
 ///
-/// Computes lhs.rotate_right(rhs).
-/// This operation is invoked by builder.rotate_right(lhs, rhs)
+/// Types implementing this trait can be used within the `builder.rotate_right(lhs, rhs)` method.
 pub trait RotateRight<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
 

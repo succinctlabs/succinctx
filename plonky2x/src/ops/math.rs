@@ -1,15 +1,15 @@
-//! Arithmetic operations
+//! Arithmetic operations.
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
 use crate::builder::CircuitBuilder;
 
-/// The addition operation
-///
-/// Computes lhs + rhs.
-/// This operation is invoked by builder.add(lhs, rhs) and returns a result
+/// The addition operation. 
+/// 
+/// Types implementing this trait can be used within the `builder.add(lhs, rhs)` method.
 pub trait Add<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
+    /// The output type of the operation.
     type Output;
 
     fn add(self, rhs: Rhs, builder: &mut CircuitBuilder<F, D>) -> Self::Output;
@@ -24,10 +24,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The subtraction operation
-///
-/// Computes lhs - rhs.
-/// This operation is invoked by builder.sub(lhs, rhs) and returns a result
+/// The subtraction operation. 
+/// 
+/// Types implementing this trait can be used within the `builder.sub(lhs, rhs)` method.
 pub trait Sub<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
 
@@ -43,10 +42,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The multiplication operation
+/// The multiplication operation.
 ///
-/// Computes lhs * rhs.
-/// This operation is invoked by builder.mul(lhs, rhs) and returns a result
+/// Types implementing this trait can be used within the `builder.mul(lhs, rhs)` method.
 pub trait Mul<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
 
@@ -62,10 +60,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The negation operation
+/// The negation operation.
 ///
-/// Computes -self.
-/// This operation is invoked by builder.neg(self) and returns a result
+/// Types implementing this trait can be used within the `builder.neg(value)` method.
 pub trait Neg<F: RichField + Extendable<D>, const D: usize> {
     type Output;
 
@@ -81,10 +78,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The division operation
+/// The division operation.
 ///
-/// Computes lhs / rhs.
-/// This operation is invoked by builder.div(lhs, rhs) and returns a result
+/// Types implementing this trait can be used within the `builder.div(lhs, rhs)` method.
 pub trait Div<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
 
@@ -101,6 +97,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 }
 
 /// A zero element
+/// 
+/// Types implementing this trait can be used to get an 'Output' type via the `builder.zero()`.
 pub trait Zero<F: RichField + Extendable<D>, const D: usize> {
     type Output;
 
@@ -117,6 +115,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 }
 
 /// A One element
+/// 
+/// Types implementing this trait can be used to get an 'Output' type via `builder.one()`.
 pub trait One<F: RichField + Extendable<D>, const D: usize> {
     type Output;
 

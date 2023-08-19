@@ -6,15 +6,14 @@ use curta::chip::ec::edwards::EdwardsParameters;
 use curta::plonky2::field::CubicParameters;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::BoolTarget;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::iop::target::Target;
 
 use crate::ecc::ed25519::curve::curve_types::Curve;
 use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
 use crate::ecc::ed25519::gadgets::curve::{AffinePointTarget, CircuitBuilderCurve};
-use crate::hash::sha::sha512::{sha512, sha512_variable, LENGTH_BITS_128, CHUNK_BITS_1024};
+use crate::hash::sha::sha512::{sha512, sha512_variable, CHUNK_BITS_1024, LENGTH_BITS_128};
 use crate::num::biguint::BigUintTarget;
 use crate::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
 use crate::num::u32::gadgets::arithmetic_u32::U32Target;
@@ -130,7 +129,8 @@ where
         // TODO: Should we range check that msg_length is less than MAX_MSG_LEN * 8?
         let msg_length = builder.add_virtual_target();
         // Note: Add 512 bits for the sig.r and pk_compressed
-        let compressed_sig_and_pk_t = builder.constant(F::from_canonical_usize(COMPRESSED_SIG_AND_PK_LEN_BITS));
+        let compressed_sig_and_pk_t =
+            builder.constant(F::from_canonical_usize(COMPRESSED_SIG_AND_PK_LEN_BITS));
         let hash_msg_length = builder.add(msg_length, compressed_sig_and_pk_t);
 
         msgs_lengths.push(msg_length);
@@ -166,7 +166,9 @@ where
             hash_msg.push(msg[i]);
         }
 
-        for i in (MAX_MSG_LEN_BITS + COMPRESSED_SIG_AND_PK_LEN_BITS)..(max_num_chunks*CHUNK_BITS_1024) {
+        for i in
+            (MAX_MSG_LEN_BITS + COMPRESSED_SIG_AND_PK_LEN_BITS)..(max_num_chunks * CHUNK_BITS_1024)
+        {
             hash_msg.push(builder._false());
         }
 
@@ -174,8 +176,8 @@ where
 
         let sha512_targets = sha512_variable::<F, D>(builder, max_num_chunks);
         builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_length);
-        
-        for i in 0..max_num_chunks*CHUNK_BITS_1024 {
+
+        for i in 0..max_num_chunks * CHUNK_BITS_1024 {
             builder.connect(sha512_targets.message[i].target, hash_msg[i].target);
         }
 
@@ -400,9 +402,11 @@ mod tests {
     use crate::ecc::ed25519::curve::eddsa::{verify_message, EDDSAPublicKey, EDDSASignature};
     use crate::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
-    use crate::ecc::ed25519::gadgets::eddsa::{verify_signatures_circuit, verify_variable_signatures_circuit};
-    use crate::num::biguint::WitnessBigUint;
+    use crate::ecc::ed25519::gadgets::eddsa::{
+        verify_signatures_circuit, verify_variable_signatures_circuit,
+    };
     use crate::hash::sha::sha512::calculate_num_chunks;
+    use crate::num::biguint::WitnessBigUint;
 
     static INIT: Once = Once::new();
 
@@ -791,15 +795,9 @@ mod tests {
         let sig_bytes = hex::decode(sig).unwrap();
 
         test_eddsa_circuit_with_test_case(
-            vec![
-                msg_bytes.to_vec(),
-            ],
-            vec![
-                pub_key_bytes.to_vec(),
-            ],
-            vec![
-                sig_bytes.to_vec(),
-            ],
+            vec![msg_bytes.to_vec()],
+            vec![pub_key_bytes.to_vec()],
+            vec![sig_bytes.to_vec()],
         )
     }
 
@@ -814,15 +812,9 @@ mod tests {
         let sig_bytes = hex::decode(sig).unwrap();
 
         test_variable_eddsa_circuit_with_test_case(
-            vec![
-                msg_bytes.to_vec(),
-            ],
-            vec![
-                pub_key_bytes.to_vec(),
-            ],
-            vec![
-                sig_bytes.to_vec(),
-            ],
+            vec![msg_bytes.to_vec()],
+            vec![pub_key_bytes.to_vec()],
+            vec![sig_bytes.to_vec()],
         )
     }
 }
