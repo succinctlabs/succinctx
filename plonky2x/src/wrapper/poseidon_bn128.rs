@@ -29,8 +29,8 @@ fn ark(state: &mut PoseidonState, it: usize) {
 
 fn exp5(mut x: Fr) -> Fr {
     let aux = x;
-    x.square();
-    x.square();
+    x = x.square();
+    x = x.square();
     x.mul_assign(&aux);
 
     x
