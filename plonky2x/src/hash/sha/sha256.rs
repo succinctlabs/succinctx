@@ -77,7 +77,7 @@ pub fn sha256_variable_length_single_chunk<F: RichField + Extendable<D>, const D
 }
 
 // Pad a variable length, single SHA256 chunk from a message
-pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
+fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget],
     // Length in bits (assumes less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
@@ -130,7 +130,7 @@ pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
 
 // Process SHA256 on padded chunks
 // reference: https://github.com/thomdixon/pysha2/blob/master/sha2/sha256.py
-pub fn process_sha256<F: RichField + Extendable<D>, const D: usize>(
+fn process_sha256<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     msg_input: &[BoolTarget],
 ) -> Vec<BoolTarget> {
@@ -517,7 +517,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_sha512_failure() {
+    fn test_sha256_failure() {
         let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
         let msg_bits = to_bits(msg.to_vec());
         let expected_digest = "9fcee6fbeadc123c38d5a97dbe58f8257b4906820d627425af668b94b795e74e";

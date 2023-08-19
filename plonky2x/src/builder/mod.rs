@@ -56,7 +56,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Initializes a variable with a constant value in the circuit.
-    pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType) -> V {
+    pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<F>) -> V {
         V::constant(self, value)
     }
 
