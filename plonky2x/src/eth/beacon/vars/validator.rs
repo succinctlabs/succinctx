@@ -9,6 +9,32 @@ use crate::ethutils::beacon::BeaconValidator;
 use crate::utils::{bytes, bytes32, hex};
 use crate::vars::{BoolVariable, Bytes32Variable, CircuitVariable, U256Variable};
 
+/*
+proof frequency: one per hour
+
+function computeValidatorBalanceSum(validatorPubkeys, timestamp) => uint256: {
+    let slot = timestamp_to_slot(slot);
+    validators = get_validators(slot)
+    sum = 0
+    for validator in validators:
+        for i in range(len(validatorPubkeys)):
+            if validator.pubkey == validatorPubkeys[i]:
+                sum += validator.effective_balance
+    return sum
+}
+
+function getValidatorSlashStatus(validatorPubkeys, timestamp) => bool[] {
+    let slot = timestamp_to_slot(slot);
+    validators = get_validators(slot)
+    slashing_statuses = []
+    for validator in validators:
+        for i in range(len(validatorPubkeys)):
+            if validator.pubkey == validatorPubkeys[i]:
+                slashing_statuses.append(validator.slashed)
+    return slashing_statuses
+}
+*/
+
 #[derive(Debug, Clone, Copy)]
 pub struct BeaconValidatorVariable {
     pub pubkey: BLSPubkeyVariable,

@@ -57,6 +57,22 @@ pub(crate) mod tests {
     use crate::vars::Bytes32Variable;
 
     #[test]
+    fn test_tvl_oracle() {
+        env_logger::init();
+        dotenv::dotenv().ok();
+
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_beacon_client(client);
+    }
+
+    #[test]
     fn test_get_validator_generator() {
         env_logger::init();
         dotenv::dotenv().ok();
@@ -75,11 +91,11 @@ pub(crate) mod tests {
             "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
         ));
         let validators = builder.get_beacon_validators(block_root);
+
         let balances = (0..4)
             .map(|i| {
-                builder
-                    .get_beacon_validator_from_u64(validators, i)
-                    .effective_balance
+                let validator = builder.get_beacon_validator_from_u64(validators, i);
+                validator.effective_balance
             })
             .collect_vec();
         println!("balances: {:?}", balances);
