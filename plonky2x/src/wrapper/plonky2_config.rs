@@ -1,7 +1,7 @@
 use core::fmt;
 
 use num::BigUint;
-use std::{error::Error, io::BufReader, marker::PhantomData};
+use std::{error::Error, marker::PhantomData};
 
 use ff::{Field as ff_Field, PrimeField};
 use plonky2::field::{
@@ -52,7 +52,7 @@ impl<F: RichField> GenericHashOut<F> for PoseidonBN128HashOut<F> {
 
     fn from_bytes(bytes: &[u8]) -> Self {
         let sized_bytes: [u8; 32] = bytes.try_into().unwrap();
-        let mut fr_repr = FrRepr(sized_bytes);
+        let fr_repr = FrRepr(sized_bytes);
         let fr = Fr::from_repr(fr_repr).unwrap();
 
         Self {
@@ -129,8 +129,7 @@ impl<'de, F: RichField> Deserialize<'de> for PoseidonBN128HashOut<F> {
         }
 
         let sized_bytes: [u8; 32] = bytes.try_into().unwrap();
-        let mut fr_repr = FrRepr(sized_bytes);
-        // fr_repr.read_le(bytes.as_slice()).unwrap();
+        let fr_repr = FrRepr(sized_bytes);
         let fr = Fr::from_repr(fr_repr).unwrap();
 
         Ok(Self {
@@ -165,7 +164,7 @@ impl<F: RichField> Hasher<F> for PoseidonBN128Hash {
                 }
 
                 let sized_bytes: [u8; 32] = bytes.try_into().unwrap();
-                let mut fr_repr = FrRepr(sized_bytes);
+                let fr_repr = FrRepr(sized_bytes);
                 state[j + 1] = Fr::from_repr(fr_repr).unwrap();
             }
             permution(&mut state);

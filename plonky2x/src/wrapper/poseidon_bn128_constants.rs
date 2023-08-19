@@ -11,7 +11,7 @@ lazy_static! {
 }
 
 fn load_c_constants() -> Vec<Fr> {
-    let mut c_constants = vec![Fr::default(); 88];
+    let mut c_constants = vec![Fr::ZERO; 88];
 
     c_constants[0] = Fr::from_str_vartime(
         "11633431549750490989983886834189948010834808234699737327785600195936805266405",
@@ -366,7 +366,7 @@ fn load_c_constants() -> Vec<Fr> {
 }
 
 fn load_s_constants() -> Vec<Fr> {
-    let mut s_constants = vec![Fr::default(); 392];
+    let mut s_constants = vec![Fr::ZERO; 392];
 
     s_constants[0] = Fr::from_str_vartime(
         "16023668707004248971294664614290028914393192768609916554276071736843535714477",
@@ -1931,7 +1931,7 @@ fn load_s_constants() -> Vec<Fr> {
 }
 
 fn load_m_matrix() -> Vec<Vec<Fr>> {
-    let mut m_matrix = vec![vec![Fr::default(); 4]; 4];
+    let mut m_matrix = vec![vec![Fr::ZERO; 4]; 4];
 
     m_matrix[0][0] = Fr::from_str_vartime(
         "16023668707004248971294664614290028914393192768609916554276071736843535714477",
@@ -2000,7 +2000,7 @@ fn load_m_matrix() -> Vec<Vec<Fr>> {
 }
 
 fn load_p_matrix() -> Vec<Vec<Fr>> {
-    let mut p_matrix = vec![vec![Fr::default(); 4]; 4];
+    let mut p_matrix = vec![vec![Fr::ZERO; 4]; 4];
 
     p_matrix[0][0] = Fr::from_str_vartime(
         "16023668707004248971294664614290028914393192768609916554276071736843535714477",
