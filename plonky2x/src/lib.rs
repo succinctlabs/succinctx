@@ -16,3 +16,4 @@ pub mod hash;
 pub mod num;
 pub mod utils;
 pub mod vars;
+pub mod wrapper;
