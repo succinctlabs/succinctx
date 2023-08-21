@@ -53,12 +53,12 @@ pub(crate) mod tests {
 
     use crate::builder::CircuitBuilder;
     use crate::ethutils::beacon::BeaconClient;
-    use crate::utils::bytes32;
+    use crate::utils::{bytes32, setup_logger};
     use crate::vars::Bytes32Variable;
 
     #[test]
     fn test_get_validator_generator() {
-        env_logger::init();
+        setup_logger();
         dotenv::dotenv().ok();
 
         type F = GoldilocksField;

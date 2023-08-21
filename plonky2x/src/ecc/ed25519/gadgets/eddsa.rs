@@ -3,7 +3,7 @@ use core::fmt::Debug;
 use curta::chip::ec::edwards::ed25519::Ed25519 as CurtaEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::ScalarMulEd25519Gadget;
 use curta::chip::ec::edwards::EdwardsParameters;
-use curta::plonky2::field::CubicParameters;
+use curta::math::extension::CubicParameters;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
@@ -383,7 +383,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Once;
     use std::time::SystemTime;
 
     use anyhow::Result;
@@ -402,24 +401,9 @@ mod tests {
     use crate::ecc::ed25519::curve::eddsa::{verify_message, EDDSAPublicKey, EDDSASignature};
     use crate::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
-    use crate::ecc::ed25519::gadgets::eddsa::{
-        verify_signatures_circuit, verify_variable_signatures_circuit,
-    };
-    use crate::hash::sha::sha512::calculate_num_chunks;
+    use crate::ecc::ed25519::gadgets::eddsa::{verify_signatures_circuit, verify_variable_signatures_circuit};
     use crate::num::biguint::WitnessBigUint;
-
-    static INIT: Once = Once::new();
-
-    fn setup() {
-        INIT.call_once(|| {
-            let mut builder_logger = env_logger::Builder::from_default_env();
-            builder_logger.format_timestamp(None);
-            builder_logger.filter_level(log::LevelFilter::Trace);
-            builder_logger
-                .try_init()
-                .expect("Failed to initialize logger");
-        });
-    }
+    use crate::utils::setup_logger;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -549,7 +533,7 @@ mod tests {
         pub_keys: Vec<Vec<u8>>,
         sigs: Vec<Vec<u8>>,
     ) -> Result<()> {
-        setup();
+        setup_logger();
 
         assert!(msgs.len() == pub_keys.len());
         assert!(pub_keys.len() == sigs.len());
@@ -645,7 +629,7 @@ mod tests {
         pub_keys: Vec<Vec<u8>>,
         sigs: Vec<Vec<u8>>,
     ) -> Result<()> {
-        setup();
+        setup_logger();
 
         assert!(msgs.len() == pub_keys.len());
         assert!(pub_keys.len() == sigs.len());
