@@ -10,11 +10,13 @@ use ethers::types::H256;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::config::PoseidonGoldilocksConfig;
 use plonky2::plonk::circuit_data::CircuitData;
+use plonky2::field::goldilocks_field::GoldilocksField;
 
 use crate::vars::CircuitVariable;
 use crate::builder::CircuitBuilder;
 use crate::vars::{ByteVariable, Bytes32Variable};
 use crate::succinct::build::CircuitBuild;
+use crate::succinct::utils::{load_circuit, save_circuit};
 
 pub trait Circuit<F: RichField + Extendable<D>, const D: usize> {
     fn get_input_bytes(&self) -> Vec<ByteVariable>;
@@ -63,18 +65,6 @@ impl<F: RichField + Extendable<D>, const D: usize, C: Circuit<F, D>> CircuitFunc
         }
     }
 
-    pub fn build<Config: GenericConfig<D, F=F>>(&self, builder: &mut CircuitBuilder<F, D>) -> CircuitBuild<F, D, Config> {
-        let circuit_build = builder.build::<Config>();
-        CircuitBuild {
-            circuit_data: circuit_build
-        }
-    }
-
-    pub fn prove(&self, input_bytes: &[u8]) {
-        // TODO add circuit build to `prove` parameters
-        todo!()
-    }
-
     pub fn generate_fixture(&self, input_bytes: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
         // Run the circuit with witness generation only to generate fixture
         todo!()
@@ -90,7 +80,7 @@ pub mod test {
 
     use super::*;
 
-    struct TestCircuit {
+    pub struct TestCircuit {
         input_bytes: Vec<ByteVariable>,
         output_bytes: Vec<ByteVariable>,
     }
@@ -135,9 +125,12 @@ pub mod test {
         let mut circuit_function: CircuitFunction<F, D, TestCircuit> = CircuitFunction::define(
             &mut builder
         );
-        let pw = circuit_function.set_witness(bytes32!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").as_bytes().to_vec());
         let circuit_build = builder.build::<C>();
-        let proof = circuit_build.prove(pw).unwrap();
-        circuit_build.verify(proof).unwrap();
+        save_circuit(&circuit_build, "test_circuit_function".to_string());
+
+        let loaded_circuit_build: CircuitData<F, C, D> = load_circuit(&"test_circuit_function".to_string());
+        let pw = circuit_function.set_witness(bytes32!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").as_bytes().to_vec());
+        let proof = loaded_circuit_build.prove(pw).unwrap();
+        loaded_circuit_build.verify(proof).unwrap();
     }
 }

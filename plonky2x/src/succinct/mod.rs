@@ -1,3 +1,3 @@
 pub mod circuit;
-pub mod build;
 pub mod cli;
+pub mod utils;

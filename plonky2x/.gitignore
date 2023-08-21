@@ -1,5 +1,6 @@
 # Cargo build
 /target
+build/
 
 # MacOS 
 .DS_Store
