@@ -1,3 +1,5 @@
+pub mod serializer;
+
 pub macro bytes32($hex_literal:expr) {
     $hex_literal.parse::<ethers::types::H256>().unwrap()
 }
