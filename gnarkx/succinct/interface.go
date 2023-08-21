@@ -12,6 +12,5 @@ type Circuit interface {
 	GetInputBytes() *[]vars.Byte
 	GetOutputBytes() *[]vars.Byte
 	SetWitness(inputBytes []byte)
-	Assign(inputBytes []byte) error
 	Define(BaseApi frontend.API) error
 }

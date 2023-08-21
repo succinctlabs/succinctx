@@ -7,19 +7,23 @@ use plonky2::iop::witness::PartialWitness;
 use plonky2::hash::hash_types::RichField;
 use plonky2::field::extension::Extendable;
 use ethers::types::H256;
+use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::config::PoseidonGoldilocksConfig;
+use plonky2::plonk::circuit_data::CircuitData;
 
 use crate::vars::CircuitVariable;
 use crate::builder::CircuitBuilder;
 use crate::vars::{ByteVariable, Bytes32Variable};
+use crate::succinct::build::CircuitBuild;
 
-trait Circuit<F: RichField + Extendable<D>, const D: usize> {
+pub trait Circuit<F: RichField + Extendable<D>, const D: usize> {
     fn get_input_bytes(&self) -> Vec<ByteVariable>;
     fn get_output_bytes(&self) -> Vec<ByteVariable>;
     fn set_witness(&self, pw: &mut PartialWitness<F>, input_bytes: Vec<u8>);
     fn define(builder: &mut CircuitBuilder<F, D>) -> Self;
 }
 
-struct CircuitFunction<F: RichField + Extendable<D>, const D: usize, C: Circuit<F, D>> {
+pub struct CircuitFunction<F: RichField + Extendable<D>, const D: usize, C: Circuit<F, D>> {
     input_hash: Bytes32Variable,
     output_hash: Bytes32Variable,
     circuit: C,
@@ -27,7 +31,7 @@ struct CircuitFunction<F: RichField + Extendable<D>, const D: usize, C: Circuit<
 }
 
 impl<F: RichField + Extendable<D>, const D: usize, C: Circuit<F, D>> CircuitFunction<F, D, C> {
-    fn set_witness(&mut self, input_bytes: Vec<u8>) -> PartialWitness<F> {
+    pub fn set_witness(&mut self, input_bytes: Vec<u8>) -> PartialWitness<F> {
         let mut pw = PartialWitness::new();
         // TODO actually hash input_bytes to get `input_bytes_hash` below
         let input_bytes_hash = H256::from_slice(&input_bytes[..]);
@@ -46,7 +50,8 @@ impl<F: RichField + Extendable<D>, const D: usize, C: Circuit<F, D>> CircuitFunc
         return pw;
     }
 
-    fn define(builder: &mut CircuitBuilder<F, D>) -> Self {
+    pub fn define(builder: &mut CircuitBuilder<F, D>) -> Self {
+        // TODO: should we eat the builder in here since it shouldn't be added to after?
         let input_hash = builder.init::<Bytes32Variable>();
         let output_hash = builder.init::<Bytes32Variable>();
         let inner_circuit = C::define(builder);
@@ -56,6 +61,23 @@ impl<F: RichField + Extendable<D>, const D: usize, C: Circuit<F, D>> CircuitFunc
             circuit: inner_circuit,
             _marker: PhantomData,
         }
+    }
+
+    pub fn build<Config: GenericConfig<D, F=F>>(&self, builder: &mut CircuitBuilder<F, D>) -> CircuitBuild<F, D, Config> {
+        let circuit_build = builder.build::<Config>();
+        CircuitBuild {
+            circuit_data: circuit_build
+        }
+    }
+
+    pub fn prove(&self, input_bytes: &[u8]) {
+        // TODO add circuit build to `prove` parameters
+        todo!()
+    }
+
+    pub fn generate_fixture(&self, input_bytes: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
+        // Run the circuit with witness generation only to generate fixture
+        todo!()
     }
 }
 
