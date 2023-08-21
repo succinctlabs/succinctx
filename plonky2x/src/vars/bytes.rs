@@ -119,14 +119,14 @@ impl<F: RichField + Extendable<D>, const D: usize, const N: usize> Shr<F, D, usi
             .iter()
             .flat_map(|x| x.to_be_bits())
             .collect::<Vec<_>>();
-        let mut shr_bit = |i| {
+        let shr_bit = |i| {
             if i < rhs {
                 builder.constant(false)
             } else {
                 self_bits[i - rhs]
             }
         };
-        let shr_bits = (0..8 * N).map(|i| shr_bit(i)).collect::<Vec<_>>();
+        let shr_bits = (0..8 * N).map(shr_bit).collect::<Vec<_>>();
 
         BytesVariable(
             shr_bits
@@ -155,14 +155,14 @@ impl<F: RichField + Extendable<D>, const D: usize, const N: usize> Shl<F, D, usi
             .iter()
             .flat_map(|x| x.to_be_bits())
             .collect::<Vec<_>>();
-        let mut shl_bit = |i| {
+        let shl_bit = |i| {
             if i + rhs > 8 * N - 1 {
                 builder.constant(false)
             } else {
                 self_bits[i + rhs]
             }
         };
-        let shl_bits = (0..8 * N).map(|i| shl_bit(i)).collect::<Vec<_>>();
+        let shl_bits = (0..8 * N).map(shl_bit).collect::<Vec<_>>();
 
         BytesVariable(
             shl_bits
@@ -187,7 +187,7 @@ impl<F: RichField + Extendable<D>, const D: usize, const N: usize> RotateLeft<F,
             .flat_map(|x| x.to_be_bits())
             .collect::<Vec<_>>();
         let rot_bit = |i| self_bits[(i + rhs) % (8 * N)];
-        let rot_bits = (0..8 * N).map(|i| rot_bit(i)).collect::<Vec<_>>();
+        let rot_bits = (0..8 * N).map(rot_bit).collect::<Vec<_>>();
 
         BytesVariable(
             rot_bits
@@ -212,7 +212,7 @@ impl<F: RichField + Extendable<D>, const D: usize, const N: usize> RotateRight<F
             .flat_map(|x| x.to_be_bits())
             .collect::<Vec<_>>();
         let rot_bit = |i| self_bits[(i + 8 * N - rhs) % (8 * N)];
-        let rot_bits = (0..8 * N).map(|i| rot_bit(i)).collect::<Vec<_>>();
+        let rot_bits = (0..8 * N).map(rot_bit).collect::<Vec<_>>();
 
         BytesVariable(
             rot_bits
