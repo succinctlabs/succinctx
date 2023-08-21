@@ -17,19 +17,24 @@ from pydantic import BaseModel
 stub = Stub("mapreduce")
 
 test_image = (Image
-              .debian_slim()
-              .apt_install(["git", "curl"])
-              .pip_install(["gitpython", "boto3", "requests"])
-              )
+               .debian_slim()
+               .apt_install(["git", "curl", "pkg-config", "libssl-dev"])
+               .pip_install(["gitpython", "boto3", "requests"])
+               .env({"SHELL": "/bin/bash"})
+               .run_commands([
+                "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
+                "ln -s /root/.cargo/bin/cargo /usr/bin/cargo",
+                "ln -s /root/.cargo/bin/rustup /usr/bin/rustup"
+               ])
+               )
 
-base_image = test_image.apt_install(
-    "build-essential libgmp-dev libsodium-dev nasm nlohmann-json3-dev libc6 gcc-4.9 libstdc++6 glibc-source".split(" "))
+base_image = test_image
 
 
-@stub.function(image=base_image, cpu=4, cloud="aws", timeout=60*50, mounts=[modal.Mount.from_local_dir("./build", remote_path="/root/build")])
+@stub.function(image=base_image, cpu=4, cloud="aws", timeout=60*50, mounts=[modal.Mount.from_local_dir(".", remote_path="/root/")])
 def run():
     mv = subprocess.run(
-        f'chmod +x /root/build/mapreduce_example && /root/build/mapreduce_example', shell=True)
+        f'rustup override set nightly && cargo run --bin mapreduce_example --release', shell=True)
     print(mv)
     return "Hello World"
 
