@@ -5,8 +5,8 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::builder::CircuitBuilder;
 
-/// The addition operation. 
-/// 
+/// The addition operation.
+///
 /// Types implementing this trait can be used within the `builder.add(lhs, rhs)` method.
 pub trait Add<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     /// The output type of the operation.
@@ -24,8 +24,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-/// The subtraction operation. 
-/// 
+/// The subtraction operation.
+///
 /// Types implementing this trait can be used within the `builder.sub(lhs, rhs)` method.
 pub trait Sub<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
     type Output;
@@ -97,37 +97,27 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 }
 
 /// A zero element
-/// 
-/// Types implementing this trait can be used to get an 'Output' type via the `builder.zero()`.
+///
+/// Types implementing this trait can be used via the `builder.zero()` method.
 pub trait Zero<F: RichField + Extendable<D>, const D: usize> {
-    type Output;
-
-    fn zero(builder: &mut CircuitBuilder<F, D>) -> Self::Output;
+    fn zero(builder: &mut CircuitBuilder<F, D>) -> Self;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn zero<T>(&mut self) -> <T as Zero<F, D>>::Output
-    where
-        T: Zero<F, D>,
-    {
+    pub fn zero<T: Zero<F, D>>(&mut self) -> T {
         T::zero(self)
     }
 }
 
 /// A One element
-/// 
-/// Types implementing this trait can be used to get an 'Output' type via `builder.one()`.
+///
+/// Types implementing this trait can be used via the `builder.one()` method.
 pub trait One<F: RichField + Extendable<D>, const D: usize> {
-    type Output;
-
-    fn one(builder: &mut CircuitBuilder<F, D>) -> Self::Output;
+    fn one(builder: &mut CircuitBuilder<F, D>) -> Self;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn one<T>(&mut self) -> <T as One<F, D>>::Output
-    where
-        T: One<F, D>,
-    {
+    pub fn one<T: One<F, D>>(&mut self) -> T {
         T::one(self)
     }
 }

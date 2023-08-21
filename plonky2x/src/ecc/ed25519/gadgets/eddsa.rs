@@ -401,7 +401,9 @@ mod tests {
     use crate::ecc::ed25519::curve::eddsa::{verify_message, EDDSAPublicKey, EDDSASignature};
     use crate::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
-    use crate::ecc::ed25519::gadgets::eddsa::{verify_signatures_circuit, verify_variable_signatures_circuit};
+    use crate::ecc::ed25519::gadgets::eddsa::{
+        verify_signatures_circuit, verify_variable_signatures_circuit,
+    };
     use crate::num::biguint::WitnessBigUint;
     use crate::utils::setup_logger;
 

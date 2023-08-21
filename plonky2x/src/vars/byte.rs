@@ -6,7 +6,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{BoolVariable, CircuitVariable};
 use crate::builder::CircuitBuilder;
-use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr};
+use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.
@@ -155,5 +155,11 @@ impl<F: RichField + Extendable<D>, const D: usize> RotateRight<F, D, usize> for 
         let self_bits = self.to_be_bits();
         let rot_bit = |i| self_bits[(i + 8 - rhs) % 8];
         ByteVariable(array![i => rot_bit(i); 8])
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for ByteVariable {
+    fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
+        ByteVariable(array![_ => builder.constant(false); 8])
     }
 }

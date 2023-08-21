@@ -6,6 +6,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::CircuitVariable;
 use crate::builder::CircuitBuilder;
+use crate::ops::{BitAnd, BitOr, BitXor, Not};
 use crate::vars::ByteVariable;
 
 /// A variable in the circuit representing a byte value.
@@ -52,5 +53,46 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         for (b, v) in self.0.iter().zip(value) {
             b.set(witness, v);
         }
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize, const N: usize> Not<F, D> for BytesVariable<N> {
+    type Output = Self;
+
+    fn not(self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        BytesVariable(self.0.map(|x| builder.not(x)))
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize, const N: usize> BitAnd<F, D>
+    for BytesVariable<N>
+{
+    type Output = Self;
+
+    fn bitand(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        let byte_fn = |i| builder.and(self.0[i], rhs.0[i]);
+        BytesVariable(core::array::from_fn(byte_fn))
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize, const N: usize> BitOr<F, D>
+    for BytesVariable<N>
+{
+    type Output = Self;
+
+    fn bitor(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        let byte_fn = |i| builder.or(self.0[i], rhs.0[i]);
+        BytesVariable(core::array::from_fn(byte_fn))
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize, const N: usize> BitXor<F, D>
+    for BytesVariable<N>
+{
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        let byte_fn = |i| builder.xor(self.0[i], rhs.0[i]);
+        BytesVariable(core::array::from_fn(byte_fn))
     }
 }

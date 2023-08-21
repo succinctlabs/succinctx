@@ -1,8 +1,9 @@
 use std::ops::{AddAssign, MulAssign};
 
+use ff::Field;
+
 use crate::wrapper::poseidon_bn128_constants::{C_CONSTANTS, M_MATRIX, P_MATRIX, S_CONSTANTS};
 use crate::wrapper::utils::Fr;
-use ff::Field;
 
 pub const RATE: usize = 3;
 pub const WIDTH: usize = 4;
@@ -111,9 +112,8 @@ mod permutation_tests {
     use anyhow::Ok;
     use ff::{Field, PrimeField};
 
-    use crate::wrapper::utils::Fr;
-
     use super::{permution, WIDTH};
+    use crate::wrapper::utils::Fr;
 
     #[test]
     fn test_permuation() -> Result<(), anyhow::Error> {

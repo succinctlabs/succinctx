@@ -1,4 +1,5 @@
 use std::sync::Once;
+
 use log::LevelFilter;
 
 pub macro bytes32($hex_literal:expr) {

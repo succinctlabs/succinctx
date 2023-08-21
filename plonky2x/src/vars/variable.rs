@@ -84,16 +84,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Div<F, D> for Variable {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for Variable {
-    type Output = Variable;
-
     fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
         Variable(builder.api.zero())
     }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> One<F, D> for Variable {
-    type Output = Variable;
-
     fn one(builder: &mut CircuitBuilder<F, D>) -> Self {
         Variable(builder.api.one())
     }

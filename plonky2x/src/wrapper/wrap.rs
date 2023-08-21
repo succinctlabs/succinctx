@@ -3,13 +3,13 @@
 use std::fs;
 
 use plonky2::field::extension::Extendable;
+use plonky2::field::types::{Field, PrimeField64};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig};
-use plonky2::field::types::{Field, PrimeField64};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::plonk::prover::prove;
 use plonky2::util::timing::TimingTree;
@@ -31,8 +31,7 @@ fn get_test_proof() -> ProofWithPublicInputs<F, C, D> {
 }
 
 fn wrap_proof(inner_data: CircuitData<F, C, D>, inner_proof: ProofWithPublicInputs<F, C, D>) {
-    let mut outer_builder =
-            CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
+    let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
     let outer_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
     let outer_verifier_data =
         outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
@@ -92,8 +91,7 @@ fn wrap_proof(inner_data: CircuitData<F, C, D>, inner_proof: ProofWithPublicInpu
         outer_data.verifier_only.circuit_digest
     );
 
-    let outer_common_circuit_data_serialized =
-        serde_json::to_string(&outer_data.common).unwrap();
+    let outer_common_circuit_data_serialized = serde_json::to_string(&outer_data.common).unwrap();
     fs::write(
         "step_recursive.common_circuit_data.json",
         outer_common_circuit_data_serialized,
