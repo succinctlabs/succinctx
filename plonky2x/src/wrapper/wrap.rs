@@ -20,16 +20,6 @@ const D: usize = 2;
 type C = PoseidonGoldilocksConfig;
 type F = <C as GenericConfig<D>>::F;
 
-fn get_test_proof() -> ProofWithPublicInputs<F, C, D> {
-    let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-    let mut pw: PartialWitness<F> = PartialWitness::new();
-
-    let inner_data = builder.build();
-    let inner_proof = inner_data.prove(pw);
-    // inner_data.verify(inner_proof.unwrap()).unwrap();
-    return inner_proof.unwrap();
-}
-
 fn wrap_proof(inner_data: CircuitData<F, C, D>, inner_proof: ProofWithPublicInputs<F, C, D>) {
     let mut outer_builder =
             CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
@@ -114,4 +104,36 @@ fn wrap_proof(inner_data: CircuitData<F, C, D>, inner_proof: ProofWithPublicInpu
         outer_proof_serialized,
     )
     .expect("Unable to write file");
+}
+
+pub mod test {
+    use plonky2::gates::public_input;
+
+    use super::*;
+    use crate::vars::Bytes32Variable;
+    use crate::utils::{address, bytes32};
+    use crate::vars::CircuitVariable;
+    use crate::builder::CircuitBuilder;
+
+    #[test]
+    fn test_wrap_proof() {
+        let mut builder = CircuitBuilder::new();
+        let input_hash = builder.init::<Bytes32Variable>();
+        let output_hash = builder.init::<Bytes32Variable>();
+
+        let mut pw: PartialWitness<F> = PartialWitness::new();
+        input_hash.set(&mut pw, bytes32!("0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"));
+        output_hash.set(&mut pw, bytes32!("0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"));
+
+        let mut public_inputs = input_hash.targets();
+        public_inputs.append(&mut output_hash.targets());
+        builder.register_public_inputs(&public_inputs);
+
+        let inner_data = builder.build();
+        let inner_proof = inner_data.prove(pw).unwrap();
+
+        println!("inner proof is {:?}", inner_proof.public_inputs);
+        // inner_data.verify(inner_proof.unwrap()).unwrap();
+        wrap_proof(inner_data, inner_proof);
+    }
 }

@@ -17,3 +17,4 @@ pub mod num;
 pub mod utils;
 pub mod vars;
 pub mod wrapper;
+pub mod succinct;

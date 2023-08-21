@@ -8,6 +8,7 @@ use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder as _CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::GenericConfig;
+use plonky2::iop::target::Target;
 
 use crate::ethutils::beacon::BeaconClient;
 use crate::vars::{BoolVariable, CircuitVariable, Variable};
@@ -141,6 +142,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     pub fn one(&mut self) -> Variable {
         self.api.one().into()
+    }
+
+    pub fn register_public_inputs(&mut self, inputs: &[Target]) {
+        self.api.register_public_inputs(inputs);
     }
 }
 
