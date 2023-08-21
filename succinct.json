@@ -1,0 +1,5 @@
+{
+    "preset": "plonky2x",
+    "build_command": "cd examples/beacon-validator-statistics && cargo run --release build",
+    "prove_command": "cd examples/beacon-validator-statistics && ./target/release/beacon-validator-statistics prove entry.circuit"
+}

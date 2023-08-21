@@ -17,6 +17,7 @@ bin/
 .go
 
 *.json
+!succinct.json
 !nouns-fixture.json
 
 keystore
