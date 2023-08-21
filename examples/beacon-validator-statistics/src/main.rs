@@ -81,7 +81,7 @@ fn main() {
         let proof = Proof {
             bytes: proof.to_bytes(),
         };
-        let file_path = "proof.json";
+        let file_path = "./proof.json";
         let json = serde_json::to_string_pretty(&proof).unwrap();
         std::fs::write(file_path, json).unwrap();
     } else {

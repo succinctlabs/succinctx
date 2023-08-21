@@ -87,6 +87,14 @@ where
             println!("generated map proof {}/{}", i + 1, self.inputs.len());
         }
 
+        // await Promise.all([...prove(releaseId, inputBytes[i], mapFunctionId)])
+
+        // await Promise.all(...prove(releaesId, inputBytes[i], releaseFunctionId1))
+
+        // await Promise.all(...prove(releaesId, inputBytes[i], releaseFunctionId2))
+
+        // await Promise.all(...prove(releaesId, inputBytes[i], releaseFunctionId3))
+
         // Now, we need to reduce the proofs to a single proof using the reduce circuits for
         // each layer. To do so, we load in the appropriate reduce circuit and the left/right
         // proof targets. We then set the left/right proof targets to the proofs we have
