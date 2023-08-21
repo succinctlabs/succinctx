@@ -163,3 +163,92 @@ impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for ByteVariable {
         ByteVariable(array![_ => builder.constant(false); 8])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+
+    use crate::prelude::*;
+
+    #[test]
+    fn test_byte_ops() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let x_bytes = (0..256)
+            .map(|_| builder.init::<ByteVariable>())
+            .collect::<Vec<_>>();
+        let y_bytes = (0..256)
+            .map(|_| builder.init::<ByteVariable>())
+            .collect::<Vec<_>>();
+
+        let ((x_and_y_bytes, x_or_y_bytes), x_xor_y_bytes): ((Vec<_>, Vec<_>), Vec<_>) = x_bytes
+            .iter()
+            .cartesian_product(y_bytes.iter())
+            .map(|(&x, &y)| ((builder.and(x, y), builder.or(x, y)), builder.xor(x, y)))
+            .unzip();
+
+        let (((x_shr_bytes, x_shl_bytes), x_rot_right_bytes), x_rot_left_bytes): (
+            ((Vec<_>, Vec<_>), Vec<_>),
+            Vec<_>,
+        ) = x_bytes
+            .iter()
+            .cartesian_product(0..8)
+            .map(|(&x, i)| {
+                (
+                    (
+                        (builder.shr(x, i), builder.shl(x, i)),
+                        builder.rotate_right(x, i),
+                    ),
+                    builder.rotate_left(x, i),
+                )
+            })
+            .unzip();
+
+        let data = builder.build::<C>();
+        let mut pw = PartialWitness::new();
+
+        let x_values = (0..256).map(|i| i as u8).collect::<Vec<_>>();
+        let y_values = (0..256).map(|i| (i + 1) as u8).collect::<Vec<_>>();
+
+        for (x, val) in x_bytes.iter().zip(x_values.iter()) {
+            x.set(&mut pw, *val);
+        }
+
+        for (y, val) in y_bytes.iter().zip(y_values.iter()) {
+            y.set(&mut pw, *val);
+        }
+
+        for ((((x, y), x_and_y), x_or_y), x_xor_y) in x_values
+            .iter()
+            .cartesian_product(y_values.iter())
+            .zip(x_and_y_bytes)
+            .zip(x_or_y_bytes)
+            .zip(x_xor_y_bytes)
+        {
+            x_and_y.set(&mut pw, x & y);
+            x_or_y.set(&mut pw, x | y);
+            x_xor_y.set(&mut pw, x ^ y);
+        }
+
+        for (((((x, i), x_shr), x_shl), x_rot_right), x_rot_left) in x_values
+            .iter()
+            .cartesian_product(0..8)
+            .zip(x_shr_bytes)
+            .zip(x_shl_bytes)
+            .zip(x_rot_right_bytes)
+            .zip(x_rot_left_bytes)
+        {
+            x_shr.set(&mut pw, x >> i);
+            x_shl.set(&mut pw, x << i);
+            x_rot_right.set(&mut pw, x.rotate_right(i));
+            x_rot_left.set(&mut pw, x.rotate_left(i));
+        }
+
+        let proof = data.prove(pw).unwrap();
+        data.verify(proof).unwrap();
+    }
+}

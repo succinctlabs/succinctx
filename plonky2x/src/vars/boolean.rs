@@ -93,16 +93,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Not<F, D> for BoolVariable {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
-
-    use crate::builder::CircuitBuilder;
-    use super::*;
+    use crate::prelude::*;
 
     #[test]
     fn test_bit_ops() {

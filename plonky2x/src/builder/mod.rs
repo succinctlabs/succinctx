@@ -117,15 +117,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for CircuitBuilder<F,
     }
 }
 
-
 #[cfg(test)]
 pub(crate) mod tests {
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
-
-    use crate::builder::CircuitBuilder;
-    use crate::vars::Variable;
+    use crate::prelude::*;
 
     #[test]
     fn test_simple_circuit() {
@@ -145,4 +139,3 @@ pub(crate) mod tests {
         data.verify(proof).unwrap();
     }
 }
-

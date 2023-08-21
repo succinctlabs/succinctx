@@ -19,3 +19,13 @@ pub mod uint;
 pub mod utils;
 pub mod vars;
 pub mod wrapper;
+
+pub mod prelude {
+    pub use plonky2::field::goldilocks_field::GoldilocksField;
+    pub use plonky2::iop::witness::PartialWitness;
+    pub use plonky2::plonk::config::PoseidonGoldilocksConfig;
+
+    pub use crate::builder::CircuitBuilder;
+    pub use crate::ops::*;
+    pub use crate::vars::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable, Variable};
+}
