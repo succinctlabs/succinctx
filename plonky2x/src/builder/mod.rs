@@ -111,6 +111,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> Default for CircuitBuilder<F, D> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+
 #[cfg(test)]
 pub(crate) mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
@@ -139,8 +146,3 @@ pub(crate) mod tests {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Default for CircuitBuilder<F, D> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
