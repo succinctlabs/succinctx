@@ -171,7 +171,7 @@ mod tests {
     use crate::prelude::*;
 
     #[test]
-    fn test_byte_ops() {
+    fn test_byte_operations() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;

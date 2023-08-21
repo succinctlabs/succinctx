@@ -98,7 +98,7 @@ mod tests {
     use crate::prelude::*;
 
     #[test]
-    fn test_bit_ops() {
+    fn test_bit_operations() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
