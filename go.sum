@@ -18,8 +18,8 @@ github.com/cockroachdb/pebble v0.0.0-20230209160836-829675f94811 h1:ytcWPaNPhNoG
 github.com/cockroachdb/redact v1.1.3 h1:AKZds10rFSIj7qADf0g46UixK8NNLwWTNdCIGS5wfSQ=
 github.com/consensys/bavard v0.1.13 h1:oLhMLOFGTLdlda/kma4VOJazblc7IM5y5QPd2A/YjhQ=
 github.com/consensys/bavard v0.1.13/go.mod h1:9ItSMtA/dXMAiL7BG6bqW2m3NdSEObYWoH223nGHukI=
-github.com/consensys/gnark v0.8.1-0.20230731090741-7ca4af9b9ad0 h1:sQQ8Vvl0KTtlGob0BzMSbnnCnUTRi5iLkQKsspe9iyM=
-github.com/consensys/gnark v0.8.1-0.20230731090741-7ca4af9b9ad0/go.mod h1:Y70OuyMjYNvmTUL/sNKhehLOgByRYSOR8X6WMo7GmGQ=
+github.com/consensys/gnark v0.8.1-0.20230803132917-bd4a39719a96 h1:BtDmnURu+BjTQjq0Yu5QIhMnu7BGXwoXEYggzgvFkNc=
+github.com/consensys/gnark v0.8.1-0.20230803132917-bd4a39719a96/go.mod h1:Y70OuyMjYNvmTUL/sNKhehLOgByRYSOR8X6WMo7GmGQ=
 github.com/consensys/gnark-crypto v0.11.1-0.20230724160225-800ddb59f51b h1:tlxRLAcCOcdC3TcP5uqrKaK+OF7eBy1YB5AYUUhOayM=
 github.com/consensys/gnark-crypto v0.11.1-0.20230724160225-800ddb59f51b/go.mod h1:6C2ytC8zmP8uH2GKVfPOjf0Vw3KwMAaUxlCPK5WQqmw=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=

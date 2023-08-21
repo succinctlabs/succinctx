@@ -14,5 +14,8 @@ pub mod eth;
 pub mod ethutils;
 pub mod hash;
 pub mod num;
+pub mod ops;
+pub mod uint;
 pub mod utils;
 pub mod vars;
+pub mod wrapper;

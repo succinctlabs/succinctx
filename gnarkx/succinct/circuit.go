@@ -28,16 +28,6 @@ type CircuitFunction struct {
 	Circuit Circuit
 }
 
-// The interface a circuit interacting with the Succinct Hub must implement. These methods are used
-// for loading witnesses into the circuit, defining constraints, and reading and writing data to
-// Ethereum.
-type Circuit interface {
-	SetWitness(inputBytes []byte)
-	Define(api frontend.API) error
-	GetInputBytes() *[]vars.Byte
-	GetOutputBytes() *[]vars.Byte
-}
-
 // Creates a new circuit function based on a circuit that implements the Circuit interface.
 func NewCircuitFunction(c Circuit) CircuitFunction {
 	function := CircuitFunction{}

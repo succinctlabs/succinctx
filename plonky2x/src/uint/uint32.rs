@@ -3,8 +3,8 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{CircuitVariable, Variable};
 use crate::builder::CircuitBuilder;
+use crate::vars::{CircuitVariable, Variable};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
@@ -12,7 +12,7 @@ use crate::builder::CircuitBuilder;
 pub struct U32Variable(pub Variable);
 
 impl CircuitVariable for U32Variable {
-    type ValueType = u32;
+    type ValueType<F> = u32;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -22,21 +22,21 @@ impl CircuitVariable for U32Variable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
-        Self(Variable::constant(builder, value as u64))
+        Self(Variable::constant(builder, F::from_canonical_u32(value)))
     }
 
     fn targets(&self) -> Vec<Target> {
         vec![self.0 .0]
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         let v = witness.get_target(self.0 .0);
         v.to_canonical_u64() as u32
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         witness.set_target(self.0 .0, F::from_canonical_u32(value));
     }
 }
