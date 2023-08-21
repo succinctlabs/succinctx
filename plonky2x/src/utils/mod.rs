@@ -1,4 +1,5 @@
 use std::sync::Once;
+
 use log::LevelFilter;
 
 pub macro bytes32($hex_literal:expr) {
@@ -11,12 +12,19 @@ pub macro address($hex_literal:expr) {
 
 pub macro bytes($hex_literal:expr) {{
     let hex_string = $hex_literal;
-    let stripped = if hex_string.starts_with("0x") {
-        &hex_string[2..]
+    let stripped = if let Some(stripped) = hex_string.strip_prefix("0x") {
+        stripped
     } else {
         &hex_string
     };
-    hex::decode(stripped).expect("Invalid hex string")
+    hex::decode(stripped)
+        .expect("Invalid hex string")
+        .try_into()
+        .expect(&format!(
+            "Wrong byte length {} for hex string {}",
+            stripped.len(),
+            hex_string
+        ))
 }}
 
 pub macro hex($bytes:expr) {{

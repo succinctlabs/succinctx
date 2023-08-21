@@ -6,8 +6,8 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{CircuitVariable, U32Variable};
 use crate::builder::CircuitBuilder;
+use crate::vars::{CircuitVariable, U32Variable};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
@@ -54,7 +54,7 @@ impl CircuitVariable for U256Variable {
 
 fn to_limbs(value: U256) -> [u32; 4] {
     let mut bytes = [0u8; 32];
-    value.to_little_endian(&mut bytes.as_mut());
+    value.to_little_endian(&mut bytes);
     [
         u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
         u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]),
