@@ -15,7 +15,6 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use crate::vars::CircuitVariable;
 use crate::builder::CircuitBuilder;
 use crate::vars::{ByteVariable, Bytes32Variable};
-use crate::succinct::build::CircuitBuild;
 use crate::succinct::utils::{load_circuit, save_circuit};
 
 pub trait Circuit<F: RichField + Extendable<D>, const D: usize> {
@@ -57,6 +56,8 @@ impl<F: RichField + Extendable<D>, const D: usize, C: Circuit<F, D>> CircuitFunc
         let input_hash = builder.init::<Bytes32Variable>();
         let output_hash = builder.init::<Bytes32Variable>();
         let inner_circuit = C::define(builder);
+        // TODO: constraint input_hash to the result of inner_circuit.get_input_bytes()
+        // TODO: constraint outer_hash to the result of inner_circuit.get_output_bytes()
         CircuitFunction {
             input_hash,
             output_hash,

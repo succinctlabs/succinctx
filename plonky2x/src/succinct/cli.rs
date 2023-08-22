@@ -15,6 +15,9 @@ use crate::succinct::circuit::{Circuit, CircuitFunction};
 use crate::succinct::utils::{load_circuit, save_circuit};
 use crate::utils::bytes;
 
+use crate::wrapper::wrap::WrapperCircuit;
+use crate::wrapper::plonky2_config::PoseidonBN128GoldilocksConfig;
+
 type F = GoldilocksField;
 type C = PoseidonGoldilocksConfig;
 const D: usize = 2;
@@ -32,31 +35,44 @@ fn run<CircuitType: Circuit<F, D>>(args: Vec<String>) {
         &mut builder
     );
     let path = "build/circuit_function.bin";
+    let wrapper_path = "build/wrapper.bin";
 
     if let Some(input) = input_arg {
         println!("input: {}", input);
         let input_bytes = bytes!(&input["--input=".len()..]);
         
         if prove_flag {
-            let loaded_circuit_build: CircuitData<F, C, D> = load_circuit(&path.to_string());
+            let circuit_function_build: CircuitData<F, C, D> = load_circuit(&path.to_string());
             println!("proving circuit for input: {:?}", hex::encode(&input_bytes));
             let pw = circuit_function.set_witness(input_bytes.clone());
-            let proof = loaded_circuit_build.prove(pw);
+            let proof = circuit_function_build.prove(pw);
             match proof {
                 Ok(proof) => {
                     // Verify the proof
-                    loaded_circuit_build.verify(proof).unwrap();
+                    circuit_function_build.verify(proof).unwrap();
                     println!("proof verified");
                     todo!("export proof");
-                    // if let Err(e) = proof.export("proof.json") {
-                    //     println!("Failed to export proof: {}", e);
-                    // }
+
+                    let wrapper = WrapperCircuit::define(&circuit_function_build);
+                    // TODO: in the future load the wrapper_build from a saved file 
+                    let wrapper_build = wrapper.builder.build::<PoseidonBN128GoldilocksConfig>();
+                    let wrapper_witness = wrapper.set_witness(&circuit_function_build, proof);
+                    let wrapper_proof = wrapper_build.prove(wrapper_witness);
+                    match wrapper_proof {
+                        Ok(wrapper_proof) => {
+                            // Verify the proof
+                            wrapper_build.verify(wrapper_proof).unwrap();
+                            println!("wrapper proof verified");
+                        }
+                        Err(e) => println!("Failed to prove wrapper circuit: {}", e),
+                    }
                 }
                 Err(e) => println!("Failed to prove circuit: {}", e),
             }
             return;
         }
         
+        // TODO add an option to generate a fixture with the outside wrapper as well for double-checking testing
         if fixture_flag {
             println!("generating fixture for input: {:?}", hex::encode(&input_bytes));
             match circuit_function.generate_fixture(&input_bytes) {
@@ -77,6 +93,13 @@ fn run<CircuitType: Circuit<F, D>>(args: Vec<String>) {
         create_dir_all(&parent_dir).unwrap();
     }
     save_circuit(&circuit_build, path.to_string());
+
+    // TODO in the future when we are able to save the "wrapper circuit",
+    // then save it as well
+    // // Now we have to save the outer "wrapper" circuit
+    // let wrapper_circuit = WrapperCircuit::build(circuit_build);
+    // let wrapper_path = "build/wrapper_circuit.bin";
+    // save_circuit(&wrapper_circuit, wrapper_path.to_string());
 }
 
 pub mod test {
