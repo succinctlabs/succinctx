@@ -32,11 +32,7 @@ fn main() {
     type C = PoseidonGoldilocksConfig;
     const D: usize = 2;
 
-    let mut file = File::open("context").unwrap();
-    let mut context = String::new();
-    file.read_to_string(&mut context).unwrap();
-
-    let args: Vec<String> = context.split_whitespace().map(|s| s.to_string()).collect();
+    let args = std::env::args().collect_vec();
     let cmd = &args[1];
 
     if cmd == "build" {
@@ -58,80 +54,106 @@ fn main() {
         builder.register_public_inputs(output.targets().as_slice());
         let circuit = builder.build::<C>();
         circuit.save(input, format!("./build/{}.circuit", circuit.id()));
+    } else if cmd == "test" {
+        let mut builder = CircuitBuilder::<F, D>::new();
+        let input = builder.init::<Variable>();
+        let inputs = vec![input, input, input, input];
+        let output = builder.mapreduce::<Variable, Variable, C, _, _>(
+            inputs,
+            |input, builder| {
+                let constant = builder.constant::<Variable>(1);
+                let sum = builder.add(input, constant);
+                sum
+            },
+            |left, right, builder| {
+                let sum = builder.add(left, right);
+                sum
+            },
+        );
+        builder.register_public_inputs(output.targets().as_slice());
+        let circuit = builder.build::<C>();
+        circuit.save(input, format!("./build/{}.circuit", circuit.id()));
 
-        // let mut pw = PartialWitness::new();
-        // pw.set_target(input.0, GoldilocksField::from_canonical_u64(1));
-        // circuit.prove(pw).unwrap();
-
-        println!("Successfully built and saved circuit.");
-    } else if cmd == "map" {
-        // Read arguments from command line.
-        let circuit_path = &args[2];
-        let input_values = parse_u64s(&args[3]).unwrap();
-
-        // Load the circuit.
-        let (circuit, input_targets) =
-            CircuitData::<F, C, D>::load_with_input_targets(circuit_path.to_string());
-
-        // Set input targets.
         let mut pw = PartialWitness::new();
-        for i in 0..input_targets.len() {
-            pw.set_target(
-                input_targets[i],
-                GoldilocksField::from_canonical_u64(input_values[i]),
-            );
-        }
-
-        // Generate proof.
-        let proof = circuit.prove(pw).unwrap();
-        circuit.verify(proof.clone()).unwrap();
-
-        // Save proof.
-        let proof = Proof {
-            bytes: base64::encode(proof.to_bytes()),
-        };
-        let file_path = "./proof.json";
-        let json = serde_json::to_string_pretty(&proof).unwrap();
-        std::fs::write(file_path, json).unwrap();
-        println!("Successfully generated proof.");
-    } else if cmd == "reduce" {
-        // Read arguments from command line.
-        let circuit_path = &args[2];
-        let proof_bytes_list = &args[3]
-            .split_whitespace()
-            .map(|s| base64::decode(s).unwrap())
-            .collect_vec();
-
-        // Load the circuit.
-        let (circuit, proof_targets) =
-            CircuitData::<F, C, D>::load_with_proof_targets(circuit_path.to_string());
-
-        // Set inputs.
-        let mut proofs = Vec::new();
-        for i in 0..proof_bytes_list.len() {
-            let mut buffer = Buffer::new(proof_bytes_list[i].as_slice());
-            let proof = buffer
-                .read_proof_with_public_inputs::<F, C, D>(&circuit.common)
-                .unwrap();
-            proofs.push(proof);
-        }
-        let mut pw = PartialWitness::new();
-        for i in 0..proof_bytes_list.len() {
-            pw.set_proof_with_pis_target(&proof_targets[i], &proofs[i]);
-        }
-
-        // Generate proof.
-        let proof = circuit.prove(pw).unwrap();
-        circuit.verify(proof.clone()).unwrap();
-        let proof = Proof {
-            bytes: base64::encode(proof.to_bytes()),
-        };
-        let file_path = "./proof.json";
-        let json = serde_json::to_string_pretty(&proof).unwrap();
-        std::fs::write(file_path, json).unwrap();
-        println!("Successfully generated proof.");
+        pw.set_target(input.0, GoldilocksField::from_canonical_u64(1));
+        circuit.prove(pw).unwrap();
     } else {
-        println!("Unsupported.")
+        let mut file = File::open("context").unwrap();
+        let mut context = String::new();
+        file.read_to_string(&mut context).unwrap();
+
+        let args: Vec<String> = context.split_whitespace().map(|s| s.to_string()).collect();
+        let cmd = &args[1];
+
+        if cmd == "map" {
+            // Read arguments from command line.
+            let circuit_path = &args[2];
+            let input_values = parse_u64s(&args[3]).unwrap();
+
+            // Load the circuit.
+            let (circuit, input_targets) =
+                CircuitData::<F, C, D>::load_with_input_targets(circuit_path.to_string());
+
+            // Set input targets.
+            let mut pw = PartialWitness::new();
+            for i in 0..input_targets.len() {
+                pw.set_target(
+                    input_targets[i],
+                    GoldilocksField::from_canonical_u64(input_values[i]),
+                );
+            }
+
+            // Generate proof.
+            let proof = circuit.prove(pw).unwrap();
+            circuit.verify(proof.clone()).unwrap();
+
+            // Save proof.
+            let proof = Proof {
+                bytes: base64::encode(proof.to_bytes()),
+            };
+            let file_path = "./proof.json";
+            let json = serde_json::to_string_pretty(&proof).unwrap();
+            std::fs::write(file_path, json).unwrap();
+            println!("Successfully generated proof.");
+        } else if cmd == "reduce" {
+            // Read arguments from command line.
+            let circuit_path = &args[2];
+            let proof_bytes_list = &args[3]
+                .split_whitespace()
+                .map(|s| base64::decode(s).unwrap())
+                .collect_vec();
+
+            // Load the circuit.
+            let (circuit, proof_targets) =
+                CircuitData::<F, C, D>::load_with_proof_targets(circuit_path.to_string());
+
+            // Set inputs.
+            let mut proofs = Vec::new();
+            for i in 0..proof_bytes_list.len() {
+                let mut buffer = Buffer::new(proof_bytes_list[i].as_slice());
+                let proof = buffer
+                    .read_proof_with_public_inputs::<F, C, D>(&circuit.common)
+                    .unwrap();
+                proofs.push(proof);
+            }
+            let mut pw = PartialWitness::new();
+            for i in 0..proof_bytes_list.len() {
+                pw.set_proof_with_pis_target(&proof_targets[i], &proofs[i]);
+            }
+
+            // Generate proof.
+            let proof = circuit.prove(pw).unwrap();
+            circuit.verify(proof.clone()).unwrap();
+            let proof = Proof {
+                bytes: base64::encode(proof.to_bytes()),
+            };
+            let file_path = "./proof.json";
+            let json = serde_json::to_string_pretty(&proof).unwrap();
+            std::fs::write(file_path, json).unwrap();
+            println!("Successfully generated proof.");
+        } else {
+            println!("Unsupported.")
+        }
     }
 }
 
