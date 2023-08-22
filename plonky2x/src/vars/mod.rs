@@ -2,9 +2,9 @@ mod boolean;
 mod byte;
 mod bytes;
 mod bytes32;
-mod uint256;
-mod uint32;
 mod variable;
+
+use core::fmt::Debug;
 
 pub use boolean::*;
 pub use byte::*;
@@ -14,13 +14,13 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
-pub use uint256::*;
-pub use uint32::*;
 pub use variable::*;
 
+pub use super::uint::uint256::*;
+pub use super::uint::uint32::*;
 use crate::builder::CircuitBuilder;
 
-pub trait CircuitVariable {
+pub trait CircuitVariable: Debug + Clone + Sized + Send + Sync {
     /// The underlying type of the variable if it were not in a circuit.
     type ValueType<F>;
 

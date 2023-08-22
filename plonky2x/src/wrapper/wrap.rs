@@ -3,13 +3,13 @@
 use std::fs;
 
 use plonky2::field::extension::Extendable;
+use plonky2::field::types::{Field, PrimeField64};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig};
-use plonky2::field::types::{Field, PrimeField64};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::plonk::prover::prove;
 use plonky2::util::timing::TimingTree;

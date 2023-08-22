@@ -11,7 +11,7 @@ use crate::vars::{BytesVariable, CircuitVariable};
 pub struct BLSPubkeyVariable(pub BytesVariable<48>);
 
 impl CircuitVariable for BLSPubkeyVariable {
-    type ValueType<F> = Vec<u8>;
+    type ValueType<F> = [u8; 48];
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -55,7 +55,10 @@ impl CircuitVariable for AddressVariable {
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        Self(BytesVariable::constant(builder, value.as_bytes().to_vec()))
+        Self(BytesVariable::constant(
+            builder,
+            value.as_bytes().try_into().expect("wrong slice length"),
+        ))
     }
 
     fn targets(&self) -> Vec<Target> {
@@ -67,6 +70,9 @@ impl CircuitVariable for AddressVariable {
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        self.0.set(witness, value.as_bytes().to_vec())
+        self.0.set(
+            witness,
+            value.as_bytes().try_into().expect("wrong slice length"),
+        )
     }
 }

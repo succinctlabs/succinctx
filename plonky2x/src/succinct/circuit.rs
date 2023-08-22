@@ -15,7 +15,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use crate::vars::CircuitVariable;
 use crate::builder::CircuitBuilder;
 use crate::vars::{ByteVariable, Bytes32Variable};
-use crate::succinct::utils::{load_circuit, save_circuit};
+use crate::utils::serializer::{load_circuit, save_circuit};
 
 pub trait Circuit<F: RichField + Extendable<D>, const D: usize> {
     fn get_input_bytes(&self) -> Vec<ByteVariable>;
