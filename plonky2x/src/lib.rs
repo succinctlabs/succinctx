@@ -5,6 +5,7 @@
 #![feature(trait_alias)]
 #![feature(decl_macro)]
 #![feature(core_intrinsics)]
+#![feature(async_fn_in_trait)]
 
 extern crate alloc;
 
@@ -13,5 +14,6 @@ pub mod composer;
 pub mod eth;
 pub mod ethutils;
 pub mod mapreduce;
+pub mod prover;
 pub mod utils;
 pub mod vars;

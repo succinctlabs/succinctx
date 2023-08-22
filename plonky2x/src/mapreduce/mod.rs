@@ -1,5 +1,7 @@
 #[macro_use]
 pub mod utils;
+pub mod api;
+pub mod serialize;
 
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -16,11 +18,8 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use crate::builder::CircuitBuilder;
-use crate::mapreduce::utils::{
-    load_circuit, load_circuit_variable, load_proof_with_pis_target, save_circuit,
-    save_circuit_variable, save_proof_with_pis_target, CircuitDataIdentifiable,
-};
-use crate::vars::CircuitVariable;
+use crate::mapreduce::serialize::CircuitDataSerializable;
+use crate::vars::{proof_with_pis_to_targets, CircuitVariable};
 
 #[derive(Debug, Clone)]
 pub struct MapReduceRecursiveProofGenerator<F, C, I, O, const D: usize>
@@ -69,10 +68,8 @@ where
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
         // Load map circuit and map circuit input of type I.
-        let map_circuit_path = format!("./build/map-{}.circuit", self.map_circuit_id);
-        let map_circuit_input_path = format!("./build/map-{}.target", self.map_circuit_id);
-        let map_circuit = load_circuit::<F, C, D>(&map_circuit_path);
-        let map_circuit_input = load_circuit_variable::<I>(&map_circuit_input_path);
+        let map_circuit_path = format!("./build/{}.circuit", self.map_circuit_id);
+        let (map_circuit, map_circuit_input) = CircuitData::<F, C, D>::load::<I>(map_circuit_path);
         println!("loaded map circuit from disk");
 
         // Based on the inputs passed in the outer most circuit compute proofs which map
@@ -87,14 +84,6 @@ where
             println!("generated map proof {}/{}", i + 1, self.inputs.len());
         }
 
-        // await Promise.all([...prove(releaseId, inputBytes[i], mapFunctionId)])
-
-        // await Promise.all(...prove(releaesId, inputBytes[i], releaseFunctionId1))
-
-        // await Promise.all(...prove(releaesId, inputBytes[i], releaseFunctionId2))
-
-        // await Promise.all(...prove(releaesId, inputBytes[i], releaseFunctionId3))
-
         // Now, we need to reduce the proofs to a single proof using the reduce circuits for
         // each layer. To do so, we load in the appropriate reduce circuit and the left/right
         // proof targets. We then set the left/right proof targets to the proofs we have
@@ -104,21 +93,11 @@ where
         for i in 0..nb_reduce_layers {
             let mut next_proofs = Vec::new();
 
-            let reduce_circuit_path = format!(
-                "./build/reduce-{}-{}.circuit",
-                i, self.reduce_circuit_ids[i]
-            );
-            let reduce_circuit_input_left_path = format!(
-                "./build/reduce-{}-left-{}.target",
-                i, self.reduce_circuit_ids[i]
-            );
-            let reduce_circuit_input_right_path = format!(
-                "./build/reduce-{}-right-{}.target",
-                i, self.reduce_circuit_ids[i]
-            );
-            let reduce_circuit = load_circuit::<F, C, D>(&reduce_circuit_path);
-            let left = load_proof_with_pis_target::<D>(&reduce_circuit_input_left_path);
-            let right = load_proof_with_pis_target::<D>(&reduce_circuit_input_right_path);
+            let reduce_circuit_path = format!("./build/{}.circuit", self.reduce_circuit_ids[i]);
+            let (reduce_circuit, reduce_circuit_inputs) =
+                CircuitData::<F, C, D>::load_with_proof_targets(reduce_circuit_path);
+            let left = reduce_circuit_inputs[0].to_owned();
+            let right = reduce_circuit_inputs[1].to_owned();
 
             let nb_proofs = self.inputs.len() / (2usize.pow((i + 1) as u32));
             for j in 0..nb_proofs {
@@ -224,11 +203,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         &mut self,
         cd: &CircuitData<F, C, D>,
         r: &R,
-    ) -> (
-        CircuitData<F, C, D>,
-        ProofWithPublicInputsTarget<D>,
-        ProofWithPublicInputsTarget<D>,
-    )
+    ) -> (CircuitData<F, C, D>, Vec<ProofWithPublicInputsTarget<D>>)
     where
         I: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
         O: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
@@ -250,7 +225,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let output = r(input_left.clone(), input_right.clone(), &mut builder);
 
         builder.register_public_inputs(output.targets().as_slice());
-        (builder.build::<C>(), proof_left, proof_right)
+        (builder.build::<C>(), vec![proof_left, proof_right])
     }
 
     pub fn mapreduce<I, O, C, M, R>(&mut self, inputs: Vec<I>, m: M, r: R) -> O
@@ -267,10 +242,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
         // Save map circuit and map circuit input target to build folder.
         let map_circuit_id = map_circuit.id();
-        let map_circuit_path = format!("./build/map-{}.circuit", map_circuit_id);
-        let map_circuit_input_path = format!("./build/map-{}.target", map_circuit_id);
-        save_circuit(&map_circuit, map_circuit_path);
-        save_circuit_variable(map_circuit_input, map_circuit_input_path);
+        let map_circuit_path = format!("./build/{}.circuit", map_circuit_id);
+        map_circuit.save(map_circuit_input, map_circuit_path);
 
         // For each reduce layer, we need to build a reduce circuit which reduces two input proofs
         // to an output O.
@@ -283,20 +256,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             } else {
                 &reduce_circuits[i - 1]
             };
-            let (reduce_circuit, reduce_circuit_input_left, reduce_circuit_input_right) =
+            let (reduce_circuit, reduce_circuit_inputs) =
                 self.build_reduce_circuit::<I, O, C, R>(child_circuit_data, &r);
 
             // Save reduce circuit and reduce circuit input proofs to build folder.
             let reduce_circuit_id = reduce_circuit.id();
-            let reduce_circuit_path = format!("./build/reduce-{}-{}.circuit", i, reduce_circuit_id);
-            let reduce_circuit_input_left_path =
-                format!("./build/reduce-{}-left-{}.target", i, reduce_circuit_id);
-            let reduce_circuit_input_right_path =
-                format!("./build/reduce-{}-right-{}.target", i, reduce_circuit_id);
-            save_circuit(&reduce_circuit, reduce_circuit_path);
-            save_proof_with_pis_target(reduce_circuit_input_left, reduce_circuit_input_left_path);
-            save_proof_with_pis_target(reduce_circuit_input_right, reduce_circuit_input_right_path);
-
+            let reduce_circuit_path = format!("./build/{}.circuit", reduce_circuit_id);
+            reduce_circuit.save_with_proof_targets(&reduce_circuit_inputs, reduce_circuit_path);
             reduce_circuits.push(reduce_circuit);
         }
 
@@ -331,41 +297,7 @@ pub(crate) mod tests {
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use crate::builder::CircuitBuilder;
-    use crate::mapreduce::utils::save_circuit;
     use crate::vars::{CircuitVariable, Variable};
-
-    #[test]
-    fn test_phase_1() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
-        let mut builder = CircuitBuilder::<F, D>::new();
-
-        let a = builder.constant::<Variable>(0);
-        let b = builder.constant::<Variable>(1);
-        let c = builder.constant::<Variable>(2);
-        let d = builder.constant::<Variable>(3);
-
-        let inputs = vec![a, b, c, d];
-        let output = builder.mapreduce::<Variable, Variable, C, _, _>(
-            inputs,
-            |input, builder| {
-                let constant = builder.constant::<Variable>(1);
-                let sum = builder.add(input, constant);
-                sum
-            },
-            |left, right, builder| {
-                let sum = builder.add(left, right);
-                sum
-            },
-        );
-        builder.register_public_inputs(output.targets().as_slice());
-
-        let data = builder.build::<C>();
-        println!("finished compiling outer circuit");
-        save_circuit(&data, "./build/entry.circuit".to_string());
-    }
 
     #[test]
     fn test_simple_mapreduce_circuit() {

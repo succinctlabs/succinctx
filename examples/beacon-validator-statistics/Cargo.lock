@@ -176,6 +176,8 @@ name = "beacon-validator-statistics"
 version = "0.1.0"
 dependencies = [
  "base64 0.13.1",
+ "hex",
+ "itertools 0.11.0",
  "plonky2",
  "plonky2x",
  "serde",
