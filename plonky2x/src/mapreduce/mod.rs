@@ -11,15 +11,18 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartialWitness, PartitionWitness, WitnessWrite};
+use plonky2::iop::witness::{PartialWitness, PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use tokio::runtime::Runtime;
 
 use crate::builder::CircuitBuilder;
 use crate::mapreduce::serialize::CircuitDataSerializable;
-use crate::vars::{proof_with_pis_to_targets, CircuitVariable};
+use crate::prover::remote::RemoteProver;
+use crate::prover::Prover;
+use crate::vars::CircuitVariable;
 
 #[derive(Debug, Clone)]
 pub struct MapReduceRecursiveProofGenerator<F, C, I, O, const D: usize>
@@ -67,6 +70,8 @@ where
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+        let prover = RemoteProver::new();
+
         // Load map circuit and map circuit input of type I.
         let map_circuit_path = format!("./build/{}.circuit", self.map_circuit_id);
         let (map_circuit, map_circuit_input) = CircuitData::<F, C, D>::load::<I>(map_circuit_path);
@@ -76,9 +81,15 @@ where
         // the inputs of type I to the outputs of type O.
         let mut proofs = Vec::new();
         for i in 0..self.inputs.len() {
-            let mut pw = PartialWitness::new();
-            map_circuit_input.set(&mut pw, self.inputs[i].value(witness));
-            let proof = map_circuit.prove(pw).unwrap();
+            let rt = Runtime::new().expect("failed to create tokio runtime");
+            let proof = rt.block_on(async {
+                let mut pw = PartialWitness::<F>::new();
+                map_circuit_input.set(&mut pw, self.inputs[i].value(witness));
+                let targets = map_circuit_input.targets();
+                let values = pw.get_targets(targets.as_slice());
+                prover.prove::<F, C, D>(&map_circuit, values).await
+            });
+            // let proof = map_circuit.prove(pw).unwrap();
             map_circuit.verify(proof.clone()).unwrap();
             proofs.push(proof);
             println!("generated map proof {}/{}", i + 1, self.inputs.len());
@@ -101,11 +112,19 @@ where
 
             let nb_proofs = self.inputs.len() / (2usize.pow((i + 1) as u32));
             for j in 0..nb_proofs {
-                let mut pw = PartialWitness::new();
-                pw.set_proof_with_pis_target(&left, &proofs[j * 2]);
-                pw.set_proof_with_pis_target(&right, &proofs[j * 2 + 1]);
-
-                let proof = reduce_circuit.prove(pw).unwrap();
+                // let mut pw = PartialWitness::new();
+                // pw.set_proof_with_pis_target(&left, &proofs[j * 2]);
+                // pw.set_proof_with_pis_target(&right, &proofs[j * 2 + 1]);
+                let rt = Runtime::new().expect("failed to create tokio runtime");
+                let proof = rt.block_on(async {
+                    prover
+                        .prove_reduce::<F, C, D>(
+                            &reduce_circuit,
+                            vec![proofs[j * 2].clone(), proofs[j * 2 + 1].clone()],
+                        )
+                        .await
+                });
+                // let proof = reduce_circuit.prove(pw).unwrap();
                 reduce_circuit.verify(proof.clone()).unwrap();
                 next_proofs.push(proof);
                 println!(
