@@ -119,7 +119,7 @@ fn main() {
             // Read arguments from command line.
             let circuit_path = &args[1];
             let proof_bytes_list = &args[2]
-                .split_whitespace()
+                .split(",")
                 .map(|s| base64::decode(s).unwrap())
                 .collect_vec();
 
