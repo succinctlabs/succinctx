@@ -33,9 +33,8 @@ fn main() {
     const D: usize = 2;
 
     let args = std::env::args().collect_vec();
-    let cmd = &args[1];
 
-    if cmd == "build" {
+    if args.len() > 1 && &args[1] == "build" {
         let mut builder = CircuitBuilder::<F, D>::new();
         let input = builder.init::<Variable>();
         let inputs = vec![input, input, input, input];
@@ -54,7 +53,7 @@ fn main() {
         builder.register_public_inputs(output.targets().as_slice());
         let circuit = builder.build::<C>();
         circuit.save(input, format!("./build/{}.circuit", circuit.id()));
-    } else if cmd == "test" {
+    } else if args.len() > 1 && &args[1] == "test" {
         let mut builder = CircuitBuilder::<F, D>::new();
         let input = builder.init::<Variable>();
         let inputs = vec![input, input, input, input];
