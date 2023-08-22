@@ -82,6 +82,7 @@ fn main() {
         file.read_to_string(&mut context).unwrap();
 
         let args: Vec<String> = context.split_whitespace().map(|s| s.to_string()).collect();
+        println!("{:?}", args);
         let cmd = &args[1];
 
         if cmd == "map" {
