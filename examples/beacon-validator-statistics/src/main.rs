@@ -83,12 +83,12 @@ fn main() {
 
         let args: Vec<String> = context.split_whitespace().map(|s| s.to_string()).collect();
         println!("{:?}", args);
-        let cmd = &args[1];
+        let cmd = &args[0];
 
         if cmd == "map" {
             // Read arguments from command line.
-            let circuit_path = &args[2];
-            let input_values = parse_u64s(&args[3]).unwrap();
+            let circuit_path = &args[1];
+            let input_values = parse_u64s(&args[2]).unwrap();
 
             // Load the circuit.
             let (circuit, input_targets) =
@@ -117,8 +117,8 @@ fn main() {
             println!("Successfully generated proof.");
         } else if cmd == "reduce" {
             // Read arguments from command line.
-            let circuit_path = &args[2];
-            let proof_bytes_list = &args[3]
+            let circuit_path = &args[1];
+            let proof_bytes_list = &args[2]
                 .split_whitespace()
                 .map(|s| base64::decode(s).unwrap())
                 .collect_vec();
