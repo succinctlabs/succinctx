@@ -20,7 +20,7 @@ use crate::succinct::utils::{load_circuit, save_circuit};
 pub trait Circuit<F: RichField + Extendable<D>, const D: usize> {
     fn get_input_bytes(&self) -> Vec<ByteVariable>;
     fn get_output_bytes(&self) -> Vec<ByteVariable>;
-    fn set_witness(&self, pw: &mut PartialWitness<F>, input_bytes: Vec<u8>);
+    fn set_witness(&self, pw: &mut PartialWitness<F>, input_bytes: &[u8]);
     fn define(builder: &mut CircuitBuilder<F, D>) -> Self;
 }
 
@@ -32,7 +32,7 @@ pub struct CircuitFunction<F: RichField + Extendable<D>, const D: usize, C: Circ
 }
 
 impl<F: RichField + Extendable<D>, const D: usize, C: Circuit<F, D>> CircuitFunction<F, D, C> {
-    pub fn set_witness(&mut self, input_bytes: Vec<u8>) -> PartialWitness<F> {
+    pub fn set_witness(&mut self, input_bytes: &[u8]) -> PartialWitness<F> {
         let mut pw = PartialWitness::new();
         // TODO actually hash input_bytes to get `input_bytes_hash` below
         let input_bytes_hash = H256::from_slice(&input_bytes[..]);
@@ -52,7 +52,8 @@ impl<F: RichField + Extendable<D>, const D: usize, C: Circuit<F, D>> CircuitFunc
     }
 
     pub fn define(builder: &mut CircuitBuilder<F, D>) -> Self {
-        // TODO: should we eat the builder in here since it shouldn't be added to after?
+        // TODO: we can maybe save `builder` within the CircuitFunction struct and have a function `save_build` that serializes the build and saves it.
+        // This would be nice as it would prevent others from adding to the builder afterwards, which should not happen.
         let input_hash = builder.init::<Bytes32Variable>();
         let output_hash = builder.init::<Bytes32Variable>();
         let inner_circuit = C::define(builder);
@@ -95,7 +96,7 @@ pub mod test {
             self.output_bytes.clone() // Clone to avoid moving.
         }
 
-        fn set_witness(&self, pw: &mut PartialWitness<F>, input_bytes: Vec<u8>) {
+        fn set_witness(&self, pw: &mut PartialWitness<F>, input_bytes: &[u8]) {
             for i in 0..input_bytes.len() {
                 self.input_bytes[i].set(pw, input_bytes[i]);
                 self.output_bytes[i].set(pw, input_bytes[i]);
@@ -130,7 +131,7 @@ pub mod test {
         save_circuit(&circuit_build, "test_circuit_function".to_string());
 
         let loaded_circuit_build: CircuitData<F, C, D> = load_circuit(&"test_circuit_function".to_string());
-        let pw = circuit_function.set_witness(bytes32!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").as_bytes().to_vec());
+        let pw = circuit_function.set_witness(bytes32!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").as_bytes());
         let proof = loaded_circuit_build.prove(pw).unwrap();
         loaded_circuit_build.verify(proof).unwrap();
     }

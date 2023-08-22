@@ -45,7 +45,7 @@ fn run<CircuitType: Circuit<F, D>>(args: Vec<String>) {
         if prove_flag {
             let circuit_function_build: CircuitData<F, C, D> = load_circuit(&path.to_string());
             println!("proving circuit for input: {:?}", hex::encode(&input_bytes));
-            let pw = circuit_function.set_witness(input_bytes.clone());
+            let pw = circuit_function.set_witness(&input_bytes);
             let proof = circuit_function_build.prove(pw);
             match proof {
                 Ok(proof) => {
@@ -62,7 +62,7 @@ fn run<CircuitType: Circuit<F, D>>(args: Vec<String>) {
                     let duration = start.elapsed();
                     start = Instant::now();
                     println!("Building wrapper circuit took: {:?}", duration);
-                    let wrapper_witness = wrapper.set_witness(&circuit_function_build, proof_clone);
+                    let wrapper_witness = wrapper.set_witness(&circuit_function_build, &proof_clone);
                     let duration = start.elapsed();
                     start = Instant::now();
                     println!("Setting wrapper witness took: {:?}", duration);

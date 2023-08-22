@@ -52,7 +52,7 @@ impl WrapperCircuit {
 
     }
 
-    pub fn set_witness(&self, inner_data: &CircuitData<F, C, D>, inner_proof: ProofWithPublicInputs<F, C, D>) -> PartialWitness<GoldilocksField>{
+    pub fn set_witness(&self, inner_data: &CircuitData<F, C, D>, inner_proof: &ProofWithPublicInputs<F, C, D>) -> PartialWitness<GoldilocksField>{
         let mut outer_pw = PartialWitness::new();
         outer_pw.set_proof_with_pis_target(&self.outer_proof_target, &inner_proof);
         outer_pw.set_verifier_data_target(&self.outer_verifier_data, &inner_data.verifier_only);
@@ -118,7 +118,7 @@ pub mod test {
         let wrapper = WrapperCircuit::define(&mut outer_builder, &inner_data);
         let outer_data = WrapperCircuit::build(outer_builder);
 
-        let outer_pw = wrapper.set_witness(&inner_data, inner_proof);
+        let outer_pw = wrapper.set_witness(&inner_data, &inner_proof);
         let outer_proof = outer_data.prove(outer_pw).unwrap();
         let ret = outer_data.verify(outer_proof.clone()).unwrap();
     }
