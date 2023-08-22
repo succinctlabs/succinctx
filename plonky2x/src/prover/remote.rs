@@ -16,7 +16,7 @@ use super::Prover;
 use crate::mapreduce::serialize::CircuitDataSerializable;
 use crate::vars::CircuitVariable;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct CreateProofPayload {
     release_id: String,
     input: String,
@@ -68,9 +68,10 @@ impl Prover for RemoteProver {
 
         let payload = CreateProofPayload {
             release_id,
-            input,
+            input: "0x".to_string(),
             context,
         };
+        println!("{:#?}", payload);
         let create_response: CreateProofResponse = self
             .client
             .post("https://platform.succinct.xyz:8080/api/proof/new")
@@ -106,7 +107,7 @@ impl Prover for RemoteProver {
             sleep(Duration::from_secs(1)).await;
         }
 
-        let proof_bytes = hex::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
+        let proof_bytes = base64::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
         let proof =
             ProofWithPublicInputs::<F, C, D>::from_bytes(proof_bytes, &circuit.common).unwrap();
         proof
@@ -127,14 +128,14 @@ impl Prover for RemoteProver {
 
         let input = input
             .iter()
-            .map(|x| format!("{}", hex::encode(x.to_bytes())))
+            .map(|x| base64::encode(x.to_bytes()))
             .collect::<Vec<String>>()
             .join(",");
         let context = format!("reduce ./build/{}.circuit {}", circuit_id, input);
 
         let payload = CreateProofPayload {
             release_id,
-            input,
+            input: "0x".to_string(),
             context,
         };
         let create_response: CreateProofResponse = self
@@ -172,7 +173,7 @@ impl Prover for RemoteProver {
             sleep(Duration::from_secs(1)).await;
         }
 
-        let proof_bytes = hex::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
+        let proof_bytes = base64::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
         let proof =
             ProofWithPublicInputs::<F, C, D>::from_bytes(proof_bytes, &circuit.common).unwrap();
         proof

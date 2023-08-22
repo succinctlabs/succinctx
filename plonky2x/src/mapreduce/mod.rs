@@ -33,12 +33,16 @@ where
     I: CircuitVariable + Debug + Clone + Sync + Send + 'static,
     O: CircuitVariable + Debug + Clone + Sync + Send + 'static,
 {
+    /// The identifier for the map circuit.
     pub map_circuit_id: String,
 
+    /// The identifiers for the reduce circuits.
     pub reduce_circuit_ids: Vec<String>,
 
+    /// The inputs to the map circuit.
     pub inputs: Vec<I>,
 
+    /// The proof target for the final circuit proof.
     pub proof: ProofWithPublicInputsTarget<D>,
 
     pub _phantom1: PhantomData<F>,
@@ -107,8 +111,8 @@ where
             let reduce_circuit_path = format!("./build/{}.circuit", self.reduce_circuit_ids[i]);
             let (reduce_circuit, reduce_circuit_inputs) =
                 CircuitData::<F, C, D>::load_with_proof_targets(reduce_circuit_path);
-            let left = reduce_circuit_inputs[0].to_owned();
-            let right = reduce_circuit_inputs[1].to_owned();
+            // let left = reduce_circuit_inputs[0].to_owned();
+            // let right = reduce_circuit_inputs[1].to_owned();
 
             let nb_proofs = self.inputs.len() / (2usize.pow((i + 1) as u32));
             for j in 0..nb_proofs {

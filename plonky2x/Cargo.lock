@@ -2399,6 +2399,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "array-macro",
+ "base64 0.13.1",
  "curta",
  "curve25519-dalek",
  "digest 0.10.7",

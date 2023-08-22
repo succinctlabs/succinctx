@@ -53,6 +53,11 @@ fn main() {
         builder.register_public_inputs(output.targets().as_slice());
         let circuit = builder.build::<C>();
         circuit.save(input, format!("./build/{}.circuit", circuit.id()));
+
+        let mut pw = PartialWitness::new();
+        pw.set_target(input.0, GoldilocksField::from_canonical_u64(1));
+        circuit.prove(pw).unwrap();
+
         println!("Successfully built and saved circuit.");
     } else if cmd == "map" {
         // Read arguments from command line.
@@ -78,7 +83,7 @@ fn main() {
 
         // Save proof.
         let proof = Proof {
-            bytes: hex::encode(proof.to_bytes()),
+            bytes: base64::encode(proof.to_bytes()),
         };
         let file_path = "./proof.json";
         let json = serde_json::to_string_pretty(&proof).unwrap();
@@ -89,7 +94,7 @@ fn main() {
         let circuit_path = &args[2];
         let proof_bytes_list = &args[3]
             .split_whitespace()
-            .map(|s| hex::decode(s).unwrap())
+            .map(|s| base64::decode(s).unwrap())
             .collect_vec();
 
         // Load the circuit.
@@ -114,7 +119,7 @@ fn main() {
         let proof = circuit.prove(pw).unwrap();
         circuit.verify(proof.clone()).unwrap();
         let proof = Proof {
-            bytes: hex::encode(proof.to_bytes()),
+            bytes: base64::encode(proof.to_bytes()),
         };
         let file_path = "./proof.json";
         let json = serde_json::to_string_pretty(&proof).unwrap();
