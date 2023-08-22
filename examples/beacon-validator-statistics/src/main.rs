@@ -124,7 +124,7 @@ fn main() {
                 .collect_vec();
 
             // Load the circuit.
-            let (circuit, proof_targets) =
+            let (circuit, child_circuit, proof_targets) =
                 CircuitData::<F, C, D>::load_with_proof_targets(circuit_path.to_string());
 
             // Set inputs.
@@ -132,7 +132,7 @@ fn main() {
             for i in 0..proof_bytes_list.len() {
                 let mut buffer = Buffer::new(proof_bytes_list[i].as_slice());
                 let proof = buffer
-                    .read_proof_with_public_inputs::<F, C, D>(&circuit.common)
+                    .read_proof_with_public_inputs::<F, C, D>(&child_circuit.common)
                     .unwrap();
                 proofs.push(proof);
             }

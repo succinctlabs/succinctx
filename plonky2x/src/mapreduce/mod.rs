@@ -109,7 +109,7 @@ where
             let mut next_proofs = Vec::new();
 
             let reduce_circuit_path = format!("./build/{}.circuit", self.reduce_circuit_ids[i]);
-            let (reduce_circuit, reduce_circuit_inputs) =
+            let (reduce_circuit, reduce_child_circuit, reduce_circuit_inputs) =
                 CircuitData::<F, C, D>::load_with_proof_targets(reduce_circuit_path);
             // let left = reduce_circuit_inputs[0].to_owned();
             // let right = reduce_circuit_inputs[1].to_owned();
@@ -285,7 +285,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             // Save reduce circuit and reduce circuit input proofs to build folder.
             let reduce_circuit_id = reduce_circuit.id();
             let reduce_circuit_path = format!("./build/{}.circuit", reduce_circuit_id);
-            reduce_circuit.save_with_proof_targets(&reduce_circuit_inputs, reduce_circuit_path);
+            reduce_circuit.save_with_proof_targets(
+                child_circuit_data,
+                &reduce_circuit_inputs,
+                reduce_circuit_path,
+            );
             reduce_circuits.push(reduce_circuit);
         }
 

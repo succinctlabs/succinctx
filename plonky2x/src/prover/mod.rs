@@ -4,8 +4,6 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use crate::vars::CircuitVariable;
-
 pub mod local;
 pub mod remote;
 

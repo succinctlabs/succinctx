@@ -32,11 +32,20 @@ where
 
     fn load_with_input_targets(path: String) -> (CircuitData<F, C, D>, Vec<Target>);
 
-    fn save_with_proof_targets(&self, proofs: &[ProofWithPublicInputsTarget<D>], path: String);
+    fn save_with_proof_targets(
+        &self,
+        child_circuit: &CircuitData<F, C, D>,
+        proofs: &[ProofWithPublicInputsTarget<D>],
+        path: String,
+    );
 
     fn load_with_proof_targets(
         path: String,
-    ) -> (CircuitData<F, C, D>, Vec<ProofWithPublicInputsTarget<D>>);
+    ) -> (
+        CircuitData<F, C, D>,
+        CircuitData<F, C, D>,
+        Vec<ProofWithPublicInputsTarget<D>>,
+    );
 
     fn save<V: CircuitVariable>(&self, variable: V, path: String) {
         self.save_with_input_targets(variable.targets().as_slice(), path)
@@ -114,7 +123,12 @@ where
         (circuit, targets)
     }
 
-    fn save_with_proof_targets(&self, proofs: &[ProofWithPublicInputsTarget<D>], path: String) {
+    fn save_with_proof_targets(
+        &self,
+        child_circuit: &CircuitData<F, C, D>,
+        proofs: &[ProofWithPublicInputsTarget<D>],
+        path: String,
+    ) {
         // Setup serializers.
         let (gate_serializer, generator_serializer) = CircuitData::<F, C, D>::serializers();
 
@@ -127,6 +141,13 @@ where
             .unwrap();
         buffer.write_usize(circuit_bytes.len()).unwrap();
         buffer.write_all(&circuit_bytes).unwrap();
+
+        let child_circuit_bytes = self
+            .to_bytes(&gate_serializer, &generator_serializer)
+            .unwrap();
+        buffer.write_usize(child_circuit_bytes.len()).unwrap();
+        buffer.write_all(&child_circuit_bytes).unwrap();
+
         buffer.write_usize(proofs.len()).unwrap();
         for i in 0..proofs.len() {
             buffer
@@ -141,7 +162,11 @@ where
 
     fn load_with_proof_targets(
         path: String,
-    ) -> (CircuitData<F, C, D>, Vec<ProofWithPublicInputsTarget<D>>) {
+    ) -> (
+        CircuitData<F, C, D>,
+        CircuitData<F, C, D>,
+        Vec<ProofWithPublicInputsTarget<D>>,
+    ) {
         // Setup serializers.
         let (gate_serializer, generator_serializer) = CircuitData::<F, C, D>::serializers();
 
@@ -160,6 +185,18 @@ where
         )
         .unwrap();
 
+        let child_circuit_bytes_len = buffer.read_usize().unwrap();
+        let mut child_circuit_bytes = vec![0u8; child_circuit_bytes_len];
+        buffer
+            .read_exact(child_circuit_bytes.as_mut_slice())
+            .unwrap();
+        let child_circuit = CircuitData::<F, C, D>::from_bytes(
+            &child_circuit_bytes,
+            &gate_serializer,
+            &generator_serializer,
+        )
+        .unwrap();
+
         // Deserialize proof targets from bytes.
         let proofs_len = buffer.read_usize().unwrap();
         let mut proofs = Vec::new();
@@ -167,6 +204,6 @@ where
             proofs.push(buffer.read_target_proof_with_public_inputs().unwrap());
         }
 
-        (circuit, proofs)
+        (circuit, child_circuit, proofs)
     }
 }
