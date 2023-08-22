@@ -54,9 +54,9 @@ fn main() {
         let circuit = builder.build::<C>();
         circuit.save(input, format!("./build/{}.circuit", circuit.id()));
 
-        let mut pw = PartialWitness::new();
-        pw.set_target(input.0, GoldilocksField::from_canonical_u64(1));
-        circuit.prove(pw).unwrap();
+        // let mut pw = PartialWitness::new();
+        // pw.set_target(input.0, GoldilocksField::from_canonical_u64(1));
+        // circuit.prove(pw).unwrap();
 
         println!("Successfully built and saved circuit.");
     } else if cmd == "map" {
