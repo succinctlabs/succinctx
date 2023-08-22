@@ -11,7 +11,7 @@ use plonky2::plonk::config::GenericConfig;
 use plonky2::iop::target::Target;
 
 use crate::ethutils::beacon::BeaconClient;
-use crate::vars::{BoolVariable, CircuitVariable, Variable};
+use crate::vars::{BoolVariable, CircuitVariable, Variable, ByteVariable};
 
 /// This is the API that we recommend developers use for writing circuits. It is a wrapper around
 /// the basic plonky2 builder.
@@ -104,6 +104,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn is_zero(&mut self, i1: Variable) -> BoolVariable {
         let zero = self.api.zero();
         self.api.is_equal(i1.0, zero).target.into()
+    }
+
+    pub fn assert_is_zero(&mut self, i1: Variable) {
+        let zero = self.api.zero();
+        self.assert_is_equal(i1, Variable(zero));
     }
 
     /// Fails if i1 != i2.
