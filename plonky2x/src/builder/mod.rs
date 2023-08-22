@@ -1,4 +1,6 @@
 mod boolean;
+pub mod read;
+pub mod write;
 
 use ethers::providers::{Http, Provider};
 use plonky2::field::extension::Extendable;
