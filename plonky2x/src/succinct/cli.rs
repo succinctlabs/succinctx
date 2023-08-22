@@ -13,7 +13,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 
 use crate::builder::CircuitBuilder;
 use crate::succinct::circuit::{Circuit, CircuitFunction};
-use crate::succinct::utils::{load_circuit, save_circuit};
+use crate::utils::serializer::{load_circuit, save_circuit};
 use crate::utils::bytes;
 
 use crate::wrapper::wrap::WrapperCircuit;
@@ -40,7 +40,7 @@ fn run<CircuitType: Circuit<F, D>>(args: Vec<String>) {
 
     if let Some(input) = input_arg {
         println!("input: {}", input);
-        let input_bytes = bytes!(&input["--input=".len()..]);
+        let input_bytes: Vec<u8> = bytes!(&input["--input=".len()..]);
         
         if prove_flag {
             let circuit_function_build: CircuitData<F, C, D> = load_circuit(&path.to_string());
