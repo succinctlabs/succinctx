@@ -3,6 +3,7 @@ use std::fs::{File, create_dir_all};
 use std::io::Write;
 use std::process;
 use std::path::Path;
+use std::time::Instant;
 
 use plonky2::hash::hash_types::RichField;
 use plonky2::field::extension::Extendable;
@@ -49,20 +50,32 @@ fn run<CircuitType: Circuit<F, D>>(args: Vec<String>) {
             match proof {
                 Ok(proof) => {
                     // Verify the proof
+                    let proof_clone = proof.clone();
                     circuit_function_build.verify(proof).unwrap();
-                    println!("proof verified");
-                    todo!("export proof");
+                    println!("Circuit Function proof verified");
 
-                    let wrapper = WrapperCircuit::define(&circuit_function_build);
+                    let mut wrapper_builder = CircuitBuilder::<F, D>::new();
+                    let wrapper: WrapperCircuit = WrapperCircuit::define(&mut wrapper_builder.api, &circuit_function_build);
                     // TODO: in the future load the wrapper_build from a saved file 
-                    let wrapper_build = wrapper.builder.build::<PoseidonBN128GoldilocksConfig>();
-                    let wrapper_witness = wrapper.set_witness(&circuit_function_build, proof);
+                    let mut start = Instant::now();
+                    let wrapper_build = WrapperCircuit::build(wrapper_builder.api);
+                    let duration = start.elapsed();
+                    start = Instant::now();
+                    println!("Building wrapper circuit took: {:?}", duration);
+                    let wrapper_witness = wrapper.set_witness(&circuit_function_build, proof_clone);
+                    let duration = start.elapsed();
+                    start = Instant::now();
+                    println!("Setting wrapper witness took: {:?}", duration);
                     let wrapper_proof = wrapper_build.prove(wrapper_witness);
+                    let duration = start.elapsed();
+                    println!("Proving wrapper circuit took: {:?}", duration);
                     match wrapper_proof {
                         Ok(wrapper_proof) => {
-                            // Verify the proof
-                            wrapper_build.verify(wrapper_proof).unwrap();
+                            // Verify the wrapper proof
+                            wrapper_build.verify(wrapper_proof.clone()).unwrap();
                             println!("wrapper proof verified");
+
+                            WrapperCircuit::save_proof(&wrapper_build, &wrapper_proof, "build/wrapper".to_string());
                         }
                         Err(e) => println!("Failed to prove wrapper circuit: {}", e),
                     }
