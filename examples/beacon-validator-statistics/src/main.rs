@@ -7,7 +7,7 @@ use plonky2::field::types::Field;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::PoseidonGoldilocksConfig;
-use plonky2::util::serialization::{Buffer, Read as Plonky2Read};
+use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2x::builder::CircuitBuilder;
 use plonky2x::mapreduce::serialize::CircuitDataSerializable;
 use plonky2x::vars::{CircuitVariable, Variable};
@@ -130,10 +130,11 @@ fn main() {
             // Set inputs.
             let mut proofs = Vec::new();
             for i in 0..proof_bytes_list.len() {
-                let mut buffer = Buffer::new(proof_bytes_list[i].as_slice());
-                let proof = buffer
-                    .read_proof_with_public_inputs::<F, C, D>(&child_circuit.common)
-                    .unwrap();
+                let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(
+                    proof_bytes_list[i].clone(),
+                    &child_circuit.common,
+                )
+                .unwrap();
                 proofs.push(proof);
             }
             let mut pw = PartialWitness::new();
