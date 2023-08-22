@@ -4,7 +4,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::config::PoseidonGoldilocksConfig;
 use plonky2x::builder::CircuitBuilder;
-use plonky2x::mapreduce::utils::{load_circuit, save_circuit};
+use plonky2x::mapreduce::utils::{load_circuit, load_circuit_variable, save_circuit};
 use plonky2x::vars::{CircuitVariable, Variable};
 
 extern crate base64;
@@ -75,7 +75,11 @@ fn main() {
         let target = &args[2];
         let circuit_path = format!("./build/{}", target);
         let circuit = load_circuit::<F, C, D>(&circuit_path);
-        let pw = PartialWitness::new();
+        let another = &args[3];
+        let input_path = format!("./build/{}", another);
+        let input = load_circuit_variable::<Variable>(&input_path);
+        let mut pw = PartialWitness::new();
+        input.set(&mut pw, 5);
         let proof = circuit.prove(pw).unwrap();
         circuit.verify(proof.clone()).unwrap();
         let proof = Proof {
@@ -84,6 +88,7 @@ fn main() {
         let file_path = "./proof.json";
         let json = serde_json::to_string_pretty(&proof).unwrap();
         std::fs::write(file_path, json).unwrap();
+        println!("Successfully generated proof.");
     } else {
         println!("Unsupported.")
     }
