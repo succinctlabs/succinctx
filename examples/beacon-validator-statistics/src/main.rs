@@ -1,4 +1,5 @@
-use std::env;
+use std::fs::File;
+use std::io::Read;
 
 use itertools::Itertools;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -6,7 +7,7 @@ use plonky2::field::types::Field;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::PoseidonGoldilocksConfig;
-use plonky2::util::serialization::{Buffer, Read};
+use plonky2::util::serialization::{Buffer, Read as Plonky2Read};
 use plonky2x::builder::CircuitBuilder;
 use plonky2x::mapreduce::serialize::CircuitDataSerializable;
 use plonky2x::vars::{CircuitVariable, Variable};
@@ -31,7 +32,11 @@ fn main() {
     type C = PoseidonGoldilocksConfig;
     const D: usize = 2;
 
-    let args: Vec<String> = env::args().collect();
+    let mut file = File::open("context").unwrap();
+    let mut context = String::new();
+    file.read_to_string(&mut context).unwrap();
+
+    let args: Vec<String> = context.split_whitespace().map(|s| s.to_string()).collect();
     let cmd = &args[1];
 
     if cmd == "build" {
