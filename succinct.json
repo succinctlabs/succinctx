@@ -1,5 +1,5 @@
 {
     "preset": "plonky2x",
     "build_command": "rm -rf ./build && cd examples/beacon-validator-statistics && rustup override set nightly && mkdir build && cargo run --release build && mv ./build ../../build && mv ./target/release/beacon-validator-statistics ../../build/beacon-validator-statistics",
-    "prove_command": "./build/beacon-validator-statistics prove $CONTEXT"
+    "prove_command": "./build/beacon-validator-statistics $CONTEXT"
 }
