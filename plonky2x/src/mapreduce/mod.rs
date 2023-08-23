@@ -122,13 +122,13 @@ where
                 let rt = Runtime::new().expect("failed to create tokio runtime");
 
                 ProofWithPublicInputs::<F, C, D>::from_bytes(
-                    hex::decode(proofs[j * 2].to_bytes()).unwrap(),
+                    hex::decode(hex::encode(proofs[j * 2].to_bytes())).unwrap(),
                     &reduce_child_circuit.common,
                 )
                 .unwrap();
                 println!("passed");
                 ProofWithPublicInputs::<F, C, D>::from_bytes(
-                    hex::decode(proofs[j * 2 + 1].to_bytes()).unwrap(),
+                    hex::decode(hex::encode(proofs[j * 2 + 1].to_bytes())).unwrap(),
                     &reduce_child_circuit.common,
                 )
                 .unwrap();
