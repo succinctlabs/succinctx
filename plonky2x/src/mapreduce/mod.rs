@@ -121,17 +121,17 @@ where
                 // pw.set_proof_with_pis_target(&right, &proofs[j * 2 + 1]);
                 let rt = Runtime::new().expect("failed to create tokio runtime");
 
-                ProofWithPublicInputs::<F, C, D>::from_bytes(
-                    hex::decode(hex::encode(proofs[j * 2].to_bytes())).unwrap(),
-                    &map_circuit.common,
-                )
-                .unwrap();
-                println!("passed");
-                ProofWithPublicInputs::<F, C, D>::from_bytes(
-                    hex::decode(hex::encode(proofs[j * 2 + 1].to_bytes())).unwrap(),
-                    &map_circuit.common,
-                )
-                .unwrap();
+                // ProofWithPublicInputs::<F, C, D>::from_bytes(
+                //     hex::decode(hex::encode(proofs[j * 2].to_bytes())).unwrap(),
+                //     &map_circuit.common,
+                // )
+                // .unwrap();
+                // println!("passed");
+                // ProofWithPublicInputs::<F, C, D>::from_bytes(
+                //     hex::decode(hex::encode(proofs[j * 2 + 1].to_bytes())).unwrap(),
+                //     &map_circuit.common,
+                // )
+                // .unwrap();
 
                 println!("passed");
                 let proof = rt.block_on(async {
