@@ -35,13 +35,7 @@ pub struct PoseidonBN128HashOut<F: Field> {
 fn hash_out_to_bytes<F: Field>(hash: PoseidonBN128HashOut<F>) -> Vec<u8> {
     let binding = hash.value.to_repr();
     let limbs = binding.as_ref();
-    [
-        limbs[0].to_le_bytes(),
-        limbs[1].to_le_bytes(),
-        limbs[2].to_le_bytes(),
-        limbs[3].to_le_bytes(),
-    ]
-    .concat()
+    limbs.to_vec() 
 }
 
 impl<F: RichField> GenericHashOut<F> for PoseidonBN128HashOut<F> {
@@ -82,15 +76,8 @@ impl<F: RichField> Serialize for PoseidonBN128HashOut<F> {
         // Output the hash as a bigint string.
         let binding = self.value.to_repr();
         let limbs = binding.as_ref();
-        let bytes = [
-            limbs[0].to_le_bytes(),
-            limbs[1].to_le_bytes(),
-            limbs[2].to_le_bytes(),
-            limbs[3].to_le_bytes(),
-        ]
-        .concat();
 
-        let big_int = BigUint::from_bytes_le(bytes.as_slice());
+        let big_int = BigUint::from_bytes_le(limbs);
         serializer.serialize_str(big_int.to_str_radix(10).as_str())
     }
 }
@@ -206,5 +193,40 @@ impl<F: RichField> Hasher<F> for PoseidonBN128Hash {
             value: state[0],
             _phantom: PhantomData,
         }
+    }
+}
+
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    fn test_byte_methods() {
+        type F = GoldilocksField;
+
+        let fr = Fr::from_str_vartime("11575173631114898451293296430061690731976535592475236587664058405912382527658").unwrap();
+        let hash = PoseidonBN128HashOut::<F> {
+            value: fr,
+            _phantom: PhantomData,
+        };
+
+        let bytes = hash.to_bytes();
+
+        let hash_from_bytes = PoseidonBN128HashOut::<F>::from_bytes(&bytes);
+        assert_eq!(hash, hash_from_bytes);
+    }
+
+    #[test]
+    fn test_serialization() {
+        let fr = Fr::from_str_vartime("11575173631114898451293296430061690731976535592475236587664058405912382527658").unwrap();
+        let hash = PoseidonBN128HashOut::<GoldilocksField> {
+            value: fr,
+            _phantom: PhantomData,
+        };
+
+        let serialized = serde_json::to_string(&hash).unwrap();
+        let deserialized: PoseidonBN128HashOut<GoldilocksField> = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(hash, deserialized);
     }
 }
