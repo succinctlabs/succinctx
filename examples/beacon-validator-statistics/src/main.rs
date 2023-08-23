@@ -38,7 +38,7 @@ fn main() {
     if args.len() > 1 && &args[1] == "build" {
         let mut builder = CircuitBuilder::<F, D>::new();
         let input = builder.init::<Variable>();
-        let inputs = vec![input, input, input, input];
+        let inputs = vec![input; 128];
         let output = builder.mapreduce::<Variable, Variable, C, _, _>(
             inputs,
             |input, builder| {
