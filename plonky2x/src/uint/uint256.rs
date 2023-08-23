@@ -11,7 +11,7 @@ use crate::vars::{CircuitVariable, U32Variable};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct U256Variable(pub [U32Variable; 4]);
 
 impl CircuitVariable for U256Variable {
@@ -35,16 +35,12 @@ impl CircuitVariable for U256Variable {
         self.0.iter().flat_map(|v| v.targets()).collect_vec()
     }
 
-<<<<<<< HEAD:plonky2x/src/vars/uint256.rs
     fn from_targets(targets: &[Target]) -> Self {
         assert_eq!(targets.len(), 4);
         Self(array![i => U32Variable::from_targets(&[targets[i]]); 4])
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
-=======
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
->>>>>>> main:plonky2x/src/uint/uint256.rs
         to_u256([
             self.0[0].value(witness),
             self.0[1].value(witness),

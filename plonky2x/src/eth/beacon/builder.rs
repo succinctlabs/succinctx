@@ -57,22 +57,6 @@ pub(crate) mod tests {
     use crate::vars::Bytes32Variable;
 
     #[test]
-    fn test_tvl_oracle() {
-        env_logger::init();
-        dotenv::dotenv().ok();
-
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
-        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
-        let client = BeaconClient::new(consensus_rpc);
-
-        let mut builder = CircuitBuilder::<F, D>::new();
-        builder.set_beacon_client(client);
-    }
-
-    #[test]
     fn test_get_validator_generator() {
         setup_logger();
         dotenv::dotenv().ok();

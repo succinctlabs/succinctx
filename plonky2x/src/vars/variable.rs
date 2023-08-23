@@ -1,4 +1,3 @@
-use curta::math::field::PrimeField64;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
@@ -9,7 +8,7 @@ use crate::builder::CircuitBuilder;
 use crate::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
 
 /// A variable in the circuit. It represents a value between `[0, 2**64 - 2**32 + 1)`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Variable(pub Target);
 
 impl CircuitVariable for Variable {

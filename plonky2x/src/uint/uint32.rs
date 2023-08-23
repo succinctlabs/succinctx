@@ -8,7 +8,7 @@ use crate::vars::{CircuitVariable, Variable};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct U32Variable(pub Variable);
 
 impl CircuitVariable for U32Variable {
@@ -31,16 +31,12 @@ impl CircuitVariable for U32Variable {
         vec![self.0 .0]
     }
 
-<<<<<<< HEAD:plonky2x/src/vars/uint32.rs
     fn from_targets(targets: &[Target]) -> Self {
         assert_eq!(targets.len(), 1);
         Self(Variable(targets[0]))
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
-=======
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
->>>>>>> main:plonky2x/src/uint/uint32.rs
         let v = witness.get_target(self.0 .0);
         v.to_canonical_u64() as u32
     }

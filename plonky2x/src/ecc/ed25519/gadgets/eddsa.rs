@@ -166,7 +166,7 @@ where
             hash_msg.push(msg[i]);
         }
 
-        for i in
+        for _ in
             (MAX_MSG_LEN_BITS + COMPRESSED_SIG_AND_PK_LEN_BITS)..(max_num_chunks * CHUNK_BITS_1024)
         {
             hash_msg.push(builder._false());

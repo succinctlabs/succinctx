@@ -41,17 +41,13 @@ impl CircuitVariable for EthProofVariable {
         self.proof.targets()
     }
 
-<<<<<<< HEAD
     fn from_targets(targets: &[Target]) -> Self {
         Self {
             proof: Bytes32Variable::from_targets(targets),
         }
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
-=======
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
->>>>>>> main
         EthProof {
             proof: self.proof.value(witness),
         }
@@ -116,16 +112,12 @@ impl CircuitVariable for EthAccountVariable {
         .collect()
     }
 
-<<<<<<< HEAD
     #[allow(unused_variables)]
     fn from_targets(targets: &[Target]) -> Self {
         todo!()
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
-=======
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
->>>>>>> main
         EthAccount {
             balance: self.balance.value(witness),
             code_hash: self.code_hash.value(witness),

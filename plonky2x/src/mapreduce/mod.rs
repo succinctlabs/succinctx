@@ -1,6 +1,5 @@
 #[macro_use]
 pub mod utils;
-pub mod api;
 pub mod serialize;
 
 use core::fmt::Debug;
@@ -283,6 +282,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 #[cfg(test)]
 pub(crate) mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
@@ -297,16 +297,16 @@ pub(crate) mod tests {
 
         let mut builder = CircuitBuilder::<F, D>::new();
 
-        let a = builder.constant::<Variable>(0);
-        let b = builder.constant::<Variable>(1);
-        let c = builder.constant::<Variable>(2);
-        let d = builder.constant::<Variable>(3);
+        let a = builder.constant::<Variable>(F::from_canonical_u64(0));
+        let b = builder.constant::<Variable>(F::from_canonical_u64(1));
+        let c = builder.constant::<Variable>(F::from_canonical_u64(3));
+        let d = builder.constant::<Variable>(F::from_canonical_u64(4));
 
         let inputs = vec![a, b, c, d];
         let output = builder.mapreduce::<Variable, Variable, C, _, _>(
             inputs,
             |input, builder| {
-                let constant = builder.constant::<Variable>(1);
+                let constant = builder.constant::<Variable>(F::ONE);
                 let sum = builder.add(input, constant);
                 sum
             },

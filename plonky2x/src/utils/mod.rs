@@ -1,14 +1,7 @@
-<<<<<<< HEAD
-#[macro_export]
-=======
-pub mod serializer;
-
 use std::sync::Once;
 
 use log::LevelFilter;
 
-
->>>>>>> main
 pub macro bytes32($hex_literal:expr) {
     $hex_literal.parse::<ethers::types::H256>().unwrap()
 }

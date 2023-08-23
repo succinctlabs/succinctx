@@ -61,19 +61,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         V::constant(self, value)
     }
 
-<<<<<<< HEAD
     /// Registers the given targets as public inputs.
     pub fn register_public_inputs(&mut self, inputs: &[Target]) {
         self.api.register_public_inputs(inputs);
     }
 
-    /// Add returns res = i1 + i2.
-    pub fn add(&mut self, i1: Variable, i2: Variable) -> Variable {
-        self.api.add(i1.0, i2.0).into()
-    }
-
-=======
->>>>>>> main
     /// Add returns res = i1 + i2 + ...
     pub fn add_many(&mut self, values: &[Variable]) -> Variable {
         let mut acc = values[0].0;

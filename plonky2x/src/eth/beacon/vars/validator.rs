@@ -77,6 +77,11 @@ impl CircuitVariable for BeaconValidatorVariable {
         targets
     }
 
+    #[allow(unused_variables)]
+    fn from_targets(targets: &[Target]) -> Self {
+        todo!()
+    }
+
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         BeaconValidator {
             pubkey: hex!(self.pubkey.value(witness)),
