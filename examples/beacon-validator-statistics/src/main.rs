@@ -109,12 +109,15 @@ fn main() {
 
             // Save proof.
             let proofA = Proof {
-                bytes: base64::encode(proof.to_bytes()),
+                bytes: hex::encode(proof.to_bytes()),
             };
 
             // Deserialization assertion...
-            ProofWithPublicInputs::<F, C, D>::from_bytes(proof.to_bytes(), &circuit.common)
-                .unwrap();
+            ProofWithPublicInputs::<F, C, D>::from_bytes(
+                hex::decode(hex::encode(proof.to_bytes())).unwrap(),
+                &circuit.common,
+            )
+            .unwrap();
 
             let file_path = "./proof.json";
             let json = serde_json::to_string_pretty(&proofA).unwrap();
@@ -125,8 +128,9 @@ fn main() {
             let circuit_path = &args[1];
             let proof_bytes_list = &args[2]
                 .split(",")
-                .map(|s| base64::decode(s).unwrap())
+                .map(|s| hex::decode(s).unwrap())
                 .collect_vec();
+            println!("{:?}", proof_bytes_list.len());
 
             // Load the circuit.
             let (circuit, child_circuit, proof_targets) =
