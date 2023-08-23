@@ -21,9 +21,9 @@ pub use super::uint::uint256::*;
 pub use super::uint::uint32::*;
 use crate::builder::CircuitBuilder;
 
-pub trait CircuitVariable: Debug + Clone + Sized + Send + Sync {
+pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     /// The underlying type of the variable if it were not in a circuit.
-    type ValueType<F>;
+    type ValueType<F: Debug>;
 
     /// Initializes the variable with no value in the circuit.
     fn init<F: RichField + Extendable<D>, const D: usize>(

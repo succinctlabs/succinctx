@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
@@ -22,7 +24,7 @@ pub struct BeaconValidatorVariable {
 }
 
 impl CircuitVariable for BeaconValidatorVariable {
-    type ValueType<F> = BeaconValidator;
+    type ValueType<F: Debug> = BeaconValidator;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,

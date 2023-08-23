@@ -29,8 +29,8 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F> + 'static,
     <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-    I: CircuitVariable + Debug + Clone + Sync + Send + 'static,
-    O: CircuitVariable + Debug + Clone + Sync + Send + 'static,
+    I: CircuitVariable,
+    O: CircuitVariable,
 {
     /// The identifier for the map circuit.
     pub map_circuit_id: String,
@@ -57,8 +57,8 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F> + 'static,
     <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-    I: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
-    O: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
+    I: CircuitVariable,
+    O: CircuitVariable,
 {
     fn id(&self) -> String {
         "MapReduceRecursiveProofGenerator".to_string()
@@ -77,6 +77,7 @@ where
         let prover = EnviromentProver::new();
         let rt = Runtime::new().expect("failed to create tokio runtime");
 
+        // Load the map circuit from disk & generate the proofs.
         let map_circuit_path = format!("./build/{}.circuit", self.map_circuit_id);
         let (map_circuit, map_circuit_input) = CircuitData::<F, C, D>::load::<I>(map_circuit_path);
         let targets = map_circuit_input.targets().into();
@@ -88,12 +89,13 @@ where
         let mut proofs =
             rt.block_on(async { prover.prove_batch(&map_circuit, targets, values).await });
 
+        // Each reduce layer takes N leave proofs and produces N / 2 proofs using a simple
+        // linear and binary reduction strategy.
         let nb_reduce_layers = (self.inputs.len() as f64).log2().ceil() as usize;
         for i in 0..nb_reduce_layers {
             let reduce_circuit_path = format!("./build/{}.circuit", self.reduce_circuit_ids[i]);
             let (reduce_circuit, _, reduce_circuit_inputs) =
                 CircuitData::<F, C, D>::load_with_proof_targets(reduce_circuit_path);
-
             let nb_proofs = self.inputs.len() / (2usize.pow((i + 1) as u32));
             let targets = reduce_circuit_inputs.into();
             let mut values = Vec::new();
@@ -101,66 +103,70 @@ where
                 values.push(vec![proofs[j * 2].clone(), proofs[j * 2 + 1].clone()].into())
             }
 
-            let next_proofs =
+            // Generate the proofs for the reduce layer and update the proofs buffer.
+            proofs =
                 rt.block_on(async { prover.prove_batch(&reduce_circuit, targets, values).await });
-
-            proofs = next_proofs.clone();
         }
 
+        // Set the proof target with the final proof.
         out_buffer.set_proof_with_pis_target(&self.proof, &proofs[0]);
     }
 
-    #[allow(unused_variables)]
-    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        dst.write_usize(self.map_circuit_id.len()).unwrap();
-        plonky2::util::serialization::Write::write_all(dst, self.map_circuit_id.as_bytes())
-            .unwrap();
+    fn serialize(&self, dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
+        // Write map circuit.
+        dst.write_usize(self.map_circuit_id.len())?;
+        dst.write_all(self.map_circuit_id.as_bytes())?;
 
-        dst.write_usize(self.reduce_circuit_ids.len()).unwrap();
+        // Write vector of reduce circuits.
+        dst.write_usize(self.reduce_circuit_ids.len())?;
         for i in 0..self.reduce_circuit_ids.len() {
-            dst.write_usize(self.reduce_circuit_ids[i].len()).unwrap();
-            plonky2::util::serialization::Write::write_all(
-                dst,
-                self.reduce_circuit_ids[i].as_bytes(),
-            )
-            .unwrap();
+            dst.write_usize(self.reduce_circuit_ids[i].len())?;
+            dst.write_all(self.reduce_circuit_ids[i].as_bytes())?;
         }
 
-        dst.write_usize(self.inputs.len()).unwrap();
+        // Write vector of input targets.
+        dst.write_usize(self.inputs.len())?;
         for i in 0..self.inputs.len() {
-            dst.write_target_vec(self.inputs[i].targets().as_slice())
-                .unwrap();
+            dst.write_target_vec(self.inputs[i].targets().as_slice())?;
         }
+
+        // Write proof target.
         dst.write_target_proof_with_public_inputs(&self.proof)
     }
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        let map_circuit_id_length = src.read_usize().unwrap();
+        // Read map circuit.
+        let map_circuit_id_length = src.read_usize()?;
         let mut map_circuit_id = vec![0u8; map_circuit_id_length];
-        src.read_exact(&mut map_circuit_id).unwrap();
+        src.read_exact(&mut map_circuit_id)?;
 
+        // Read vector of reduce circuits.
         let mut reduce_circuit_ids = Vec::new();
-        let reduce_circuit_ids_len = src.read_usize().unwrap();
+        let reduce_circuit_ids_len = src.read_usize()?;
         for i in 0..reduce_circuit_ids_len {
-            let reduce_circuit_id_length = src.read_usize().unwrap();
+            let reduce_circuit_id_length = src.read_usize()?;
             let mut reduce_circuit_id = vec![0u8; reduce_circuit_id_length];
-            src.read_exact(&mut reduce_circuit_id).unwrap();
+            src.read_exact(&mut reduce_circuit_id)?;
             reduce_circuit_ids.push(String::from_utf8(reduce_circuit_id).unwrap());
         }
 
+        // Read vector of input targest.
         let mut inputs = Vec::new();
-        let inputs_len = src.read_usize().unwrap();
+        let inputs_len = src.read_usize()?;
         for i in 0..inputs_len {
-            let input_targets = src.read_target_vec().unwrap();
+            let input_targets = src.read_target_vec()?;
             inputs.push(I::from_targets(&input_targets));
         }
+
+        // Read proof.
+        let proof = src.read_target_proof_with_public_inputs()?;
 
         Ok(Self {
             map_circuit_id: String::from_utf8(map_circuit_id).unwrap(),
             reduce_circuit_ids,
             inputs,
-            proof: src.read_target_proof_with_public_inputs().unwrap(),
+            proof,
             _phantom1: PhantomData::<F>,
             _phantom2: PhantomData::<C>,
             _phantom3: PhantomData::<O>,

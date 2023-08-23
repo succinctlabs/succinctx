@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use ethers::types::{H256, U256};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -18,7 +20,7 @@ pub struct EthProofVariable {
 }
 
 impl CircuitVariable for EthProofVariable {
-    type ValueType<F> = EthProof;
+    type ValueType<F: Debug> = EthProof;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -75,7 +77,7 @@ pub struct EthAccountVariable {
 }
 
 impl CircuitVariable for EthAccountVariable {
-    type ValueType<F> = EthAccount;
+    type ValueType<F: Debug> = EthAccount;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,

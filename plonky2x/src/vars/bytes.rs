@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use array_macro::array;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -14,7 +16,7 @@ use crate::vars::ByteVariable;
 pub struct BytesVariable<const N: usize>(pub [ByteVariable; N]);
 
 impl<const N: usize> CircuitVariable for BytesVariable<N> {
-    type ValueType<F> = [u8; N];
+    type ValueType<F: Debug> = [u8; N];
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,

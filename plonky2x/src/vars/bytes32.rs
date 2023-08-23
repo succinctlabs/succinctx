@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use ethers::types::H256;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -13,7 +15,7 @@ use crate::vars::BytesVariable;
 pub struct Bytes32Variable(pub BytesVariable<32>);
 
 impl CircuitVariable for Bytes32Variable {
-    type ValueType<F> = H256;
+    type ValueType<F: Debug> = H256;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,

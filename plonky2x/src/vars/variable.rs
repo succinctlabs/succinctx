@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
@@ -12,7 +14,7 @@ use crate::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
 pub struct Variable(pub Target);
 
 impl CircuitVariable for Variable {
-    type ValueType<F> = F;
+    type ValueType<F: Debug> = F;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,

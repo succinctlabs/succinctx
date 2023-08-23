@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use array_macro::array;
 use ethers::types::U256;
 use itertools::Itertools;
@@ -15,7 +17,7 @@ use crate::vars::{CircuitVariable, U32Variable};
 pub struct U256Variable(pub [U32Variable; 4]);
 
 impl CircuitVariable for U256Variable {
-    type ValueType<F> = U256;
+    type ValueType<F: Debug> = U256;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,

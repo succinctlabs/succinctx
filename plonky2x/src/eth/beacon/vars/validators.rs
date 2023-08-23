@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use ethers::types::H256;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -27,7 +29,7 @@ pub struct BeaconValidatorsVariable {
 }
 
 impl CircuitVariable for BeaconValidatorsVariable {
-    type ValueType<F> = BeaconValidatorsValue;
+    type ValueType<F: Debug> = BeaconValidatorsValue;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
