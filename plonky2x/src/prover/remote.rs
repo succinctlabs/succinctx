@@ -107,7 +107,7 @@ impl Prover for RemoteProver {
             sleep(Duration::from_secs(1)).await;
         }
 
-        let proof_bytes = base64::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
+        let proof_bytes = hex::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
         let proof =
             ProofWithPublicInputs::<F, C, D>::from_bytes(proof_bytes, &circuit.common).unwrap();
         proof
@@ -128,7 +128,7 @@ impl Prover for RemoteProver {
 
         let input = input
             .iter()
-            .map(|x| base64::encode(x.to_bytes()))
+            .map(|x| hex::encode(x.to_bytes()))
             .collect::<Vec<String>>()
             .join(",");
         let context = format!("reduce ./build/{}.circuit {}", circuit_id, input);
@@ -173,7 +173,7 @@ impl Prover for RemoteProver {
             sleep(Duration::from_secs(1)).await;
         }
 
-        let proof_bytes = base64::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
+        let proof_bytes = hex::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
         let proof =
             ProofWithPublicInputs::<F, C, D>::from_bytes(proof_bytes, &circuit.common).unwrap();
         proof

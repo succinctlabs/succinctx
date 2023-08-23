@@ -155,7 +155,7 @@ fn main() {
             let proof = circuit.prove(pw).unwrap();
             circuit.verify(proof.clone()).unwrap();
             let proof = Proof {
-                bytes: base64::encode(proof.to_bytes()),
+                bytes: hex::encode(proof.to_bytes()),
             };
             let file_path = "./proof.json";
             let json = serde_json::to_string_pretty(&proof).unwrap();
