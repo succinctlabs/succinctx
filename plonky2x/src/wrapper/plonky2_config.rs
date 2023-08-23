@@ -35,7 +35,7 @@ pub struct PoseidonBN128HashOut<F: Field> {
 fn hash_out_to_bytes<F: Field>(hash: PoseidonBN128HashOut<F>) -> Vec<u8> {
     let binding = hash.value.to_repr();
     let limbs = binding.as_ref();
-    limbs.to_vec() 
+    limbs.to_vec()
 }
 
 impl<F: RichField> GenericHashOut<F> for PoseidonBN128HashOut<F> {
@@ -196,7 +196,6 @@ impl<F: RichField> Hasher<F> for PoseidonBN128Hash {
     }
 }
 
-
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -205,7 +204,10 @@ pub mod tests {
     fn test_byte_methods() {
         type F = GoldilocksField;
 
-        let fr = Fr::from_str_vartime("11575173631114898451293296430061690731976535592475236587664058405912382527658").unwrap();
+        let fr = Fr::from_str_vartime(
+            "11575173631114898451293296430061690731976535592475236587664058405912382527658",
+        )
+        .unwrap();
         let hash = PoseidonBN128HashOut::<F> {
             value: fr,
             _phantom: PhantomData,
@@ -219,14 +221,18 @@ pub mod tests {
 
     #[test]
     fn test_serialization() {
-        let fr = Fr::from_str_vartime("11575173631114898451293296430061690731976535592475236587664058405912382527658").unwrap();
+        let fr = Fr::from_str_vartime(
+            "11575173631114898451293296430061690731976535592475236587664058405912382527658",
+        )
+        .unwrap();
         let hash = PoseidonBN128HashOut::<GoldilocksField> {
             value: fr,
             _phantom: PhantomData,
         };
 
         let serialized = serde_json::to_string(&hash).unwrap();
-        let deserialized: PoseidonBN128HashOut<GoldilocksField> = serde_json::from_str(&serialized).unwrap();
+        let deserialized: PoseidonBN128HashOut<GoldilocksField> =
+            serde_json::from_str(&serialized).unwrap();
         assert_eq!(hash, deserialized);
     }
 }

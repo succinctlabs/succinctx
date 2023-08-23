@@ -1,115 +1,145 @@
-// Given a plonky2 proof generates a wrapped version of it
-
-use std::fs;
-
+use anyhow::Result;
+use plonky2::field::extension::quadratic::QuadraticExtension;
 use plonky2::field::extension::Extendable;
-use plonky2::field::types::{Field, PrimeField64};
+use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig};
-use plonky2::plonk::proof::ProofWithPublicInputs;
-use plonky2::plonk::prover::prove;
-use plonky2::util::timing::TimingTree;
+use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData, VerifierOnlyCircuitData};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
+use serde::Serialize;
 
-use crate::wrapper::plonky2_config::PoseidonBN128GoldilocksConfig;
+use super::plonky2_config::PoseidonBN128GoldilocksConfig;
+use crate::builder::CircuitBuilder;
 
-const D: usize = 2;
-type C = PoseidonGoldilocksConfig;
-type F = <C as GenericConfig<D>>::F;
+type GF = GoldilocksField;
+const GD: usize = 2;
 
-fn get_test_proof() -> ProofWithPublicInputs<F, C, D> {
-    let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-    let mut pw: PartialWitness<F> = PartialWitness::new();
-
-    let inner_data = builder.build();
-    let inner_proof = inner_data.prove(pw);
-    // inner_data.verify(inner_proof.unwrap()).unwrap();
-    return inner_proof.unwrap();
+#[derive(Debug)]
+pub struct WrapperCircuitData<
+    F: RichField + Extendable<D>,
+    InnerConfig: GenericConfig<D, F = F>,
+    OuterConfig: GenericConfig<D, F = F>,
+    const D: usize,
+> where
+    InnerConfig::Hasher: AlgebraicHasher<F>,
+{
+    inner_data: CircuitData<F, InnerConfig, D>,
+    pub wrapper_data: CircuitData<F, OuterConfig, D>,
+    proof_with_pis: ProofWithPublicInputsTarget<D>,
 }
 
-fn wrap_proof(inner_data: CircuitData<F, C, D>, inner_proof: ProofWithPublicInputs<F, C, D>) {
-    let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
-    let outer_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
-    let outer_verifier_data =
-        outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
-    outer_builder.verify_proof::<C>(
-        &outer_proof_target,
-        &outer_verifier_data,
-        &inner_data.common,
-    );
-    outer_builder.register_public_inputs(&outer_proof_target.public_inputs);
-    outer_builder.register_public_inputs(&outer_verifier_data.circuit_digest.elements);
+#[derive(Debug)]
+pub struct WrappedProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
+    pub proof: ProofWithPublicInputs<F, C, D>,
+    pub common_data: CommonCircuitData<F, D>,
+    pub verifier_data: VerifierOnlyCircuitData<C, D>,
+}
 
-    let outer_data = outer_builder.build::<PoseidonBN128GoldilocksConfig>();
+impl CircuitBuilder<GF, GD> {
+    pub fn wrap_build<C: GenericConfig<GD, F = GF> + 'static>(
+        self,
+    ) -> WrapperCircuitData<GF, C, PoseidonBN128GoldilocksConfig, GD>
+    where
+        C::Hasher: AlgebraicHasher<GF>,
+    {
+        let inner_data = self.build::<C>();
 
-    let mut outer_pw = PartialWitness::new();
-    outer_pw.set_proof_with_pis_target(&outer_proof_target, &inner_proof);
-    outer_pw.set_verifier_data_target(&outer_verifier_data, &inner_data.verifier_only);
+        let mut builder = CircuitBuilder::<GF, GD>::new();
 
-    let outer_proof = outer_data.prove(outer_pw).unwrap();
-    // // let mut timing = TimingTree::new("step proof gen", Level::Info);
-    // let outer_proof = prove::<F, PoseidonBN128GoldilocksConfig, D>(
-    //     &outer_data.prover_only,
-    //     &outer_data.common,
-    //     outer_pw.clone()
-    // )
-    // .unwrap();
+        let verifier_data = builder.constant_verifier_data(&inner_data);
+        let proof_with_pis = builder.add_virtual_proof_with_pis(&inner_data.common);
 
-    let ret = outer_data.verify(outer_proof.clone());
+        builder.verify_proof::<C>(&proof_with_pis, &verifier_data, &inner_data.common);
 
-    // Verify the public inputs:
+        let wrapper_data = builder.build::<PoseidonBN128GoldilocksConfig>();
 
-    // assert_eq!(outer_proof.public_inputs.len(), 36);
-
-    // // Blake2b hash of the public inputs
-    // assert_eq!(
-    //     outer_proof.public_inputs[0..32]
-    //         .iter()
-    //         .map(|element| u8::try_from(element.to_canonical_u64()).unwrap())
-    //         .collect::<Vec<_>>(),
-    //     hex::decode(BLOCK_530527_PUBLIC_INPUTS_HASH).unwrap(),
-    // );
-
-    /*  TODO:  It appears that the circuit digest changes after every different run, even if none of the code changes.  Need to find out why.
-    // Step circuit's digest
-    assert_eq!(
-        outer_proof.public_inputs[32..36].iter()
-        .map(|element| element.to_canonical_u64()).collect::<Vec<_>>(),
-        [17122441374070351185, 18368451173317844989, 5752543660850962321, 1428786498560175815],
-    );
-    */
-
-    for gate in outer_data.common.gates.iter() {
-        println!("outer circuit: gate is {:?}", gate);
+        WrapperCircuitData {
+            inner_data,
+            wrapper_data,
+            proof_with_pis,
+        }
     }
+}
 
-    println!(
-        "Recursive circuit digest is {:?}",
-        outer_data.verifier_only.circuit_digest
-    );
+impl<
+        F: RichField + Extendable<D>,
+        InnerConfig: GenericConfig<D, F = F>,
+        OuterConfig: GenericConfig<D, F = F>,
+        const D: usize,
+    > WrapperCircuitData<F, InnerConfig, OuterConfig, D>
+where
+    InnerConfig::Hasher: AlgebraicHasher<F>,
+{
+    pub fn prove(&self, inputs: PartialWitness<F>) -> Result<WrappedProof<F, OuterConfig, D>> {
+        let inner_proof = self.inner_data.prove(inputs)?;
+        self.inner_data.verify(inner_proof.clone())?; // Verify the inner proof
 
-    let outer_common_circuit_data_serialized = serde_json::to_string(&outer_data.common).unwrap();
-    fs::write(
-        "step_recursive.common_circuit_data.json",
-        outer_common_circuit_data_serialized,
-    )
-    .expect("Unable to write file");
+        let mut pw = PartialWitness::new();
+        pw.set_proof_with_pis_target(&self.proof_with_pis, &inner_proof);
+        let proof = self.wrapper_data.prove(pw)?;
+        self.wrapper_data.verify(proof.clone())?; // Verify the outer proof
 
-    let outer_verifier_only_circuit_data_serialized =
-        serde_json::to_string(&outer_data.verifier_only).unwrap();
-    fs::write(
-        "step_recursive.verifier_only_circuit_data.json",
-        outer_verifier_only_circuit_data_serialized,
-    )
-    .expect("Unable to write file");
+        let common_data = self.wrapper_data.common.clone();
+        let verifier_data = self.wrapper_data.verifier_only.clone();
 
-    let outer_proof_serialized = serde_json::to_string(&outer_proof).unwrap();
-    fs::write(
-        "step_recursive.proof_with_public_inputs.json",
-        outer_proof_serialized,
-    )
-    .expect("Unable to write file");
+        Ok(WrappedProof {
+            proof,
+            common_data,
+            verifier_data,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use plonky2::field::types::Field;
+
+    use super::*;
+    use crate::prelude::*;
+
+    #[test]
+    fn test_wrapper() {
+        type F = GoldilocksField;
+        const D: usize = 2;
+        type InnerConfig = PoseidonGoldilocksConfig;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let a = builder.init::<Variable>();
+        let b = builder.init::<Variable>();
+        let c = builder.add(a, b);
+
+        let data = builder.wrap_build::<InnerConfig>();
+
+        let mut pw = PartialWitness::new();
+        a.set(&mut pw, F::ONE);
+        b.set(&mut pw, F::ZERO);
+
+        let wrapped_proof = data.prove(pw).unwrap();
+
+        let serialized_proof = serde_json::to_string(&wrapped_proof.proof).unwrap();
+        let serialized_common_data = serde_json::to_string(&wrapped_proof.common_data).unwrap();
+        let serialized_verifier_data = serde_json::to_string(&wrapped_proof.verifier_data).unwrap();
+
+        let path = format!("build/wrapper_test/");
+
+        fs::write(
+            format!("{}proof_with_public_inputs.json", path),
+            serialized_proof,
+        )
+        .unwrap();
+        fs::write(
+            format!("{}common_circuit_data.json", path),
+            serialized_common_data,
+        )
+        .unwrap();
+        fs::write(
+            format!("{}verifier_only_circuit_data.json", path),
+            serialized_verifier_data,
+        )
+        .unwrap();
+    }
 }
