@@ -1,6 +1,4 @@
 use core::marker::PhantomData;
-use std::fs::{self, File};
-use std::io::Write;
 
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
@@ -25,17 +23,13 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{
     ConstantGenerator, CopyGenerator, NonzeroTestGenerator, RandomValueGenerator,
 };
-use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData};
+use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::recursion::dummy_circuit::DummyProofGenerator;
-use plonky2::util::serialization::{
-    Buffer, DefaultGateSerializer, IoResult, Read, WitnessGeneratorSerializer,
-    Write as Plonky2Write,
-};
+use plonky2::util::serialization::{Buffer, IoResult, WitnessGeneratorSerializer};
 
-use crate::utils::hex;
-use crate::vars::CircuitVariable;
+use crate::mapreduce::MapReduceRecursiveProofGenerator;
+use crate::vars::Variable;
 
 #[macro_export]
 macro_rules! impl_generator_serializer {
@@ -105,84 +99,6 @@ macro_rules! read_generator_impl {
     }};
 }
 
-pub fn load_circuit<F: RichField + Extendable<D>, C, const D: usize>(
-    path: &String,
-) -> CircuitData<F, C, D>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static,
-    C::Hasher: AlgebraicHasher<F>,
-{
-    let gate_serializer = DefaultGateSerializer;
-    let generator_serializer = CustomGeneratorSerializer::<C, D> {
-        _phantom: PhantomData,
-    };
-    let bytes = fs::read(path).unwrap();
-    let data = CircuitData::<F, C, D>::from_bytes(&bytes, &gate_serializer, &generator_serializer)
-        .unwrap();
-    data
-}
-
-pub fn load_proof_with_pis_target<const D: usize>(path: &String) -> ProofWithPublicInputsTarget<D> {
-    let bytes = fs::read(path).unwrap();
-    let mut buffer = Buffer::new(&bytes);
-    let proof_with_pis = buffer.read_target_proof_with_public_inputs().unwrap();
-    proof_with_pis
-}
-
-pub fn save_circuit<F: RichField + Extendable<D>, C, const D: usize>(
-    data: &CircuitData<F, C, D>,
-    path: String,
-) where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static,
-    C::Hasher: AlgebraicHasher<F>,
-{
-    // Setup serializers.
-    let gate_serializer = DefaultGateSerializer;
-    let generator_serializer = CustomGeneratorSerializer::<C, D> {
-        _phantom: PhantomData,
-    };
-
-    // Serialize circuit data to bytes.
-    let circuit_bytes = data
-        .to_bytes(&gate_serializer, &generator_serializer)
-        .unwrap();
-
-    // Write bytes to path.
-    let mut file = File::create(path).unwrap();
-    file.write_all(&circuit_bytes).unwrap();
-
-    // Assert that the circuit can be deserialized from bytes.
-    CircuitData::<F, C, D>::from_bytes(&circuit_bytes, &gate_serializer, &generator_serializer)
-        .unwrap();
-}
-
-pub fn save_circuit_variable<V: CircuitVariable>(variable: V, path: String) {
-    // Serialize variable to bytes.
-    let mut input_bytes: Vec<u8> = Vec::new();
-    input_bytes.write_target_vec(&variable.targets()).unwrap();
-
-    // Write bytes to path.
-    let mut file = File::create(path).unwrap();
-    file.write_all(&input_bytes).unwrap();
-}
-
-pub fn save_proof_with_pis_target<const D: usize>(
-    proof_with_pis: ProofWithPublicInputsTarget<D>,
-    path: String,
-) {
-    // Serialize input variable to bytes.
-    let mut input_bytes: Vec<u8> = Vec::new();
-    input_bytes
-        .write_target_proof_with_public_inputs(&proof_with_pis)
-        .unwrap();
-
-    // Write bytes to "./build/{hex!(circuit_digest).input}"
-    let mut file = File::create(path).unwrap();
-    file.write_all(&input_bytes).unwrap();
-}
-
 pub struct CustomGeneratorSerializer<C: GenericConfig<D>, const D: usize> {
     pub _phantom: PhantomData<C>,
 }
@@ -224,32 +140,6 @@ where
         ReducingExtensionGenerator<D>, "ReducingExtensionGenerator",
         SplitGenerator, "SplitGenerator",
         WireSplitGenerator, "WireSplitGenerator",
-    }
-}
-
-pub trait CircuitDataIdentifiable<F: RichField + Extendable<D>, C, const D: usize>
-where
-    C: GenericConfig<D, F = F> + 'static,
-    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-{
-    fn id(&self) -> String;
-}
-
-impl<F: RichField + Extendable<D>, C, const D: usize> CircuitDataIdentifiable<F, C, D>
-    for CircuitData<F, C, D>
-where
-    C: GenericConfig<D, F = F> + 'static,
-    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-{
-    fn id(&self) -> String {
-        let circuit_digest = hex!(self
-            .verifier_only
-            .circuit_digest
-            .elements
-            .iter()
-            .map(|e| e.to_canonical_u64().to_be_bytes())
-            .flatten()
-            .collect::<Vec<u8>>());
-        circuit_digest[0..22].to_string()
+        MapReduceRecursiveProofGenerator<F, C, Variable, Variable, D>, "MapReduceRecursiveProofGenerator",
     }
 }

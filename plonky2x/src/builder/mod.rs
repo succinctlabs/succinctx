@@ -1,10 +1,11 @@
 mod boolean;
+mod proof;
 
 use ethers::providers::{Http, Provider};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::SimpleGenerator;
-use plonky2::iop::target::BoolTarget;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as _CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::GenericConfig;
@@ -58,6 +59,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     /// Initializes a variable with a constant value in the circuit.
     pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<F>) -> V {
         V::constant(self, value)
+    }
+
+    /// Registers the given targets as public inputs.
+    pub fn register_public_inputs(&mut self, inputs: &[Target]) {
+        self.api.register_public_inputs(inputs);
     }
 
     /// Add returns res = i1 + i2 + ...

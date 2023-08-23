@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use array_macro::array;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -14,7 +16,7 @@ use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, 
 pub struct ByteVariable(pub [BoolVariable; 8]);
 
 impl CircuitVariable for ByteVariable {
-    type ValueType<F> = u8;
+    type ValueType<F: Debug> = u8;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -32,6 +34,11 @@ impl CircuitVariable for ByteVariable {
 
     fn targets(&self) -> Vec<Target> {
         self.0.into_iter().flat_map(|x| x.targets()).collect()
+    }
+
+    fn from_targets(targets: &[Target]) -> Self {
+        assert_eq!(targets.len(), 8);
+        Self(array![i => BoolVariable::from_targets(&[targets[i]]); 8])
     }
 
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

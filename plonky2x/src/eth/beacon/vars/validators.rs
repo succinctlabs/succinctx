@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use ethers::types::H256;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -27,7 +29,7 @@ pub struct BeaconValidatorsVariable {
 }
 
 impl CircuitVariable for BeaconValidatorsVariable {
-    type ValueType<F> = BeaconValidatorsValue;
+    type ValueType<F: Debug> = BeaconValidatorsValue;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -53,6 +55,18 @@ impl CircuitVariable for BeaconValidatorsVariable {
         targets.extend(self.block_root.targets());
         targets.extend(self.validators_root.targets());
         targets
+    }
+
+    #[allow(unused_variables)]
+    fn from_targets(targets: &[Target]) -> Self {
+        let mut ptr = 0;
+        let block_root = Bytes32Variable::from_targets(&targets[ptr..ptr + 256]);
+        ptr += 256;
+        let validators_root = Bytes32Variable::from_targets(&targets[ptr..ptr + 256]);
+        Self {
+            block_root,
+            validators_root,
+        }
     }
 
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
@@ -12,7 +14,7 @@ use crate::ops::{BitAnd, BitOr, BitXor, Not};
 pub struct BoolVariable(pub Variable);
 
 impl CircuitVariable for BoolVariable {
-    type ValueType<F> = bool;
+    type ValueType<F: Debug> = bool;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -32,6 +34,11 @@ impl CircuitVariable for BoolVariable {
 
     fn targets(&self) -> Vec<Target> {
         vec![self.0 .0]
+    }
+
+    fn from_targets(targets: &[Target]) -> Self {
+        assert_eq!(targets.len(), 1);
+        Self(Variable(targets[0]))
     }
 
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

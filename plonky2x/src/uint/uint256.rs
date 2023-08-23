@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use array_macro::array;
 use ethers::types::U256;
 use itertools::Itertools;
@@ -15,7 +17,7 @@ use crate::vars::{CircuitVariable, U32Variable};
 pub struct U256Variable(pub [U32Variable; 4]);
 
 impl CircuitVariable for U256Variable {
-    type ValueType<F> = U256;
+    type ValueType<F: Debug> = U256;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -33,6 +35,11 @@ impl CircuitVariable for U256Variable {
 
     fn targets(&self) -> Vec<Target> {
         self.0.iter().flat_map(|v| v.targets()).collect_vec()
+    }
+
+    fn from_targets(targets: &[Target]) -> Self {
+        assert_eq!(targets.len(), 4);
+        Self(array![i => U32Variable::from_targets(&[targets[i]]); 4])
     }
 
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

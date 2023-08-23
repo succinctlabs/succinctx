@@ -2,9 +2,10 @@ mod boolean;
 mod byte;
 mod bytes;
 mod bytes32;
+
 mod variable;
 
-use core::fmt::Debug;
+use std::fmt::Debug;
 
 pub use boolean::*;
 pub use byte::*;
@@ -20,9 +21,9 @@ pub use super::uint::uint256::*;
 pub use super::uint::uint32::*;
 use crate::builder::CircuitBuilder;
 
-pub trait CircuitVariable: Debug + Clone + Sized + Send + Sync {
+pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     /// The underlying type of the variable if it were not in a circuit.
-    type ValueType<F>;
+    type ValueType<F: Debug>;
 
     /// Initializes the variable with no value in the circuit.
     fn init<F: RichField + Extendable<D>, const D: usize>(
@@ -37,6 +38,9 @@ pub trait CircuitVariable: Debug + Clone + Sized + Send + Sync {
 
     /// Returns the underlying targets used by the variable.
     fn targets(&self) -> Vec<Target>;
+
+    /// Deserializes a variable from a list of targets.
+    fn from_targets(targets: &[Target]) -> Self;
 
     /// Gets the value of the variable from the witness.
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F>;

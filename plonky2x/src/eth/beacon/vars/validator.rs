@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
@@ -22,7 +24,7 @@ pub struct BeaconValidatorVariable {
 }
 
 impl CircuitVariable for BeaconValidatorVariable {
-    type ValueType<F> = BeaconValidator;
+    type ValueType<F: Debug> = BeaconValidator;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -75,6 +77,11 @@ impl CircuitVariable for BeaconValidatorVariable {
         targets.extend(self.exit_epoch.targets());
         targets.extend(self.withdrawable_epoch.targets());
         targets
+    }
+
+    #[allow(unused_variables)]
+    fn from_targets(targets: &[Target]) -> Self {
+        todo!()
     }
 
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
