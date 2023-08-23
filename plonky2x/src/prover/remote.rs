@@ -114,6 +114,7 @@ impl Prover for RemoteProver {
 
         // Deserialize the proof.
         let bytes = base64::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
+        println!("{}", bytes.len());
         let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(bytes, &circuit.common).unwrap();
         proof
     }
