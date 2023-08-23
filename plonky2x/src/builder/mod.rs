@@ -11,14 +11,24 @@ use plonky2::plonk::config::GenericConfig;
 use plonky2::iop::target::Target;
 
 use crate::ethutils::beacon::BeaconClient;
-use crate::vars::{BoolVariable, CircuitVariable, Variable, ByteVariable};
+use crate::vars::{BoolVariable, CircuitVariable, Variable, ByteVariable, Bytes32Variable};
 
+// A struct related to EvmIO for the circuit builder
+// This is only used in some cases
+struct EvmIO {
+    pub input_bytes: Vec<ByteVariable>,
+    pub output_bytes: Vec<ByteVariable>,
+    pub input_hash: Bytes32Variable,
+    pub output_hash: Bytes32Variable,
+    pub onchain_constraints_added: bool,
+}
 /// This is the API that we recommend developers use for writing circuits. It is a wrapper around
 /// the basic plonky2 builder.
 pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {
     pub api: _CircuitBuilder<F, D>,
     pub execution_client: Option<Provider<Http>>,
     pub beacon_client: Option<BeaconClient>,
+    pub evm_io: Option<EvmIO>,
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
@@ -30,6 +40,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             api,
             beacon_client: None,
             execution_client: None,
+            evm_io: None,
         }
     }
 
@@ -39,6 +50,71 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     pub fn set_beacon_client(&mut self, client: BeaconClient) {
         self.beacon_client = Some(client);
+    }
+
+    fn get_evm_io(&self, instantiate_if_missing: bool) -> &EvmIO {
+        if self.evm_io.is_none() {
+            if instantiate_if_missing {
+                self.evm_io = Some(EvmIO {
+                    input_bytes: Vec::new(),
+                    output_bytes: Vec::new(),
+                    input_hash: self.init::<Bytes32Variable>(),
+                    output_hash: self.init::<Bytes32Variable>(),
+                    onchain_constraints_added: false,
+                });
+            } else {
+                panic!("EvmIO must be instantiated before use");
+            }
+        }
+        self.evm_io.as_ref().unwrap().clone()
+    } 
+
+    // TODO: make this return an error 
+    pub fn can_build_evm(&self) -> bool {
+        if !self.evm_io.is_some() {
+            return false;
+        }
+        let evm_io = self.get_evm_io(false);
+        if evm_io.input_bytes.len() == 0 {
+            return false;
+        }
+        if evm_io.output_bytes.len() == 0 {
+            return false;
+        }
+        if !evm_io.onchain_constraints_added {
+            return false;
+        }
+        return true
+    }
+
+    // Allocates bytes to `input_bytes` and returns newly allocated bytes
+    pub fn read_bytes(&mut self, n: usize) -> Vec<ByteVariable> {
+        let evm_io = self.get_evm_io(true);
+        let mut bytes = Vec::new();
+        for _ in 0..n {
+            bytes.push(self.init::<ByteVariable>());
+        }
+        evm_io.input_bytes.append(&mut bytes);
+        bytes
+    }
+
+    // Writes bytes to output bytes
+    pub fn write_bytes(&mut self, bytes: &[ByteVariable]) {
+        let evm_io = self.get_evm_io(true);
+        for byte in bytes {
+            evm_io.output_bytes.push(*byte);
+        }
+    }
+
+    pub fn constraint_onchain(&mut self) {
+        let evm_io = self.get_evm_io(false); // TODO: remove panic
+        evm_io.onchain_constraints_added = true;
+        // TODO constraint input_hash = hash(self.input_bytes)
+        // TODO constraint output_hash = hash(self.output_bytes)
+        // self.input_hash = Some(input_hash);
+        // self.output_hash = Some(output_hash);
+        self.api.register_public_inputs(&evm_io.input_hash.targets());
+        self.api.register_public_inputs(&evm_io.output_hash.targets());
     }
 
     /// Build the circuit.

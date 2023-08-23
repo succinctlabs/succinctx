@@ -106,11 +106,9 @@ where
 pub struct CircuitFunction {
     pub input_bytes: Vec<ByteVariable>,
     pub output_bytes: Vec<ByteVariable>,
-    input_hash: Bytes32Variable,
-    output_hash: Bytes32Variable,
-    builder: CircuitBuilder<GoldilocksField, 2>,
-    input_pointer: usize,
-    output_pointer: usize,
+    pub input_hash: Bytes32Variable,
+    pub output_hash: Bytes32Variable,
+    pub builder: CircuitBuilder<GoldilocksField, 2>,
 }
 
 // TODO this is the dream
@@ -148,8 +146,6 @@ impl CircuitFunction {
             input_hash,
             output_hash,
             builder,
-            input_pointer: 0,
-            output_pointer: 0,
         }
     }
 
@@ -178,9 +174,8 @@ mod test {
     use super::*;
     #[test]
     fn example_hint() {
-        let mut function, builder = CircuitFunction::new();
-        builder.readUint256()
-        
+        let mut function = CircuitFunction::new(32, 32);
+
         println!("made new function");
         let closure = |x: H256| {
             let mut y = x.to_fixed_bytes();
