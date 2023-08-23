@@ -108,11 +108,16 @@ fn main() {
             circuit.verify(proof.clone()).unwrap();
 
             // Save proof.
-            let proof = Proof {
+            let proofA = Proof {
                 bytes: base64::encode(proof.to_bytes()),
             };
+
+            // Deserialization assertion...
+            ProofWithPublicInputs::<F, C, D>::from_bytes(proof.to_bytes(), &circuit.common)
+                .unwrap();
+
             let file_path = "./proof.json";
-            let json = serde_json::to_string_pretty(&proof).unwrap();
+            let json = serde_json::to_string_pretty(&proofA).unwrap();
             std::fs::write(file_path, json).unwrap();
             println!("Successfully generated proof.");
         } else if cmd == "reduce" {
