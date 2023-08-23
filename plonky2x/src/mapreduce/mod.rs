@@ -174,7 +174,7 @@ where
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn build_map_circuit<I, O, C, M>(&mut self, m: &M) -> (CircuitData<F, C, D>, I)
+    fn build_map_circuit<I, O, C, M>(&mut self, m: &M) -> (CircuitData<F, C, D>, I)
     where
         I: CircuitVariable,
         O: CircuitVariable,
@@ -189,7 +189,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         (builder.build::<C>(), input)
     }
 
-    pub fn build_reduce_circuit<I, O, C, R>(
+    fn build_reduce_circuit<I, O, C, R>(
         &mut self,
         cd: &CircuitData<F, C, D>,
         r: &R,
