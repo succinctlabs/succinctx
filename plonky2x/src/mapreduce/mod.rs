@@ -123,15 +123,16 @@ where
 
                 ProofWithPublicInputs::<F, C, D>::from_bytes(
                     hex::decode(hex::encode(proofs[j * 2].to_bytes())).unwrap(),
-                    &reduce_child_circuit.common,
+                    &map_circuit.common,
                 )
                 .unwrap();
                 println!("passed");
                 ProofWithPublicInputs::<F, C, D>::from_bytes(
                     hex::decode(hex::encode(proofs[j * 2 + 1].to_bytes())).unwrap(),
-                    &reduce_child_circuit.common,
+                    &map_circuit.common,
                 )
                 .unwrap();
+
                 println!("passed");
                 let proof = rt.block_on(async {
                     prover

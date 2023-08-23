@@ -142,7 +142,7 @@ where
         buffer.write_usize(circuit_bytes.len()).unwrap();
         buffer.write_all(&circuit_bytes).unwrap();
 
-        let child_circuit_bytes = self
+        let child_circuit_bytes = child_circuit
             .to_bytes(&gate_serializer, &generator_serializer)
             .unwrap();
         buffer.write_usize(child_circuit_bytes.len()).unwrap();
