@@ -104,8 +104,6 @@ where
         let bytes = fs::read(path.clone()).unwrap();
         let mut buffer = Buffer::new(&bytes);
 
-        println!("{}{}", path, bytes.len());
-
         // Read circuit data from bytes.
         let circuit_bytes_len = buffer.read_usize().unwrap();
         let mut circuit_bytes = vec![0u8; circuit_bytes_len];

@@ -1,10 +1,10 @@
 use core::time::Duration;
-use std::collections::HashMap;
 use std::env;
 
+use futures::future::join_all;
+use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
@@ -12,29 +12,19 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 
-use super::Prover;
+use super::service::{GetProofResponse, SuccinctService};
+use super::{Prover, ProverInputTargets, ProverInputValues};
 use crate::mapreduce::serialize::CircuitDataSerializable;
-use crate::vars::CircuitVariable;
 
-#[derive(Debug, Serialize)]
-pub struct CreateProofPayload {
-    release_id: String,
-    input: String,
-    context: String,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ContextData {
+    pub circuit_id: String,
+    pub input: Vec<String>,
+    pub tag: String,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct CreateProofResponse {
-    pub proof_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GetProofResponse {
-    id: String,
-    status: String,
-    result: Option<HashMap<String, String>>,
-}
-
+/// A prover that uses the Succinct remote prover to generate proofs. The built circuit must
+/// already be uploaded to Succinct and be referenced via the enviroment variable `RELEASE_ID`.
 pub struct RemoteProver {
     pub client: Client,
 }
@@ -49,172 +39,99 @@ impl Prover for RemoteProver {
     async fn prove<F, C, const D: usize>(
         &self,
         circuit: &CircuitData<F, C, D>,
-        input: Vec<F>,
+        _: ProverInputTargets<D>,
+        values: ProverInputValues<F, C, D>,
     ) -> ProofWithPublicInputs<F, C, D>
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,
         C::Hasher: AlgebraicHasher<F>,
     {
-        let release_id = env::var("RELEASE_ID").unwrap();
+        // Calculate create proof payload.
+        let release_id = env::var("RELEASE_ID").expect("enviroment variable RELEASE_ID is not set");
         let circuit_id = circuit.id();
-
-        let input = input
-            .iter()
-            .map(|x| format!("{}", x.to_canonical_u64()))
-            .collect::<Vec<String>>()
-            .join(",");
-        let context = format!("map ./build/{}.circuit {}", circuit_id, input);
-
-        let payload = CreateProofPayload {
-            release_id,
-            input: "0x".to_string(),
-            context,
-        };
-        println!("{:#?}", payload);
-        let create_response: CreateProofResponse = self
-            .client
-            .post("https://platform.succinct.xyz:8080/api/proof/new")
-            .json(&payload)
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
-
-        let mut response: GetProofResponse;
-        loop {
-            let proof_id = create_response.proof_id.clone();
-            println!("Proof ID: {}", proof_id);
-            response = self
-                .client
-                .get(&format!(
-                    "https://platform.succinct.xyz:8080/api/proof/{}",
-                    proof_id
-                ))
-                .send()
-                .await
-                .unwrap()
-                .json()
-                .await
+        let context = match values {
+            ProverInputValues::Bytes(_) => {
+                todo!()
+            }
+            ProverInputValues::FieldElements(elements) => {
+                let elements = elements
+                    .iter()
+                    .map(|x| x.to_canonical_u64().to_string())
+                    .collect_vec();
+                let context = serde_json::to_string_pretty(&ContextData {
+                    circuit_id: circuit_id.clone(),
+                    input: elements,
+                    tag: "map".to_string(),
+                })
                 .unwrap();
+                context
+            }
+            ProverInputValues::Proofs(proofs) => {
+                let proofs_base64 = proofs
+                    .iter()
+                    .map(|x| base64::encode(x.to_bytes()))
+                    .collect_vec();
+                let context = serde_json::to_string_pretty(&ContextData {
+                    circuit_id: circuit_id.clone(),
+                    input: proofs_base64,
+                    tag: "reduce".to_string(),
+                })
+                .unwrap();
+                context
+            }
+        };
+
+        // Call the service to create a proof.
+        let succinct = SuccinctService::new();
+        let proof_id = succinct
+            .create_proof(release_id, "0x".to_string(), context)
+            .await;
+
+        /// Wait up to 120 seconds for the proof to finish generating.
+        const MAX_RETRIES: usize = 120;
+        let mut response: GetProofResponse = GetProofResponse {
+            id: "".to_string(),
+            status: "".to_string(),
+            result: None,
+        };
+        for _ in 0..MAX_RETRIES {
+            response = succinct.get_proof(proof_id.clone()).await;
             if response.status == "success" {
                 break;
             } else if response.status == "failure" {
-                panic!("Proof failed");
+                panic!("proof generation failed proof_id={}", response.id);
             }
             sleep(Duration::from_secs(1)).await;
         }
 
-        let proof_bytes = hex::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
-        let proof =
-            ProofWithPublicInputs::<F, C, D>::from_bytes(proof_bytes, &circuit.common).unwrap();
+        // Check if the proof was generated successfully.
+        if response.status != "success" {
+            panic!("proof generation timed out proof_id={}", response.id);
+        }
+
+        // Deserialize the proof.
+        let bytes = base64::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
+        let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(bytes, &circuit.common).unwrap();
         proof
     }
 
-    async fn prove_reduce<F, C, const D: usize>(
+    async fn prove_batch<F, C, const D: usize>(
         &self,
         circuit: &CircuitData<F, C, D>,
-        input: Vec<ProofWithPublicInputs<F, C, D>>,
-    ) -> ProofWithPublicInputs<F, C, D>
+        targets: ProverInputTargets<D>,
+        values: Vec<ProverInputValues<F, C, D>>,
+    ) -> Vec<ProofWithPublicInputs<F, C, D>>
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,
         C::Hasher: AlgebraicHasher<F>,
     {
-        let release_id = env::var("RELEASE_ID").unwrap();
-        let circuit_id = circuit.id();
-
-        let input = input
-            .iter()
-            .map(|x| hex::encode(x.to_bytes()))
-            .collect::<Vec<String>>();
-
-        let context = format!("reduce ./build/{}.circuit {}", circuit_id, input.join(","));
-
-        let payload = CreateProofPayload {
-            release_id,
-            input: "0x".to_string(),
-            context,
-        };
-        let create_response: CreateProofResponse = self
-            .client
-            .post("https://platform.succinct.xyz:8080/api/proof/new")
-            .json(&payload)
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
-
-        let mut response: GetProofResponse;
-        loop {
-            let proof_id = create_response.proof_id.clone();
-            println!("Proof ID: {}", proof_id);
-            response = self
-                .client
-                .get(&format!(
-                    "https://platform.succinct.xyz:8080/api/proof/{}",
-                    proof_id
-                ))
-                .send()
-                .await
-                .unwrap()
-                .json()
-                .await
-                .unwrap();
-            if response.status == "success" {
-                break;
-            } else if response.status == "failure" {
-                panic!("Proof failed");
-            }
-            sleep(Duration::from_secs(1)).await;
+        let mut futures = Vec::new();
+        for i in 0..values.len() {
+            let future = self.prove(circuit, targets.clone(), values[i].clone());
+            futures.push(future);
         }
-
-        let proof_bytes = hex::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
-        let proof =
-            ProofWithPublicInputs::<F, C, D>::from_bytes(proof_bytes, &circuit.common).unwrap();
-        proof
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
-
-    use super::*;
-    use crate::builder::CircuitBuilder;
-
-    #[tokio::test]
-    async fn test_create_proof() {
-        // dotenv::dotenv().ok();
-
-        // type F = GoldilocksField;
-        // type C = PoseidonGoldilocksConfig;
-        // const D: usize = 2;
-
-        // let mut builder = CircuitBuilder::<F, D>::new();
-        // let zero = builder.zero();
-        // let one = builder.one();
-        // let sum = builder.add(zero, one);
-        // builder.assert_is_equal(sum, one);
-
-        // let pw = PartialWitness::new();
-        // let data = builder.build::<C>();
-
-        // let remote_prover = RemoteProver::new();
-        // let proof = remote_prover.prove(&data, pw).await;
-        // println!("{:#?}", proof);
-        // let result = client
-        //     .create_proof(
-        //         "56655a48-15c6-46dc-aec0-36c9fb47c4cb".to_string(),
-        //         "0x".to_string(),
-        //         "map-0xc47cba1a4dedd0a3e0fe.circuit map-0xc47cba1a4dedd0a3e0fe.target".to_string(),
-        //     )
-        //     .await
-        //     .unwrap();
+        join_all(futures).await
     }
 }
