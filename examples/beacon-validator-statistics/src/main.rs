@@ -31,10 +31,10 @@ const D: usize = 2;
 fn main() {
     let args = std::env::args().collect_vec();
 
-    if &args[1] == "build" {
+    if args.len() > 1 && &args[1] == "build" {
         let mut builder = CircuitBuilder::<F, D>::new();
         let input = builder.init::<Variable>();
-        let inputs = vec![input; 128];
+        let inputs = vec![input; 4];
         let output = builder.mapreduce::<Variable, Variable, C, _, _>(
             inputs,
             |input, builder| {
@@ -50,6 +50,11 @@ fn main() {
         builder.register_public_inputs(output.targets().as_slice());
         let circuit = builder.build::<C>();
         circuit.save(input, format!("./build/{}.circuit", circuit.id()));
+        println!("Successfully built circuit.");
+
+        let mut pw = PartialWitness::new();
+        pw.set_target(input.targets()[0], GoldilocksField::ONE);
+        circuit.prove(pw).unwrap();
     } else {
         let mut file = File::open("context").unwrap();
         let mut context = String::new();

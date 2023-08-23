@@ -75,10 +75,12 @@ impl Prover for LocalProver {
     {
         let mut proofs = Vec::new();
         for i in 0..values.len() {
+            println!("Starting proof {}/{}.", i + 1, values.len());
             let proof = self
                 .prove(circuit, targets.clone(), values[i].clone())
                 .await;
             proofs.push(proof);
+            println!("Finished proof {}/{}.", i + 1, values.len());
         }
         proofs
     }

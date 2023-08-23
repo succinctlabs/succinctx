@@ -110,6 +110,8 @@ impl Prover for RemoteProver {
             panic!("proof generation timed out proof_id={}", response.id);
         }
 
+        println!("Proof generated successfully proof_id={}", response.id);
+
         // Deserialize the proof.
         let bytes = base64::decode(response.result.unwrap().get("bytes").unwrap()).unwrap();
         let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(bytes, &circuit.common).unwrap();
@@ -129,6 +131,7 @@ impl Prover for RemoteProver {
     {
         let mut futures = Vec::new();
         for i in 0..values.len() {
+            println!("Starting proof {}/{}.", i + 1, values.len());
             let future = self.prove(circuit, targets.clone(), values[i].clone());
             futures.push(future);
         }
