@@ -1,5 +1,4 @@
 use anyhow::Result;
-use plonky2::field::extension::quadratic::QuadraticExtension;
 use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::RichField;
@@ -7,7 +6,6 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData, VerifierOnlyCircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
-use serde::Serialize;
 
 use super::plonky2_config::PoseidonBN128GoldilocksConfig;
 use crate::builder::CircuitBuilder;
@@ -110,7 +108,7 @@ mod tests {
 
         let a = builder.init::<Variable>();
         let b = builder.init::<Variable>();
-        let c = builder.add(a, b);
+        let _ = builder.add(a, b);
 
         let data = builder.wrap_build::<InnerConfig>();
 
