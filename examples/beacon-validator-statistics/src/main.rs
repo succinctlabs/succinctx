@@ -4,6 +4,7 @@ use std::io::Read;
 use itertools::Itertools;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
+use plonky2::fri::proof;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::PoseidonGoldilocksConfig;
@@ -113,11 +114,13 @@ fn main() {
             };
 
             // Deserialization assertion...
-            ProofWithPublicInputs::<F, C, D>::from_bytes(
+            println!("{}", proof.to_bytes().len());
+            let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(
                 hex::decode(hex::encode(proof.to_bytes())).unwrap(),
                 &circuit.common,
             )
             .unwrap();
+            println!("hmm {}", hex::encode(proof.to_bytes()));
 
             let file_path = "./proof.json";
             let json = serde_json::to_string_pretty(&proofA).unwrap();
@@ -138,7 +141,10 @@ fn main() {
 
             // Set inputs.
             let mut proofs = Vec::new();
+            println!("{}", hex::encode(proof_bytes_list[0].clone()));
             for i in 0..proof_bytes_list.len() {
+                // println!("{}", i);
+                // println!("{:#?}", child_circuit.common);
                 let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(
                     proof_bytes_list[i].clone(),
                     &child_circuit.common,

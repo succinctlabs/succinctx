@@ -129,9 +129,9 @@ impl Prover for RemoteProver {
         let input = input
             .iter()
             .map(|x| hex::encode(x.to_bytes()))
-            .collect::<Vec<String>>()
-            .join(",");
-        let context = format!("reduce ./build/{}.circuit {}", circuit_id, input);
+            .collect::<Vec<String>>();
+
+        let context = format!("reduce ./build/{}.circuit {}", circuit_id, input.join(","));
 
         let payload = CreateProofPayload {
             release_id,

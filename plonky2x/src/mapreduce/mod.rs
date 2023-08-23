@@ -13,8 +13,8 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData};
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::ProofWithPublicInputsTarget;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
+use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
@@ -120,6 +120,19 @@ where
                 // pw.set_proof_with_pis_target(&left, &proofs[j * 2]);
                 // pw.set_proof_with_pis_target(&right, &proofs[j * 2 + 1]);
                 let rt = Runtime::new().expect("failed to create tokio runtime");
+
+                ProofWithPublicInputs::<F, C, D>::from_bytes(
+                    hex::decode(proofs[j * 2].to_bytes()).unwrap(),
+                    &reduce_child_circuit.common,
+                )
+                .unwrap();
+                println!("passed");
+                ProofWithPublicInputs::<F, C, D>::from_bytes(
+                    hex::decode(proofs[j * 2 + 1].to_bytes()).unwrap(),
+                    &reduce_child_circuit.common,
+                )
+                .unwrap();
+                println!("passed");
                 let proof = rt.block_on(async {
                     prover
                         .prove_reduce::<F, C, D>(
