@@ -2,7 +2,6 @@ mod boolean;
 mod byte;
 mod bytes;
 mod bytes32;
-mod proof;
 
 mod variable;
 
@@ -16,7 +15,6 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
-pub use proof::*;
 pub use variable::*;
 
 pub use super::uint::uint256::*;
