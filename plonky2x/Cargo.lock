@@ -2407,6 +2407,7 @@ dependencies = [
  "env_logger",
  "ethers",
  "eyre",
+ "futures",
  "hex",
  "itertools 0.10.5",
  "log",

@@ -76,7 +76,9 @@ fn main() {
 
         let mut pw = PartialWitness::new();
         pw.set_target(input.0, GoldilocksField::from_canonical_u64(1));
-        circuit.prove(pw).unwrap();
+        let proof = circuit.prove(pw).unwrap();
+        circuit.verify(proof).unwrap();
+        println!("SUCCESS.");
     } else {
         let mut file = File::open("context").unwrap();
         let mut context = String::new();

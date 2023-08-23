@@ -6,6 +6,7 @@ pub mod serialize;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
+use futures::future::join_all;
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -17,6 +18,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
+use tokio::task::JoinHandle;
 
 use crate::builder::CircuitBuilder;
 use crate::mapreduce::serialize::CircuitDataSerializable;
@@ -81,23 +83,39 @@ where
         let (map_circuit, map_circuit_input) = CircuitData::<F, C, D>::load::<I>(map_circuit_path);
         println!("loaded map circuit from disk");
 
-        // Based on the inputs passed in the outer most circuit compute proofs which map
-        // the inputs of type I to the outputs of type O.
-        let mut proofs = Vec::new();
-        for i in 0..self.inputs.len() {
-            let rt = Runtime::new().expect("failed to create tokio runtime");
-            let proof = rt.block_on(async {
+        let rt = Runtime::new().expect("failed to create tokio runtime");
+        let mut proofs = rt.block_on(async {
+            let mut futures = Vec::new();
+            for i in 0..self.inputs.len() {
                 let mut pw = PartialWitness::<F>::new();
                 map_circuit_input.set(&mut pw, self.inputs[i].value(witness));
                 let targets = map_circuit_input.targets();
                 let values = pw.get_targets(targets.as_slice());
-                prover.prove::<F, C, D>(&map_circuit, values).await
-            });
-            // let proof = map_circuit.prove(pw).unwrap();
-            map_circuit.verify(proof.clone()).unwrap();
-            proofs.push(proof);
-            println!("generated map proof {}/{}", i + 1, self.inputs.len());
-        }
+                let future = prover.prove::<F, C, D>(&map_circuit, values);
+                futures.push(future);
+                println!("generating map proof {}/{}", i + 1, self.inputs.len());
+            }
+            join_all(futures).await
+        });
+        println!("generated map proofs");
+
+        // Based on the inputs passed in the outer most circuit compute proofs which map
+        // the inputs of type I to the outputs of type O.
+        // let mut proofs = Vec::new();
+        // for i in 0..self.inputs.len() {
+        //     let rt = Runtime::new().expect("failed to create tokio runtime");
+        //     let proof = rt.block_on(async {
+        //         let mut pw = PartialWitness::<F>::new();
+        //         map_circuit_input.set(&mut pw, self.inputs[i].value(witness));
+        //         let targets = map_circuit_input.targets();
+        //         let values = pw.get_targets(targets.as_slice());
+        //         prover.prove::<F, C, D>(&map_circuit, values).await
+        //     });
+        //     // let proof = map_circuit.prove(pw).unwrap();
+        //     map_circuit.verify(proof.clone()).unwrap();
+        //     proofs.push(proof);
+        //     println!("generated map proof {}/{}", i + 1, self.inputs.len());
+        // }
 
         // Now, we need to reduce the proofs to a single proof using the reduce circuits for
         // each layer. To do so, we load in the appropriate reduce circuit and the left/right
@@ -106,8 +124,6 @@ where
         // a single proof.
         let nb_reduce_layers = (self.inputs.len() as f64).log2().ceil() as usize;
         for i in 0..nb_reduce_layers {
-            let mut next_proofs = Vec::new();
-
             let reduce_circuit_path = format!("./build/{}.circuit", self.reduce_circuit_ids[i]);
             let (reduce_circuit, reduce_child_circuit, reduce_circuit_inputs) =
                 CircuitData::<F, C, D>::load_with_proof_targets(reduce_circuit_path);
@@ -115,44 +131,66 @@ where
             // let right = reduce_circuit_inputs[1].to_owned();
 
             let nb_proofs = self.inputs.len() / (2usize.pow((i + 1) as u32));
-            for j in 0..nb_proofs {
-                // let mut pw = PartialWitness::new();
-                // pw.set_proof_with_pis_target(&left, &proofs[j * 2]);
-                // pw.set_proof_with_pis_target(&right, &proofs[j * 2 + 1]);
-                let rt = Runtime::new().expect("failed to create tokio runtime");
+            let rt = Runtime::new().expect("failed to create tokio runtime");
+            let next_proofs = rt.block_on(async {
+                let mut futures = Vec::new();
+                for j in 0..nb_proofs {
+                    let future = prover.prove_reduce::<F, C, D>(
+                        &reduce_circuit,
+                        vec![proofs[j * 2].clone(), proofs[j * 2 + 1].clone()],
+                    );
+                    futures.push(future);
+                    println!(
+                        "generating reduce proof {}/{} for layer {}/{}",
+                        j + 1,
+                        nb_proofs,
+                        i + 1,
+                        nb_reduce_layers
+                    );
+                }
+                join_all(futures).await
+            });
+            println!("generated reduce proofs");
 
-                // ProofWithPublicInputs::<F, C, D>::from_bytes(
-                //     hex::decode(hex::encode(proofs[j * 2].to_bytes())).unwrap(),
-                //     &map_circuit.common,
-                // )
-                // .unwrap();
-                // println!("passed");
-                // ProofWithPublicInputs::<F, C, D>::from_bytes(
-                //     hex::decode(hex::encode(proofs[j * 2 + 1].to_bytes())).unwrap(),
-                //     &map_circuit.common,
-                // )
-                // .unwrap();
+            // let nb_proofs = self.inputs.len() / (2usize.pow((i + 1) as u32));
+            // for j in 0..nb_proofs {
+            //     // let mut pw = PartialWitness::new();
+            //     // pw.set_proof_with_pis_target(&left, &proofs[j * 2]);
+            //     // pw.set_proof_with_pis_target(&right, &proofs[j * 2 + 1]);
+            //     let rt = Runtime::new().expect("failed to create tokio runtime");
 
-                println!("passed");
-                let proof = rt.block_on(async {
-                    prover
-                        .prove_reduce::<F, C, D>(
-                            &reduce_circuit,
-                            vec![proofs[j * 2].clone(), proofs[j * 2 + 1].clone()],
-                        )
-                        .await
-                });
-                // let proof = reduce_circuit.prove(pw).unwrap();
-                reduce_circuit.verify(proof.clone()).unwrap();
-                next_proofs.push(proof);
-                println!(
-                    "generated reduce proof {}/{} for layer {}/{}",
-                    j + 1,
-                    nb_proofs,
-                    i + 1,
-                    nb_reduce_layers
-                );
-            }
+            //     // ProofWithPublicInputs::<F, C, D>::from_bytes(
+            //     //     hex::decode(hex::encode(proofs[j * 2].to_bytes())).unwrap(),
+            //     //     &map_circuit.common,
+            //     // )
+            //     // .unwrap();
+            //     // println!("passed");
+            //     // ProofWithPublicInputs::<F, C, D>::from_bytes(
+            //     //     hex::decode(hex::encode(proofs[j * 2 + 1].to_bytes())).unwrap(),
+            //     //     &map_circuit.common,
+            //     // )
+            //     // .unwrap();
+
+            //     println!("passed");
+            //     let proof = rt.block_on(async {
+            //         prover
+            //             .prove_reduce::<F, C, D>(
+            //                 &reduce_circuit,
+            //                 vec![proofs[j * 2].clone(), proofs[j * 2 + 1].clone()],
+            //             )
+            //             .await
+            //     });
+            //     // let proof = reduce_circuit.prove(pw).unwrap();
+            //     reduce_circuit.verify(proof.clone()).unwrap();
+            //     next_proofs.push(proof);
+            //     println!(
+            //         "generated reduce proof {}/{} for layer {}/{}",
+            //         j + 1,
+            //         nb_proofs,
+            //         i + 1,
+            //         nb_reduce_layers
+            //     );
+            // }
 
             proofs = next_proofs.clone();
         }
