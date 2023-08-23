@@ -30,3 +30,4 @@ keystore
 **/build
 
 **/__pycache__
+**/FunctionVerifier.sol

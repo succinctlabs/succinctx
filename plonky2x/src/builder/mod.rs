@@ -57,10 +57,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Initializes a variable with a constant value in the circuit.
-    pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType) -> V {
+    pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<F>) -> V {
         V::constant(self, value)
     }
 
+<<<<<<< HEAD
     /// Registers the given targets as public inputs.
     pub fn register_public_inputs(&mut self, inputs: &[Target]) {
         self.api.register_public_inputs(inputs);
@@ -71,6 +72,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         self.api.add(i1.0, i2.0).into()
     }
 
+=======
+>>>>>>> main
     /// Add returns res = i1 + i2 + ...
     pub fn add_many(&mut self, values: &[Variable]) -> Variable {
         let mut acc = values[0].0;
@@ -78,11 +81,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             acc = self.api.add(acc, values[i].0);
         }
         acc.into()
-    }
-
-    /// Sub returns res = i1 - i2.
-    pub fn sub(&mut self, i1: Variable, i2: Variable) -> Variable {
-        self.api.sub(i1.0, i2.0).into()
     }
 
     /// Sub returns res = i1 - i2 - ...
@@ -94,11 +92,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         acc.into()
     }
 
-    /// Mul returns res = i1 * i2.
-    pub fn mul(&mut self, i1: Variable, i2: Variable) -> Variable {
-        self.api.mul(i1.0, i2.0).into()
-    }
-
     /// Mul returns res = i1 * i2 * ...
     pub fn mul_many(&mut self, values: &[Variable]) -> Variable {
         let mut acc = values[0].0;
@@ -106,16 +99,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             acc = self.api.mul(acc, values[i].0);
         }
         acc.into()
-    }
-
-    /// Div returns res = i1 / i2.
-    pub fn div(&mut self, i1: Variable, i2: Variable) -> Variable {
-        self.api.div(i1.0, i2.0).into()
-    }
-
-    /// Div returns res = -i1.
-    pub fn neg(&mut self, i1: Variable) -> Variable {
-        self.api.neg(i1.0).into()
     }
 
     /// Inverse returns res = 1 / i1.
@@ -140,14 +123,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn assert_is_equal(&mut self, i1: Variable, i2: Variable) {
         self.api.connect(i1.0, i2.0);
     }
-
-    pub fn zero(&mut self) -> Variable {
-        self.api.zero().into()
-    }
-
-    pub fn one(&mut self) -> Variable {
-        self.api.one().into()
-    }
 }
 
 #[cfg(test)]
@@ -157,6 +132,7 @@ pub(crate) mod tests {
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use crate::builder::CircuitBuilder;
+    use crate::vars::Variable;
 
     #[test]
     fn test_simple_circuit() {
@@ -165,8 +141,8 @@ pub(crate) mod tests {
         const D: usize = 2;
 
         let mut builder = CircuitBuilder::<F, D>::new();
-        let zero = builder.zero();
-        let one = builder.one();
+        let zero = builder.zero::<Variable>();
+        let one = builder.one::<Variable>();
         let sum = builder.add(zero, one);
         builder.assert_is_equal(sum, one);
 
@@ -174,5 +150,11 @@ pub(crate) mod tests {
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
         data.verify(proof).unwrap();
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Default for CircuitBuilder<F, D> {
+    fn default() -> Self {
+        Self::new()
     }
 }

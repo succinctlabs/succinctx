@@ -3,22 +3,23 @@ use core::fmt::Debug;
 use curta::chip::ec::edwards::ed25519::Ed25519 as CurtaEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::ScalarMulEd25519Gadget;
 use curta::chip::ec::edwards::EdwardsParameters;
-use curta::plonky2::field::CubicParameters;
+use curta::math::extension::CubicParameters;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::BoolTarget;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use crate::ecc::ed25519::curve::curve_types::Curve;
 use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
 use crate::ecc::ed25519::gadgets::curve::{AffinePointTarget, CircuitBuilderCurve};
-use crate::hash::sha::sha512::sha512;
+use crate::hash::sha::sha512::{sha512, sha512_variable, CHUNK_BITS_1024, LENGTH_BITS_128};
 use crate::num::biguint::BigUintTarget;
 use crate::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
 use crate::num::u32::gadgets::arithmetic_u32::U32Target;
 
 const MAX_NUM_SIGS: usize = 256;
+const COMPRESSED_SIG_AND_PK_LEN_BITS: usize = 512;
 
 #[derive(Clone, Debug)]
 pub struct EDDSAPublicKeyTarget<C: Curve>(pub AffinePointTarget<C>);
@@ -32,6 +33,15 @@ pub struct EDDSASignatureTarget<C: Curve> {
 #[derive(Clone, Debug)]
 pub struct EDDSATargets<C: Curve> {
     pub msgs: Vec<Vec<BoolTarget>>,
+    pub sigs: Vec<EDDSASignatureTarget<C>>,
+    pub pub_keys: Vec<EDDSAPublicKeyTarget<C>>,
+}
+
+// Variable length message EDDSA
+#[derive(Clone, Debug)]
+pub struct EDDSAVariableTargets<C: Curve> {
+    pub msgs: Vec<Vec<BoolTarget>>,
+    pub msgs_lengths: Vec<Target>,
     pub sigs: Vec<EDDSASignatureTarget<C>>,
     pub pub_keys: Vec<EDDSAPublicKeyTarget<C>>,
 }
@@ -72,6 +82,171 @@ fn biguint_from_le_bytes<F: RichField + Extendable<D>, const D: usize>(
     }
 
     BigUintTarget { limbs: u32_targets }
+}
+
+pub const fn calculate_eddsa_num_chunks(msg_len: usize) -> usize {
+    ((msg_len + COMPRESSED_SIG_AND_PK_LEN_BITS + LENGTH_BITS_128 + 1) / CHUNK_BITS_1024) + 1
+}
+
+pub fn verify_variable_signatures_circuit<
+    F: RichField + Extendable<D>,
+    C: Curve,
+    E: CubicParameters<F>,
+    Config: GenericConfig<D, F = F, FE = F::Extension> + 'static,
+    const D: usize,
+    // Maximum length of a signed message in bits.
+    const MAX_MSG_LEN_BITS: usize,
+>(
+    builder: &mut CircuitBuilder<F, D>,
+    num_sigs: usize,
+) -> EDDSAVariableTargets<C>
+where
+    Config::Hasher: AlgebraicHasher<F>,
+{
+    assert!(num_sigs > 0 && num_sigs <= MAX_NUM_SIGS);
+
+    // Note: This will calculate number of chunks in the message, including the compressed sig and pk bits (512 bits).
+    let max_num_chunks: usize = calculate_eddsa_num_chunks(MAX_MSG_LEN_BITS);
+
+    // Create the eddsa circuit's virtual targets.
+    let mut msgs = Vec::new();
+    let mut msgs_lengths = Vec::new();
+    let mut sigs = Vec::new();
+    let mut pub_keys = Vec::new();
+    let mut curta_pub_keys = Vec::new();
+    let mut h_scalars_limbs = Vec::new();
+    let mut generators = Vec::new();
+    let mut sigs_s_limbs = Vec::new();
+
+    for _i in 0..num_sigs {
+        let mut msg = Vec::new();
+        for _ in 0..MAX_MSG_LEN_BITS {
+            // Note that add_virtual_bool_target_safe will do a range check to verify each element is 0 or 1.
+            msg.push(builder.add_virtual_bool_target_safe());
+        }
+
+        // Targets for the message length and number of chunks
+        // TODO: Should we range check that msg_length is less than MAX_MSG_LEN * 8?
+        let msg_length = builder.add_virtual_target();
+        // Note: Add 512 bits for the sig.r and pk_compressed
+        let compressed_sig_and_pk_t =
+            builder.constant(F::from_canonical_usize(COMPRESSED_SIG_AND_PK_LEN_BITS));
+        let hash_msg_length = builder.add(msg_length, compressed_sig_and_pk_t);
+
+        msgs_lengths.push(msg_length);
+
+        // There is already a calculation for the number of limbs needed for the underlying biguint targets.
+        let sig = EDDSASignatureTarget {
+            r: builder.add_virtual_affine_point_target(),
+            s: builder.add_virtual_nonnative_target(),
+        };
+        let pub_key = EDDSAPublicKeyTarget(builder.add_virtual_affine_point_target());
+        builder.curve_assert_valid(&pub_key.0);
+        builder.curve_assert_valid(&sig.r);
+
+        // Convert into format for the curta scalar mul
+        curta_pub_keys.push(builder.convert_to_curta_affine_point_target(&pub_key.0));
+
+        // Calculate h = hash(sig.r + pk + msg) mod q
+        let mut hash_msg = Vec::new();
+        let a = builder.compress_point(&sig.r);
+        let r_compressed = reverse_byte_ordering(a.bit_targets.to_vec());
+        let b = builder.compress_point(&pub_key.0);
+        let pk_compressed = reverse_byte_ordering(b.bit_targets.to_vec());
+
+        for i in 0..256 {
+            hash_msg.push(r_compressed[i]);
+        }
+
+        for i in 0..256 {
+            hash_msg.push(pk_compressed[i]);
+        }
+
+        for i in 0..MAX_MSG_LEN_BITS {
+            hash_msg.push(msg[i]);
+        }
+
+        for i in
+            (MAX_MSG_LEN_BITS + COMPRESSED_SIG_AND_PK_LEN_BITS)..(max_num_chunks * CHUNK_BITS_1024)
+        {
+            hash_msg.push(builder._false());
+        }
+
+        msgs.push(msg);
+
+        let sha512_targets = sha512_variable::<F, D>(builder, max_num_chunks);
+        builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_length);
+
+        for i in 0..max_num_chunks * CHUNK_BITS_1024 {
+            builder.connect(sha512_targets.message[i].target, hash_msg[i].target);
+        }
+
+        let digest = biguint_from_le_bytes(builder, sha512_targets.digest);
+        let h_scalar = builder.reduce::<Ed25519Scalar>(&digest);
+
+        let h_scalar_limbs = h_scalar.value.limbs.iter().map(|x| x.0).collect::<Vec<_>>();
+        h_scalars_limbs.push(h_scalar_limbs);
+
+        let sig_s_limbs = sig.s.value.limbs.iter().map(|x| x.0).collect::<Vec<_>>();
+        sigs_s_limbs.push(sig_s_limbs);
+
+        let generator =
+            ScalarMulEd25519Gadget::constant_affine_point(builder, CurtaEd25519::generator());
+
+        pub_keys.push(pub_key);
+        sigs.push(sig);
+        generators.push(generator);
+    }
+
+    // "Pad" the rest of the scalar mul inputs with dummy operands
+    for _i in num_sigs..MAX_NUM_SIGS {
+        curta_pub_keys.push(ScalarMulEd25519Gadget::constant_affine_point(
+            builder,
+            CurtaEd25519::generator(),
+        ));
+        h_scalars_limbs.push([builder.zero(); 8].to_vec());
+
+        generators.push(ScalarMulEd25519Gadget::constant_affine_point(
+            builder,
+            CurtaEd25519::generator(),
+        ));
+        sigs_s_limbs.push([builder.zero(); 8].to_vec());
+    }
+
+    // Now do the batch scalar mul verification
+    let pk_times_h_witnesses = builder.ed_scalar_mul_batch_hint(&curta_pub_keys, &h_scalars_limbs);
+    let pk_times_h_results =
+        builder.ed_scalar_mul_batch::<E, Config>(&curta_pub_keys, &h_scalars_limbs);
+
+    let s_times_g_witnesses = builder.ed_scalar_mul_batch_hint(&generators, &sigs_s_limbs);
+    let s_times_g_results = builder.ed_scalar_mul_batch::<E, Config>(&generators, &sigs_s_limbs);
+
+    for i in 0..num_sigs {
+        // Verify the scalar muls
+        ScalarMulEd25519Gadget::connect_affine_point(
+            builder,
+            &pk_times_h_witnesses[i],
+            &pk_times_h_results[i],
+        );
+        ScalarMulEd25519Gadget::connect_affine_point(
+            builder,
+            &s_times_g_witnesses[i],
+            &s_times_g_results[i],
+        );
+
+        // Complete the signature verification
+        let pk_times_h = builder.convert_from_curta_affine_point_target(&pk_times_h_results[i]);
+        let rhs = builder.curve_add(&sigs[i].r, &pk_times_h);
+        let s_times_g = builder.convert_from_curta_affine_point_target(&s_times_g_results[i]);
+        CircuitBuilderCurve::connect_affine_point(builder, &s_times_g, &rhs);
+    }
+
+    EDDSAVariableTargets {
+        msgs,
+        msgs_lengths,
+        pub_keys,
+        sigs,
+    }
 }
 
 pub fn verify_signatures_circuit<
@@ -208,7 +383,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Once;
     use std::time::SystemTime;
 
     use anyhow::Result;
@@ -227,21 +401,11 @@ mod tests {
     use crate::ecc::ed25519::curve::eddsa::{verify_message, EDDSAPublicKey, EDDSASignature};
     use crate::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
-    use crate::ecc::ed25519::gadgets::eddsa::verify_signatures_circuit;
+    use crate::ecc::ed25519::gadgets::eddsa::{
+        verify_signatures_circuit, verify_variable_signatures_circuit,
+    };
     use crate::num::biguint::WitnessBigUint;
-
-    static INIT: Once = Once::new();
-
-    fn setup() {
-        INIT.call_once(|| {
-            let mut builder_logger = env_logger::Builder::from_default_env();
-            builder_logger.format_timestamp(None);
-            builder_logger.filter_level(log::LevelFilter::Trace);
-            builder_logger
-                .try_init()
-                .expect("Failed to initialize logger");
-        });
-    }
+    use crate::utils::setup_logger;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -371,7 +535,7 @@ mod tests {
         pub_keys: Vec<Vec<u8>>,
         sigs: Vec<Vec<u8>>,
     ) -> Result<()> {
-        setup();
+        setup_logger();
 
         assert!(msgs.len() == pub_keys.len());
         assert!(pub_keys.len() == sigs.len());
@@ -462,6 +626,113 @@ mod tests {
         outer_data.verify(outer_proof)
     }
 
+    fn test_variable_eddsa_circuit_with_test_case(
+        msgs: Vec<Vec<u8>>,
+        pub_keys: Vec<Vec<u8>>,
+        sigs: Vec<Vec<u8>>,
+    ) -> Result<()> {
+        setup_logger();
+
+        assert!(msgs.len() == pub_keys.len());
+        assert!(pub_keys.len() == sigs.len());
+
+        type F = GoldilocksField;
+        type E = GoldilocksCubicParameters;
+        type C = PoseidonGoldilocksConfig;
+        type Curve = Ed25519;
+        const D: usize = 2;
+
+        let mut pw = PartialWitness::new();
+        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        const MAX_MSG_LEN_BITS: usize = 128 * 8;
+        // Length of sig.r and pk_compressed in hash_msg
+        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, C, D, MAX_MSG_LEN_BITS>(
+            &mut builder,
+            msgs.len(),
+        );
+
+        for i in 0..msgs.len() {
+            let msg_bits = to_bits(msgs[i].to_vec());
+
+            let pub_key = AffinePoint::new_from_compressed_point(&pub_keys[i]);
+            assert!(pub_key.is_valid());
+
+            let sig_r = AffinePoint::new_from_compressed_point(&sigs[i][0..32]);
+            assert!(sig_r.is_valid());
+
+            let sig_s_biguint = BigUint::from_bytes_le(&sigs[i][32..64]);
+            let sig_s = Ed25519Scalar::from_noncanonical_biguint(sig_s_biguint);
+            let sig = EDDSASignature { r: sig_r, s: sig_s };
+
+            assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
+
+            for j in 0..msg_bits.len() {
+                pw.set_bool_target(eddsa_target.msgs[i][j], msg_bits[j]);
+            }
+
+            for j in msg_bits.len()..(MAX_MSG_LEN_BITS) {
+                pw.set_bool_target(eddsa_target.msgs[i][j], false);
+            }
+
+            let msg_len = msg_bits.len();
+
+            pw.set_target(
+                eddsa_target.msgs_lengths[i],
+                F::from_canonical_usize(msg_len),
+            );
+
+            pw.set_biguint_target(
+                &eddsa_target.pub_keys[i].0.x.value,
+                &pub_key.x.to_canonical_biguint(),
+            );
+            pw.set_biguint_target(
+                &eddsa_target.pub_keys[i].0.y.value,
+                &pub_key.y.to_canonical_biguint(),
+            );
+
+            pw.set_biguint_target(
+                &eddsa_target.sigs[i].r.x.value,
+                &sig_r.x.to_canonical_biguint(),
+            );
+            pw.set_biguint_target(
+                &eddsa_target.sigs[i].r.y.value,
+                &sig_r.y.to_canonical_biguint(),
+            );
+
+            pw.set_biguint_target(&eddsa_target.sigs[i].s.value, &sig_s.to_canonical_biguint());
+        }
+
+        let inner_data = builder.build::<C>();
+        let circuit_digest = inner_data.verifier_only.circuit_digest;
+        println!("circuit_digest: {:?}", circuit_digest);
+
+        let inner_proof = inner_data.prove(pw).unwrap();
+        inner_data.verify(inner_proof.clone()).unwrap();
+
+        let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
+        let inner_verifier_data =
+            outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
+        outer_builder.verify_proof::<C>(
+            &inner_proof_target,
+            &inner_verifier_data,
+            &inner_data.common,
+        );
+
+        let outer_data = outer_builder.build::<C>();
+        for gate in outer_data.common.gates.iter() {
+            println!("ecddsa verify recursive gate: {:?}", gate);
+        }
+
+        let mut outer_pw = PartialWitness::new();
+        outer_pw.set_proof_with_pis_target(&inner_proof_target, &inner_proof);
+        outer_pw.set_verifier_data_target(&inner_verifier_data, &inner_data.verifier_only);
+
+        let outer_proof = outer_data.prove(outer_pw).unwrap();
+
+        outer_data.verify(outer_proof)
+    }
+
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_eddsa_circuit_narrow() -> Result<()> {
@@ -510,24 +781,26 @@ mod tests {
         let sig_bytes = hex::decode(sig).unwrap();
 
         test_eddsa_circuit_with_test_case(
-            vec![
-                msg_bytes.to_vec(),
-                msg_bytes.to_vec(),
-                msg_bytes.to_vec(),
-                msg_bytes.to_vec(),
-            ],
-            vec![
-                pub_key_bytes.to_vec(),
-                pub_key_bytes.to_vec(),
-                pub_key_bytes.to_vec(),
-                pub_key_bytes.to_vec(),
-            ],
-            vec![
-                sig_bytes.to_vec(),
-                sig_bytes.to_vec(),
-                sig_bytes.to_vec(),
-                sig_bytes.to_vec(),
-            ],
+            vec![msg_bytes.to_vec()],
+            vec![pub_key_bytes.to_vec()],
+            vec![sig_bytes.to_vec()],
+        )
+    }
+
+    #[test]
+    fn test_variable_eddsa_circuit_with_celestia_test_case() -> Result<()> {
+        let msg = "6c080211f82a00000000000022480a2036f2d954fe1ba37c5036cb3c6b366d0daf68fccbaa370d9490361c51a0a38b61122408011220cddf370e891591c9d912af175c966cd8dfa44b2c517e965416b769eb4b9d5d8d2a0c08f6b097a50610dffbcba90332076d6f6368612d33";
+        let pubkey = "de25aec935b10f657b43fa97e5a8d4e523bdb0f9972605f0b064eff7b17048ba";
+        let sig = "091576e9e3ad0e5ba661f7398e1adb3976ba647b579b8e4a224d1d02b591ade6aedb94d3bf55d258f089d6413155a57adfd4932418a798c2d68b29850f6fb50b";
+
+        let msg_bytes = hex::decode(msg).unwrap();
+        let pub_key_bytes = hex::decode(pubkey).unwrap();
+        let sig_bytes = hex::decode(sig).unwrap();
+
+        test_variable_eddsa_circuit_with_test_case(
+            vec![msg_bytes.to_vec()],
+            vec![pub_key_bytes.to_vec()],
+            vec![sig_bytes.to_vec()],
         )
     }
 }

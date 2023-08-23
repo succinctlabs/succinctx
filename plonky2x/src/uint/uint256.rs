@@ -6,8 +6,8 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{CircuitVariable, U32Variable};
 use crate::builder::CircuitBuilder;
+use crate::vars::{CircuitVariable, U32Variable};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
@@ -15,7 +15,7 @@ use crate::builder::CircuitBuilder;
 pub struct U256Variable(pub [U32Variable; 4]);
 
 impl CircuitVariable for U256Variable {
-    type ValueType = U256;
+    type ValueType<F> = U256;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -25,7 +25,7 @@ impl CircuitVariable for U256Variable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
         let limbs = to_limbs(value);
         Self(array![i => U32Variable::constant(builder, limbs[i]); 4])
@@ -35,12 +35,16 @@ impl CircuitVariable for U256Variable {
         self.0.iter().flat_map(|v| v.targets()).collect_vec()
     }
 
+<<<<<<< HEAD:plonky2x/src/vars/uint256.rs
     fn from_targets(targets: &[Target]) -> Self {
         assert_eq!(targets.len(), 4);
         Self(array![i => U32Variable::from_targets(&[targets[i]]); 4])
     }
 
     fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+=======
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+>>>>>>> main:plonky2x/src/uint/uint256.rs
         to_u256([
             self.0[0].value(witness),
             self.0[1].value(witness),
@@ -49,7 +53,7 @@ impl CircuitVariable for U256Variable {
         ])
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         let limbs = to_limbs(value);
         for i in 0..4 {
             self.0[i].set(witness, limbs[i]);
@@ -59,7 +63,7 @@ impl CircuitVariable for U256Variable {
 
 fn to_limbs(value: U256) -> [u32; 4] {
     let mut bytes = [0u8; 32];
-    value.to_little_endian(&mut bytes.as_mut());
+    value.to_little_endian(&mut bytes);
     [
         u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
         u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]),

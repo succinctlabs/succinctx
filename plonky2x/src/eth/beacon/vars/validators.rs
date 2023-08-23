@@ -27,7 +27,7 @@ pub struct BeaconValidatorsVariable {
 }
 
 impl CircuitVariable for BeaconValidatorsVariable {
-    type ValueType = BeaconValidatorsValue;
+    type ValueType<F> = BeaconValidatorsValue;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -40,7 +40,7 @@ impl CircuitVariable for BeaconValidatorsVariable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
         Self {
             block_root: Bytes32Variable::constant(builder, value.block_root),
@@ -67,14 +67,14 @@ impl CircuitVariable for BeaconValidatorsVariable {
         }
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         BeaconValidatorsValue {
             block_root: self.block_root.value(witness),
             validators_root: self.validators_root.value(witness),
         }
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         self.validators_root.set(witness, value.validators_root);
         self.block_root.set(witness, value.block_root);
     }
