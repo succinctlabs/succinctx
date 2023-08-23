@@ -38,7 +38,7 @@ fn main() {
         let output = builder.mapreduce::<Variable, Variable, C, _, _>(
             inputs,
             |input, builder| {
-                let constant = builder.constant::<Variable>(1);
+                let constant = builder.constant::<Variable>(GoldilocksField::ONE);
                 let sum = builder.add(input, constant);
                 sum
             },
