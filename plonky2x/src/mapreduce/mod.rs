@@ -44,10 +44,9 @@ where
     /// The proof target for the final circuit proof.
     pub proof: ProofWithPublicInputsTarget<D>,
 
+    /// Phantom data.
     pub _phantom1: PhantomData<F>,
-
     pub _phantom2: PhantomData<C>,
-
     pub _phantom3: PhantomData<O>,
 }
 
@@ -177,8 +176,8 @@ where
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn build_map_circuit<I, O, C, M>(&mut self, m: &M) -> (CircuitData<F, C, D>, I)
     where
-        I: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
-        O: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
+        I: CircuitVariable,
+        O: CircuitVariable,
         C: GenericConfig<D, F = F> + 'static,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
         M: Fn(I, &mut CircuitBuilder<F, D>) -> O,
@@ -196,8 +195,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         r: &R,
     ) -> (CircuitData<F, C, D>, Vec<ProofWithPublicInputsTarget<D>>)
     where
-        I: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
-        O: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
+        I: CircuitVariable,
+        O: CircuitVariable,
         C: GenericConfig<D, F = F> + 'static,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
         R: Fn(O, O, &mut CircuitBuilder<F, D>) -> O,
@@ -221,8 +220,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     pub fn mapreduce<I, O, C, M, R>(&mut self, inputs: Vec<I>, m: M, r: R) -> O
     where
-        I: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
-        O: CircuitVariable + Debug + Clone + Sync + Send + Default + 'static,
+        I: CircuitVariable,
+        O: CircuitVariable,
         C: GenericConfig<D, F = F> + 'static,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
         M: Fn(I, &mut CircuitBuilder<F, D>) -> O,
