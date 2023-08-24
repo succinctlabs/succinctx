@@ -7,16 +7,19 @@ use crate::builder::CircuitBuilder;
 use crate::eth::vars::AddressVariable;
 use crate::vars::Bytes32Variable;
 
+
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn get_eth_storage_slot_at<P: Clone + JsonRpcClient + 'static>(
+    pub fn eth_getStorageAt<P: Clone + JsonRpcClient + 'static>(
         &mut self,
-        provider: Provider<P>,
+        block_hash: Bytes32Variable,
         address: AddressVariable,
-        storage_key: Bytes32Variable,
-        block_number: u64,
+        storage_key: Bytes32Variable
     ) -> Bytes32Variable {
+        if self.execution_client.is_none() {
+            panic!("Execution client is not set, cannot use `get_eth_storage_slot_at`");
+        }
         let generator =
-            EthStorageProofGenerator::new(self, provider, address, storage_key, block_number);
+            EthStorageProofGenerator::new(self, self.provider, address, storage_key, block_number);
         self.api.add_simple_generator(generator.clone());
         generator.value
     }

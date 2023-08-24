@@ -59,6 +59,9 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
         address _refundAccount
     ) public payable returns (bytes32) {
         bytes32 inputHash = sha256(_input);
+        if (verifiers[functionId].getPlonky2CircuitData()){
+            revert FunctionNotFound(_functionId);
+        }
         bytes32 contextHash = keccak256(_context);
         FunctionRequest memory r = FunctionRequest({
             functionId: _functionId,

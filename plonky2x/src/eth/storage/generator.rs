@@ -24,13 +24,13 @@ pub struct EthStorageProofGenerator<
     F: RichField + Extendable<D>,
     const D: usize,
 > {
+    pub block_hash: Bytes32Variable,
     pub address: AddressVariable,
     pub storage_key: Bytes32Variable,
     pub account: EthAccountVariable,
     pub account_proof: EthProofVariable,
     pub storage_proof: EthProofVariable,
     pub value: Bytes32Variable,
-    pub block_number: u64,
     pub provider: Provider<P>,
     _phantom: PhantomData<F>,
 }
@@ -41,22 +41,22 @@ impl<P: Clone + JsonRpcClient + 'static, F: RichField + Extendable<D>, const D: 
     pub fn new(
         builder: &mut CircuitBuilder<F, D>,
         provider: Provider<P>,
+        block_hash: Bytes32Variable,
         address: AddressVariable,
         storage_key: Bytes32Variable,
-        block_number: u64,
     ) -> EthStorageProofGenerator<P, F, D> {
         let account = builder.init::<EthAccountVariable>();
         let account_proof = builder.init::<EthProofVariable>();
         let storage_proof = builder.init::<EthProofVariable>();
         let value = builder.init::<Bytes32Variable>();
         EthStorageProofGenerator {
+            block_hash,
             address,
             storage_key,
             account,
             account_proof,
             storage_proof,
             value,
-            block_number,
             provider,
             _phantom: PhantomData::<F>,
         }
@@ -82,9 +82,16 @@ impl<P: Clone + JsonRpcClient + 'static, F: RichField + Extendable<D>, const D: 
         let location = self.storage_key.value(witness);
         let get_proof_closure = || -> EIP1186ProofResponse {
             let rt = Runtime::new().unwrap();
+            // First get the block number
+            let block_hash = self.block_hash.value(witness);
             rt.block_on(async {
+                let block = self.provider.get_block(block_hash).await.unwrap();
+                if block.is_none() {
+                    panic!("Block with hash {} not found", block_hash);
+                }
+                let block_number = block.unwrap().number.unwrap();
                 self.provider
-                    .get_proof(address, vec![location], Some(self.block_number.into()))
+                    .get_proof(address, vec![location], Some(block_number.into()))
                     .await
                     .unwrap()
             })
