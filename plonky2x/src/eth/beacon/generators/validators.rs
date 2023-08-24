@@ -49,7 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let block_root = self.block_root.value(witness);
+        let block_root = self.block_root.get(witness);
 
         let rt = Runtime::new().expect("failed to create tokio runtime");
         let result = rt.block_on(async {
@@ -107,9 +107,9 @@ pub(crate) mod tests {
             BeaconValidatorsRootGenerator::<F, D>::new(&mut builder, client, block_root);
         builder.add_simple_generator(&generator);
 
-        let data = builder.build::<C>();
+        let circuit = builder.build::<C>();
         let pw = PartialWitness::new();
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
     }
 }

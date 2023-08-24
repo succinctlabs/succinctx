@@ -10,11 +10,11 @@ use crate::builder::CircuitBuilder;
 use crate::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
 
 /// A variable in the circuit. It represents a value between `[0, 2**64 - 2**32 + 1)`.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Variable(pub Target);
 
 impl CircuitVariable for Variable {
-    type ValueType<F: Debug> = F;
+    type ValueType<F: RichField> = F;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -27,24 +27,29 @@ impl CircuitVariable for Variable {
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
+        // In the special case that we are creating a variable constant, we record it in the builder
+        // so that we can use it to implement serialization/deserialize to/from elements for
+        // ValueType automatically.
         let target = builder.api.constant(value);
+        let variable = Self(target);
+        builder.constants.insert(variable, value);
         Self(target)
     }
 
-    fn targets(&self) -> Vec<Target> {
-        vec![self.0]
+    fn variables(&self) -> Vec<Variable> {
+        vec![*self]
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        assert_eq!(targets.len(), 1);
-        Self(targets[0])
+    fn from_variables(variables: &[Variable]) -> Self {
+        assert_eq!(variables.len(), 1);
+        variables[0]
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> F {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         witness.get_target(self.0)
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: F) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         witness.set_target(self.0, value);
     }
 }

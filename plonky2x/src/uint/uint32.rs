@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
@@ -14,7 +13,7 @@ use crate::vars::{CircuitVariable, Variable};
 pub struct U32Variable(pub Variable);
 
 impl CircuitVariable for U32Variable {
-    type ValueType<F: Debug> = u32;
+    type ValueType<F: RichField> = u32;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -29,16 +28,16 @@ impl CircuitVariable for U32Variable {
         Self(Variable::constant(builder, F::from_canonical_u32(value)))
     }
 
-    fn targets(&self) -> Vec<Target> {
-        vec![self.0 .0]
+    fn variables(&self) -> Vec<Variable> {
+        vec![self.0]
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        assert_eq!(targets.len(), 1);
-        Self(Variable(targets[0]))
+    fn from_variables(variables: &[Variable]) -> Self {
+        assert_eq!(variables.len(), 1);
+        Self(variables[0])
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         let v = witness.get_target(self.0 .0);
         v.to_canonical_u64() as u32
     }

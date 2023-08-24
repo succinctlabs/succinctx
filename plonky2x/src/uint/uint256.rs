@@ -2,13 +2,12 @@ use std::fmt::Debug;
 
 use array_macro::array;
 use ethers::types::U256;
-use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
+use crate::prelude::Variable;
 use crate::vars::{CircuitVariable, U32Variable};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
@@ -17,7 +16,7 @@ use crate::vars::{CircuitVariable, U32Variable};
 pub struct U256Variable(pub [U32Variable; 4]);
 
 impl CircuitVariable for U256Variable {
-    type ValueType<F: Debug> = U256;
+    type ValueType<F: RichField> = U256;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -33,21 +32,21 @@ impl CircuitVariable for U256Variable {
         Self(array![i => U32Variable::constant(builder, limbs[i]); 4])
     }
 
-    fn targets(&self) -> Vec<Target> {
-        self.0.iter().flat_map(|v| v.targets()).collect_vec()
+    fn variables(&self) -> Vec<Variable> {
+        self.0.iter().map(|x| x.0).collect()
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        assert_eq!(targets.len(), 4);
-        Self(array![i => U32Variable::from_targets(&[targets[i]]); 4])
+    fn from_variables(variables: &[Variable]) -> Self {
+        assert_eq!(variables.len(), 4);
+        Self(array![i => U32Variable(variables[i]); 4])
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         to_u256([
-            self.0[0].value(witness),
-            self.0[1].value(witness),
-            self.0[2].value(witness),
-            self.0[3].value(witness),
+            self.0[0].get(witness),
+            self.0[1].get(witness),
+            self.0[2].get(witness),
+            self.0[3].get(witness),
         ])
     }
 

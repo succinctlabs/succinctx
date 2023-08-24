@@ -3,10 +3,9 @@ use std::fmt::Debug;
 use array_macro::array;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{BoolVariable, CircuitVariable};
+use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
 use crate::builder::CircuitBuilder;
 use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 
@@ -16,7 +15,7 @@ use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, 
 pub struct ByteVariable(pub [BoolVariable; 8]);
 
 impl CircuitVariable for ByteVariable {
-    type ValueType<F: Debug> = u8;
+    type ValueType<F: RichField> = u8;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -28,23 +27,22 @@ impl CircuitVariable for ByteVariable {
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        let value_be_bit = |i| ((1 << (7 - i) as u8) & value) != 0;
-        Self(array![i => BoolVariable::constant(builder, value_be_bit(i)); 8])
+        Self(array![i => BoolVariable::constant(builder, (value >> (7 - i)) & 1 != 0); 8])
     }
 
-    fn targets(&self) -> Vec<Target> {
-        self.0.into_iter().flat_map(|x| x.targets()).collect()
+    fn variables(&self) -> Vec<Variable> {
+        self.0.iter().map(|x| x.0).collect()
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        assert_eq!(targets.len(), 8);
-        Self(array![i => BoolVariable::from_targets(&[targets[i]]); 8])
+    fn from_variables(variables: &[Variable]) -> Self {
+        assert_eq!(variables.len(), 8);
+        Self(array![i => BoolVariable(variables[i]); 8])
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         let mut acc: u64 = 0;
         for i in 0..8 {
-            let term = (1 << (7 - i)) * (BoolVariable::value(&self.0[i], witness) as u64);
+            let term = (1 << (7 - i)) * (BoolVariable::get(&self.0[i], witness) as u64);
             acc += term;
         }
         acc as u8
@@ -57,6 +55,32 @@ impl CircuitVariable for ByteVariable {
         for i in 0..8 {
             BoolVariable::set(&self.0[i], witness, value_be_bits[i]);
         }
+    }
+}
+
+impl EvmVariable for ByteVariable {
+    fn encode<F: RichField + Extendable<D>, const D: usize>(
+        &self,
+        _: &mut CircuitBuilder<F, D>,
+    ) -> Vec<ByteVariable> {
+        vec![*self]
+    }
+
+    fn decode<F: RichField + Extendable<D>, const D: usize>(
+        _: &mut CircuitBuilder<F, D>,
+        bytes: &[ByteVariable],
+    ) -> Self {
+        assert_eq!(bytes.len(), 1);
+        bytes[0]
+    }
+
+    fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {
+        vec![value]
+    }
+
+    fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
+        assert_eq!(bytes.len(), 1);
+        bytes[0]
     }
 }
 
@@ -215,7 +239,7 @@ mod tests {
             })
             .unzip();
 
-        let data = builder.build::<C>();
+        let circuit = builder.build::<C>();
         let mut pw = PartialWitness::new();
 
         let x_values = (0..256).map(|i| i as u8).collect::<Vec<_>>();
@@ -255,7 +279,7 @@ mod tests {
             x_rot_left.set(&mut pw, x.rotate_left(i));
         }
 
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
     }
 }
