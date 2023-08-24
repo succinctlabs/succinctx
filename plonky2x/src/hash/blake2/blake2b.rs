@@ -362,7 +362,6 @@ mod tests {
 
     #[test]
     fn test_blake2b() {
-        /*
         println!("Running blake2b test #1");
         run_test::<CHUNK_128_BYTES, 32>(
             b"",
@@ -388,7 +387,6 @@ mod tests {
         run_test::<MAX_MESSAGE_LENGTH, 32>(
             msg.as_slice(),
             "dad415aa819ebb585ce8ee1c1fa883804f405f6d8a6a0992628fb3bdaab5b42e").expect("Failed test #5");
-        */
 
         println!("Running blake2b test #6");
         const LONG_MESSAGE_LENGTH: usize = 2560;
