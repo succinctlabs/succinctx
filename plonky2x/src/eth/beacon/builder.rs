@@ -53,12 +53,12 @@ pub(crate) mod tests {
 
     use crate::builder::CircuitBuilder;
     use crate::ethutils::beacon::BeaconClient;
-    use crate::utils::bytes32;
+    use crate::utils::{bytes32, setup_logger};
     use crate::vars::Bytes32Variable;
 
     #[test]
     fn test_get_validator_generator() {
-        env_logger::init();
+        setup_logger();
         dotenv::dotenv().ok();
 
         type F = GoldilocksField;
@@ -75,11 +75,11 @@ pub(crate) mod tests {
             "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
         ));
         let validators = builder.get_beacon_validators(block_root);
+
         let balances = (0..4)
             .map(|i| {
-                builder
-                    .get_beacon_validator_from_u64(validators, i)
-                    .effective_balance
+                let validator = builder.get_beacon_validator_from_u64(validators, i);
+                validator.effective_balance
             })
             .collect_vec();
         println!("balances: {:?}", balances);

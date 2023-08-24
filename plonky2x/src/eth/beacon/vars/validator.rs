@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
@@ -22,7 +24,7 @@ pub struct BeaconValidatorVariable {
 }
 
 impl CircuitVariable for BeaconValidatorVariable {
-    type ValueType = BeaconValidator;
+    type ValueType<F: Debug> = BeaconValidator;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -41,7 +43,7 @@ impl CircuitVariable for BeaconValidatorVariable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
         Self {
             pubkey: BLSPubkeyVariable::constant(builder, bytes!(value.pubkey)),
@@ -77,7 +79,12 @@ impl CircuitVariable for BeaconValidatorVariable {
         targets
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    #[allow(unused_variables)]
+    fn from_targets(targets: &[Target]) -> Self {
+        todo!()
+    }
+
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         BeaconValidator {
             pubkey: hex!(self.pubkey.value(witness)),
             withdrawal_credentials: hex!(self.withdrawal_credentials.value(witness)),
@@ -90,7 +97,7 @@ impl CircuitVariable for BeaconValidatorVariable {
         }
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         self.pubkey.set(witness, bytes!(value.pubkey));
         self.withdrawal_credentials
             .set(witness, bytes32!(value.withdrawal_credentials));

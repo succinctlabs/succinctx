@@ -9,7 +9,7 @@ use plonky2::util::serialization::{Buffer, IoResult};
 
 use crate::ecc::ed25519::curve::curve_types::{AffinePoint, Curve};
 use crate::hash::bit_operations::util::biguint_to_bits_target;
-use crate::num::biguint::WitnessBigUint;
+use crate::num::biguint::{WitnessBigUint, CircuitBuilderBiguint};
 use crate::num::nonnative::nonnative::{
     CircuitBuilderNonNative, NonNativeTarget, ReadNonNativeTarget, WriteNonNativeTarget,
 };
@@ -72,6 +72,12 @@ pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
         &mut self,
         p: &CurtaAffinePointTarget,
     ) -> AffinePointTarget<C>;
+
+    fn is_equal_affine_point<C: Curve>(
+        &mut self,
+        a: &AffinePointTarget<C>,
+        b: &AffinePointTarget<C>,
+    ) -> BoolTarget;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
@@ -230,6 +236,22 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         let y = self.recombine_nonnative_16_bit_limbs(p.y.to_vec());
 
         AffinePointTarget { x, y }
+    }
+
+    fn is_equal_affine_point<C: Curve>(
+        &mut self,
+        a: &AffinePointTarget<C>,
+        b: &AffinePointTarget<C>,
+    ) -> BoolTarget {
+        let a_x_biguint = self.nonnative_to_canonical_biguint(&a.x);
+        let b_x_biguint = self.nonnative_to_canonical_biguint(&b.x);
+        let x_equal = self.is_equal_biguint(&a_x_biguint, &b_x_biguint);
+
+        let a_y_biguint = self.nonnative_to_canonical_biguint(&a.y);
+        let b_y_biguint = self.nonnative_to_canonical_biguint(&b.y);
+        let y_equal = self.is_equal_biguint(&a_y_biguint, &b_y_biguint);
+
+        self.and(x_equal, y_equal)
     }
 }
 

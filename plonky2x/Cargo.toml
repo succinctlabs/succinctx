@@ -20,7 +20,7 @@ digest = "0.10.7"
 hex = "0.4.3"
 itertools = { version = "0.10.0", default-features = false }
 log = { version = "0.4.14", default-features = false }
-rand = { version = "0.8.4" }
+rand = { version = "0.8.4", package = "rand"}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.103"
 sha2 = "0.10.7"
@@ -34,7 +34,11 @@ dotenv = "0.15.0"
 array-macro = "2.1.5"
 tracing = "0.1.37"
 num-bigint = { version = "0.4", features = ["rand"] }
-
+base64 = "0.13"
+futures = "0.3.28"
+lazy_static = "1.4.0"
+ff = {package="ff" , version="0.13", features = ["derive"]}
+env_logger = "0.9.0"
 
 [dev-dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = ["gate_testing"]}

@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use ethers::types::{H256, U256};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -18,7 +20,7 @@ pub struct EthProofVariable {
 }
 
 impl CircuitVariable for EthProofVariable {
-    type ValueType = EthProof;
+    type ValueType<F: Debug> = EthProof;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -30,7 +32,7 @@ impl CircuitVariable for EthProofVariable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
         Self {
             proof: Bytes32Variable::constant(builder, value.proof),
@@ -41,13 +43,19 @@ impl CircuitVariable for EthProofVariable {
         self.proof.targets()
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    fn from_targets(targets: &[Target]) -> Self {
+        Self {
+            proof: Bytes32Variable::from_targets(targets),
+        }
+    }
+
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         EthProof {
             proof: self.proof.value(witness),
         }
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         self.proof.set(witness, value.proof);
     }
 }
@@ -69,7 +77,7 @@ pub struct EthAccountVariable {
 }
 
 impl CircuitVariable for EthAccountVariable {
-    type ValueType = EthAccount;
+    type ValueType<F: Debug> = EthAccount;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -84,7 +92,7 @@ impl CircuitVariable for EthAccountVariable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
         Self {
             balance: U256Variable::constant(builder, value.balance),
@@ -106,7 +114,12 @@ impl CircuitVariable for EthAccountVariable {
         .collect()
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    #[allow(unused_variables)]
+    fn from_targets(targets: &[Target]) -> Self {
+        todo!()
+    }
+
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         EthAccount {
             balance: self.balance.value(witness),
             code_hash: self.code_hash.value(witness),
@@ -115,7 +128,7 @@ impl CircuitVariable for EthAccountVariable {
         }
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         self.balance.set(witness, value.balance);
         self.code_hash.set(witness, value.code_hash);
         self.nonce.set(witness, value.nonce);

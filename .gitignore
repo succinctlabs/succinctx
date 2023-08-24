@@ -17,10 +17,17 @@ bin/
 .go
 
 *.json
+!succinct.json
 !nouns-fixture.json
 
 keystore
 
 # Ignoring files generated from CLI build
 *.bin
+**/Verifier.sol
+
+**/target
+**/build
+
+**/__pycache__
 **/FunctionVerifier.sol

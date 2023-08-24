@@ -96,6 +96,8 @@ pub trait CircuitBuilderBiguint<F: RichField + Extendable<D>, const D: usize> {
         access_index: Target,
         v: Vec<&BigUintTarget>,
     ) -> BigUintTarget;
+
+    fn is_equal_biguint(&mut self, a: &BigUintTarget, b: &BigUintTarget) -> BoolTarget;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
@@ -341,6 +343,29 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
             .collect::<Vec<_>>();
 
         BigUintTarget { limbs }
+    }
+
+    fn is_equal_biguint(&mut self, a: &BigUintTarget, b: &BigUintTarget) -> BoolTarget {
+        let mut ret = self._true();
+        let false_t = self._false().target;
+
+        let min_limbs = a.num_limbs().min(b.num_limbs());
+        for i in 0..min_limbs {
+            let limb_equal = self.is_equal_u32(a.get_limb(i), b.get_limb(i));
+            ret = BoolTarget::new_unsafe(self.select(limb_equal, ret.target, false_t));
+        }
+
+        let zero_u32 = self.zero_u32();
+        for i in min_limbs..a.num_limbs() {
+            let is_zero = self.is_equal_u32(a.get_limb(i), zero_u32);
+            ret = BoolTarget::new_unsafe(self.select(is_zero, ret.target, false_t));
+        }
+        for i in min_limbs..b.num_limbs() {
+            let is_zero = self.is_equal_u32(b.get_limb(i), zero_u32);
+            ret = BoolTarget::new_unsafe(self.select(is_zero, ret.target, false_t));
+        }
+
+        ret
     }
 }
 

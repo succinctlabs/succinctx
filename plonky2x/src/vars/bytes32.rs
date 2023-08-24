@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use ethers::types::H256;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -13,7 +15,7 @@ use crate::vars::BytesVariable;
 pub struct Bytes32Variable(pub BytesVariable<32>);
 
 impl CircuitVariable for Bytes32Variable {
-    type ValueType = H256;
+    type ValueType<F: Debug> = H256;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -23,30 +25,25 @@ impl CircuitVariable for Bytes32Variable {
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType,
+        value: Self::ValueType<F>,
     ) -> Self {
-        let bytes = to_padded_bytes(value);
-        Self(BytesVariable::constant(builder, bytes.to_vec()))
+        Self(BytesVariable::constant(builder, value.0))
     }
 
     fn targets(&self) -> Vec<Target> {
         self.0.targets()
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType {
+    fn from_targets(targets: &[Target]) -> Self {
+        Self(BytesVariable::from_targets(targets))
+    }
+
+    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         let bytes = self.0.value(witness);
         H256::from_slice(&bytes[..])
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType) {
-        let bytes = to_padded_bytes(value);
-        self.0.set(witness, bytes.to_vec());
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+        self.0.set(witness, value.0);
     }
-}
-
-fn to_padded_bytes(value: H256) -> Vec<u8> {
-    let slice = value.as_bytes();
-    let mut bytes = [0u8; 32];
-    bytes[..slice.len()].copy_from_slice(slice);
-    bytes.to_vec()
 }

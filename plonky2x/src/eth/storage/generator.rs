@@ -49,17 +49,17 @@ impl<P: Clone + JsonRpcClient + 'static, F: RichField + Extendable<D>, const D: 
         let account_proof = builder.init::<EthProofVariable>();
         let storage_proof = builder.init::<EthProofVariable>();
         let value = builder.init::<Bytes32Variable>();
-        return EthStorageProofGenerator {
+        EthStorageProofGenerator {
             address,
             storage_key,
             account,
             account_proof,
             storage_proof,
-            value: value,
+            value,
             block_number,
             provider,
             _phantom: PhantomData::<F>,
-        };
+        }
     }
 }
 

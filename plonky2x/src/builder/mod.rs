@@ -1,10 +1,11 @@
 mod boolean;
+mod proof;
 
 use ethers::providers::{Http, Provider};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::SimpleGenerator;
-use plonky2::iop::target::BoolTarget;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as _CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::GenericConfig;
@@ -56,13 +57,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Initializes a variable with a constant value in the circuit.
-    pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType) -> V {
+    pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<F>) -> V {
         V::constant(self, value)
     }
 
-    /// Add returns res = i1 + i2.
-    pub fn add(&mut self, i1: Variable, i2: Variable) -> Variable {
-        self.api.add(i1.0, i2.0).into()
+    /// Registers the given targets as public inputs.
+    pub fn register_public_inputs(&mut self, inputs: &[Target]) {
+        self.api.register_public_inputs(inputs);
     }
 
     /// Add returns res = i1 + i2 + ...
@@ -74,11 +75,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         acc.into()
     }
 
-    /// Sub returns res = i1 - i2.
-    pub fn sub(&mut self, i1: Variable, i2: Variable) -> Variable {
-        self.api.sub(i1.0, i2.0).into()
-    }
-
     /// Sub returns res = i1 - i2 - ...
     pub fn sub_many(&mut self, values: &[Variable]) -> Variable {
         let mut acc = values[0].0;
@@ -88,11 +84,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         acc.into()
     }
 
-    /// Mul returns res = i1 * i2.
-    pub fn mul(&mut self, i1: Variable, i2: Variable) -> Variable {
-        self.api.mul(i1.0, i2.0).into()
-    }
-
     /// Mul returns res = i1 * i2 * ...
     pub fn mul_many(&mut self, values: &[Variable]) -> Variable {
         let mut acc = values[0].0;
@@ -100,16 +91,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             acc = self.api.mul(acc, values[i].0);
         }
         acc.into()
-    }
-
-    /// Div returns res = i1 / i2.
-    pub fn div(&mut self, i1: Variable, i2: Variable) -> Variable {
-        self.api.div(i1.0, i2.0).into()
-    }
-
-    /// Div returns res = -i1.
-    pub fn neg(&mut self, i1: Variable) -> Variable {
-        self.api.neg(i1.0).into()
     }
 
     /// Inverse returns res = 1 / i1.
@@ -134,23 +115,17 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn assert_is_equal(&mut self, i1: Variable, i2: Variable) {
         self.api.connect(i1.0, i2.0);
     }
+}
 
-    pub fn zero(&mut self) -> Variable {
-        self.api.zero().into()
-    }
-
-    pub fn one(&mut self) -> Variable {
-        self.api.one().into()
+impl<F: RichField + Extendable<D>, const D: usize> Default for CircuitBuilder<F, D> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
-
-    use crate::builder::CircuitBuilder;
+    use crate::prelude::*;
 
     #[test]
     fn test_simple_circuit() {
@@ -159,8 +134,8 @@ pub(crate) mod tests {
         const D: usize = 2;
 
         let mut builder = CircuitBuilder::<F, D>::new();
-        let zero = builder.zero();
-        let one = builder.one();
+        let zero = builder.zero::<Variable>();
+        let one = builder.one::<Variable>();
         let sum = builder.add(zero, one);
         builder.assert_is_equal(sum, one);
 
