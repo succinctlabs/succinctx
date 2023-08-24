@@ -162,7 +162,6 @@ pub(crate) mod tests {
 
     use super::CircuitBuilderX;
     use crate::prelude::*;
-    use crate::vars::Bytes32Variable;
 
     #[test]
     fn test_simple_circuit_with_field_io() {
@@ -206,8 +205,8 @@ pub(crate) mod tests {
 
         // Write to the circuit input.
         let mut input = circuit.input();
-        input.write::<Variable>(GoldilocksField::TWO.into());
-        input.write::<Variable>(GoldilocksField::TWO.into());
+        input.evm_write::<ByteVariable>(0u8);
+        input.evm_write::<ByteVariable>(1u8);
 
         // Generate a proof.
         let (proof, output) = circuit.prove(&input);
@@ -216,7 +215,7 @@ pub(crate) mod tests {
         circuit.verify(&proof, &input, &output);
 
         // Read output.
-        let sum = output.read::<Variable>();
-        println!("{}", sum.0);
+        let xor = output.evm_read::<ByteVariable>();
+        println!("{}", xor);
     }
 }

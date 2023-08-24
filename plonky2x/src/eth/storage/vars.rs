@@ -7,7 +7,7 @@ use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
-use crate::vars::{BoolVariable, Bytes32Variable, CircuitVariable, U256Variable};
+use crate::vars::{Bytes32Variable, CircuitVariable, FieldSerializable, U256Variable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct EthProof {
@@ -20,7 +20,7 @@ pub struct EthProofVariable {
 }
 
 impl CircuitVariable for EthProofVariable {
-    type ValueType<F: Debug> = EthProof;
+    type ValueType<F: RichField> = EthProof;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -49,9 +49,9 @@ impl CircuitVariable for EthProofVariable {
         }
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         EthProof {
-            proof: self.proof.value(witness),
+            proof: self.proof.get(witness),
         }
     }
 
@@ -77,7 +77,7 @@ pub struct EthAccountVariable {
 }
 
 impl CircuitVariable for EthAccountVariable {
-    type ValueType<F: Debug> = EthAccount;
+    type ValueType<F: RichField> = EthAccount;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -119,12 +119,12 @@ impl CircuitVariable for EthAccountVariable {
         todo!()
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         EthAccount {
-            balance: self.balance.value(witness),
-            code_hash: self.code_hash.value(witness),
-            nonce: self.nonce.value(witness),
-            storage_hash: self.storage_hash.value(witness),
+            balance: self.balance.get(witness),
+            code_hash: self.code_hash.get(witness),
+            nonce: self.nonce.get(witness),
+            storage_hash: self.storage_hash.get(witness),
         }
     }
 
@@ -136,8 +136,53 @@ impl CircuitVariable for EthAccountVariable {
     }
 }
 
-impl EthAccountVariable {
-    pub fn serialize(&self) -> Vec<BoolVariable> {
-        vec![]
+impl<F: RichField> FieldSerializable<F> for EthProof {
+    fn nb_elements() -> usize {
+        256
+    }
+
+    fn elements(&self) -> Vec<F> {
+        self.proof.elements()
+    }
+
+    fn from_elements(elements: &[F]) -> Self {
+        assert_eq!(
+            elements.len(),
+            <Self as FieldSerializable<F>>::nb_elements()
+        );
+        let proof = H256::from_elements(elements);
+        EthProof { proof: proof }
+    }
+}
+
+impl<F: RichField> FieldSerializable<F> for EthAccount {
+    fn nb_elements() -> usize {
+        256 * 4
+    }
+
+    fn elements(&self) -> Vec<F> {
+        let mut elements: Vec<F> = Vec::new();
+        elements.extend::<Vec<F>>(self.balance.elements());
+        elements.extend::<Vec<F>>(self.code_hash.elements());
+        elements.extend::<Vec<F>>(self.nonce.elements());
+        elements.extend::<Vec<F>>(self.storage_hash.elements());
+        elements
+    }
+
+    fn from_elements(elements: &[F]) -> Self {
+        assert_eq!(
+            elements.len(),
+            <Self as FieldSerializable<F>>::nb_elements()
+        );
+        let balance = U256::from_elements(&elements[0..256]);
+        let code_hash = H256::from_elements(&elements[256..512]);
+        let nonce = U256::from_elements(&elements[512..768]);
+        let storage_hash = H256::from_elements(&elements[768..1024]);
+        EthAccount {
+            balance: balance,
+            code_hash: code_hash,
+            nonce: nonce,
+            storage_hash: storage_hash,
+        }
     }
 }

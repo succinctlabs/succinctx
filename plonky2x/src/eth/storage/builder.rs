@@ -74,12 +74,12 @@ mod tests {
         );
 
         println!("Building circuit");
-        let data = builder.build::<C>();
+        let circuit = builder.build::<C>();
         println!("Proving circuit");
         println!("Address {:?}", address);
-        println!("Address in witness {:?}", address.value(&pw));
+        println!("Address in witness {:?}", address.get(&pw));
         println!("{:?}", value);
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
     }
 }

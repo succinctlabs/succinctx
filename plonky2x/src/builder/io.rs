@@ -84,8 +84,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn evm_read<V: EvmVariable>(&mut self) -> V {
         self.init_evm_io();
         let variable = self.init::<V>();
-        match self.io.field {
-            Some(ref mut io) => io.input_variables.extend(variable.variables()),
+        let bytes = variable.bytes(self);
+        match self.io.evm {
+            Some(ref mut io) => io.input_bytes.extend(bytes),
             None => panic!("cannot read from field io"),
         }
         variable

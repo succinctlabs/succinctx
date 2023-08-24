@@ -12,7 +12,7 @@ extern crate alloc;
 pub mod builder;
 pub mod circuit;
 pub mod ecc;
-// pub mod eth;
+pub mod eth;
 pub mod ethutils;
 pub mod function;
 pub mod hash;

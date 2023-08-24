@@ -7,7 +7,7 @@ use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
-use crate::vars::{Bytes32Variable, CircuitVariable};
+use crate::vars::{Bytes32Variable, CircuitVariable, FieldSerializable};
 
 /// The value type for `BeaconValidatorsVariable`. Note that this struct does not have a natural
 /// representation of the beacon validators. Instead it stores commitments to the underlying
@@ -29,7 +29,7 @@ pub struct BeaconValidatorsVariable {
 }
 
 impl CircuitVariable for BeaconValidatorsVariable {
-    type ValueType<F: Debug> = BeaconValidatorsValue;
+    type ValueType<F: RichField> = BeaconValidatorsValue;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -69,15 +69,29 @@ impl CircuitVariable for BeaconValidatorsVariable {
         }
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         BeaconValidatorsValue {
-            block_root: self.block_root.value(witness),
-            validators_root: self.validators_root.value(witness),
+            block_root: self.block_root.get(witness),
+            validators_root: self.validators_root.get(witness),
         }
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         self.validators_root.set(witness, value.validators_root);
         self.block_root.set(witness, value.block_root);
+    }
+}
+
+impl<F: RichField> FieldSerializable<F> for BeaconValidatorsValue {
+    fn nb_elements() -> usize {
+        todo!()
+    }
+
+    fn elements(&self) -> Vec<F> {
+        todo!()
+    }
+
+    fn from_elements(_: &[F]) -> Self {
+        todo!()
     }
 }
