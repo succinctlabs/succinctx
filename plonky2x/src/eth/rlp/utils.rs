@@ -113,9 +113,11 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256) -> Vec<u8> {
             let hash = keccak256(current_node);
             assert_bytes_equal(&hash[..], &current_node_id);
         } else if current_node.len() >= 32 {
+            println!("current node length {:?}", current_node.len());
             let hash = keccak256(current_node);
             assert_bytes_equal(&hash[..], &current_node_id);
         } else {
+            println!("current_node {:?}", Bytes::from(current_node.to_vec()).to_string());
             assert_bytes_equal(current_node, &current_node_id);
         }
 
@@ -231,6 +233,12 @@ mod tests {
         // TODO have to left pad the recovered value to 32 bytes
         // println!("recovered value h256 {:?}", H256::from_slice(&value));
         println!("true value {:?}", u256_to_h256_be(storage_result.storage_proof[0].value));
+
+        // TODO: for some reason this doesn't work...not sure why
+        // let account_key = keccak256(address.as_bytes());
+        // let account_proof = storage_result.account_proof.iter().map(|b| b.to_vec()).collect::<Vec<Vec<u8>>>();
+        // let account_value = get(account_key.into(), account_proof, state_root);
+        // println!("account value {:?}", Bytes::from(account_value).to_string());
 
     }
 }

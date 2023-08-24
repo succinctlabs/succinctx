@@ -360,5 +360,7 @@ mod tests {
         // 600 = max length of proof element as bytes
         // 16 = max number of elements in proof
         verified_get::<17, 600, 16>(key.to_fixed_bytes(), proof_as_fixed, root.to_fixed_bytes(), value_as_h256.to_fixed_bytes(), lengths_as_fixed);
+
+        // Now test verified get for account proof
     }
 }
