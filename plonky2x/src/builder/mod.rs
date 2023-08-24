@@ -74,8 +74,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             let outputs: Vec<Target> = io.output_variables.iter().map(|v| v.0).collect();
             self.register_public_inputs(inputs.as_slice());
             self.register_public_inputs(outputs.as_slice());
-        } else {
-            todo!()
         }
 
         let data = self.api.build();
