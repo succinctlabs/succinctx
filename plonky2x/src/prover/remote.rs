@@ -2,7 +2,6 @@ use core::time::Duration;
 use std::env;
 
 use futures::future::join_all;
-use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_data::CircuitData;

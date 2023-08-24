@@ -4,15 +4,13 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
 use super::CircuitBuilder;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
-use crate::vars::{Bytes32Variable, EvmVariable};
+use crate::vars::EvmVariable;
 
 /// Stores circuit variables used for reading and writing data to the EVM.
 #[derive(Debug, Clone)]
 pub struct EvmIO {
     pub input_bytes: Vec<ByteVariable>,
     pub output_bytes: Vec<ByteVariable>,
-    pub input_hash: Bytes32Variable,
-    pub output_hash: Bytes32Variable,
 }
 
 /// Stores circuit variable used for reading and writing data using field elements.
@@ -65,8 +63,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             self.io.evm = Some(EvmIO {
                 input_bytes: Vec::new(),
                 output_bytes: Vec::new(),
-                input_hash: self.init(),
-                output_hash: self.init(),
             })
         }
     }

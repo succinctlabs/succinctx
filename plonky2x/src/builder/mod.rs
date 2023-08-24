@@ -1,5 +1,5 @@
 mod boolean;
-mod io;
+pub mod io;
 mod proof;
 
 use ethers::providers::{Http, Provider};
