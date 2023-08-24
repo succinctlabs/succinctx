@@ -44,6 +44,7 @@ fn to_nibbles(data: &[u8]) -> Vec<u8> {
 
 pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
     let prefix = input[0];
+    println!("input {:?}", Bytes::from(input.to_vec()).to_string());
     if prefix <= 0xF7 {
         // Short list (0-55 bytes total payload)
         let list_length = (prefix - 0xC0) as usize;
@@ -55,6 +56,7 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
     } else {
         // TODO check that prefix is bounded within a certain range
         let len_of_list_length = prefix - 0xF7;
+        println!("len_of_list_length {:?}", len_of_list_length);
         // TODO: figure out what to do with len_of_list_length
         let mut pos = 1 + len_of_list_length as usize;
         let mut res = vec![];
@@ -62,9 +64,14 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
             let (ele, increment) = rlp_decode_bytes(&input[pos..]);
             res.push(ele);
             pos += increment;
+            // println!("ele {:?}", Bytes::from(ele.clone()).to_string());
+            // println!("increment {:?}", increment);
+            if pos == input.len() {
+                break;
+            }
         }
         assert!(pos == input.len()); // Check that we have iterated through all the input
-        assert!(res.len() == 17);
+        assert!(res.len() == 17 || res.len() == 2);
         return res;
     }
 }
@@ -99,6 +106,7 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256) -> Vec<u8> {
     let mut finish = false;
 
     for i in 0..proof.len() {
+        println!("i {}", i);
         let current_node = &proof[i];
 
         if current_key_index == 0 {
@@ -137,6 +145,7 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256) -> Vec<u8> {
                         // If prefix_extension_even, then the offset for the path is 2
                         let path_remainder = &path[2..];
                         assert_bytes_equal(path_remainder, &key_path[current_key_index..current_key_index+path_remainder.len()]);
+                        println!("path_remainder {:?}", path_remainder.len());
                         current_key_index += path_remainder.len();
                     },
                     PREFIX_EXTENSION_ODD => {
@@ -153,7 +162,12 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256) -> Vec<u8> {
             }
         }
 
+        println!("decoded {:?}", decoded);
+        println!("current_key_idx {:?}", current_key_index);
+        println!("current node id at end of loop {:?}", current_node_id);
+
         if finish {
+            println!("Finished");
             return rlp_decode_bytes(&current_node_id[..]).0;
         }
     }
