@@ -9,7 +9,7 @@ use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
-use crate::vars::{CircuitVariable, U32Variable};
+use crate::vars::{CircuitVariable, FieldSerializable, U32Variable};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
@@ -17,7 +17,7 @@ use crate::vars::{CircuitVariable, U32Variable};
 pub struct U256Variable(pub [U32Variable; 4]);
 
 impl CircuitVariable for U256Variable {
-    type ValueType<F: Debug> = U256;
+    type ValueType<F: RichField> = U256;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -42,12 +42,12 @@ impl CircuitVariable for U256Variable {
         Self(array![i => U32Variable::from_targets(&[targets[i]]); 4])
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         to_u256([
-            self.0[0].value(witness),
-            self.0[1].value(witness),
-            self.0[2].value(witness),
-            self.0[3].value(witness),
+            self.0[0].get(witness),
+            self.0[1].get(witness),
+            self.0[2].get(witness),
+            self.0[3].get(witness),
         ])
     }
 
@@ -56,6 +56,29 @@ impl CircuitVariable for U256Variable {
         for i in 0..4 {
             self.0[i].set(witness, limbs[i]);
         }
+    }
+}
+
+impl<F: RichField> FieldSerializable<F> for U256 {
+    fn nb_elements() -> usize {
+        32
+    }
+
+    fn elements(&self) -> Vec<F> {
+        let limbs = to_limbs(*self);
+        limbs
+            .into_iter()
+            .flat_map(|limb| u32::elements(&limb))
+            .collect()
+    }
+
+    fn from_elements(elements: &[F]) -> Self {
+        assert_eq!(elements.len(), 4);
+        let mut limbs = [0u32; 4];
+        for i in 0..4 {
+            limbs[i] = u32::from_elements(&elements[i * 8..(i + 1) * 8]);
+        }
+        to_u256(limbs)
     }
 }
 

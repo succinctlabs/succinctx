@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{CircuitVariable, Variable};
+use super::{CircuitVariable, FieldSerializable, Variable};
 use crate::builder::CircuitBuilder;
 use crate::ops::{BitAnd, BitOr, BitXor, Not};
 
@@ -14,22 +14,12 @@ use crate::ops::{BitAnd, BitOr, BitXor, Not};
 pub struct BoolVariable(pub Variable);
 
 impl CircuitVariable for BoolVariable {
-    type ValueType<F: Debug> = bool;
+    type ValueType<F: RichField> = bool;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
     ) -> Self {
         Self(Variable::init(builder))
-    }
-
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
-    ) -> Self {
-        Self(Variable::constant(
-            builder,
-            F::from_canonical_u8(value as u8),
-        ))
     }
 
     fn targets(&self) -> Vec<Target> {
@@ -41,12 +31,27 @@ impl CircuitVariable for BoolVariable {
         Self(Variable(targets[0]))
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         witness.get_target(self.0 .0) == F::from_canonical_u64(1)
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         witness.set_target(self.0 .0, F::from_canonical_u64(value as u64));
+    }
+}
+
+impl<F: RichField> FieldSerializable<F> for bool {
+    fn nb_elements() -> usize {
+        1
+    }
+
+    fn elements(&self) -> Vec<F> {
+        vec![F::from_canonical_u64(*self as u64)]
+    }
+
+    fn from_elements(elements: &[F]) -> Self {
+        assert_eq!(elements.len(), 1);
+        elements[0] == F::from_canonical_u64(1)
     }
 }
 
@@ -142,8 +147,8 @@ mod tests {
         x_xor_x.set(&mut pw, false);
         y_xor_y.set(&mut pw, false);
 
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
+        let circuit = builder.build::<C>();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
     }
 }

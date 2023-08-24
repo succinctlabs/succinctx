@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{BoolVariable, CircuitVariable};
+use super::{BoolVariable, CircuitVariable, FieldSerializable};
 use crate::builder::CircuitBuilder;
 use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 
@@ -16,20 +16,12 @@ use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, 
 pub struct ByteVariable(pub [BoolVariable; 8]);
 
 impl CircuitVariable for ByteVariable {
-    type ValueType<F: Debug> = u8;
+    type ValueType<F: RichField> = u8;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
     ) -> Self {
         Self(array![_ => BoolVariable::init(builder); 8])
-    }
-
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
-    ) -> Self {
-        let value_be_bit = |i| ((1 << (7 - i) as u8) & value) != 0;
-        Self(array![i => BoolVariable::constant(builder, value_be_bit(i)); 8])
     }
 
     fn targets(&self) -> Vec<Target> {
@@ -41,10 +33,10 @@ impl CircuitVariable for ByteVariable {
         Self(array![i => BoolVariable::from_targets(&[targets[i]]); 8])
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         let mut acc: u64 = 0;
         for i in 0..8 {
-            let term = (1 << (7 - i)) * (BoolVariable::value(&self.0[i], witness) as u64);
+            let term = (1 << (7 - i)) * (BoolVariable::get(&self.0[i], witness) as u64);
             acc += term;
         }
         acc as u8
@@ -57,6 +49,31 @@ impl CircuitVariable for ByteVariable {
         for i in 0..8 {
             BoolVariable::set(&self.0[i], witness, value_be_bits[i]);
         }
+    }
+}
+
+impl<F: RichField> FieldSerializable<F> for u8 {
+    fn nb_elements() -> usize {
+        8
+    }
+
+    fn elements(&self) -> Vec<F> {
+        let mut acc = Vec::new();
+        for i in 0..8 {
+            let bit = (self >> (7 - i)) & 1;
+            acc.push(F::from_canonical_u64(bit as u64));
+        }
+        acc
+    }
+
+    fn from_elements(elements: &[F]) -> Self {
+        assert_eq!(elements.len(), 8);
+        let mut acc: u64 = 0;
+        for i in 0..8 {
+            let bit = elements[i] == F::from_canonical_u64(1);
+            acc += (bit as u64) << (7 - i);
+        }
+        acc as u8
     }
 }
 
@@ -215,7 +232,7 @@ mod tests {
             })
             .unzip();
 
-        let data = builder.build::<C>();
+        let circuit = builder.build::<C>();
         let mut pw = PartialWitness::new();
 
         let x_values = (0..256).map(|i| i as u8).collect::<Vec<_>>();
@@ -255,7 +272,7 @@ mod tests {
             x_rot_left.set(&mut pw, x.rotate_left(i));
         }
 
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
     }
 }

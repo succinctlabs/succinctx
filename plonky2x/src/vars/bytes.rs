@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::CircuitVariable;
+use super::{CircuitVariable, FieldSerializable};
 use crate::builder::CircuitBuilder;
 use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 use crate::vars::ByteVariable;
@@ -16,25 +16,12 @@ use crate::vars::ByteVariable;
 pub struct BytesVariable<const N: usize>(pub [ByteVariable; N]);
 
 impl<const N: usize> CircuitVariable for BytesVariable<N> {
-    type ValueType<F: Debug> = [u8; N];
+    type ValueType<F: RichField> = [u8; N];
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
     ) -> Self {
         Self(array![_ => ByteVariable::init(builder); N])
-    }
-
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
-    ) -> Self {
-        assert!(
-            value.len() == N,
-            "vector of values has wrong length: expected {} got {}",
-            N,
-            value.len()
-        );
-        Self(array![i => ByteVariable::constant(builder, value[i]); N])
     }
 
     fn targets(&self) -> Vec<Target> {
@@ -46,8 +33,8 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         Self(array![i => ByteVariable::from_targets(&targets[i*8..(i+1)*8]); N])
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        self.0.map(|b| b.value(witness))
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+        self.0.map(|b| b.get(witness))
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
@@ -60,6 +47,25 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         for (b, v) in self.0.iter().zip(value) {
             b.set(witness, v);
         }
+    }
+}
+
+impl<F: RichField, const N: usize> FieldSerializable<F> for [u8; N] {
+    fn nb_elements() -> usize {
+        N * 8
+    }
+
+    fn elements(&self) -> Vec<F> {
+        self.iter().flat_map(|b| b.elements()).collect()
+    }
+
+    fn from_elements(elements: &[F]) -> Self {
+        assert_eq!(elements.len(), N * 8);
+        let mut acc = [0u8; N];
+        for i in 0..N {
+            acc[i] = u8::from_elements(&elements[i * 8..(i + 1) * 8]);
+        }
+        acc
     }
 }
 
@@ -287,7 +293,7 @@ mod tests {
             x_rotr_vec.push(x_rotr);
         }
 
-        let data = builder.build::<C>();
+        let circuit = builder.build::<C>();
         let mut pw = PartialWitness::new();
 
         let mut rng = thread_rng();
@@ -319,7 +325,7 @@ mod tests {
             x_rotr.set(&mut pw, (x_val.rotate_right(i as u32)).to_be_bytes());
         }
 
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
     }
 }
