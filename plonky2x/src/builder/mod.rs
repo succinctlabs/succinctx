@@ -2,6 +2,8 @@ mod boolean;
 pub mod io;
 mod proof;
 
+use std::collections::HashMap;
+
 use ethers::providers::{Http, Provider};
 use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -21,6 +23,7 @@ use crate::vars::{BoolVariable, CircuitVariable, Variable};
 pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {
     pub api: _CircuitBuilder<F, D>,
     pub io: CircuitIO<D>,
+    pub constants: HashMap<Variable, F>,
     pub execution_client: Option<Provider<Http>>,
     pub beacon_client: Option<BeaconClient>,
 }
@@ -43,6 +46,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         Self {
             api,
             io: CircuitIO::new(),
+            constants: HashMap::new(),
             beacon_client: None,
             execution_client: None,
         }
@@ -206,7 +210,7 @@ pub(crate) mod tests {
         // Write to the circuit input.
         let mut input = circuit.input();
         input.evm_write::<ByteVariable>(0u8);
-        input.evm_write::<ByteVariable>(1u8);
+        input.evm_write::<ByteVariable>(7u8);
 
         // Generate a proof.
         let (proof, output) = circuit.prove(&input);

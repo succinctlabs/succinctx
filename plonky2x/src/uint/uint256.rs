@@ -2,14 +2,13 @@ use std::fmt::Debug;
 
 use array_macro::array;
 use ethers::types::U256;
-use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
-use crate::vars::{CircuitVariable, FieldSerializable, U32Variable};
+use crate::prelude::Variable;
+use crate::vars::{CircuitVariable, U32Variable};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
@@ -33,13 +32,13 @@ impl CircuitVariable for U256Variable {
         Self(array![i => U32Variable::constant(builder, limbs[i]); 4])
     }
 
-    fn targets(&self) -> Vec<Target> {
-        self.0.iter().flat_map(|v| v.targets()).collect_vec()
+    fn variables(&self) -> Vec<Variable> {
+        self.0.iter().map(|x| x.0).collect()
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        assert_eq!(targets.len(), 4);
-        Self(array![i => U32Variable::from_targets(&[targets[i]]); 4])
+    fn from_variables(variables: &[Variable]) -> Self {
+        assert_eq!(variables.len(), 4);
+        Self(array![i => U32Variable(variables[i]); 4])
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
@@ -56,29 +55,6 @@ impl CircuitVariable for U256Variable {
         for i in 0..4 {
             self.0[i].set(witness, limbs[i]);
         }
-    }
-}
-
-impl<F: RichField> FieldSerializable<F> for U256 {
-    fn nb_elements() -> usize {
-        32
-    }
-
-    fn elements(&self) -> Vec<F> {
-        let limbs = to_limbs(*self);
-        limbs
-            .into_iter()
-            .flat_map(|limb| u32::elements(&limb))
-            .collect()
-    }
-
-    fn from_elements(elements: &[F]) -> Self {
-        assert_eq!(elements.len(), 4);
-        let mut limbs = [0u32; 4];
-        for i in 0..4 {
-            limbs[i] = u32::from_elements(&elements[i * 8..(i + 1) * 8]);
-        }
-        to_u256(limbs)
     }
 }
 

@@ -3,11 +3,11 @@ use std::fmt::Debug;
 use ethers::types::{H256, U256};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
-use crate::vars::{Bytes32Variable, CircuitVariable, FieldSerializable, U256Variable};
+use crate::prelude::Variable;
+use crate::vars::{Bytes32Variable, CircuitVariable, U256Variable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct EthProof {
@@ -39,13 +39,13 @@ impl CircuitVariable for EthProofVariable {
         }
     }
 
-    fn targets(&self) -> Vec<Target> {
-        self.proof.targets()
+    fn variables(&self) -> Vec<Variable> {
+        self.proof.variables()
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
+    fn from_variables(variables: &[Variable]) -> Self {
         Self {
-            proof: Bytes32Variable::from_targets(targets),
+            proof: Bytes32Variable::from_variables(variables),
         }
     }
 
@@ -102,21 +102,26 @@ impl CircuitVariable for EthAccountVariable {
         }
     }
 
-    fn targets(&self) -> Vec<Target> {
-        vec![
-            self.balance.targets(),
-            self.code_hash.targets(),
-            self.nonce.targets(),
-            self.storage_hash.targets(),
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
+    fn variables(&self) -> Vec<Variable> {
+        let mut vars = Vec::new();
+        vars.extend(self.balance.variables());
+        vars.extend(self.code_hash.variables());
+        vars.extend(self.nonce.variables());
+        vars.extend(self.storage_hash.variables());
+        vars
     }
 
-    #[allow(unused_variables)]
-    fn from_targets(targets: &[Target]) -> Self {
-        todo!()
+    fn from_variables(variables: &[Variable]) -> Self {
+        let balance = U256Variable::from_variables(&variables[0..4]);
+        let code_hash = Bytes32Variable::from_variables(&variables[4..36]);
+        let nonce = U256Variable::from_variables(&variables[36..40]);
+        let storage_hash = Bytes32Variable::from_variables(&variables[40..72]);
+        Self {
+            balance,
+            code_hash,
+            nonce,
+            storage_hash,
+        }
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
@@ -133,56 +138,5 @@ impl CircuitVariable for EthAccountVariable {
         self.code_hash.set(witness, value.code_hash);
         self.nonce.set(witness, value.nonce);
         self.storage_hash.set(witness, value.storage_hash);
-    }
-}
-
-impl<F: RichField> FieldSerializable<F> for EthProof {
-    fn nb_elements() -> usize {
-        256
-    }
-
-    fn elements(&self) -> Vec<F> {
-        self.proof.elements()
-    }
-
-    fn from_elements(elements: &[F]) -> Self {
-        assert_eq!(
-            elements.len(),
-            <Self as FieldSerializable<F>>::nb_elements()
-        );
-        let proof = H256::from_elements(elements);
-        EthProof { proof: proof }
-    }
-}
-
-impl<F: RichField> FieldSerializable<F> for EthAccount {
-    fn nb_elements() -> usize {
-        256 * 4
-    }
-
-    fn elements(&self) -> Vec<F> {
-        let mut elements: Vec<F> = Vec::new();
-        elements.extend::<Vec<F>>(self.balance.elements());
-        elements.extend::<Vec<F>>(self.code_hash.elements());
-        elements.extend::<Vec<F>>(self.nonce.elements());
-        elements.extend::<Vec<F>>(self.storage_hash.elements());
-        elements
-    }
-
-    fn from_elements(elements: &[F]) -> Self {
-        assert_eq!(
-            elements.len(),
-            <Self as FieldSerializable<F>>::nb_elements()
-        );
-        let balance = U256::from_elements(&elements[0..256]);
-        let code_hash = H256::from_elements(&elements[256..512]);
-        let nonce = U256::from_elements(&elements[512..768]);
-        let storage_hash = H256::from_elements(&elements[768..1024]);
-        EthAccount {
-            balance: balance,
-            code_hash: code_hash,
-            nonce: nonce,
-            storage_hash: storage_hash,
-        }
     }
 }

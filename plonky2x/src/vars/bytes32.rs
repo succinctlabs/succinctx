@@ -3,10 +3,9 @@ use std::fmt::Debug;
 use ethers::types::H256;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{ByteSerializable, ByteVariable, CircuitVariable, EvmVariable, FieldSerializable};
+use super::{ByteVariable, CircuitVariable, EvmVariable, Variable};
 use crate::builder::CircuitBuilder;
 use crate::vars::BytesVariable;
 
@@ -23,12 +22,22 @@ impl CircuitVariable for Bytes32Variable {
         Self(BytesVariable::init(builder))
     }
 
-    fn targets(&self) -> Vec<Target> {
-        self.0.targets()
+    fn constant<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        value: Self::ValueType<F>,
+    ) -> Self {
+        Self(BytesVariable::constant(
+            builder,
+            value.as_bytes().try_into().unwrap(),
+        ))
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        Self(BytesVariable::from_targets(targets))
+    fn variables(&self) -> Vec<super::Variable> {
+        self.0.variables()
+    }
+
+    fn from_variables(variables: &[Variable]) -> Self {
+        Self(BytesVariable::from_variables(variables))
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
@@ -42,58 +51,25 @@ impl CircuitVariable for Bytes32Variable {
 }
 
 impl EvmVariable for Bytes32Variable {
-    type ValueType<F: RichField> = H256;
-
-    fn bytes<F: RichField + Extendable<D>, const D: usize>(
+    fn encode<F: RichField + Extendable<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> Vec<ByteVariable> {
-        self.0.bytes(builder)
+        self.0.encode(builder)
     }
 
-    fn from_bytes<F: RichField + Extendable<D>, const D: usize>(
+    fn decode<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
         bytes: &[super::ByteVariable],
     ) -> Self {
-        Self(BytesVariable::from_bytes(builder, bytes))
-    }
-}
-
-impl<F: RichField> FieldSerializable<F> for H256 {
-    fn nb_elements() -> usize {
-        256
+        Self(BytesVariable::decode(builder, bytes))
     }
 
-    fn elements(&self) -> Vec<F> {
-        self.as_bytes()
-            .into_iter()
-            .flat_map(|x| x.elements())
-            .collect()
+    fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {
+        value.as_bytes().to_vec()
     }
 
-    fn from_elements(elements: &[F]) -> Self {
-        assert_eq!(elements.len(), 256);
-        let mut acc = [0u8; 32];
-        for i in 0..32 {
-            acc[i] = u8::from_elements(&elements[i * 8..(i + 1) * 8])
-        }
-        H256::from(acc)
-    }
-}
-
-impl<F: RichField> ByteSerializable<F> for H256 {
-    fn nb_bytes() -> usize {
-        32
-    }
-
-    fn bytes(&self) -> Vec<u8> {
-        self.as_bytes().to_vec()
-    }
-
-    fn from_bytes(bytes: &[u8]) -> Self {
-        assert_eq!(bytes.len(), 32);
-        let mut acc = [0u8; 32];
-        acc.copy_from_slice(bytes);
-        H256::from(acc)
+    fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
+        H256::from_slice(bytes)
     }
 }

@@ -3,11 +3,11 @@ use std::fmt::Debug;
 use ethers::types::H256;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
-use crate::vars::{Bytes32Variable, CircuitVariable, FieldSerializable};
+use crate::prelude::Variable;
+use crate::vars::{Bytes32Variable, CircuitVariable};
 
 /// The value type for `BeaconValidatorsVariable`. Note that this struct does not have a natural
 /// representation of the beacon validators. Instead it stores commitments to the underlying
@@ -50,19 +50,17 @@ impl CircuitVariable for BeaconValidatorsVariable {
         }
     }
 
-    fn targets(&self) -> Vec<Target> {
-        let mut targets = Vec::new();
-        targets.extend(self.block_root.targets());
-        targets.extend(self.validators_root.targets());
-        targets
+    fn variables(&self) -> Vec<Variable> {
+        self.block_root
+            .variables()
+            .into_iter()
+            .chain(self.validators_root.variables())
+            .collect()
     }
 
-    #[allow(unused_variables)]
-    fn from_targets(targets: &[Target]) -> Self {
-        let mut ptr = 0;
-        let block_root = Bytes32Variable::from_targets(&targets[ptr..ptr + 256]);
-        ptr += 256;
-        let validators_root = Bytes32Variable::from_targets(&targets[ptr..ptr + 256]);
+    fn from_variables(variables: &[Variable]) -> Self {
+        let block_root = Bytes32Variable::from_variables(&variables[0..32]);
+        let validators_root = Bytes32Variable::from_variables(&variables[32..64]);
         Self {
             block_root,
             validators_root,
@@ -79,19 +77,5 @@ impl CircuitVariable for BeaconValidatorsVariable {
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         self.validators_root.set(witness, value.validators_root);
         self.block_root.set(witness, value.block_root);
-    }
-}
-
-impl<F: RichField> FieldSerializable<F> for BeaconValidatorsValue {
-    fn nb_elements() -> usize {
-        todo!()
-    }
-
-    fn elements(&self) -> Vec<F> {
-        todo!()
-    }
-
-    fn from_elements(_: &[F]) -> Self {
-        todo!()
     }
 }

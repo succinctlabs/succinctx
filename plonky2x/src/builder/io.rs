@@ -79,8 +79,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     pub fn evm_read<V: EvmVariable>(&mut self) -> V {
         self.init_evm_io();
-        let variable = self.init::<V>();
-        let bytes = variable.bytes(self);
+        let nb_bytes = V::nb_bytes::<F, D>();
+        let mut bytes = Vec::new();
+        for _ in 0..nb_bytes {
+            bytes.push(self.init::<ByteVariable>());
+        }
+        let variable = V::decode(self, bytes.as_slice());
         match self.io.evm {
             Some(ref mut io) => io.input_bytes.extend(bytes),
             None => panic!("cannot read from field io"),
@@ -98,7 +102,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     pub fn evm_write<V: EvmVariable>(&mut self, variable: V) {
         self.init_evm_io();
-        let bytes = variable.bytes(self);
+        let bytes = variable.encode(self);
         match self.io.evm {
             Some(ref mut io) => io.output_bytes.extend(bytes),
             None => panic!("cannot write to evm io"),

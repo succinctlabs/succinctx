@@ -3,10 +3,9 @@ use std::fmt::Debug;
 use array_macro::array;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{ByteSerializable, CircuitVariable, EvmVariable, FieldSerializable};
+use super::{CircuitVariable, EvmVariable, Variable};
 use crate::builder::CircuitBuilder;
 use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 use crate::vars::ByteVariable;
@@ -24,13 +23,27 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         Self(array![_ => ByteVariable::init(builder); N])
     }
 
-    fn targets(&self) -> Vec<Target> {
-        self.0.iter().flat_map(|b| b.targets()).collect()
+    fn constant<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        value: Self::ValueType<F>,
+    ) -> Self {
+        Self(array![i => ByteVariable::constant(builder, value[i]); N])
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        assert_eq!(targets.len(), N * 8);
-        Self(array![i => ByteVariable::from_targets(&targets[i*8..(i+1)*8]); N])
+    fn variables(&self) -> Vec<Variable> {
+        self.0.iter().flat_map(|b| b.variables()).collect()
+    }
+
+    fn from_variables(variables: &[Variable]) -> Self {
+        assert_eq!(variables.len(), 8 * N);
+        Self(
+            variables
+                .chunks_exact(8)
+                .map(|chunk| ByteVariable::from_variables(chunk))
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+        )
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
@@ -51,59 +64,27 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
 }
 
 impl<const N: usize> EvmVariable for BytesVariable<N> {
-    type ValueType<F: RichField> = [u8; N];
-
-    fn bytes<F: RichField + Extendable<D>, const D: usize>(
+    fn encode<F: RichField + Extendable<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> Vec<ByteVariable> {
-        self.0.iter().flat_map(|b| b.bytes(builder)).collect()
+        self.0.iter().flat_map(|b| b.encode(builder)).collect()
     }
 
-    fn from_bytes<F: RichField + Extendable<D>, const D: usize>(
+    fn decode<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
         bytes: &[ByteVariable],
     ) -> Self {
         assert_eq!(bytes.len(), N * 8);
-        Self(array![i => ByteVariable::from_bytes(builder, &bytes[i*8..(i+1)*8]); N])
-    }
-}
-
-impl<F: RichField, const N: usize> FieldSerializable<F> for [u8; N] {
-    fn nb_elements() -> usize {
-        N * 8
+        Self(array![i => ByteVariable::decode(builder, &bytes[i*8..(i+1)*8]); N])
     }
 
-    fn elements(&self) -> Vec<F> {
-        self.iter().flat_map(|b| b.elements()).collect()
+    fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {
+        value.to_vec()
     }
 
-    fn from_elements(elements: &[F]) -> Self {
-        assert_eq!(elements.len(), N * 8);
-        let mut acc = [0u8; N];
-        for i in 0..N {
-            acc[i] = u8::from_elements(&elements[i * 8..(i + 1) * 8]);
-        }
-        acc
-    }
-}
-
-impl<F: RichField, const N: usize> ByteSerializable<F> for [u8; N] {
-    fn nb_bytes() -> usize {
-        N
-    }
-
-    fn bytes(&self) -> Vec<u8> {
-        self.to_vec()
-    }
-
-    fn from_bytes(bytes: &[u8]) -> Self {
-        assert_eq!(bytes.len(), N);
-        let mut acc = [0u8; N];
-        for i in 0..N {
-            acc[i] = bytes[i];
-        }
-        acc
+    fn decode_value<F: RichField>(value: &[u8]) -> Self::ValueType<F> {
+        value.try_into().unwrap()
     }
 }
 

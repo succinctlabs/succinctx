@@ -3,10 +3,9 @@ use std::fmt::Debug;
 use array_macro::array;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{BoolVariable, ByteSerializable, CircuitVariable, EvmVariable, FieldSerializable};
+use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
 use crate::builder::CircuitBuilder;
 use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 
@@ -24,13 +23,20 @@ impl CircuitVariable for ByteVariable {
         Self(array![_ => BoolVariable::init(builder); 8])
     }
 
-    fn targets(&self) -> Vec<Target> {
-        self.0.into_iter().flat_map(|x| x.targets()).collect()
+    fn constant<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        value: Self::ValueType<F>,
+    ) -> Self {
+        Self(array![i => BoolVariable::constant(builder, (value >> (7 - i)) & 1 != 0); 8])
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        assert_eq!(targets.len(), 8);
-        Self(array![i => BoolVariable::from_targets(&[targets[i]]); 8])
+    fn variables(&self) -> Vec<Variable> {
+        self.0.iter().map(|x| x.0).collect()
+    }
+
+    fn from_variables(variables: &[Variable]) -> Self {
+        assert_eq!(variables.len(), 8);
+        Self(array![i => BoolVariable(variables[i]); 8])
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
@@ -53,59 +59,26 @@ impl CircuitVariable for ByteVariable {
 }
 
 impl EvmVariable for ByteVariable {
-    type ValueType<F: RichField> = u8;
-
-    fn bytes<F: RichField + Extendable<D>, const D: usize>(
+    fn encode<F: RichField + Extendable<D>, const D: usize>(
         &self,
         _: &mut CircuitBuilder<F, D>,
     ) -> Vec<ByteVariable> {
         vec![*self]
     }
 
-    fn from_bytes<F: RichField + Extendable<D>, const D: usize>(
+    fn decode<F: RichField + Extendable<D>, const D: usize>(
         _: &mut CircuitBuilder<F, D>,
         bytes: &[ByteVariable],
     ) -> Self {
         assert_eq!(bytes.len(), 1);
         bytes[0]
     }
-}
 
-impl<F: RichField> FieldSerializable<F> for u8 {
-    fn nb_elements() -> usize {
-        8
+    fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {
+        vec![value]
     }
 
-    fn elements(&self) -> Vec<F> {
-        let mut acc = Vec::new();
-        for i in 0..8 {
-            let bit = (self >> (7 - i)) & 1;
-            acc.push(F::from_canonical_u64(bit as u64));
-        }
-        acc
-    }
-
-    fn from_elements(elements: &[F]) -> Self {
-        assert_eq!(elements.len(), 8);
-        let mut acc: u64 = 0;
-        for i in 0..8 {
-            let bit = elements[i] == F::from_canonical_u64(1);
-            acc += (bit as u64) << (7 - i);
-        }
-        acc as u8
-    }
-}
-
-impl<F: RichField> ByteSerializable<F> for u8 {
-    fn nb_bytes() -> usize {
-        1
-    }
-
-    fn bytes(&self) -> Vec<u8> {
-        vec![*self]
-    }
-
-    fn from_bytes(bytes: &[u8]) -> Self {
+    fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
         assert_eq!(bytes.len(), 1);
         bytes[0]
     }

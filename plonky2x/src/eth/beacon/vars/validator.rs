@@ -2,16 +2,14 @@ use std::fmt::Debug;
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
 use crate::eth::vars::BLSPubkeyVariable;
 use crate::ethutils::beacon::BeaconValidator;
+use crate::prelude::Variable;
 use crate::utils::{bytes, bytes32, hex};
-use crate::vars::{
-    BoolVariable, Bytes32Variable, CircuitVariable, FieldSerializable, U256Variable,
-};
+use crate::vars::{BoolVariable, Bytes32Variable, CircuitVariable, U256Variable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BeaconValidatorVariable {
@@ -43,21 +41,29 @@ impl CircuitVariable for BeaconValidatorVariable {
         }
     }
 
-    fn targets(&self) -> Vec<Target> {
-        let mut targets = Vec::new();
-        targets.extend(self.pubkey.targets());
-        targets.extend(self.withdrawal_credentials.targets());
-        targets.extend(self.effective_balance.targets());
-        targets.extend(self.slashed.targets());
-        targets.extend(self.activation_eligibility_epoch.targets());
-        targets.extend(self.activation_epoch.targets());
-        targets.extend(self.exit_epoch.targets());
-        targets.extend(self.withdrawable_epoch.targets());
-        targets
+    #[allow(unused_variables)]
+    fn constant<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        value: Self::ValueType<F>,
+    ) -> Self {
+        todo!()
+    }
+
+    fn variables(&self) -> Vec<Variable> {
+        let mut vars = Vec::new();
+        vars.extend(self.pubkey.variables());
+        vars.extend(self.withdrawal_credentials.variables());
+        vars.extend(self.effective_balance.variables());
+        vars.extend(self.slashed.variables());
+        vars.extend(self.activation_eligibility_epoch.variables());
+        vars.extend(self.activation_epoch.variables());
+        vars.extend(self.exit_epoch.variables());
+        vars.extend(self.withdrawable_epoch.variables());
+        vars
     }
 
     #[allow(unused_variables)]
-    fn from_targets(targets: &[Target]) -> Self {
+    fn from_variables(variables: &[Variable]) -> Self {
         todo!()
     }
 
@@ -89,19 +95,5 @@ impl CircuitVariable for BeaconValidatorVariable {
             .set(witness, value.exit_epoch.unwrap_or(0).into());
         self.withdrawable_epoch
             .set(witness, value.withdrawable_epoch.unwrap_or(0).into());
-    }
-}
-
-impl<F: RichField> FieldSerializable<F> for BeaconValidator {
-    fn nb_elements() -> usize {
-        todo!()
-    }
-
-    fn elements(&self) -> Vec<F> {
-        todo!()
-    }
-
-    fn from_elements(_: &[F]) -> Self {
-        todo!()
     }
 }
