@@ -28,7 +28,7 @@ const MAX_NUM_ADDENDS: usize = 16;
 pub struct U32AddManyGate<F: RichField + Extendable<D>, const D: usize> {
     pub num_addends: usize,
     pub num_ops: usize,
-    _phantom: PhantomData<F>,
+    pub _phantom: PhantomData<F>,
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> U32AddManyGate<F, D> {

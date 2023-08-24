@@ -66,6 +66,8 @@ pub trait CircuitBuilderU32<F: RichField + Extendable<D>, const D: usize> {
     fn sub_u32(&mut self, x: U32Target, y: U32Target, borrow: U32Target) -> (U32Target, U32Target);
 
     fn u32_to_bits_le(&mut self, num: U32Target) -> [BoolTarget; 32];
+
+    fn is_equal_u32(&mut self, x: U32Target, y: U32Target) -> BoolTarget;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
@@ -242,6 +244,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         let bits = self.split_le(byte.0, 32);
         res[..32].copy_from_slice(&bits[..32]);
         res
+    }
+
+    fn is_equal_u32(&mut self, x: U32Target, y: U32Target,) -> BoolTarget {
+        self.is_equal(x.0, y.0)
     }
 }
 
