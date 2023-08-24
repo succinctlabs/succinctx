@@ -1,9 +1,6 @@
-pub mod serializer;
-
 use std::sync::Once;
 
 use log::LevelFilter;
-
 
 pub macro bytes32($hex_literal:expr) {
     $hex_literal.parse::<ethers::types::H256>().unwrap()
