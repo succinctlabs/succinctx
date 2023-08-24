@@ -188,35 +188,6 @@ pub(crate) mod tests {
 
         // Read output.
         let sum = output.read::<Variable>();
-        println!("{:#?}", sum);
+        println!("{}", sum.0);
     }
-
-    // #[test]
-    // fn test_simple_circuit_with_evm_io() {
-    //     // Define your circuit.
-    //     let mut builder = CircuitBuilderX::new();
-    //     builder.use_evm_io();
-    //     let a = builder.read::<Bytes32Variable>();
-    //     let b = builder.read::<Bytes32Variable>();
-    //     let c = builder.add(a, b);
-    //     builder.write(c);
-
-    //     // Build your circuit.
-    //     let circuit = builder.build::<PoseidonGoldilocksConfig>();
-
-    //     // Write to the circuit input.
-    //     let mut input = circuit.input();
-    //     input.write::<Variable>(GoldilocksField::TWO);
-    //     input.write::<Variable>(GoldilocksField::TWO);
-
-    //     // Generate a proof.
-    //     let (proof, output) = circuit.prove(&input);
-
-    //     // Verify proof.
-    //     circuit.verify(&proof, &input, &output);
-
-    //     // Read output.
-    //     let sum = output.read::<Variable>();
-    //     println!("{}", sum);
-    // }
 }

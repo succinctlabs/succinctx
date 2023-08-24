@@ -9,8 +9,7 @@ use crate::builder::CircuitIO;
 use crate::prelude::CircuitVariable;
 use crate::vars::{ByteSerializable, EvmVariable, FieldSerializable};
 
-/// A compiled circuit. Note that this contains information about the circuits input and outputs as
-/// well. Furthermore, the circuit can be serialized and deserialized with `save` and `load`.
+/// A compiled circuit which can compute any function in the form `f(x)=y`.
 pub struct Circuit<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub data: CircuitData<F, C, D>,
     pub io: CircuitIO<D>,
@@ -29,7 +28,7 @@ pub struct CircuitOutput<F: RichField + Extendable<D>, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> Circuit<F, C, D> {
-    /// Returns a writeable/settable input for the circuit.
+    /// Returns an input instance for the circuit.
     pub fn input(&self) -> CircuitInput<F, D> {
         CircuitInput {
             io: self.io.clone(),
@@ -37,8 +36,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> C
         }
     }
 
-    /// Generates a proof for the circuit with a given input from `input()`. The proof can be
-    /// verified using `verify`.
+    /// Generates a proof for the circuit. The proof can be verified using `verify`.
     pub fn prove(
         &self,
         input: &CircuitInput<F, D>,
@@ -78,6 +76,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> C
         (proof.clone(), output)
     }
 
+    /// Verifies a proof for the circuit.
     pub fn verify(
         &self,
         proof: &ProofWithPublicInputs<F, C, D>,
@@ -133,6 +132,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
         V::ValueType::<F>::from_elements(elements.as_slice())
     }
 
+    /// Reads a value from the public circuit output using byte-based serialization.
     pub fn evm_read<V: EvmVariable>(self) -> <V as EvmVariable>::ValueType<F> {
         self.io.evm.as_ref().expect("evm io is not enabled");
         let bytes: Vec<u8> = self
