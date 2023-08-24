@@ -162,6 +162,7 @@ pub(crate) mod tests {
 
     use super::CircuitBuilderX;
     use crate::prelude::*;
+    use crate::vars::Bytes32Variable;
 
     #[test]
     fn test_simple_circuit_with_field_io() {
@@ -171,6 +172,34 @@ pub(crate) mod tests {
         let b = builder.read::<Variable>();
         let c = builder.add(a, b);
         builder.write(c);
+
+        // Build your circuit.
+        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+
+        // Write to the circuit input.
+        let mut input = circuit.input();
+        input.write::<Variable>(GoldilocksField::TWO.into());
+        input.write::<Variable>(GoldilocksField::TWO.into());
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
+
+        // Read output.
+        let sum = output.read::<Variable>();
+        println!("{}", sum.0);
+    }
+
+    #[test]
+    fn test_simple_circuit_with_evm_io() {
+        // Define your circuit.
+        let mut builder = CircuitBuilderX::new();
+        let a = builder.evm_read::<ByteVariable>();
+        let b = builder.evm_read::<ByteVariable>();
+        let c = builder.xor(a, b);
+        builder.evm_write(c);
 
         // Build your circuit.
         let circuit = builder.build::<PoseidonGoldilocksConfig>();

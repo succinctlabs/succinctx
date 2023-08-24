@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{CircuitVariable, FieldSerializable};
+use super::{ByteSerializable, CircuitVariable, EvmVariable, FieldSerializable};
 use crate::builder::CircuitBuilder;
 use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 use crate::vars::ByteVariable;
@@ -50,6 +50,25 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
     }
 }
 
+impl<const N: usize> EvmVariable for BytesVariable<N> {
+    type ValueType<F: RichField> = [u8; N];
+
+    fn bytes<F: RichField + Extendable<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Vec<ByteVariable> {
+        self.0.iter().flat_map(|b| b.bytes(builder)).collect()
+    }
+
+    fn from_bytes<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        bytes: &[ByteVariable],
+    ) -> Self {
+        assert_eq!(bytes.len(), N * 8);
+        Self(array![i => ByteVariable::from_bytes(builder, &bytes[i*8..(i+1)*8]); N])
+    }
+}
+
 impl<F: RichField, const N: usize> FieldSerializable<F> for [u8; N] {
     fn nb_elements() -> usize {
         N * 8
@@ -64,6 +83,25 @@ impl<F: RichField, const N: usize> FieldSerializable<F> for [u8; N] {
         let mut acc = [0u8; N];
         for i in 0..N {
             acc[i] = u8::from_elements(&elements[i * 8..(i + 1) * 8]);
+        }
+        acc
+    }
+}
+
+impl<F: RichField, const N: usize> ByteSerializable<F> for [u8; N] {
+    fn nb_bytes() -> usize {
+        N
+    }
+
+    fn bytes(&self) -> Vec<u8> {
+        self.to_vec()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Self {
+        assert_eq!(bytes.len(), N);
+        let mut acc = [0u8; N];
+        for i in 0..N {
+            acc[i] = bytes[i];
         }
         acc
     }
