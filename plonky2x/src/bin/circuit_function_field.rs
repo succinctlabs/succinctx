@@ -11,7 +11,7 @@
 //!
 //! To prove the circuit using field-based io:
 //!
-//!    `./target/release/circuit_function_field prove --io field --input-json input.json`
+//!    `./target/release/circuit_function_field prove --input-json input.json`
 //!
 //! Note that this circuit will not work with evm-based io.
 
