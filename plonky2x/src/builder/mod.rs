@@ -1,6 +1,7 @@
 mod boolean;
 pub mod io;
 mod proof;
+pub mod watch;
 
 use std::collections::HashMap;
 

@@ -373,13 +373,17 @@ mod tests {
         let msg = hex::decode("092005a6f7a58a98df5f9b8d186b9877f12b603a").unwrap();
         run_test::<MAX_MESSAGE_LENGTH, 32>(
             msg.as_slice(),
-            "51ce01415fbb9361d96df765be0d130361433ced03909dbe1a874e6791d80e5f").expect("Failed test #4");
+            "51ce01415fbb9361d96df765be0d130361433ced03909dbe1a874e6791d80e5f",
+        )
+        .expect("Failed test #4");
 
         println!("Running blake2b test #5");
         let msg = hex::decode("092005a6f7a58a98df5f9b8d186b9877f12b603aa06c7debf0f610d5a49f9ed7262b5e095b309af2b0eae1c554e03b6cc4a5a0df207b662b329623f27fdce8d088554d82b1e63bedeb3fe9bd7754c7deccdfe277bcbfad4bbaff6302d3488bd2a8565f4f6e753fc7942fa29051e258da2e06d13b352220b9eadb31d8ead7f88b").unwrap();
         run_test::<MAX_MESSAGE_LENGTH, 32>(
             msg.as_slice(),
-            "dad415aa819ebb585ce8ee1c1fa883804f405f6d8a6a0992628fb3bdaab5b42e").expect("Failed test #5");
+            "dad415aa819ebb585ce8ee1c1fa883804f405f6d8a6a0992628fb3bdaab5b42e",
+        )
+        .expect("Failed test #5");
 
         println!("Running blake2b test #6");
         const LONG_MESSAGE_LENGTH: usize = 2560;
