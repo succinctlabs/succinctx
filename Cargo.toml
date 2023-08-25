@@ -1,0 +1,12 @@
+[workspace]
+members = ["plonky2x"]
+resolver = "2"
+
+[profile.release]
+opt-level = 3
+incremental = true
+#lto = "fat"
+#codegen-units = 1
+
+[profile.bench]
+opt-level = 3

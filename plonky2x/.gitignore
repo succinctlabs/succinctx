@@ -1,14 +1,6 @@
-# Cargo build
+# Cargo
 /target
 
-# MacOS 
-.DS_Store
-
-
-# Added by cargo
-#
-# already existing elements were commented out
-
-#/target
-
+# Build
 /build
+*.json

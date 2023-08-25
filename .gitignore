@@ -1,36 +1,26 @@
-.env
+# Enviroment Variables
+**/.env
 
+# VSCode Settings
 .vscode/settings.json
 
-# Avoid vendor folder if not using go modules
+# Go Modules
 **/vendor
 
 # IDE
 *.log
 
-# Mac .DS_Store files
-.DS_Store
+# MacOS
+**/.DS_Store
 
-# Output dirs for building
-dist/
-bin/
-.go
-!plonky2x/src/bin
-
-*.json
-!plonky2x/src/bin/*.json
-!plonky2x/examples/*.json
-!succinct.json
-!nouns-fixture.json
-
+# Keystore
 keystore
 
 # Ignoring files generated from CLI build
-*.bin
-**/Verifier.sol
-
+**/*.bin
 **/target
 **/build
 
 **/__pycache__
+**/Verifier.sol
 **/FunctionVerifier.sol
