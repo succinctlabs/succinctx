@@ -8,7 +8,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{BoolVariable, CircuitVariable};
 use crate::builder::CircuitBuilder;
-use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
+use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero, PartialEq, Sub};
 
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.
@@ -69,6 +69,31 @@ impl ByteVariable {
         let mut bits = self.to_be_bits();
         bits.reverse();
         bits
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> PartialEq<F, D>
+    for ByteVariable
+{
+    fn eq(self, rhs: ByteVariable, builder: &mut CircuitBuilder<F, D>) -> BoolVariable {
+        let mut result = builder.init::<BoolVariable>();
+        for i in 0..8 {
+            let lhs_byte = self.0[i];
+            let rhs_byte = rhs.0[i];
+            let byte_eq = builder.eq(lhs_byte, rhs_byte);
+            result = builder.and(result, byte_eq);
+        }
+        result
+    }
+
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for ByteVariable {
+    type Output = Self;
+
+    fn sub(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        todo!();
+        // ByteVariable(self.to_be_bits().map(|x| builder.not(x)))
     }
 }
 

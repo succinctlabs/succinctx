@@ -8,11 +8,31 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::CircuitVariable;
 use crate::builder::CircuitBuilder;
-use crate::vars::BytesVariable;
+use crate::ops::{PartialEq};
+use crate::vars::{BytesVariable, BoolVariable, ByteVariable};
 
 /// A variable in the circuit representing a byte32 value.
 #[derive(Debug, Clone, Copy)]
 pub struct Bytes32Variable(pub BytesVariable<32>);
+
+impl Bytes32Variable {
+    pub fn as_slice(&self) -> [ByteVariable; 32] {
+        self.0.0
+    }
+}
+
+impl From<[ByteVariable; 32]> for Bytes32Variable {
+    fn from(bytes: [ByteVariable; 32]) -> Self {
+        Self(BytesVariable(bytes))
+    }
+}
+
+impl From<&[ByteVariable]> for Bytes32Variable {
+    fn from(bytes: &[ByteVariable]) -> Self {
+        let bytes_fixed: [ByteVariable; 32] = bytes.try_into().unwrap();
+        Self(BytesVariable(bytes_fixed))
+    }
+}
 
 impl CircuitVariable for Bytes32Variable {
     type ValueType<F: Debug> = H256;
@@ -46,4 +66,20 @@ impl CircuitVariable for Bytes32Variable {
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         self.0.set(witness, value.0);
     }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> PartialEq<F, D>
+    for Bytes32Variable
+{
+    fn eq(self, rhs: Bytes32Variable, builder: &mut CircuitBuilder<F, D>) -> BoolVariable {
+        let mut result = builder.init::<BoolVariable>();
+        for i in 0..32 {
+            let lhs_byte = self.0.0[i];
+            let rhs_byte = rhs.0.0[i];
+            let byte_eq = builder.eq(lhs_byte, rhs_byte);
+            result = builder.and(result, byte_eq);
+        }
+        result
+    }
+
 }

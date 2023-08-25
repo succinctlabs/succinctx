@@ -9,7 +9,9 @@
 pub mod bitwise;
 pub mod index;
 pub mod math;
+pub mod cmp;
 
 pub use bitwise::*;
 pub use index::*;
 pub use math::*;
+pub use cmp::*;

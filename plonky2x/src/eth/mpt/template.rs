@@ -5,7 +5,7 @@ use ethers::utils::keccak256;
 use crate::utils::{bytes32, address, bytes, hex};
 use num_bigint::{ToBigInt, RandBigInt, BigInt};
 
-use crate::eth::rlp::utils::rlp_decode_list_2_or_17;
+use crate::eth::mpt::utils::rlp_decode_list_2_or_17;
 
 const TREE_RADIX: usize = 16;
 const BRANCH_NODE_LENGTH: usize = 17;
@@ -190,8 +190,8 @@ pub fn verified_get<const L: usize, const M: usize, const P: usize>(key: [u8; 32
         // TODO: verify_decoded_list(witness_decoded_list, witness_decoded_lens, current_node, witness_list_len, len_nodes[i]);
         
         let is_branch = is_eq(witness_list_len, BRANCH_NODE_LENGTH);
-        let key_terminated = is_eq(current_key_idx as u8, 64);
         let is_leaf = is_eq(witness_list_len, LEAF_OR_EXTENSION_NODE_LENGTH);
+        let key_terminated = is_eq(current_key_idx as u8, 64);
         let path = to_nibbles(decoded[0]);
         let prefix = path[0];
         let prefix_leaf_even = is_eq(prefix, PREFIX_LEAF_EVEN);
@@ -247,6 +247,33 @@ pub fn verified_get<const L: usize, const M: usize, const P: usize>(key: [u8; 32
 }
 
 
+pub fn get_proof_witnesses<const M: usize, const P: usize>(storage_proof: Vec<Vec<u8>>) -> ([[u8; M]; P], [u32; P]) {
+    if storage_proof.len() > P {
+       panic!("Outer vector has incorrect length")
+    }
+
+    let mut result: [[u8; M]; P] = [[0u8; M]; P];
+    let mut lengths: [u32; P] = [0u32; P];
+
+    for (i, inner_vec) in storage_proof.into_iter().enumerate() {
+        // Check inner length
+        if inner_vec.len() > M {
+            println!("{:?} {}", inner_vec, inner_vec.len());
+            panic!("Inner vector has incorrect length");
+        }
+        lengths[i] = inner_vec.len() as u32;
+
+        let mut array: [u8; M] = [0u8; M];
+        // Copy the inner vec to the array
+        for (j, &byte) in inner_vec.iter().enumerate() {
+            array[j] = byte;
+        }
+        result[i] = array;
+    }
+
+    (result, lengths)
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -268,7 +295,7 @@ mod tests {
 
     use crate::eth::storage;
     use crate::eth::utils::{u256_to_h256_be, h256_to_u256_be};
-    use crate::eth::rlp::utils::{rlp_decode_list_2_or_17};
+    use crate::eth::mpt::utils::{rlp_decode_list_2_or_17};
 
     use super::*;
 
@@ -293,33 +320,6 @@ mod tests {
         }
 
         verify_decoded_list::<17, MAX_SIZE>(decoded_list_fixed_size, element_lengths_fixed_size, encoding_fixed_size);
-    }
-
-    fn get_proof_witnesses<const M: usize, const P: usize>(storage_proof: Vec<Vec<u8>>) -> ([[u8; M]; P], [u32; P]) {
-        if storage_proof.len() > P {
-           panic!("Outer vector has incorrect length")
-        }
-    
-        let mut result: [[u8; M]; P] = [[0u8; M]; P];
-        let mut lengths: [u32; P] = [0u32; P];
-    
-        for (i, inner_vec) in storage_proof.into_iter().enumerate() {
-            // Check inner length
-            if inner_vec.len() > M {
-                println!("{:?} {}", inner_vec, inner_vec.len());
-                panic!("Inner vector has incorrect length");
-            }
-            lengths[i] = inner_vec.len() as u32;
-
-            let mut array: [u8; M] = [0u8; M];
-            // Copy the inner vec to the array
-            for (j, &byte) in inner_vec.iter().enumerate() {
-                array[j] = byte;
-            }
-            result[i] = array;
-        }
-    
-        (result, lengths)
     }
 
     #[test]

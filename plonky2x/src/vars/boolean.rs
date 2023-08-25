@@ -7,7 +7,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, Variable};
 use crate::builder::CircuitBuilder;
-use crate::ops::{BitAnd, BitOr, BitXor, Not};
+use crate::ops::{BitAnd, BitOr, BitXor, Not, PartialEq};
 
 /// A variable in the circuit representing a boolean value.
 #[derive(Debug, Clone, Copy)]
@@ -59,6 +59,14 @@ impl From<Target> for BoolVariable {
 impl From<Variable> for BoolVariable {
     fn from(v: Variable) -> Self {
         Self(v)
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> PartialEq<F, D>
+    for BoolVariable
+{
+    fn eq(self, rhs: BoolVariable, builder: &mut CircuitBuilder<F, D>) -> BoolVariable {
+        builder.eq(self.0, rhs.0)
     }
 }
 

@@ -5,9 +5,9 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::CircuitVariable;
+use super::{CircuitVariable, BoolVariable};
 use crate::builder::CircuitBuilder;
-use crate::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
+use crate::ops::{Add, Div, Mul, Neg, One, Sub, Zero, PartialEq};
 
 /// A variable in the circuit. It represents a value between `[0, 2**64 - 2**32 + 1)`.
 #[derive(Debug, Clone, Copy, Default)]
@@ -54,6 +54,13 @@ impl From<Target> for Variable {
         Self(target)
     }
 }
+
+impl<F: RichField + Extendable<D>, const D: usize> PartialEq<F, D> for Variable {
+    fn eq(self, rhs: Variable, builder: &mut CircuitBuilder<F, D>) -> BoolVariable {
+        BoolVariable(Variable(builder.api.is_equal(self.0, rhs.0).target))
+    }
+}
+
 
 impl<F: RichField + Extendable<D>, const D: usize> Add<F, D> for Variable {
     type Output = Variable;
