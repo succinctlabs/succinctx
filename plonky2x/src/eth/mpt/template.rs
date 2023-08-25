@@ -171,7 +171,7 @@ pub fn verified_get<const L: usize, const M: usize, const P: usize>(key: [u8; 32
         println!("i: {}", i);
         current_node = proof[i];
         let current_node_hash = keccack_variable(current_node, len_nodes[i]);
-
+        println!("current_node_hash {:?}", current_node_hash);
         if (i == 0) {
             let is_eq = is_bytes32_eq(current_node_hash, root);
             assert!(is_eq == 1);
@@ -329,12 +329,12 @@ mod tests {
 
         let block_number = 17880427u64;
         let state_root = bytes32!("0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e");
-        // let address = address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5");
-        // let location = bytes32!("0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5");
+        let address = address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5");
+        let location = bytes32!("0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5");
 
         // Nouns contract
-        let address = address!("0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03");
-        let location = bytes32!("0x0000000000000000000000000000000000000000000000000000000000000003");
+        // let address = address!("0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03");
+        // let location = bytes32!("0x0000000000000000000000000000000000000000000000000000000000000003");
 
         let get_proof_closure = || -> EIP1186ProofResponse {
             let rt = Runtime::new().unwrap();

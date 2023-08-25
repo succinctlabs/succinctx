@@ -1,3 +1,5 @@
+use core::str::Bytes;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
@@ -5,51 +7,127 @@ use plonky2::iop::target::Target;
 // use super::vars::{BeaconValidatorVariable, BeaconValidatorsVariable};
 use array_macro::array;
 
+
+use plonky2::iop::generator::generate_partial_witness;
 use crate::builder::CircuitBuilder;
-use crate::vars::{Bytes32Variable, ByteVariable, Variable, BoolVariable};
+use crate::vars::{Bytes32Variable, ByteVariable, Variable, BoolVariable, CircuitVariable};
 use super::generators::rlp::RLPDecodeListGenerator;
+use super::generators::keccack::Keccack256Generator;
+use super::generators::nibbles::NibbleGenerator;
+use super::generators::array::{MuxGenerator, NestedMuxGenerator};
+use super::generators::math::{LeGenerator, ByteToVariableGenerator};
 use super::template::get_proof_witnesses;
+
+
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn keccack256(&mut self, input: Bytes32Variable) -> Bytes32Variable {
-        todo!();
+        let output = self.init::<Bytes32Variable>();
+        let generator: Keccack256Generator<F, D> = Keccack256Generator{
+            input: input.as_slice().to_vec(),
+            output,
+            length: None,
+            _phantom: std::marker::PhantomData::<F>,
+        };
+        self.add_simple_generator(&generator);
+        output
     }
 
     pub fn keccack256_variable<const N: usize>(&mut self, input: [ByteVariable; N], len: Variable) -> Bytes32Variable {
-        todo!();
+        let output = self.init::<Bytes32Variable>();
+        let generator: Keccack256Generator<F, D> = Keccack256Generator{
+            input: input.to_vec(),
+            output,
+            length: Some(len),
+            _phantom: std::marker::PhantomData::<F>,
+        };
+        self.add_simple_generator(&generator);
+        output
     }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn to_nibbles<const N: usize, const M: usize>(&mut self, input: [ByteVariable; N]) -> [ByteVariable; M] {
-        todo!();
+        let mut output_vec = vec![];
+        for i in 0..N {
+            output_vec.push(self.init::<ByteVariable>());
+            output_vec.push(self.init::<ByteVariable>());
+        }
+        let generator = NibbleGenerator{
+            input: input.to_vec(),
+            output: output_vec.clone(),
+            _phantom: std::marker::PhantomData::<F>,
+        };
+        self.add_simple_generator(&generator);
+        output_vec.try_into().unwrap()
     }
 
     pub fn to_nibbles_unsized<const N: usize>(&mut self, input: [ByteVariable; N]) -> Vec<ByteVariable> {
-        todo!();
+        let mut output_vec = vec![];
+        for i in 0..N {
+            output_vec.push(self.init::<ByteVariable>());
+            output_vec.push(self.init::<ByteVariable>());
+        }
+        let generator = NibbleGenerator{
+            input: input.to_vec(),
+            output: output_vec.clone(),
+            _phantom: std::marker::PhantomData::<F>,
+        };
+        self.add_simple_generator(&generator);
+        output_vec
     }
 
 
     // TODO: maybe implement this for the trait CircuitVariable
     pub fn mux<const N: usize>(&mut self, input: [ByteVariable; N], selector: Variable) -> ByteVariable {
-        todo!();
+        let output = self.init::<ByteVariable>();
+        let generator = MuxGenerator{
+            input: input.to_vec(),
+            output,
+            selector,
+            _phantom: std::marker::PhantomData::<F>,
+        };
+        self.add_simple_generator(&generator);
+        output
     }
 
     // TODO: maybe implement this for the trait CircuitVariable
-    pub fn mux_nested<const N: usize, const M: usize>(&mut self, input: [[ByteVariable; N]; M], selector: Variable) -> [ByteVariable; N] {
-        todo!();
+    pub fn mux_nested<const N: usize, const M: usize>(&mut self, input: Box<[[ByteVariable; N]; M]>, selector: Variable) -> [ByteVariable; N] {
+        let output = array![_ => self.init::<ByteVariable>(); N];
+        let generator = NestedMuxGenerator{
+            input: input.to_vec(),
+            output,
+            selector,
+            _phantom: std::marker::PhantomData::<F>,
+        };
+        self.add_simple_generator(&generator);
+        output
     }
 
     pub fn le(&mut self, lhs: Variable, rhs: Variable) -> BoolVariable {
-        todo!();
+        let output = self.init::<BoolVariable>();
+        let generator = LeGenerator{
+            lhs,
+            rhs,
+            output,
+            _phantom: std::marker::PhantomData::<F>,
+        };
+        output
     }
 
     pub fn byte_to_variable(&mut self, byte: ByteVariable) -> Variable {
-        todo!();
+        let output = self.init::<Variable>();
+        let generator = ByteToVariableGenerator{
+            byte,
+            output,
+            _phantom: std::marker::PhantomData::<F>,
+        };
+        self.add_simple_generator(&generator);
+        output
     }
 
     pub fn assert_subarray_eq(&mut self, lhs: &[ByteVariable], lhs_offset: Variable, rhs: &[ByteVariable], rhs_offset: Variable, len: Variable) {
-        todo!();
+        // todo!();
     }
 }
 
@@ -65,11 +143,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn verify_mpt_proof<const L: usize, const M: usize, const P: usize>(
         &mut self,
         key: Bytes32Variable,
-        proof: [[ByteVariable; M]; P],
+        proof: Box<[[ByteVariable; M]; P]>,
         len_nodes: [Variable; P],
         root: Bytes32Variable,
         value: Bytes32Variable,
-    ) {
+    ) -> Variable {  
         const MAX_ELE_SIZE: usize = 34; // Maximum size of list element
         let TREE_RADIX = self.constant::<Variable>(F::from_canonical_u8(16u8));
         let BRANCH_NODE_LENGTH = self.constant::<Variable>(F::from_canonical_u8(17u8));
@@ -115,15 +193,17 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
                 let t = self._true();
                 self.assert_eq(checked_equality, t);
             }
+            return current_key_idx;
 
-            let decoded_list = [array![_ => self.init::<ByteVariable>(); MAX_ELE_SIZE]; L];
-            let decoded_element_lens = array![self.init::<Variable>(); L];
+
+            let decoded_list = Box::new([array![_ => self.init::<ByteVariable>(); MAX_ELE_SIZE]; L]);
+            let decoded_element_lens = Box::new(array![self.init::<Variable>(); L]);
             let decoded_list_len = self.init::<Variable>();
 
             // Create the generators for witnessing the decoding of the node
             // TODO: should this generator be added to the circuit every time?
             let rlp_decode_list_generator = RLPDecodeListGenerator::new(
-                current_node, len_nodes[i], finished, decoded_list, decoded_element_lens, decoded_list_len
+                current_node, len_nodes[i], finished, decoded_list.clone(), decoded_element_lens.clone(), decoded_list_len
             );
             self.add_simple_generator(&rlp_decode_list_generator);
 
@@ -157,7 +237,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             let updated_current_node_id = self.mux_nested(decoded_list, updated_current_node_id_idx);
             
             // If finished == 1, then we should not update the current_node_id
-            current_node_id = self.mux_nested([updated_current_node_id, current_node_id], finished.0);
+            current_node_id = self.mux_nested(Box::new([updated_current_node_id, current_node_id]), finished.0);
 
             let mut do_path_remainder_check = self.not(finished);
             do_path_remainder_check = self.and(do_path_remainder_check, is_leaf);
@@ -185,16 +265,23 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let current_node_len_as_var = self.byte_to_variable(current_node_len);
         let lhs_offset = self.sub(_32, current_node_len_as_var);
         self.assert_subarray_eq(&value.as_slice(), lhs_offset, &current_node_id, ONE, current_node_len_as_var);
+
+        return self.init::<Variable>();
     }
+
 }
 
 mod test {
+    use std::collections::HashMap;
+
     use super::*;
     use crate::eth::utils::{u256_to_h256_be, h256_to_u256_be};
     use crate::eth::vars::AddressVariable;
     use ethers::types::{Address, H256, U256, EIP1186ProofResponse};
     use ethers::providers::{Http, Middleware, Provider};
     use plonky2::field::types::Field;
+    use plonky2::iop::generator::generate_partial_witness;
+    use plonky2::iop::witness::PartialWitness;
     use crate::utils::{bytes32, address, bytes, hex};
     use tokio::runtime::Runtime;
     use crate::builder::CircuitBuilderX;
@@ -207,12 +294,12 @@ mod test {
 
         let block_number = 17880427u64;
         let state_root = bytes32!("0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e");
-        // let address = address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5");
-        // let location = bytes32!("0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5");
+        let address = address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5");
+        let location = bytes32!("0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5");
 
         // Nouns contract
-        let address = address!("0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03");
-        let location = bytes32!("0x0000000000000000000000000000000000000000000000000000000000000003");
+        // let address = address!("0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03");
+        // let location = bytes32!("0x0000000000000000000000000000000000000000000000000000000000000003");
 
         let get_proof_closure = || -> EIP1186ProofResponse {
             let rt = Runtime::new().unwrap();
@@ -241,38 +328,65 @@ mod test {
         let storage_value = builder.read::<Bytes32Variable>();
         let storage_hash = builder.read::<Bytes32Variable>();
 
-        let storage_proof_vec: Vec<[ByteVariable; 600]> = vec![];
+        let mut storage_proof_vec: Vec<[ByteVariable; 600]> = vec![];
         for i in 0..16 {
-            let v: Vec<ByteVariable> = vec![];
-            for j in 0..600 {
+            let mut v: Vec<ByteVariable> = vec![];
+            for _ in 0..600 {
                 v.push(builder.read::<ByteVariable>());
             }
             storage_proof_vec.push(v.try_into().unwrap());
         }
-        let storage_proof: [[ByteVariable; 600]; 16] = storage_proof_vec.try_into().unwrap();
+        let storage_proof: Box<[[ByteVariable; 600]; 16]> = storage_proof_vec.try_into().unwrap();
         let lengths = array![_ => builder.read::<Variable>(); 16];
-        builder.verify_mpt_proof(storage_key, storage_proof, lengths, storage_hash, storage_value);
-
+        let result = builder.verify_mpt_proof::<34, 600, 16>(storage_key, storage_proof.clone(), lengths, storage_hash, storage_value);
+        println!("building the circuit");
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
 
-        let inputs = circuit.input();
-        inputs.write::<Bytes32Variable>(key);
-        inputs.write::<Bytes32Variable>(value_as_h256);
-        inputs.write::<Bytes32Variable>(root);
+
+        let mut partial_witness = PartialWitness::new();
+        storage_key.set(&mut partial_witness, key);
+        storage_value.set(&mut partial_witness, u256_to_h256_be(value));
+        storage_hash.set(&mut partial_witness, root);
         for i in 0..16 {
             for j in 0..600 {
-                inputs.write::<ByteVariable>(proof_as_fixed[i][j]);
+                storage_proof[i][j].set(&mut partial_witness, proof_as_fixed[i][j]);
             }
-        }
-        for i in 0..16 {
-            inputs.write::<Variable>(GoldilocksField::from_canonical_u32(lengths_as_fixed[i]));
+            lengths[i].set(&mut partial_witness, GoldilocksField::from_canonical_u32(lengths_as_fixed[i]));
         }
 
-        // Generate a proof.
-        let (proof, output) = circuit.prove(&inputs);
+        // let watch_hash_map = HashMap::new();
 
-        // Verify proof.
-        circuit.verify(&proof, &inputs, &output);
+        // let target = storage_hash.0.0[0].0[0].0.0;
+        // match target {
+        //     Target::VirtualTarget(index) => {
+        //         watch_hash_map[index] = "storage_hash";
+        //     }
+        // }
+
+        let prover_data = circuit.data.prover_only;
+        let common_data = circuit.data.common;
+        let witness = generate_partial_witness(partial_witness, &prover_data, &common_data);
+        let value = result.get(&witness);
+        println!("value {:?}", value);
+
+        // let mut inputs = circuit.input();
+        // inputs.write::<Bytes32Variable>(key);
+        // inputs.write::<Bytes32Variable>(value_as_h256);
+        // inputs.write::<Bytes32Variable>(root);
+        // for i in 0..16 {
+        //     for j in 0..600 {
+        //         inputs.write::<ByteVariable>(proof_as_fixed[i][j]);
+        //     }
+        // }
+        // for i in 0..16 {
+        //     inputs.write::<Variable>(GoldilocksField::from_canonical_u32(lengths_as_fixed[i]));
+        // }
+
+        // println!("Generating a proof");
+        // // Generate a proof.
+        // let (proof, output) = circuit.prove(&inputs);
+        // // Verify proof.
+        // circuit.verify(&proof, &inputs, &output);
 
         // Read output.
         // let sum = output.read::<Variable>();

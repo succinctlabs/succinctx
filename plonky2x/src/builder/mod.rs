@@ -26,6 +26,7 @@ pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {
     pub constants: HashMap<Variable, F>,
     pub execution_client: Option<Provider<Http>>,
     pub beacon_client: Option<BeaconClient>,
+    // pub print_variables: HashMap<&dyn CircuitVariable, String>,
 }
 
 /// The default suggested circuit builder using the Goldilocks field and the fast recursion config.
@@ -49,6 +50,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             constants: HashMap::new(),
             beacon_client: None,
             execution_client: None,
+            // print_variables: HashMap::new(),
         }
     }
 
@@ -59,6 +61,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn set_beacon_client(&mut self, client: BeaconClient) {
         self.beacon_client = Some(client);
     }
+
+    // pub fn print<V: CircuitVariable>(&mut self, v: &V, name: &str) {
+    //     self.print_variables.insert(v, name.to_string());
+    // }
 
     /// Build the circuit.
     pub fn build<C: GenericConfig<D, F = F>>(mut self) -> Circuit<F, C, D> {

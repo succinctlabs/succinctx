@@ -24,8 +24,8 @@ pub struct RLPDecodeListGenerator<F: RichField + Extendable<D>, const D: usize, 
     encoding: [ByteVariable; M],
     length: Variable,
     finish: BoolVariable,
-    decoded_list: [[ByteVariable; MAX_ELE_SIZE]; L],
-    decoded_element_lens: [Variable; L],
+    decoded_list: Box<[[ByteVariable; MAX_ELE_SIZE]; L]>,
+    decoded_element_lens: Box<[Variable; L]>,
     decoded_list_len: Variable,
     _phantom: PhantomData<F>,
 }
@@ -35,8 +35,8 @@ impl<F: RichField + Extendable<D>, const D: usize, const M: usize, const L: usiz
         encoding: [ByteVariable; M],
         length: Variable,
         finish: BoolVariable,
-        decoded_list: [[ByteVariable; MAX_ELE_SIZE]; L],
-        decoded_element_lens: [Variable; L],
+        decoded_list: Box<[[ByteVariable; MAX_ELE_SIZE]; L]>,
+        decoded_element_lens: Box<[Variable; L]>,
         decoded_list_len: Variable,
     ) -> Self {
         Self {
