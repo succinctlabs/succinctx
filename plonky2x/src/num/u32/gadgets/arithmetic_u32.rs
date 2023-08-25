@@ -246,7 +246,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         res
     }
 
-    fn is_equal_u32(&mut self, x: U32Target, y: U32Target,) -> BoolTarget {
+    fn is_equal_u32(&mut self, x: U32Target, y: U32Target) -> BoolTarget {
         self.is_equal(x.0, y.0)
     }
 }
