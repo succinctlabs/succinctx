@@ -1,0 +1,16 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./plonky2x/Cargo.toml",
+    ],
+    "rust-analyzer.check.overrideCommand": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--message-format=json",
+        "--all-features",
+        "--all-targets",
+        "--",
+        "-D warnings",
+        "-A incomplete-features"
+      ],
+}
