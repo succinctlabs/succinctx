@@ -172,11 +172,14 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         }
         let hash_key = self.keccack256(key);
         let key_path = self.to_nibbles::<32, 64>(hash_key.as_slice());
+        self.print(key_path[0].0[0].0, "key_path[0]");
+        self.print(key_path[0].0[1].0, "key_path[1]");
 
         let mut current_node = proof[0];
         for i in 0..P {
             current_node = proof[i];
             let current_node_hash = self.keccack256_variable(current_node, len_nodes[i]);
+            return current_key_idx;
 
             if i == 0 {
                 self.assert_eq(current_node_hash, root);
@@ -339,6 +342,8 @@ mod test {
         let storage_proof: Box<[[ByteVariable; 600]; 16]> = storage_proof_vec.try_into().unwrap();
         let lengths = array![_ => builder.read::<Variable>(); 16];
         let result = builder.verify_mpt_proof::<34, 600, 16>(storage_key, storage_proof.clone(), lengths, storage_hash, storage_value);
+
+        let p_vars = builder.print_variables.clone();
         println!("building the circuit");
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
 
@@ -366,6 +371,13 @@ mod test {
         let prover_data = circuit.data.prover_only;
         let common_data = circuit.data.common;
         let witness = generate_partial_witness(partial_witness, &prover_data, &common_data);
+        
+        for (var, name) in p_vars {
+            let value = var.get(&witness);
+            println!("{} {:?}", name, value);
+        }
+
+
         let value = result.get(&witness);
         println!("value {:?}", value);
 
