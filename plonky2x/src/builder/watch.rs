@@ -17,11 +17,11 @@ pub struct WatchGenerator<V: CircuitVariable> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn watch<V : CircuitVariable>(&mut self, variable : &V, log: &str) {
+    pub fn watch<V: CircuitVariable>(&mut self, variable: &V, log: &str) {
         let variable = variable.clone();
         let log = String::from(log);
 
-        let generator = WatchGenerator{variable, log};
+        let generator = WatchGenerator { variable, log };
         self.add_simple_generator(&generator);
     }
 }
@@ -63,7 +63,7 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
         Ok(Self { variable, log })
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+    fn run_once(&self, witness: &PartitionWitness<F>, _out_buffer: &mut GeneratedValues<F>) {
         let value = self.variable.get(witness);
 
         log!(Level::Debug, "Variable {} was set to {:?}", self.log, value);
@@ -74,10 +74,9 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
 mod tests {
     use plonky2::field::types::Field;
 
-    use crate::prelude::*;
     use crate::builder::CircuitBuilderX;
+    use crate::prelude::*;
     use crate::utils::setup_logger;
-
 
     #[test]
     fn test_watcher() {
