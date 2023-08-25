@@ -225,25 +225,24 @@ where
         Ok(circuit)
     }
 
-    pub fn save(&self, path: String) {
+    pub fn save(&self, path: &String) {
         let bytes = self.serialize().unwrap();
-        fs::create_dir_all(path.clone()).unwrap();
         fs::write(path, bytes).unwrap();
     }
 
-    pub fn load(path: String) -> IoResult<Self> {
+    pub fn load(path: &String) -> IoResult<Self> {
         let bytes = fs::read(path.clone()).unwrap();
         Self::deserialize(bytes.as_slice())
     }
 
     pub fn save_to_build_dir(&self) {
         let path = format!("./build/{}.circuit", self.id());
-        self.save(path);
+        self.save(&path);
     }
 
     pub fn load_from_build_dir(circuit_id: String) -> IoResult<Self> {
         let path = format!("./build/{}.circuit", circuit_id);
-        Self::load(path)
+        Self::load(&path)
     }
 }
 
