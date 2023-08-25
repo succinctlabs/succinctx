@@ -312,11 +312,11 @@ pub fn sha512_variable<F: RichField + Extendable<D>, const D: usize>(
     let digest =
         process_sha512_variable::<F, D>(builder, &hash_msg_input, last_block_num, max_num_chunks);
 
-    return Sha512VariableTarget {
+    Sha512VariableTarget {
         message: msg_input,
         hash_msg_length_bits,
         digest,
-    };
+    }
 }
 
 fn process_sha512<F: RichField + Extendable<D>, const D: usize>(

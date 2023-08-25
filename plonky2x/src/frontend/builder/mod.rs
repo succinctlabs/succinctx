@@ -34,6 +34,7 @@ pub struct CircuitBuilderX {}
 
 impl CircuitBuilderX {
     /// Creates a new builder.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new() -> CircuitBuilder<GoldilocksField, 2> {
         CircuitBuilder::<GoldilocksField, 2>::new()
     }

@@ -73,7 +73,7 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
         let variables = variable.variables();
         variables
             .into_iter()
-            .map(|v| builder.constants.get(&v).unwrap().clone())
+            .map(|v| *builder.constants.get(&v).unwrap())
             .collect()
     }
 

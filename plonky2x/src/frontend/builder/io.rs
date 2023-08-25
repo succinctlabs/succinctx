@@ -35,6 +35,7 @@ pub struct CircuitIO<const D: usize> {
 }
 
 impl<const D: usize> CircuitIO<D> {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             evm: None,

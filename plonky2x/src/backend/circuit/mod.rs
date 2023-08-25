@@ -65,7 +65,7 @@ where
         // Assign input variables.
         let mut pw = PartialWitness::new();
         for i in 0..input_variables.len() {
-            input_variables[i].set(&mut pw, input.buffer[i].into());
+            input_variables[i].set(&mut pw, input.buffer[i]);
         }
 
         // Generate the proof.
@@ -112,8 +112,7 @@ where
             .circuit_digest
             .elements
             .iter()
-            .map(|e| e.to_canonical_u64().to_be_bytes())
-            .flatten()
+            .flat_map(|e| e.to_canonical_u64().to_be_bytes())
             .collect::<Vec<u8>>());
         circuit_digest[0..22].to_string()
     }
@@ -177,7 +176,7 @@ where
         let (gate_serializer, generator_serializer) = Self::serializers();
 
         // Setup buffer.
-        let mut buffer = Buffer::new(&buffer);
+        let mut buffer = Buffer::new(buffer);
 
         // Read circuit data from bytes.
         let circuit_bytes_len = buffer.read_usize()?;
@@ -199,11 +198,9 @@ where
             let input_targets = buffer.read_target_vec()?;
             let output_targets = buffer.read_target_vec()?;
             let input_bytes = (0..input_targets.len() / 8)
-                .into_iter()
                 .map(|i| ByteVariable::from_targets(&input_targets[i * 8..(i + 1) * 8]))
                 .collect_vec();
             let output_bytes = (0..output_targets.len() / 8)
-                .into_iter()
                 .map(|i| ByteVariable::from_targets(&output_targets[i * 8..(i + 1) * 8]))
                 .collect_vec();
             circuit.io.evm = Some(EvmIO {
@@ -214,11 +211,8 @@ where
             let input_targets = buffer.read_target_vec()?;
             let output_targets = buffer.read_target_vec()?;
             circuit.io.field = Some(FieldIO {
-                input_variables: input_targets.into_iter().map(|t| Variable(t)).collect_vec(),
-                output_variables: output_targets
-                    .into_iter()
-                    .map(|t| Variable(t))
-                    .collect_vec(),
+                input_variables: input_targets.into_iter().map(Variable).collect_vec(),
+                output_variables: output_targets.into_iter().map(Variable).collect_vec(),
             });
         }
 
@@ -230,8 +224,8 @@ where
         fs::write(path, bytes).unwrap();
     }
 
-    pub fn load(path: &String) -> IoResult<Self> {
-        let bytes = fs::read(path.clone()).unwrap();
+    pub fn load(path: &str) -> IoResult<Self> {
+        let bytes = fs::read(path).unwrap();
         Self::deserialize(bytes.as_slice())
     }
 
