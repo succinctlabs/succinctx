@@ -290,7 +290,7 @@ mod tests {
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::hash::blake2::blake2b::blake2b;
+    use crate::hash::blake2::blake2b::{blake2b, CHUNK_128_BYTES};
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
