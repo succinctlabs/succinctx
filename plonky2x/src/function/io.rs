@@ -4,9 +4,8 @@ use serde::{Deserialize, Serialize};
 /// A serializable struct containing the function input.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionInput {
-    io: String,
-    bytes: Option<String>,
-    elements: Option<Vec<u64>>,
+    pub bytes: Option<String>,
+    pub elements: Option<Vec<u64>>,
 }
 
 impl FunctionInput {
@@ -26,8 +25,7 @@ impl FunctionInput {
 /// A serializable struct containing the function output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionOutput {
-    pub io: String,
     pub bytes: Option<String>,
     pub elements: Option<Vec<u64>>,
-    pub proof: Vec<u8>,
+    pub proof: String,
 }

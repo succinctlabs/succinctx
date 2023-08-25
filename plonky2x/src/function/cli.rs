@@ -1,11 +1,5 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-#[derive(ValueEnum, Debug, Clone)]
-pub enum IO {
-    Evm,
-    Field,
-}
-
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Compile a circuit.")]
 pub struct BuildArgs {
@@ -18,9 +12,6 @@ pub struct BuildArgs {
 pub struct ProveArgs {
     #[arg(long, default_value = "./build")]
     pub build_dir: String,
-
-    #[arg(long, value_name = "TYPE")]
-    pub io: IO,
 
     #[clap(long)]
     pub input_json: String,

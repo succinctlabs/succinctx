@@ -11,7 +11,7 @@
 //!
 //! To prove the circuit using evm io:
 //!
-//!    `./target/release/circuit_function_field prove --io evm --input-json input.json`
+//!    `./target/release/circuit_function_evm prove --input-json src/bin/circuit_function_evm_input.json`
 //!
 //! Note that this circuit will not work with evm-based io.
 

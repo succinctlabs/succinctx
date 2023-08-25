@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 
 use clap::Parser;
 use curta::math::prelude::PrimeField64;
-use log::info;
+use log::{info, warn};
 use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::RichField;
@@ -14,7 +14,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksC
 
 use self::cli::{BuildArgs, ProveArgs};
 use crate::circuit::Circuit;
-use crate::function::cli::{Args, Commands, IO};
+use crate::function::cli::{Args, Commands};
 use crate::function::io::{FunctionInput, FunctionOutput};
 
 pub trait CircuitFunction {
@@ -66,10 +66,9 @@ pub trait CircuitFunction {
         let output_bytes = output.evm_read_all();
 
         let function_output = FunctionOutput {
-            io: "evm".to_string(),
             bytes: Some(hex::encode(output_bytes.clone())),
             elements: None,
-            proof: proof.to_bytes(),
+            proof: hex::encode(proof.to_bytes()),
         };
         let json = serde_json::to_string_pretty(&function_output).unwrap();
         let mut file = File::create("output.json").unwrap();
@@ -103,7 +102,6 @@ pub trait CircuitFunction {
         let output_elements = output.read_all();
 
         let function_output = FunctionOutput {
-            io: "field".to_string(),
             bytes: None,
             elements: Some(
                 output_elements
@@ -111,7 +109,7 @@ pub trait CircuitFunction {
                     .map(|e| e.as_canonical_u64())
                     .collect(),
             ),
-            proof: proof.to_bytes(),
+            proof: hex::encode(proof.to_bytes()),
         };
         let json = serde_json::to_string_pretty(&function_output).unwrap();
         let mut file = File::create("output.json").unwrap();
@@ -138,13 +136,12 @@ pub trait CircuitFunction {
                 let mut data = String::new();
                 file.read_to_string(&mut data).unwrap();
                 let input: FunctionInput = serde_json::from_str(&data).unwrap();
-                match args.io {
-                    IO::Evm => {
-                        Self::prove_with_evm_io::<F, C, D>(args, input.bytes());
-                    }
-                    IO::Field => {
-                        Self::prove_with_field_io::<F, C, D>(args, input.elements());
-                    }
+                if input.bytes.is_some() {
+                    Self::prove_with_evm_io::<F, C, D>(args, input.bytes());
+                } else if input.elements.is_some() {
+                    Self::prove_with_field_io::<F, C, D>(args, input.elements());
+                } else {
+                    warn!("No input bytes or elements found in input.json.");
                 }
             }
         }
