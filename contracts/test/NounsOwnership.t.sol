@@ -106,8 +106,6 @@ contract NounsOwnershipTest is Test, TestError, TestEvents {
     }
 
     function test_OwnerOf_WithFixture() public onlyWithFork {
-        bytes memory context = abi.encode(BLOCK_NUMBER, NOUNS_ACCOUNT, SLOT);
-
         // Use input and output from fixture
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/test/fixtures/nouns-fixture.json");
