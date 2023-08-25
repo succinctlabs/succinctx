@@ -1,5 +1,5 @@
 mod cli;
-mod input;
+mod io;
 
 use std::fs::File;
 use std::io::{Read, Write};
@@ -15,7 +15,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksC
 use self::cli::{BuildArgs, ProveArgs};
 use crate::circuit::Circuit;
 use crate::function::cli::{Args, Commands, IO};
-use crate::function::input::{FunctionInput, FunctionOutput};
+use crate::function::io::{FunctionInput, FunctionOutput};
 
 pub trait CircuitFunction {
     /// Builds the circuit.
@@ -122,6 +122,7 @@ pub trait CircuitFunction {
         );
     }
 
+    /// The entry point for the function when using CLI-based tools.
     fn run() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
