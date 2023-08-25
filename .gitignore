@@ -19,6 +19,7 @@ bin/
 
 *.json
 !plonky2x/src/bin/*.json
+!plonky2x/examples/*.json
 !succinct.json
 !nouns-fixture.json
 
