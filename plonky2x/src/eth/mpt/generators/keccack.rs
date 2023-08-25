@@ -47,6 +47,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+        println!("Running keccak256 generator");
         let mut length = self.input.len();
         if let Some(length_variable) = self.length {
             length = length_variable.get(witness).to_canonical_u64() as usize;

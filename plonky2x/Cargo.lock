@@ -2511,6 +2511,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "array-macro",
+ "backtrace",
  "base64 0.13.1",
  "curta",
  "curve25519-dalek",

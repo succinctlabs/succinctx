@@ -171,7 +171,7 @@ pub fn verified_get<const L: usize, const M: usize, const P: usize>(key: [u8; 32
         println!("i: {}", i);
         current_node = proof[i];
         let current_node_hash = keccack_variable(current_node, len_nodes[i]);
-        println!("current_node_hash {:?}", current_node_hash);
+        println!("current_node_hash {:?}", H256::from_slice(&current_node_hash));
         if (i == 0) {
             let is_eq = is_bytes32_eq(current_node_hash, root);
             assert!(is_eq == 1);

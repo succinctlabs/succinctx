@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use backtrace::Backtrace;
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -20,6 +21,16 @@ impl CircuitVariable for Variable {
         builder: &mut CircuitBuilder<F, D>,
     ) -> Self {
         let target = builder.api.add_virtual_target();
+
+        match target {
+            Target::VirtualTarget { index } => {
+                if builder.debug_variables.contains_key(&index) {
+                    let bt = Backtrace::new();
+                    println!("{:#?}", bt);
+                }
+            }
+            _ => panic!("Expected a virtual target"),
+        }
         Self(target)
     }
 

@@ -24,7 +24,7 @@ pub struct RLPDecodeListGenerator<F: RichField + Extendable<D>, const D: usize, 
     encoding: [ByteVariable; M],
     length: Variable,
     finish: BoolVariable,
-    decoded_list: Box<[[ByteVariable; MAX_ELE_SIZE]; L]>,
+    decoded_list: Vec<Vec<ByteVariable>>,
     decoded_element_lens: Box<[Variable; L]>,
     decoded_list_len: Variable,
     _phantom: PhantomData<F>,
@@ -35,7 +35,7 @@ impl<F: RichField + Extendable<D>, const D: usize, const M: usize, const L: usiz
         encoding: [ByteVariable; M],
         length: Variable,
         finish: BoolVariable,
-        decoded_list: Box<[[ByteVariable; MAX_ELE_SIZE]; L]>,
+        decoded_list: Vec<Vec<ByteVariable>>,
         decoded_element_lens: Box<[Variable; L]>,
         decoded_list_len: Variable,
     ) -> Self {
@@ -85,7 +85,8 @@ impl<F: RichField + Extendable<D>, const D: usize, const M: usize, const L: usiz
             }
             decoded_list_len = decoded_element.len();
         }
-
+        println!("Decoded list len: {}", decoded_list_len);
+        println!("Decoded list: {:?}", decoded_list_as_fixed);
         self.decoded_list.iter().enumerate().for_each(|(i, x)| x.iter().enumerate().for_each(|(j, y)| y.set(out_buffer, decoded_list_as_fixed[i][j])));
         self.decoded_element_lens.iter().enumerate().for_each(|(i, x)| x.set(out_buffer, F::from_canonical_u8(decoded_list_lens[i])));
         self.decoded_list_len.set(out_buffer, F::from_canonical_usize(decoded_list_len));

@@ -64,9 +64,10 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, _out_buffer: &mut GeneratedValues<F>) {
+        println!("HI");
         let value = self.variable.get(witness);
-
-        log!(Level::Debug, "Variable {} was set to {:?}", self.log, value);
+        println!("Variable {} was set to {:?}", self.log, value);
+        // log!(Level::Info, "Variable {} was set to {:?}", self.log, value);
     }
 }
 

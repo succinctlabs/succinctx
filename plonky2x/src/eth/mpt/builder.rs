@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use core::str::Bytes;
 
 use plonky2::field::extension::Extendable;
@@ -62,9 +63,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         output_vec.try_into().unwrap()
     }
 
-    pub fn to_nibbles_unsized<const N: usize>(&mut self, input: [ByteVariable; N]) -> Vec<ByteVariable> {
+    pub fn to_nibbles_unsized(&mut self, input: &[ByteVariable]) -> Vec<ByteVariable> {
         let mut output_vec = vec![];
-        for i in 0..N {
+        for i in 0..input.len() {
             output_vec.push(self.init::<ByteVariable>());
             output_vec.push(self.init::<ByteVariable>());
         }
@@ -92,7 +93,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     // TODO: maybe implement this for the trait CircuitVariable
-    pub fn mux_nested<const N: usize, const M: usize>(&mut self, input: Box<[[ByteVariable; N]; M]>, selector: Variable) -> [ByteVariable; N] {
+    pub fn mux_nested<const N: usize>(&mut self, input: Vec<[ByteVariable; N]>, selector: Variable) -> [ByteVariable; N] {
         let output = array![_ => self.init::<ByteVariable>(); N];
         let generator = NestedMuxGenerator{
             input: input.to_vec(),
@@ -147,7 +148,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         len_nodes: [Variable; P],
         root: Bytes32Variable,
         value: Bytes32Variable,
-    ) -> Variable {  
+    ) {  
         const MAX_ELE_SIZE: usize = 34; // Maximum size of list element
         let TREE_RADIX = self.constant::<Variable>(F::from_canonical_u8(16u8));
         let BRANCH_NODE_LENGTH = self.constant::<Variable>(F::from_canonical_u8(17u8));
@@ -172,17 +173,21 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         }
         let hash_key = self.keccack256(key);
         let key_path = self.to_nibbles::<32, 64>(hash_key.as_slice());
-        self.print(key_path[0].0[0].0, "key_path[0]");
-        self.print(key_path[0].0[1].0, "key_path[1]");
+        // self.print(key_path[0].0[0].0, "key_path[0]");
+        // self.print(key_path[0].0[1].0, "key_path[1]");
+        self.watch(&hash_key, format!("hash_key{}", 0).as_str());
+
 
         let mut current_node = proof[0];
         for i in 0..P {
             current_node = proof[i];
             let current_node_hash = self.keccack256_variable(current_node, len_nodes[i]);
-            return current_key_idx;
+            self.watch(&current_node_hash, format!("round {}: current_node_hash", i).as_str());
 
             if i == 0 {
+                self.watch(&root, format!("root{}", i).as_str());
                 self.assert_eq(current_node_hash, root);
+                self.watch(&current_node_hash, format!("AFTER 189{}", i).as_str());
             } else {
                 let first_32_bytes_eq = self.eq::<Bytes32Variable, Bytes32Variable>(current_node[0..32].into(), current_node_id[0..32].into());
                 let hash_eq = self.eq::<Bytes32Variable, Bytes32Variable>(current_node_hash, current_node_id[0..32].into());
@@ -196,24 +201,33 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
                 let t = self._true();
                 self.assert_eq(checked_equality, t);
             }
-            return current_key_idx;
 
+            let mut decoded_list_vec = Vec::new();
+            for i in 0..L {
+                let mut inner: Vec<ByteVariable> = Vec::new();
+                for j in 0..MAX_ELE_SIZE {
+                    inner.push(self.init::<ByteVariable>());
+                }
+                decoded_list_vec.push(inner);
+            }
 
-            let decoded_list = Box::new([array![_ => self.init::<ByteVariable>(); MAX_ELE_SIZE]; L]);
-            let decoded_element_lens = Box::new(array![self.init::<Variable>(); L]);
+            // let decoded_list = Box::new(TryInto::<[Box<[ByteVariable; MAX_ELE_SIZE]>; L]>::try_into(decoded_list_vec).unwrap());
+            let decoded_element_lens = Box::new(array![_ => self.init::<Variable>(); L]);
             let decoded_list_len = self.init::<Variable>();
 
             // Create the generators for witnessing the decoding of the node
             // TODO: should this generator be added to the circuit every time?
-            let rlp_decode_list_generator = RLPDecodeListGenerator::new(
-                current_node, len_nodes[i], finished, decoded_list.clone(), decoded_element_lens.clone(), decoded_list_len
+            let rlp_decode_list_generator: RLPDecodeListGenerator<F, D, M, L, MAX_ELE_SIZE> = RLPDecodeListGenerator::new(
+                current_node, len_nodes[i], finished, decoded_list_vec.clone(), decoded_element_lens.clone(), decoded_list_len
             );
             self.add_simple_generator(&rlp_decode_list_generator);
+            self.watch(&decoded_list_len, format!("decoded_list_len{}", i).as_str());
+
 
             let is_branch = self.eq(decoded_list_len, BRANCH_NODE_LENGTH);
             let is_leaf = self.eq(decoded_list_len, LEAF_OR_EXTENSION_NODE_LENGTH);
             let key_terminated = self.eq(current_key_idx, _64);
-            let path = self.to_nibbles_unsized(decoded_list[0]);
+            let path = self.to_nibbles_unsized(&decoded_list_vec[0]);
             let prefix = path[0];
             let prefix_leaf_even = self.eq(prefix, PREFIX_LEAF_EVEN);
             let prefix_leaf_odd = self.eq(prefix, PREFIX_LEAF_ODD);
@@ -237,10 +251,14 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
             let c = self.add(case_1_value, case_2_value);
             let updated_current_node_id_idx = self.add(c, case_3_value); // TODO: make this more concise
-            let updated_current_node_id = self.mux_nested(decoded_list, updated_current_node_id_idx);
+
+            let updated_current_node_id = self.mux_nested(
+                decoded_list_vec.into_iter().map(|v| {v.try_into().unwrap()}).collect::<Vec<[ByteVariable; MAX_ELE_SIZE]>>(),
+                updated_current_node_id_idx
+            );
             
             // If finished == 1, then we should not update the current_node_id
-            current_node_id = self.mux_nested(Box::new([updated_current_node_id, current_node_id]), finished.0);
+            current_node_id = self.mux_nested(vec![updated_current_node_id, current_node_id], finished.0);
 
             let mut do_path_remainder_check = self.not(finished);
             do_path_remainder_check = self.and(do_path_remainder_check, is_leaf);
@@ -262,14 +280,22 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             let m = self.or(l, prefix_leaf_odd);
             let z = self.not(finished);
             finished = self.and(z, m);
+
+            for l in 0..34 {
+                self.watch(&current_node_id[l], format!("in loop {}: current_node_id[i]", i).as_str());
+            }
         }
 
         let current_node_len = self.sub(current_node_id[0], _128);
         let current_node_len_as_var = self.byte_to_variable(current_node_len);
         let lhs_offset = self.sub(_32, current_node_len_as_var);
         self.assert_subarray_eq(&value.as_slice(), lhs_offset, &current_node_id, ONE, current_node_len_as_var);
+        self.watch(&value, "AT END: value[0]");
+        self.watch(&current_node_len_as_var, "AT END: current_node_len_as_var");
+        for i in 0..34 {
+            self.watch(&current_node_id[i], format!("AT END {}: current_node_id[i]", i).as_str());
+        }
 
-        return self.init::<Variable>();
     }
 
 }
@@ -289,9 +315,12 @@ mod test {
     use tokio::runtime::Runtime;
     use crate::builder::CircuitBuilderX;
     use crate::prelude::{PoseidonGoldilocksConfig, GoldilocksField};
+    use crate::utils::setup_logger;
 
     #[test]
     fn test_mpt_verification() {
+        setup_logger();
+
         let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
@@ -327,6 +356,8 @@ mod test {
 
         // Define the circuit
         let mut builder = CircuitBuilderX::new();
+        builder.debug(88680);
+
         let storage_key = builder.read::<Bytes32Variable>();
         let storage_value = builder.read::<Bytes32Variable>();
         let storage_hash = builder.read::<Bytes32Variable>();
@@ -341,10 +372,10 @@ mod test {
         }
         let storage_proof: Box<[[ByteVariable; 600]; 16]> = storage_proof_vec.try_into().unwrap();
         let lengths = array![_ => builder.read::<Variable>(); 16];
-        let result = builder.verify_mpt_proof::<34, 600, 16>(storage_key, storage_proof.clone(), lengths, storage_hash, storage_value);
+        builder.verify_mpt_proof::<34, 600, 16>(storage_key, storage_proof.clone(), lengths, storage_hash, storage_value);
 
-        let p_vars = builder.print_variables.clone();
-        println!("building the circuit");
+        println!("Building the circuit");
+
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
 
 
@@ -367,19 +398,12 @@ mod test {
         //         watch_hash_map[index] = "storage_hash";
         //     }
         // }
+        
 
         let prover_data = circuit.data.prover_only;
         let common_data = circuit.data.common;
         let witness = generate_partial_witness(partial_witness, &prover_data, &common_data);
         
-        for (var, name) in p_vars {
-            let value = var.get(&witness);
-            println!("{} {:?}", name, value);
-        }
-
-
-        let value = result.get(&witness);
-        println!("value {:?}", value);
 
         // let mut inputs = circuit.input();
         // inputs.write::<Bytes32Variable>(key);
