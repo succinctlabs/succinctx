@@ -494,7 +494,7 @@ mod tests {
             .map(|b| builder.constant_bool(*b))
             .collect::<Vec<_>>();
 
-        let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets.clone(), length);
+        let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets, length);
 
         for i in 0..digest_bits.len() {
             if digest_bits[i] {

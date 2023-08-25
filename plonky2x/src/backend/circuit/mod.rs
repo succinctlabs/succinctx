@@ -77,7 +77,7 @@ where
             buffer: proof.public_inputs[input_variables.len()..].to_vec(),
         };
 
-        (proof.clone(), output)
+        (proof, output)
     }
 
     /// Verifies a proof for the circuit.
