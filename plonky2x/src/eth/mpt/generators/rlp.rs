@@ -71,10 +71,10 @@ impl<F: RichField + Extendable<D>, const D: usize, const M: usize, const L: usiz
         let mut decoded_list_lens = [0u8; L];
         let mut decoded_list_len = 0;
 
-        let finish = self.finish.value(witness);
+        let finish = self.finish.get(witness);
         if !finish {
-            let encoding = self.encoding.iter().map(|x| x.value(witness)).collect::<Vec<_>>();
-            let length = self.length.value(witness).as_canonical_u64() as usize;
+            let encoding = self.encoding.iter().map(|x| x.get(witness)).collect::<Vec<_>>();
+            let length = self.length.get(witness).as_canonical_u64() as usize;
             let decoded_element = rlp_decode_list_2_or_17(&encoding.as_slice()[..length]);
 
             for (i, element) in decoded_element.iter().enumerate() {

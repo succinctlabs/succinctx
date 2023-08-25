@@ -191,14 +191,17 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 mod test {
     use super::*;
     use crate::eth::utils::{u256_to_h256_be, h256_to_u256_be};
+    use crate::eth::vars::AddressVariable;
     use ethers::types::{Address, H256, U256, EIP1186ProofResponse};
     use ethers::providers::{Http, Middleware, Provider};
+    use plonky2::field::types::Field;
     use crate::utils::{bytes32, address, bytes, hex};
     use tokio::runtime::Runtime;
+    use crate::builder::CircuitBuilderX;
+    use crate::prelude::{PoseidonGoldilocksConfig, GoldilocksField};
 
     #[test]
     fn test_mpt_verification() {
-        todo!();
         let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
@@ -232,13 +235,50 @@ mod test {
         let value_as_h256 = u256_to_h256_be(value);
         let (proof_as_fixed, lengths_as_fixed) = get_proof_witnesses::<600, 16>(storage_proof);
 
-        // 17 = max length of RLP decoding of proof element as list
-        // 600 = max length of proof element as bytes
-        // 16 = max number of elements in proof
+        // Define the circuit
+        let mut builder = CircuitBuilderX::new();
+        let storage_key = builder.read::<Bytes32Variable>();
+        let storage_value = builder.read::<Bytes32Variable>();
+        let storage_hash = builder.read::<Bytes32Variable>();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
-        builder.verify_mpt_proof(key, proof, len_nodes, root, value);
+        let storage_proof_vec: Vec<[ByteVariable; 600]> = vec![];
+        for i in 0..16 {
+            let v: Vec<ByteVariable> = vec![];
+            for j in 0..600 {
+                v.push(builder.read::<ByteVariable>());
+            }
+            storage_proof_vec.push(v.try_into().unwrap());
+        }
+        let storage_proof: [[ByteVariable; 600]; 16] = storage_proof_vec.try_into().unwrap();
+        let lengths = array![_ => builder.read::<Variable>(); 16];
+        builder.verify_mpt_proof(storage_key, storage_proof, lengths, storage_hash, storage_value);
 
-        verified_get::<17, 600, 16>(key.to_fixed_bytes(), proof_as_fixed, root.to_fixed_bytes(), value_as_h256.to_fixed_bytes(), lengths_as_fixed);
+        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+
+        let inputs = circuit.input();
+        inputs.write::<Bytes32Variable>(key);
+        inputs.write::<Bytes32Variable>(value_as_h256);
+        inputs.write::<Bytes32Variable>(root);
+        for i in 0..16 {
+            for j in 0..600 {
+                inputs.write::<ByteVariable>(proof_as_fixed[i][j]);
+            }
+        }
+        for i in 0..16 {
+            inputs.write::<Variable>(GoldilocksField::from_canonical_u32(lengths_as_fixed[i]));
+        }
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&inputs);
+
+        // Verify proof.
+        circuit.verify(&proof, &inputs, &output);
+
+        // Read output.
+        // let sum = output.read::<Variable>();
+        // println!("{}", sum.0);
+
+
+        // verified_get::<17, 600, 16>(key.to_fixed_bytes(), proof_as_fixed, root.to_fixed_bytes(), value_as_h256.to_fixed_bytes(), lengths_as_fixed);
     }
 }
