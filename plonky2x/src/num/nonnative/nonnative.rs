@@ -127,7 +127,6 @@ pub trait CircuitBuilderNonNative<F: RichField + Extendable<D>, const D: usize> 
         access_index: Target,
         v: Vec<NonNativeTarget<FF>>,
     ) -> NonNativeTarget<FF>;
-
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
