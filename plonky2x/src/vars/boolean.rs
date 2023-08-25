@@ -14,7 +14,7 @@ use crate::ops::{BitAnd, BitOr, BitXor, Not, PartialEq};
 pub struct BoolVariable(pub Variable);
 
 impl CircuitVariable for BoolVariable {
-    type ValueType<F: Debug> = bool;
+    type ValueType<F: RichField> = bool;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -28,20 +28,20 @@ impl CircuitVariable for BoolVariable {
     ) -> Self {
         Self(Variable::constant(
             builder,
-            F::from_canonical_u8(value as u8),
+            F::from_canonical_u64(value as u64),
         ))
     }
 
-    fn targets(&self) -> Vec<Target> {
-        vec![self.0 .0]
+    fn variables(&self) -> Vec<Variable> {
+        vec![self.0]
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        assert_eq!(targets.len(), 1);
-        Self(Variable(targets[0]))
+    fn from_variables(variables: &[Variable]) -> Self {
+        assert_eq!(variables.len(), 1);
+        Self(variables[0])
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         witness.get_target(self.0 .0) == F::from_canonical_u64(1)
     }
 
@@ -150,8 +150,8 @@ mod tests {
         x_xor_x.set(&mut pw, false);
         y_xor_y.set(&mut pw, false);
 
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
+        let circuit = builder.build::<C>();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
     }
 }

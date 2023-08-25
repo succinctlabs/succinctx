@@ -2,12 +2,12 @@ use std::fmt::Debug;
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
 use crate::eth::vars::BLSPubkeyVariable;
 use crate::ethutils::beacon::BeaconValidator;
+use crate::prelude::Variable;
 use crate::utils::{bytes, bytes32, hex};
 use crate::vars::{BoolVariable, Bytes32Variable, CircuitVariable, U256Variable};
 
@@ -24,7 +24,7 @@ pub struct BeaconValidatorVariable {
 }
 
 impl CircuitVariable for BeaconValidatorVariable {
-    type ValueType<F: Debug> = BeaconValidator;
+    type ValueType<F: RichField> = BeaconValidator;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -41,59 +41,42 @@ impl CircuitVariable for BeaconValidatorVariable {
         }
     }
 
+    #[allow(unused_variables)]
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        Self {
-            pubkey: BLSPubkeyVariable::constant(builder, bytes!(value.pubkey)),
-            withdrawal_credentials: Bytes32Variable::constant(
-                builder,
-                bytes32!(value.withdrawal_credentials),
-            ),
-            effective_balance: U256Variable::constant(builder, value.effective_balance.into()),
-            slashed: BoolVariable::constant(builder, value.slashed),
-            activation_eligibility_epoch: U256Variable::constant(
-                builder,
-                value.activation_eligibility_epoch.into(),
-            ),
-            activation_epoch: U256Variable::constant(builder, value.activation_epoch.into()),
-            exit_epoch: U256Variable::constant(builder, value.exit_epoch.unwrap_or(0).into()),
-            withdrawable_epoch: U256Variable::constant(
-                builder,
-                value.withdrawable_epoch.unwrap_or(0).into(),
-            ),
-        }
-    }
-
-    fn targets(&self) -> Vec<Target> {
-        let mut targets = Vec::new();
-        targets.extend(self.pubkey.targets());
-        targets.extend(self.withdrawal_credentials.targets());
-        targets.extend(self.effective_balance.targets());
-        targets.extend(self.slashed.targets());
-        targets.extend(self.activation_eligibility_epoch.targets());
-        targets.extend(self.activation_epoch.targets());
-        targets.extend(self.exit_epoch.targets());
-        targets.extend(self.withdrawable_epoch.targets());
-        targets
-    }
-
-    #[allow(unused_variables)]
-    fn from_targets(targets: &[Target]) -> Self {
         todo!()
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn variables(&self) -> Vec<Variable> {
+        let mut vars = Vec::new();
+        vars.extend(self.pubkey.variables());
+        vars.extend(self.withdrawal_credentials.variables());
+        vars.extend(self.effective_balance.variables());
+        vars.extend(self.slashed.variables());
+        vars.extend(self.activation_eligibility_epoch.variables());
+        vars.extend(self.activation_epoch.variables());
+        vars.extend(self.exit_epoch.variables());
+        vars.extend(self.withdrawable_epoch.variables());
+        vars
+    }
+
+    #[allow(unused_variables)]
+    fn from_variables(variables: &[Variable]) -> Self {
+        todo!()
+    }
+
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         BeaconValidator {
-            pubkey: hex!(self.pubkey.value(witness)),
-            withdrawal_credentials: hex!(self.withdrawal_credentials.value(witness)),
-            effective_balance: self.effective_balance.value(witness).as_u64(),
-            slashed: self.slashed.value(witness),
-            activation_eligibility_epoch: self.activation_eligibility_epoch.value(witness).as_u64(),
-            activation_epoch: self.activation_epoch.value(witness).as_u64(),
-            exit_epoch: Some(self.exit_epoch.value(witness).as_u64()),
-            withdrawable_epoch: Some(self.withdrawable_epoch.value(witness).as_u64()),
+            pubkey: hex!(self.pubkey.get(witness)),
+            withdrawal_credentials: hex!(self.withdrawal_credentials.get(witness)),
+            effective_balance: self.effective_balance.get(witness).as_u64(),
+            slashed: self.slashed.get(witness),
+            activation_eligibility_epoch: self.activation_eligibility_epoch.get(witness).as_u64(),
+            activation_epoch: self.activation_epoch.get(witness).as_u64(),
+            exit_epoch: Some(self.exit_epoch.get(witness).as_u64()),
+            withdrawable_epoch: Some(self.withdrawable_epoch.get(witness).as_u64()),
         }
     }
 

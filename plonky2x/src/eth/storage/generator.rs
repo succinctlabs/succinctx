@@ -78,8 +78,8 @@ impl<P: Clone + JsonRpcClient + 'static, F: RichField + Extendable<D>, const D: 
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, buffer: &mut GeneratedValues<F>) {
-        let address = self.address.value(witness);
-        let location = self.storage_key.value(witness);
+        let address = self.address.get(witness);
+        let location = self.storage_key.get(witness);
         let get_proof_closure = || -> EIP1186ProofResponse {
             let rt = Runtime::new().unwrap();
             rt.block_on(async {

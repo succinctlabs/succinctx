@@ -84,9 +84,9 @@ pub(crate) mod tests {
             .collect_vec();
         println!("balances: {:?}", balances);
 
-        let data = builder.build::<C>();
+        let circuit = builder.build::<C>();
         let pw = PartialWitness::new();
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
     }
 }

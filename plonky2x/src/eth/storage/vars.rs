@@ -3,11 +3,11 @@ use std::fmt::Debug;
 use ethers::types::{H256, U256};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
-use crate::vars::{BoolVariable, Bytes32Variable, CircuitVariable, U256Variable};
+use crate::prelude::Variable;
+use crate::vars::{Bytes32Variable, CircuitVariable, U256Variable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct EthProof {
@@ -20,7 +20,7 @@ pub struct EthProofVariable {
 }
 
 impl CircuitVariable for EthProofVariable {
-    type ValueType<F: Debug> = EthProof;
+    type ValueType<F: RichField> = EthProof;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -39,19 +39,19 @@ impl CircuitVariable for EthProofVariable {
         }
     }
 
-    fn targets(&self) -> Vec<Target> {
-        self.proof.targets()
+    fn variables(&self) -> Vec<Variable> {
+        self.proof.variables()
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
+    fn from_variables(variables: &[Variable]) -> Self {
         Self {
-            proof: Bytes32Variable::from_targets(targets),
+            proof: Bytes32Variable::from_variables(variables),
         }
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         EthProof {
-            proof: self.proof.value(witness),
+            proof: self.proof.get(witness),
         }
     }
 
@@ -77,7 +77,7 @@ pub struct EthAccountVariable {
 }
 
 impl CircuitVariable for EthAccountVariable {
-    type ValueType<F: Debug> = EthAccount;
+    type ValueType<F: RichField> = EthAccount;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -102,29 +102,34 @@ impl CircuitVariable for EthAccountVariable {
         }
     }
 
-    fn targets(&self) -> Vec<Target> {
-        vec![
-            self.balance.targets(),
-            self.code_hash.targets(),
-            self.nonce.targets(),
-            self.storage_hash.targets(),
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
+    fn variables(&self) -> Vec<Variable> {
+        let mut vars = Vec::new();
+        vars.extend(self.balance.variables());
+        vars.extend(self.code_hash.variables());
+        vars.extend(self.nonce.variables());
+        vars.extend(self.storage_hash.variables());
+        vars
     }
 
-    #[allow(unused_variables)]
-    fn from_targets(targets: &[Target]) -> Self {
-        todo!()
+    fn from_variables(variables: &[Variable]) -> Self {
+        let balance = U256Variable::from_variables(&variables[0..4]);
+        let code_hash = Bytes32Variable::from_variables(&variables[4..36]);
+        let nonce = U256Variable::from_variables(&variables[36..40]);
+        let storage_hash = Bytes32Variable::from_variables(&variables[40..72]);
+        Self {
+            balance,
+            code_hash,
+            nonce,
+            storage_hash,
+        }
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         EthAccount {
-            balance: self.balance.value(witness),
-            code_hash: self.code_hash.value(witness),
-            nonce: self.nonce.value(witness),
-            storage_hash: self.storage_hash.value(witness),
+            balance: self.balance.get(witness),
+            code_hash: self.code_hash.get(witness),
+            nonce: self.nonce.get(witness),
+            storage_hash: self.storage_hash.get(witness),
         }
     }
 
@@ -133,11 +138,5 @@ impl CircuitVariable for EthAccountVariable {
         self.code_hash.set(witness, value.code_hash);
         self.nonce.set(witness, value.nonce);
         self.storage_hash.set(witness, value.storage_hash);
-    }
-}
-
-impl EthAccountVariable {
-    pub fn serialize(&self) -> Vec<BoolVariable> {
-        vec![]
     }
 }

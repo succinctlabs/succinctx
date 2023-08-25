@@ -10,14 +10,17 @@
 extern crate alloc;
 
 pub mod builder;
+pub mod circuit;
 pub mod ecc;
 pub mod eth;
 pub mod ethutils;
+pub mod function;
 pub mod hash;
-pub mod mapreduce;
+// pub mod mapreduce;
 pub mod num;
 pub mod ops;
-pub mod prover;
+
+// pub mod prover;
 pub mod uint;
 pub mod utils;
 pub mod vars;

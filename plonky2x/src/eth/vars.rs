@@ -3,17 +3,17 @@ use std::fmt::Debug;
 use ethers::types::H160;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
+use crate::prelude::Variable;
 use crate::vars::{BytesVariable, CircuitVariable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BLSPubkeyVariable(pub BytesVariable<48>);
 
 impl CircuitVariable for BLSPubkeyVariable {
-    type ValueType<F: Debug> = [u8; 48];
+    type ValueType<F: RichField> = [u8; 48];
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -28,16 +28,16 @@ impl CircuitVariable for BLSPubkeyVariable {
         Self(BytesVariable::constant(builder, value))
     }
 
-    fn targets(&self) -> Vec<Target> {
-        self.0.targets()
+    fn variables(&self) -> Vec<Variable> {
+        self.0.variables()
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        Self(BytesVariable::from_targets(targets))
+    fn from_variables(variables: &[Variable]) -> Self {
+        Self(BytesVariable::from_variables(variables))
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        self.0.value(witness)
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+        self.0.get(witness)
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
@@ -49,7 +49,7 @@ impl CircuitVariable for BLSPubkeyVariable {
 pub struct AddressVariable(pub BytesVariable<20>);
 
 impl CircuitVariable for AddressVariable {
-    type ValueType<F: Debug> = H160;
+    type ValueType<F: RichField> = H160;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -67,16 +67,16 @@ impl CircuitVariable for AddressVariable {
         ))
     }
 
-    fn targets(&self) -> Vec<Target> {
-        self.0.targets()
+    fn variables(&self) -> Vec<Variable> {
+        self.0.variables()
     }
 
-    fn from_targets(targets: &[Target]) -> Self {
-        Self(BytesVariable::from_targets(targets))
+    fn from_variables(variables: &[Variable]) -> Self {
+        Self(BytesVariable::from_variables(variables))
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        H160::from_slice(&self.0.value(witness))
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+        H160::from_slice(&self.0.get(witness))
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {

@@ -3,10 +3,10 @@ use std::fmt::Debug;
 use ethers::types::H256;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::builder::CircuitBuilder;
+use crate::prelude::Variable;
 use crate::vars::{Bytes32Variable, CircuitVariable};
 
 /// The value type for `BeaconValidatorsVariable`. Note that this struct does not have a natural
@@ -29,7 +29,7 @@ pub struct BeaconValidatorsVariable {
 }
 
 impl CircuitVariable for BeaconValidatorsVariable {
-    type ValueType<F: Debug> = BeaconValidatorsValue;
+    type ValueType<F: RichField> = BeaconValidatorsValue;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -50,29 +50,27 @@ impl CircuitVariable for BeaconValidatorsVariable {
         }
     }
 
-    fn targets(&self) -> Vec<Target> {
-        let mut targets = Vec::new();
-        targets.extend(self.block_root.targets());
-        targets.extend(self.validators_root.targets());
-        targets
+    fn variables(&self) -> Vec<Variable> {
+        self.block_root
+            .variables()
+            .into_iter()
+            .chain(self.validators_root.variables())
+            .collect()
     }
 
-    #[allow(unused_variables)]
-    fn from_targets(targets: &[Target]) -> Self {
-        let mut ptr = 0;
-        let block_root = Bytes32Variable::from_targets(&targets[ptr..ptr + 256]);
-        ptr += 256;
-        let validators_root = Bytes32Variable::from_targets(&targets[ptr..ptr + 256]);
+    fn from_variables(variables: &[Variable]) -> Self {
+        let block_root = Bytes32Variable::from_variables(&variables[0..32]);
+        let validators_root = Bytes32Variable::from_variables(&variables[32..64]);
         Self {
             block_root,
             validators_root,
         }
     }
 
-    fn value<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         BeaconValidatorsValue {
-            block_root: self.block_root.value(witness),
-            validators_root: self.validators_root.value(witness),
+            block_root: self.block_root.get(witness),
+            validators_root: self.validators_root.get(witness),
         }
     }
 
