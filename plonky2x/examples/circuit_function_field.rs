@@ -46,11 +46,13 @@ impl CircuitFunction for Function {
 fn main() {
     env::set_var("RUST_LOG", "info");
     env_logger::init();
-    Function::run();
+    Function::cli();
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use plonky2::field::types::Field;
     use plonky2x::prelude::{GoldilocksField, PoseidonGoldilocksConfig};
 
@@ -70,5 +72,15 @@ mod tests {
         circuit.verify(&proof, &input, &output);
         let sum = output.read::<Variable>();
         assert_eq!(sum, F::from_canonical_u64(3));
+    }
+
+    #[test]
+    fn test_circuit_function_field_input_json() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let path = format!(
+            "{}/examples/circuit_function_field_input.json",
+            root.display()
+        );
+        Function::test::<F, C, D>(path);
     }
 }

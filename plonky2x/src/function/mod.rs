@@ -120,8 +120,16 @@ pub trait CircuitFunction {
         );
     }
 
+    /// Reads the function input from a JSON file path.
+    fn read_function_input(input_json: String) -> FunctionInput {
+        let mut file = File::open(input_json).unwrap();
+        let mut data = String::new();
+        file.read_to_string(&mut data).unwrap();
+        serde_json::from_str(&data).unwrap()
+    }
+
     /// The entry point for the function when using CLI-based tools.
-    fn run() {
+    fn cli() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -132,10 +140,7 @@ pub trait CircuitFunction {
                 Self::compile::<F, C, D>(args);
             }
             Commands::Prove(args) => {
-                let mut file = File::open(args.clone().input_json).unwrap();
-                let mut data = String::new();
-                file.read_to_string(&mut data).unwrap();
-                let input: FunctionInput = serde_json::from_str(&data).unwrap();
+                let input = Self::read_function_input(args.clone().input_json);
                 if input.bytes.is_some() {
                     Self::prove_with_evm_io::<F, C, D>(args, input.bytes());
                 } else if input.elements.is_some() {
@@ -144,6 +149,30 @@ pub trait CircuitFunction {
                     warn!("No input bytes or elements found in input.json.");
                 }
             }
+        }
+    }
+
+    fn test<F, C, const D: usize>(input_json: String)
+    where
+        F: RichField + Extendable<D>,
+        C: GenericConfig<D, F = F> + 'static,
+        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+    {
+        let build_args = BuildArgs {
+            build_dir: "./build".to_string(),
+        };
+        Self::compile::<F, C, D>(build_args);
+        let prove_args = ProveArgs {
+            build_dir: "./build".to_string(),
+            input_json: input_json.clone(),
+        };
+        let input = Self::read_function_input(input_json);
+        if input.bytes.is_some() {
+            Self::prove_with_evm_io::<F, C, D>(prove_args, input.bytes());
+        } else if input.elements.is_some() {
+            Self::prove_with_field_io::<F, C, D>(prove_args, input.elements());
+        } else {
+            panic!("No input bytes or field elements found in input.json.")
         }
     }
 }
