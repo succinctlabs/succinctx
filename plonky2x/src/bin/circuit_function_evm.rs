@@ -13,7 +13,7 @@
 //!
 //!    `./target/release/circuit_function_evm prove --input-json src/bin/circuit_function_evm_input.json`
 //!
-//! Note that this circuit will not work with evm-based io.
+//! Note that this circuit will not work with field-based io.
 
 use std::env;
 
