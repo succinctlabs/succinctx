@@ -8,6 +8,7 @@
 #![feature(async_fn_in_trait)]
 
 extern crate alloc;
+extern crate clap;
 
 pub mod builder;
 pub mod circuit;
