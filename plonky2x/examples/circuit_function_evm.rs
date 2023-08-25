@@ -48,3 +48,26 @@ fn main() {
     env_logger::init();
     Function::run();
 }
+
+#[cfg(test)]
+mod tests {
+    use plonky2x::prelude::{GoldilocksField, PoseidonGoldilocksConfig};
+
+    use super::*;
+
+    type F = GoldilocksField;
+    type C = PoseidonGoldilocksConfig;
+    const D: usize = 2;
+
+    #[test]
+    fn test_circuit_function_evm() {
+        let circuit = Function::build::<F, C, D>();
+        let mut input = circuit.input();
+        input.evm_write::<ByteVariable>(0u8);
+        input.evm_write::<ByteVariable>(1u8);
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        let xor = output.evm_read::<ByteVariable>();
+        assert_eq!(xor, 1u8);
+    }
+}

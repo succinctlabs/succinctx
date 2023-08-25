@@ -48,3 +48,27 @@ fn main() {
     env_logger::init();
     Function::run();
 }
+
+#[cfg(test)]
+mod tests {
+    use plonky2::field::types::Field;
+    use plonky2x::prelude::{GoldilocksField, PoseidonGoldilocksConfig};
+
+    use super::*;
+
+    type F = GoldilocksField;
+    type C = PoseidonGoldilocksConfig;
+    const D: usize = 2;
+
+    #[test]
+    fn test_circuit_function_field() {
+        let circuit = Function::build::<F, C, D>();
+        let mut input = circuit.input();
+        input.write::<Variable>(F::from_canonical_u64(1));
+        input.write::<Variable>(F::from_canonical_u64(2));
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        let sum = output.read::<Variable>();
+        assert_eq!(sum, F::from_canonical_u64(3));
+    }
+}
