@@ -9,7 +9,7 @@ use plonky2::util::serialization::{Buffer, IoResult};
 
 use crate::ecc::ed25519::curve::curve_types::{AffinePoint, Curve};
 use crate::hash::bit_operations::util::biguint_to_bits_target;
-use crate::num::biguint::{WitnessBigUint, CircuitBuilderBiguint};
+use crate::num::biguint::{CircuitBuilderBiguint, WitnessBigUint};
 use crate::num::nonnative::nonnative::{
     CircuitBuilderNonNative, NonNativeTarget, ReadNonNativeTarget, WriteNonNativeTarget,
 };
