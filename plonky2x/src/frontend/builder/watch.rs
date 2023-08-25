@@ -94,8 +94,8 @@ mod tests {
 
         // Write to the circuit input.
         let mut input = circuit.input();
-        input.write::<Variable>(GoldilocksField::TWO.into());
-        input.write::<Variable>(GoldilocksField::TWO.into());
+        input.write::<Variable>(GoldilocksField::TWO);
+        input.write::<Variable>(GoldilocksField::TWO);
 
         // Generate a proof.
         let (proof, output) = circuit.prove(&input);
