@@ -1,4 +1,6 @@
 use std::sync::Once;
+pub mod ethutils;
+pub mod lido;
 
 use log::LevelFilter;
 
