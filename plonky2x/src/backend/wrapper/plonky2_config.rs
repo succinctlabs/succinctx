@@ -13,8 +13,8 @@ use plonky2::plonk::config::{GenericConfig, GenericHashOut, Hasher};
 use serde::de::Visitor;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::wrapper::poseidon_bn128::{permution, GOLDILOCKS_ELEMENTS, RATE};
-use crate::wrapper::utils::{Fr, FrRepr};
+use crate::backend::wrapper::poseidon_bn128::{permution, GOLDILOCKS_ELEMENTS, RATE};
+use crate::backend::wrapper::utils::{Fr, FrRepr};
 
 /// Configuration using Poseidon BN128 over the Goldilocks field.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize)]

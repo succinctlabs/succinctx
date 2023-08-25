@@ -14,7 +14,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::plonk::prover::prove;
 use plonky2::util::timing::TimingTree;
 
-use crate::wrapper::plonky2_config::PoseidonBN128GoldilocksConfig;
+use crate::backend::wrapper::plonky2_config::PoseidonBN128GoldilocksConfig;
 
 const D: usize = 2;
 type C = PoseidonGoldilocksConfig;

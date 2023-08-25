@@ -18,7 +18,7 @@ use plonky2::plonk::config::GenericConfig;
 pub use self::io::CircuitIO;
 use crate::backend::circuit::Circuit;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
-use crate::utils::ethutils::beacon::BeaconClient;
+use crate::utils::eth::beacon::BeaconClient;
 
 /// The universal api for building circuits using `plonky2x`.
 pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {

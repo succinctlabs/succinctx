@@ -11,7 +11,7 @@ use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
-use crate::utils::ethutils::beacon::BeaconClient;
+use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::{bytes32, hex};
 
 #[derive(Debug, Clone)]
@@ -86,7 +86,7 @@ pub(crate) mod tests {
     use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
     use crate::frontend::vars::Bytes32Variable;
     use crate::utils::bytes32;
-    use crate::utils::ethutils::beacon::BeaconClient;
+    use crate::utils::eth::beacon::BeaconClient;
 
     #[test]
     fn test_get_validators_generator() {

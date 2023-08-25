@@ -2,8 +2,10 @@ use std::ops::{AddAssign, MulAssign};
 
 use ff::Field;
 
-use crate::wrapper::poseidon_bn128_constants::{C_CONSTANTS, M_MATRIX, P_MATRIX, S_CONSTANTS};
-use crate::wrapper::utils::Fr;
+use crate::backend::wrapper::poseidon_bn128_constants::{
+    C_CONSTANTS, M_MATRIX, P_MATRIX, S_CONSTANTS,
+};
+use crate::backend::wrapper::utils::Fr;
 
 pub const RATE: usize = 3;
 pub const WIDTH: usize = 4;
@@ -113,7 +115,7 @@ mod permutation_tests {
     use ff::{Field, PrimeField};
 
     use super::{permution, WIDTH};
-    use crate::wrapper::utils::Fr;
+    use crate::backend::wrapper::utils::Fr;
 
     #[test]
     fn test_permuation() -> Result<(), anyhow::Error> {
@@ -198,7 +200,7 @@ mod merkle_tree_tests {
     use plonky2::hash::merkle_tree::MerkleTree;
     use plonky2::plonk::config::GenericConfig;
 
-    use crate::wrapper::plonky2_config::PoseidonBN128GoldilocksConfig;
+    use crate::backend::wrapper::plonky2_config::PoseidonBN128GoldilocksConfig;
 
     fn random_data<F: RichField>(n: usize, k: usize) -> Vec<Vec<F>> {
         (0..n).map(|_| F::rand_vec(k)).collect()

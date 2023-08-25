@@ -8,7 +8,7 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::vars::{BoolVariable, Bytes32Variable, CircuitVariable, U256Variable};
 use crate::prelude::Variable;
-use crate::utils::ethutils::beacon::BeaconValidator;
+use crate::utils::eth::beacon::BeaconValidator;
 use crate::utils::{bytes, bytes32, hex};
 
 #[derive(Debug, Clone, Copy)]

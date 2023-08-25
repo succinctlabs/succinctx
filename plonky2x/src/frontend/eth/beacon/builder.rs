@@ -53,7 +53,7 @@ pub(crate) mod tests {
 
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::vars::Bytes32Variable;
-    use crate::utils::ethutils::beacon::BeaconClient;
+    use crate::utils::eth::beacon::BeaconClient;
     use crate::utils::{bytes32, setup_logger};
 
     #[test]
