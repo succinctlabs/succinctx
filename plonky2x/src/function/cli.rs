@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Compile a circuit.")]
