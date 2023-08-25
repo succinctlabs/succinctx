@@ -15,6 +15,7 @@
 dist/
 bin/
 .go
+!plonky2x/src/bin
 
 *.json
 !succinct.json
