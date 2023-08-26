@@ -1,4 +1,4 @@
-use eyre::Result;
+use anyhow::Result;
 use num::BigInt;
 use reqwest::Client;
 use serde::Deserialize;
@@ -97,7 +97,7 @@ mod tests {
 
     use std::env;
 
-    use eyre::Result;
+    use anyhow::Result;
 
     use super::*;
 

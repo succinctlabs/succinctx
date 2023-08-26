@@ -387,7 +387,6 @@ where
 mod tests {
     use std::time::SystemTime;
 
-    use anyhow::Result;
     use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
     use num::BigUint;
     use plonky2::field::goldilocks_field::GoldilocksField;
@@ -396,7 +395,6 @@ mod tests {
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
-    use subtle_encoding::hex;
 
     use crate::frontend::ecc::ed25519::curve::curve_types::{AffinePoint, Curve, CurveScalar};
     use crate::frontend::ecc::ed25519::curve::ed25519::Ed25519;
@@ -426,7 +424,7 @@ mod tests {
         res
     }
 
-    fn test_eddsa_circuit_with_config(config: CircuitConfig) -> Result<()> {
+    fn test_eddsa_circuit_with_config(config: CircuitConfig) {
         type F = GoldilocksField;
         type E = GoldilocksCubicParameters;
         type C = PoseidonGoldilocksConfig;
@@ -521,7 +519,7 @@ mod tests {
         let proof_time = proof_start_time.elapsed().unwrap();
 
         let verify_start_time = SystemTime::now();
-        let verify_result = data.verify(proof);
+        data.verify(proof).unwrap();
         let verify_time = verify_start_time.elapsed().unwrap();
 
         println!(
@@ -530,15 +528,13 @@ mod tests {
             proof_time.as_secs(),
             verify_time.as_secs()
         );
-
-        verify_result
     }
 
     fn test_eddsa_circuit_with_test_case(
         msgs: Vec<Vec<u8>>,
         pub_keys: Vec<Vec<u8>>,
         sigs: Vec<Vec<u8>>,
-    ) -> Result<()> {
+    ) {
         setup_logger();
 
         assert!(msgs.len() == pub_keys.len());
@@ -627,14 +623,14 @@ mod tests {
 
         let outer_proof = outer_data.prove(outer_pw).unwrap();
 
-        outer_data.verify(outer_proof)
+        outer_data.verify(outer_proof).unwrap();
     }
 
     fn test_variable_eddsa_circuit_with_test_case(
         msgs: Vec<Vec<u8>>,
         pub_keys: Vec<Vec<u8>>,
         sigs: Vec<Vec<u8>>,
-    ) -> Result<()> {
+    ) {
         setup_logger();
 
         assert!(msgs.len() == pub_keys.len());
@@ -734,23 +730,24 @@ mod tests {
 
         let outer_proof = outer_data.prove(outer_pw).unwrap();
 
-        outer_data.verify(outer_proof)
+        outer_data.verify(outer_proof).unwrap();
     }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_eddsa_circuit_narrow() -> Result<()> {
-        test_eddsa_circuit_with_config(CircuitConfig::standard_ecc_config())
+    fn test_eddsa_circuit_narrow() {
+        test_eddsa_circuit_with_config(CircuitConfig::standard_ecc_config());
     }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_eddsa_circuit_wide() -> Result<()> {
-        test_eddsa_circuit_with_config(CircuitConfig::wide_ecc_config())
+    fn test_eddsa_circuit_wide() {
+        test_eddsa_circuit_with_config(CircuitConfig::wide_ecc_config());
     }
 
     #[test]
-    fn test_eddsa_circuit_with_avail_test_case() -> Result<()> {
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_eddsa_circuit_with_avail_test_case() {
         let msg_bytes = [
             1, 164, 81, 146, 119, 87, 120, 84, 45, 84, 206, 199, 171, 245, 50, 223, 18, 145, 16,
             20, 30, 74, 39, 118, 236, 132, 187, 1, 187, 203, 3, 182, 59, 16, 197, 8, 0, 235, 7, 0,
@@ -771,11 +768,12 @@ mod tests {
             vec![msg_bytes.to_vec()],
             vec![pub_key_bytes.to_vec()],
             vec![sig_bytes.to_vec()],
-        )
+        );
     }
 
     #[test]
-    fn test_eddsa_circuit_with_celestia_test_case() -> Result<()> {
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_eddsa_circuit_with_celestia_test_case() {
         let msg = "6b080211de3202000000000022480a208909e1b73b7d987e95a7541d96ed484c17a4b0411e98ee4b7c890ad21302ff8c12240801122061263df4855e55fcab7aab0a53ee32cf4f29a1101b56de4a9d249d44e4cf96282a0b089dce84a60610ebb7a81932076d6f6368612d33";
         let pubkey = "77d8fe19357540c479649c7943639b72973093f4c74391dc7a2291d112b9bd64";
         let sig = "9dbab016b0d985150842b9d22220601829efbcb3ee3e43b74e8707dec4fd26d43f1173c00e8c7aef1d7b0a49c2fb9d1a3ddeb798feb74a8abf4c51e90beffe04";
@@ -788,11 +786,12 @@ mod tests {
             vec![msg_bytes.to_vec()],
             vec![pub_key_bytes.to_vec()],
             vec![sig_bytes.to_vec()],
-        )
+        );
     }
 
     #[test]
-    fn test_variable_eddsa_circuit_with_celestia_test_case() -> Result<()> {
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_variable_eddsa_circuit_with_celestia_test_case() {
         let msg = "6c080211f82a00000000000022480a2036f2d954fe1ba37c5036cb3c6b366d0daf68fccbaa370d9490361c51a0a38b61122408011220cddf370e891591c9d912af175c966cd8dfa44b2c517e965416b769eb4b9d5d8d2a0c08f6b097a50610dffbcba90332076d6f6368612d33";
         let pubkey = "de25aec935b10f657b43fa97e5a8d4e523bdb0f9972605f0b064eff7b17048ba";
         let sig = "091576e9e3ad0e5ba661f7398e1adb3976ba647b579b8e4a224d1d02b591ade6aedb94d3bf55d258f089d6413155a57adfd4932418a798c2d68b29850f6fb50b";
@@ -805,6 +804,6 @@ mod tests {
             vec![msg_bytes.to_vec()],
             vec![pub_key_bytes.to_vec()],
             vec![sig_bytes.to_vec()],
-        )
+        );
     }
 }

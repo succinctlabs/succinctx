@@ -1,4 +1,4 @@
-name: Rust CI
+name: plonky2x
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
 
 jobs:  
   test:
-    name: Test Suite
+    name: CI Test Suite
     runs-on: ubuntu-latest
     if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     steps:
@@ -24,7 +24,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2023-06-30
+          toolchain: nightly-2023-08-24
           override: true
 
       - name: rust-cache
@@ -53,7 +53,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace
+          args: --workspace --features "ci"
         env:
           RUSTFLAGS: -Copt-level=3 -Cdebug-assertions -Coverflow-checks=y -Cdebuginfo=0
           RUST_LOG: 1

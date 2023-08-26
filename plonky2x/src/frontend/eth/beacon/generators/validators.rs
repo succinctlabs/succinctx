@@ -89,6 +89,7 @@ pub(crate) mod tests {
     use crate::utils::eth::beacon::BeaconClient;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validators_generator() {
         dotenv::dotenv().ok();
 

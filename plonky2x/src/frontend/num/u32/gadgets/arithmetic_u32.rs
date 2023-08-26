@@ -301,7 +301,6 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -311,7 +310,7 @@ mod tests {
     use super::*;
 
     #[test]
-    pub fn test_add_many_u32s() -> Result<()> {
+    pub fn test_add_many_u32s() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -341,6 +340,6 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 }

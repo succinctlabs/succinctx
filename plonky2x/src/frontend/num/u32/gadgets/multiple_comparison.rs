@@ -79,7 +79,7 @@ pub fn list_le_u32_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+
     use num::BigUint;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::PartialWitness;
@@ -90,7 +90,7 @@ mod tests {
 
     use super::*;
 
-    fn test_list_le(size: usize, num_bits: usize) -> Result<()> {
+    fn test_list_le(size: usize, num_bits: usize) {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -136,17 +136,15 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_multiple_comparison() -> Result<()> {
+    fn test_multiple_comparison() {
         for size in [1, 3, 6] {
             for num_bits in [20, 32, 40, 44] {
-                test_list_le(size, num_bits).unwrap();
+                test_list_le(size, num_bits);
             }
         }
-
-        Ok(())
     }
 }

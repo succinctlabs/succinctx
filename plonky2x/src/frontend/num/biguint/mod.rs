@@ -496,7 +496,6 @@ impl ReadBigUint for Buffer<'_> {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use num::{BigUint, FromPrimitive, Integer};
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -508,7 +507,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_biguint_add() -> Result<()> {
+    fn test_biguint_add() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -534,11 +533,11 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_biguint_sub() -> Result<()> {
+    fn test_biguint_sub() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -564,11 +563,11 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_biguint_mul() -> Result<()> {
+    fn test_biguint_mul() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -594,11 +593,11 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_biguint_cmp() -> Result<()> {
+    fn test_biguint_cmp() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -620,11 +619,11 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_biguint_div_rem() -> Result<()> {
+    fn test_biguint_div_rem() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -653,6 +652,6 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap()
     }
 }

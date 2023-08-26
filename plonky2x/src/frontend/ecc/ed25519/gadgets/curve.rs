@@ -314,7 +314,7 @@ impl ReadAffinePoint for Buffer<'_> {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+
     use plonky2::field::types::{Field, Sample};
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -330,7 +330,7 @@ mod tests {
     use crate::frontend::num::biguint::CircuitBuilderBiguint;
 
     #[test]
-    fn test_curve_point_is_valid() -> Result<()> {
+    fn test_curve_point_is_valid() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -369,7 +369,7 @@ mod tests {
         outer_pw.set_verifier_data_target(&inner_verifier_data, &inner_data.verifier_only);
 
         let outer_proof = outer_data.prove(outer_pw).unwrap();
-        outer_data.verify(outer_proof)
+        outer_data.verify(outer_proof).unwrap();
     }
 
     #[test]
@@ -401,7 +401,7 @@ mod tests {
     }
 
     #[test]
-    fn test_curve_add() -> Result<()> {
+    fn test_curve_add() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -428,11 +428,11 @@ mod tests {
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
 
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_curve_random() -> Result<()> {
+    fn test_curve_random() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -454,11 +454,11 @@ mod tests {
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
 
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_compress_point() -> Result<()> {
+    fn test_compress_point() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -487,6 +487,6 @@ mod tests {
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
 
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 }

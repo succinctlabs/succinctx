@@ -1,11 +1,11 @@
 use alloc::sync::Arc;
 use std::convert::TryFrom;
 
+use anyhow::Result;
 use ethers::prelude::*;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::{Address, H256, U256};
 use ethers::utils::keccak256;
-use eyre::Result;
 
 use crate::frontend::eth::storage::utils::get_map_storage_location;
 use crate::frontend::eth::utils::{h256_to_u256_be, u256_to_h256_be};

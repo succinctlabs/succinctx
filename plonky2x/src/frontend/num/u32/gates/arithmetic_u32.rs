@@ -449,7 +449,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Sample;
     use plonky2::gates::gate_testing::{test_eval_fns, test_low_degree};
@@ -469,7 +469,7 @@ mod tests {
     }
 
     #[test]
-    fn eval_fns() -> Result<()> {
+    fn eval_fns() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -477,6 +477,7 @@ mod tests {
             num_ops: 3,
             _phantom: PhantomData,
         })
+        .unwrap();
     }
 
     fn get_wires<
