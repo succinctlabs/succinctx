@@ -823,7 +823,7 @@ impl ReadNonNativeTarget for Buffer<'_> {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+
     use plonky2::field::secp256k1_base::Secp256K1Base;
     use plonky2::field::types::{Field, PrimeField, Sample};
     use plonky2::iop::witness::PartialWitness;
@@ -834,7 +834,7 @@ mod tests {
     use crate::frontend::num::nonnative::nonnative::CircuitBuilderNonNative;
 
     #[test]
-    fn test_nonnative_add() -> Result<()> {
+    fn test_nonnative_add() {
         type FF = Secp256K1Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -857,11 +857,11 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_nonnative_many_adds() -> Result<()> {
+    fn test_nonnative_many_adds() {
         type FF = Secp256K1Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -897,11 +897,11 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_nonnative_sub() -> Result<()> {
+    fn test_nonnative_sub() {
         type FF = Secp256K1Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -927,11 +927,11 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_nonnative_mul() -> Result<()> {
+    fn test_nonnative_mul() {
         type FF = Secp256K1Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -953,11 +953,11 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_nonnative_neg() -> Result<()> {
+    fn test_nonnative_neg() {
         type FF = Secp256K1Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -977,11 +977,11 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_nonnative_inv() -> Result<()> {
+    fn test_nonnative_inv() {
         type FF = Secp256K1Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -1001,6 +1001,6 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 }

@@ -282,6 +282,7 @@ pub fn blake2b<
 
 #[cfg(test)]
 mod tests {
+
     use anyhow::Result;
     use hex::decode;
     use plonky2::field::types::{Field, PrimeField64};
@@ -354,6 +355,17 @@ mod tests {
     }
 
     #[test]
+    fn test_blake2b_single() {
+        println!("Running blake2b test #1");
+        run_test::<CHUNK_128_BYTES, 32>(
+            b"",
+            "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8",
+        )
+        .expect("Failed test #1");
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_blake2b() {
         println!("Running blake2b test #1");
         run_test::<CHUNK_128_BYTES, 32>(

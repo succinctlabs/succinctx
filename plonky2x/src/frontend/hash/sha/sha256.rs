@@ -275,12 +275,12 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use hex::decode;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use subtle_encoding::hex::decode;
 
     use super::*;
 
@@ -300,6 +300,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_bench() -> Result<()> {
         let mut msg = String::new();
         for _ in 0..8 {
@@ -494,7 +495,7 @@ mod tests {
             .map(|b| builder.constant_bool(*b))
             .collect::<Vec<_>>();
 
-        let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets.clone(), length);
+        let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets, length);
 
         for i in 0..digest_bits.len() {
             if digest_bits[i] {

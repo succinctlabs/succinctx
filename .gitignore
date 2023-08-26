@@ -1,9 +1,6 @@
 # Enviroment Variables
 **/.env
 
-# VSCode Settings
-.vscode/settings.json
-
 # Go Modules
 **/vendor
 

@@ -36,6 +36,7 @@ mod tests {
     use crate::utils::{address, bytes32};
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_get_storage_at_location() {
         dotenv::dotenv().ok();
 

@@ -1,11 +1,11 @@
 use alloc::sync::Arc;
 use std::convert::TryFrom;
 
+use anyhow::Result;
 use ethers::prelude::*;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::{Address, H256, U256};
 use ethers::utils::keccak256;
-use eyre::Result;
 
 use crate::frontend::eth::storage::utils::get_map_storage_location;
 use crate::frontend::eth::utils::{h256_to_u256_be, u256_to_h256_be};
@@ -53,7 +53,7 @@ impl LidoUtils {
             .get_storage_at(
                 NODE_OPERATOR_REGISTRY_ADDR.parse::<Address>()?,
                 location,
-                Some(block.into()),
+                Some(block),
             )
             .await?;
         println!(
@@ -76,7 +76,7 @@ impl LidoUtils {
             .get_proof(
                 NODE_OPERATOR_REGISTRY_ADDR.parse::<Address>()?,
                 vec![location],
-                Some(block.into()),
+                Some(block),
             )
             .await?;
         Ok(proof)
@@ -85,9 +85,9 @@ impl LidoUtils {
     pub fn get_key_offset(position: H256, node_operator_id: U256, key_index: U256) -> H256 {
         // Convert U256 values to bytes and concatenate
         let mut buffer = Vec::new();
-        buffer.extend_from_slice(&position.as_bytes());
-        buffer.extend_from_slice(&u256_to_h256_be(node_operator_id).as_bytes());
-        buffer.extend_from_slice(&u256_to_h256_be(key_index).as_bytes());
+        buffer.extend_from_slice(position.as_bytes());
+        buffer.extend_from_slice(u256_to_h256_be(node_operator_id).as_bytes());
+        buffer.extend_from_slice(u256_to_h256_be(key_index).as_bytes());
 
         // Compute keccak256 and convert to U256
         H256::from(keccak256(buffer))
@@ -120,7 +120,7 @@ impl LidoUtils {
             .get_storage_at(
                 NODE_OPERATOR_REGISTRY_ADDR.parse::<Address>()?,
                 key_offset,
-                Some(block.into()),
+                Some(block),
             )
             .await?;
         println!(
@@ -135,7 +135,7 @@ impl LidoUtils {
             .get_storage_at(
                 NODE_OPERATOR_REGISTRY_ADDR.parse::<Address>()?,
                 key_offset_plus_1_h256,
-                Some(block.into()),
+                Some(block),
             )
             .await?;
         println!(
@@ -152,7 +152,7 @@ impl LidoUtils {
             .get_proof(
                 NODE_OPERATOR_REGISTRY_ADDR.parse::<Address>()?,
                 vec![key_offset, key_offset_plus_1_h256],
-                Some(block.into()),
+                Some(block),
             )
             .await?;
         Ok(proof)
@@ -186,6 +186,6 @@ mod tests {
             .get_operator_key_info(block.into(), operator_id, key_idx)
             .await
             .unwrap();
-        // println!("operator_key_proof {:?}", operator_key_proof);
+        println!("operator_key_proof {:?}", operator_key_proof);
     }
 }

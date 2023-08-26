@@ -233,7 +233,6 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use itertools::unfold;
     use plonky2::field::extension::quartic::QuarticExtension;
     use plonky2::field::goldilocks_field::GoldilocksField;
@@ -252,11 +251,11 @@ mod tests {
     }
 
     #[test]
-    fn eval_fns() -> Result<()> {
+    fn eval_fns() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
-        test_eval_fns::<F, C, _, D>(U32RangeCheckGate::new(8))
+        test_eval_fns::<F, C, _, D>(U32RangeCheckGate::new(8)).unwrap();
     }
 
     fn test_gate_constraint(input_limbs: Vec<u64>) {

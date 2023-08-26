@@ -548,7 +548,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{PrimeField64, Sample};
     use plonky2::gates::gate_testing::{test_eval_fns, test_low_degree};
@@ -598,14 +598,14 @@ mod tests {
     }
 
     #[test]
-    fn eval_fns() -> Result<()> {
+    fn eval_fns() {
         let num_bits = 40;
         let num_chunks = 5;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        test_eval_fns::<F, C, _, D>(ComparisonGate::<_, 2>::new(num_bits, num_chunks))
+        test_eval_fns::<F, C, _, D>(ComparisonGate::<_, 2>::new(num_bits, num_chunks)).unwrap();
     }
 
     #[test]

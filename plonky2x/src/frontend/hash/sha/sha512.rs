@@ -312,11 +312,11 @@ pub fn sha512_variable<F: RichField + Extendable<D>, const D: usize>(
     let digest =
         process_sha512_variable::<F, D>(builder, &hash_msg_input, last_block_num, max_num_chunks);
 
-    return Sha512VariableTarget {
+    Sha512VariableTarget {
         message: msg_input,
         hash_msg_length_bits,
         digest,
-    };
+    }
 }
 
 fn process_sha512<F: RichField + Extendable<D>, const D: usize>(
@@ -462,12 +462,12 @@ pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use hex::decode;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use subtle_encoding::hex::decode;
 
     use super::*;
 

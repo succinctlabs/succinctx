@@ -8,39 +8,34 @@ edition = "2021"
 [features]
 default = ["parallel", "std", "timing"]
 parallel = ["plonky2/parallel"]
-std = ["plonky2/std", "anyhow/std", "itertools/use_std"]
+std = ["plonky2/std", "itertools/use_std"]
 timing = ["plonky2/timing"]
+ci=[]
 
 [dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false}
-anyhow = "1.0.71"
-curve25519-dalek = { git = "https://github.com/succinctlabs/curve25519-dalek.git", branch = "feature/edwards-point-getters" }
 curta = { git = "https://github.com/succinctlabs/curta.git" }
-digest = "0.10.7"
+
+num = { version = "0.4", default-features = false }
+sha2 = "0.10.7"
+curve25519-dalek = { git = "https://github.com/succinctlabs/curve25519-dalek.git", branch = "feature/edwards-point-getters" }
+
+ethers = { version = "2.0"}
+
 hex = "0.4.3"
-itertools = { version = "0.10.0", default-features = false }
 log = { version = "0.4.14", default-features = false }
 rand = { version = "0.8.4", package = "rand"}
-serde = { version = "1.0", features = ["derive"] }
+itertools = { version = "0.10.0", default-features = false }
+serde = { version = "1.0.187", features = ["derive"] }
 serde_json = "1.0.103"
-sha2 = "0.10.7"
-subtle-encoding = "0.5.1"
-num = { version = "0.4", default-features = false }
-ethers = { version = "2.0"}
 tokio = { version = "1", features = ["full"] }
-eyre = "0.6.8"
+anyhow = "1.0.75"
 reqwest = { version = "0.11.4", features = ["json"] }
-dotenv = "0.15.0"
 array-macro = "2.1.5"
-tracing = "0.1.37"
-base64 = "0.13"
-futures = "0.3.28"
-lazy_static = "1.4.0"
-ff = {package="ff" , version="0.13", features = ["derive"]}
 env_logger = "0.10.0"
 clap = { version = "4.4.0", features = ["derive"] }
 
-
 [dev-dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = ["gate_testing"]}
-rand = "0.8.4"
+dotenv = "0.15.0"
+env_logger = "0.10.0"

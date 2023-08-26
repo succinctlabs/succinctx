@@ -1,4 +1,4 @@
-use eyre::Result;
+use anyhow::Result;
 use num::BigInt;
 use reqwest::Client;
 use serde::Deserialize;
@@ -97,11 +97,12 @@ mod tests {
 
     use std::env;
 
-    use eyre::Result;
+    use anyhow::Result;
 
     use super::*;
 
     #[tokio::test]
+    #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validators_root_by_slot() -> Result<()> {
         dotenv::dotenv()?;
         let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
@@ -113,6 +114,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validators_root_by_block_root() -> Result<()> {
         dotenv::dotenv()?;
         let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
@@ -124,6 +126,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validator_by_slot() -> Result<()> {
         dotenv::dotenv()?;
         let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
@@ -135,6 +138,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validator_by_block_root() -> Result<()> {
         dotenv::dotenv()?;
         let rpc = env::var("CONSENSUS_RPC_URL").unwrap();

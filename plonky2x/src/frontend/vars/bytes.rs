@@ -39,7 +39,7 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         Self(
             variables
                 .chunks_exact(8)
-                .map(|chunk| ByteVariable::from_variables(chunk))
+                .map(ByteVariable::from_variables)
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap(),

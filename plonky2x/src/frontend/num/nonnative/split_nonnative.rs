@@ -155,7 +155,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+
     use curta::chip::utils::biguint_to_16_digits_field;
     use num::bigint::RandBigInt;
     use plonky2::field::secp256k1_scalar::Secp256K1Scalar;
@@ -171,7 +171,7 @@ mod tests {
     use crate::frontend::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
 
     #[test]
-    fn test_split_nonnative() -> Result<()> {
+    fn test_split_nonnative() {
         type FF = Secp256K1Scalar;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -190,11 +190,11 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 
     #[test]
-    fn test_split_nonnative_16_bit_limbs() -> Result<()> {
+    fn test_split_nonnative_16_bit_limbs() {
         type FF = Ed25519Base;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -227,6 +227,6 @@ mod tests {
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
-        data.verify(proof)
+        data.verify(proof).unwrap();
     }
 }

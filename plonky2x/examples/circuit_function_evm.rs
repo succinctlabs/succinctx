@@ -20,9 +20,9 @@ use std::env;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::AlgebraicHasher;
-use plonky2x::frontend::vars::ByteVariable;
 use plonky2x::backend::circuit::Circuit;
 use plonky2x::backend::function::CircuitFunction;
+use plonky2x::frontend::vars::ByteVariable;
 use plonky2x::prelude::CircuitBuilder;
 
 struct Function {}

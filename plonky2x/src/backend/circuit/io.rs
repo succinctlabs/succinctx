@@ -48,7 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitInput<F, D> {
     pub fn evm_write_all(&mut self, bytes: &[u8]) {
         self.io.evm.as_ref().expect("evm io is not enabled");
         let elements: Vec<F> = bytes
-            .into_iter()
+            .iter()
             .flat_map(|b| ByteVariable::elements(*b))
             .collect();
         self.buffer.extend(elements);
