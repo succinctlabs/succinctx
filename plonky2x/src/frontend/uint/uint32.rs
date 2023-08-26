@@ -105,3 +105,57 @@ impl EvmVariable for U32Variable {
         value
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+
+    use super::U32Variable;
+    use crate::frontend::vars::EvmVariable;
+    use crate::prelude::*;
+
+    #[test]
+    fn test_u32_evm() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let var = U32Variable::constant(&mut builder, 0x12345678);
+
+        let encoded = var.encode(&mut builder);
+
+        let bytes = [0x12, 0x34, 0x56, 0x78];
+
+        for (i, byte) in encoded.iter().enumerate() {
+            let expected = ByteVariable::constant(&mut builder, bytes[i]).0;
+            byte.0.iter().enumerate().for_each(|(j, &bit)| {
+                builder.assert_is_equal(bit.0, expected[j].0);
+            });
+        }
+
+        let decoded = U32Variable::decode(&mut builder, &encoded[0..4]);
+        builder.assert_is_equal(decoded.0, var.0);
+
+        let circuit = builder.build::<C>();
+        let pw = PartialWitness::new();
+
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_u32_evm_value() {
+        type F = GoldilocksField;
+
+        let val = 0x12345678_u32;
+        let encoded = U32Variable::encode_value::<F>(val);
+        let decoded = U32Variable::decode_value::<F>(&encoded);
+        assert_eq!(encoded[0], 0x12);
+        assert_eq!(encoded[1], 0x34);
+        assert_eq!(encoded[2], 0x56);
+        assert_eq!(encoded[3], 0x78);
+        assert_eq!(decoded, 0x12345678);
+    }
+}

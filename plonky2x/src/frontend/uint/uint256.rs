@@ -118,3 +118,64 @@ impl EvmVariable for U256Variable {
         U256::from_big_endian(bytes)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use ethers::types::U256;
+
+    use super::U32Variable;
+    use crate::frontend::uint::uint256::U256Variable;
+    use crate::frontend::vars::EvmVariable;
+    use crate::prelude::*;
+
+    #[test]
+    fn test_u256_evm() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let mut var_bytes = vec![];
+        for i in 0..32 {
+            let byte = ByteVariable::constant(&mut builder, i as u8);
+            var_bytes.push(byte);
+        }
+        let decoded = U256Variable::decode(&mut builder, &var_bytes);
+        let encoded = decoded.encode(&mut builder);
+        let redecoded = U256Variable::decode(&mut builder, &encoded[0..32]);
+        for i in 0..8 {
+            builder.assert_is_equal(decoded.0[i].0, redecoded.0[i].0);
+        }
+        for i in 0..32 {
+            for j in 0..8 {
+                builder.assert_is_equal(encoded[i].0[j].0, var_bytes[i].0[j].0);
+            }
+        }
+
+        let circuit = builder.build::<C>();
+        let pw = PartialWitness::new();
+
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_u256_evm_value() {
+        type F = GoldilocksField;
+
+        let mut u8bytes = [0_u8; 32];
+        for i in 0..32 {
+            u8bytes[i] = rand::random::<u8>();
+        }
+        let decoded = U256Variable::decode_value::<F>(&u8bytes);
+        let encoded = U256Variable::encode_value::<F>(decoded);
+
+        let realu256 = U256::from_big_endian(&u8bytes);
+
+        assert_eq!(realu256, decoded);
+        for i in 0..8 {
+            assert_eq!(encoded[i * 4..(i + 1) * 4], u8bytes[i * 4..(i + 1) * 4]);
+        }
+    }
+}

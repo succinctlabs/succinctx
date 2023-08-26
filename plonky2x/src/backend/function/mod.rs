@@ -45,7 +45,7 @@ pub trait CircuitFunction {
         info!("Building verifier contract...");
         let contract_path = format!("{}/FunctionVerifier.sol", args.build_dir);
         let mut contract_file = File::create(&contract_path).unwrap();
-        let contract = format!("pragma solidity ^0.8.16;
+        let contract = "pragma solidity ^0.8.16;
 
 interface IFunctionVerifier {{
     function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool);
@@ -62,7 +62,7 @@ contract FunctionVerifier is IFunctionVerifier {{
         return keccak256(\"\");
     }}
 }}
-");
+";
         contract_file.write_all(contract.as_bytes()).unwrap();
         info!(
             "Successfully saved verifier contract to disk at {}.",
