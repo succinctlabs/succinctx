@@ -79,12 +79,12 @@ pub fn sha256_variable_length_single_chunk<F: RichField + Extendable<D>, const D
 }
 
 // Pad a variable length, single SHA256 chunk from a message
-fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
+pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget],
     // Length in bits (assumes less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
     length: Target,
-) -> Vec<BoolTarget> {
+) -> [BoolTarget; CHUNK_64_BYTES * 8] {
     assert!(message.len() <= SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8);
     // 1) Adds all message bits before idx = length
     // 2) Adds padding bit when idx = length
@@ -127,7 +127,11 @@ fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
         msg_input.push(length_bits[i]);
     }
 
-    msg_input
+    let mut padded_msg = [builder.add_virtual_bool_target_safe(); CHUNK_64_BYTES * 8];
+
+    padded_msg[..(CHUNK_64_BYTES * 8)].copy_from_slice(&msg_input[..(CHUNK_64_BYTES * 8)]);
+
+    padded_msg
 }
 
 // Process SHA256 on padded chunks
