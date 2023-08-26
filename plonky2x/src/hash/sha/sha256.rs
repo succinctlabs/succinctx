@@ -1,3 +1,6 @@
+use curta::chip::hash::sha::sha256::builder_gadget::{CurtaBytes, SHA256BuilderGadget};
+use curta::chip::hash::sha::sha256::builder_gadget::SHA256Builder;
+use curta::math::prelude::CubicParameters;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
@@ -269,6 +272,20 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
 
     process_sha256(builder, &msg_input)
 }
+
+// pub fn sha_256_stark<F: RichField + Extendable<D>, E: CubicParameters<F>, const D: usize>(
+//     builder: &mut CircuitBuilder<F, D>,
+//     padded_msgs: Vec<CurtaBytes<64>>,
+// ) -> Vec<CurtaBytes<32>> {
+//     let mut gadget: SHA256BuilderGadget<F, E, D> = builder.init_sha256();
+
+//     let mut digest_targets = Vec::new();
+//     for padded_msg in padded_msgs {
+//         let digest = builder.sha256(&padded_msg, &mut gadget);
+//         digest_targets.push(digest);
+//     }
+//     digest_targets
+// }
 
 #[cfg(test)]
 mod tests {
