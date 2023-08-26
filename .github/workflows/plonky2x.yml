@@ -13,7 +13,7 @@ on:
 jobs:  
   test:
     name: CI Test Suite
-    runs-on: ubuntu-latest
+    runs-on: chad
     if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     steps:
       - name: Checkout sources
