@@ -7,7 +7,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
-use crate::prelude::{BoolVariable, ByteVariable, Zero};
+use crate::prelude::{BoolVariable, ByteVariable};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
