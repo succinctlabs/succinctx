@@ -108,8 +108,6 @@ impl EvmVariable for U32Variable {
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
-
     use super::U32Variable;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;

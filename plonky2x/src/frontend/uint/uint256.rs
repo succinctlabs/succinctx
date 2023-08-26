@@ -123,7 +123,6 @@ impl EvmVariable for U256Variable {
 mod tests {
     use ethers::types::U256;
 
-    use super::U32Variable;
     use crate::frontend::uint::uint256::U256Variable;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
