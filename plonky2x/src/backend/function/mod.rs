@@ -47,21 +47,21 @@ pub trait CircuitFunction {
         let mut contract_file = File::create(&contract_path).unwrap();
         let contract = "pragma solidity ^0.8.16;
 
-interface IFunctionVerifier {{
+interface IFunctionVerifier {
     function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool);
 
     function verificationKeyHash() external pure returns (bytes32);
-}}
+}
 
-contract FunctionVerifier is IFunctionVerifier {{
-    function verify(bytes32, bytes32, bytes memory) external pure returns (bool) {{
+contract FunctionVerifier is IFunctionVerifier {
+    function verify(bytes32, bytes32, bytes memory) external pure returns (bool) {
         return true;
-    }}
+    }
 
-    function verificationKeyHash() external pure returns (bytes32) {{
+    function verificationKeyHash() external pure returns (bytes32) {
         return keccak256(\"\");
-    }}
-}}
+    }
+}
 ";
         contract_file.write_all(contract.as_bytes()).unwrap();
         info!(
