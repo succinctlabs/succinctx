@@ -9,7 +9,7 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
 use super::super::vars::{EthAccountVariable, EthProofVariable};
@@ -82,11 +82,40 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
+        let chain_id_bytes = self.chain_id.to_be_bytes();
+        dst.write_all(&chain_id_bytes)?;
+
+        dst.write_target_vec(&self.block_hash.targets())?;
+        dst.write_target_vec(&self.address.targets())?;
+        dst.write_target_vec(&self.storage_key.targets())?;
+        dst.write_target_vec(&self.value.targets())
     }
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        todo!()
+        let mut chain_id_bytes = [0u8; 8];
+        src.read_exact(&mut chain_id_bytes)?;
+        let chain_id = u64::from_be_bytes(chain_id_bytes);
+
+        let block_hash_targets = src.read_target_vec()?;
+        let block_hash = Bytes32Variable::from_targets(&block_hash_targets);
+
+        let address_targets = src.read_target_vec()?;
+        let address = AddressVariable::from_targets(&address_targets);
+
+        let storage_key_targets = src.read_target_vec()?;
+        let storage_key = Bytes32Variable::from_targets(&storage_key_targets);
+
+        let value_targets = src.read_target_vec()?;
+        let value = Bytes32Variable::from_targets(&value_targets);
+
+        Ok(Self {
+            address,
+            storage_key,
+            block_hash,
+            value,
+            chain_id,
+            _phantom: PhantomData::<F>,
+        })
     }
 }
