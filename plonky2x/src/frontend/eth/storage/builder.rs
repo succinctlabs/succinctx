@@ -25,6 +25,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         block_hash: Bytes32Variable,
     ) -> Bytes32Variable {
         let generator = EthStorageProofGenerator::new(self, address, storage_key, block_hash);
+        self.add_simple_generator(&generator);
         generator.value
     }
 
@@ -105,7 +106,7 @@ mod tests {
 
         // Read output.
         let circuit_value = output.read::<Bytes32Variable>();
-        println!("{}", circuit_value);
+        println!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
