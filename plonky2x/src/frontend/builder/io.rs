@@ -46,7 +46,7 @@ impl<const D: usize> CircuitIO<D> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    fn init_field_io(&mut self) {
+    pub(crate) fn init_field_io(&mut self) {
         if self.io.evm.is_some() || self.io.recursive_proof.is_some() {
             panic!("cannot use field io and other io methods at the same time")
         } else if self.io.field.is_none() {

@@ -19,6 +19,7 @@ curta = { git = "https://github.com/succinctlabs/curta.git" }
 num = { version = "0.4", default-features = false }
 sha2 = "0.10.7"
 curve25519-dalek = { git = "https://github.com/succinctlabs/curve25519-dalek.git", branch = "feature/edwards-point-getters" }
+ff = {package="ff" , version="0.13", features = ["derive"]}
 
 ethers = { version = "2.0"}
 
@@ -34,6 +35,7 @@ reqwest = { version = "0.11.4", features = ["json"] }
 array-macro = "2.1.5"
 env_logger = "0.10.0"
 clap = { version = "4.4.0", features = ["derive"] }
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = ["gate_testing"]}
