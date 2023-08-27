@@ -7,7 +7,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable, U64Variable};
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable};
 use crate::prelude::Variable;
 
 /// A variable representing the Ethereum Block Header
@@ -26,9 +26,9 @@ pub struct EthHeader {
     pub bloom: H256,
     pub difficulty: U256,
     pub number: U256,
-    pub gas_limit: u64,
-    pub gas_used: u64,
-    pub time: u64,
+    // pub gas_limit: u64,
+    // pub gas_used: u64,
+    // pub time: u64,
     pub extra: Bytes,
 }
 
@@ -43,9 +43,9 @@ pub struct EthHeaderVariable {
     pub bloom: Bytes32Variable,
     pub difficulty: U256Variable,
     pub number: U256Variable,
-    pub gas_limit: U64Variable,
-    pub gas_used: U64Variable,
-    pub time: U64Variable,
+    // pub gas_limit: U64Variable, // TODO: add back once we have U64 variables
+    // pub gas_used: U64Variable,
+    // pub time: U64Variable,
     pub extra: Bytes32Variable,
 }
 
@@ -65,9 +65,9 @@ impl CircuitVariable for EthHeaderVariable {
             bloom: Bytes32Variable::init(builder),
             difficulty: U256Variable::init(builder),
             number: U256Variable::init(builder),
-            gas_limit: U64Variable::init(builder),
-            gas_used: U64Variable::init(builder),
-            time: U64Variable::init(builder),
+            // gas_limit: U64Variable::init(builder),
+            // gas_used: U64Variable::init(builder),
+            // time: U64Variable::init(builder),
             extra: Bytes32Variable::init(builder),
         }
     }
@@ -90,9 +90,9 @@ impl CircuitVariable for EthHeaderVariable {
         vars.extend(self.bloom.variables());
         vars.extend(self.difficulty.variables());
         vars.extend(self.number.variables());
-        vars.extend(self.gas_limit.variables());
-        vars.extend(self.gas_used.variables());
-        vars.extend(self.time.variables());
+        // vars.extend(self.gas_limit.variables());
+        // vars.extend(self.gas_used.variables());
+        // vars.extend(self.time.variables());
         vars.extend(self.extra.variables());
         vars
     }

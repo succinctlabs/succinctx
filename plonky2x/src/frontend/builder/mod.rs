@@ -6,6 +6,7 @@ pub mod watch;
 use std::collections::HashMap;
 
 use ethers::providers::{Http, Middleware, Provider};
+use ethers::types::U256;
 use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::RichField;
@@ -14,6 +15,7 @@ use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as _CircuitBuilder;
 use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::GenericConfig;
+use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
 use crate::backend::circuit::Circuit;
@@ -26,7 +28,7 @@ pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {
     pub io: CircuitIO<D>,
     pub constants: HashMap<Variable, F>,
     pub execution_client: Option<Provider<Http>>,
-    pub chain_id: Option<U256>,
+    pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
 }
 
@@ -57,21 +59,24 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     pub fn set_execution_client(&mut self, client: Provider<Http>) {
+        let rt = Runtime::new().expect("failed to create tokio runtime");
+        let result: U256 = rt.block_on(async {
+            client
+                .get_chainid()
+                .await
+                .expect("Failed to get chain id from provided RPC")
+        });
+        let result_cast = result.as_u64();
         self.execution_client = Some(client);
-        let chain_id_res = client.get_chainid().wait();
-        if chain_id_res.is_err() {
-            panic!("failed to get chain id from execution client")
-        }
-        let chain_id = chain_id_res.unwrap();
-        self.chain_id = Some(chain_id);
+        self.chain_id = Some(result_cast);
+    }
+
+    pub fn get_chain_id(&self) -> u64 {
+        self.chain_id.unwrap()
     }
 
     pub fn set_beacon_client(&mut self, client: BeaconClient) {
         self.beacon_client = Some(client);
-    }
-
-    pub fn get_chain_id(&self) -> U256 {
-        self.chain_id.unwrap()
     }
 
     /// Build the circuit.

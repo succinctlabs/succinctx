@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use array_macro::array;
-use ethers::types::{H256, U256};
+use ethers::types::{Address, H256, U256};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
@@ -189,7 +189,7 @@ impl CircuitVariable for EthLogVariable {
                 .iter()
                 .map(|t| t.variables())
                 .flatten()
-                .collect(),
+                .collect::<Vec<Variable>>(),
         );
         vars.extend(self.data_hash.variables());
         vars

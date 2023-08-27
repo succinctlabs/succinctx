@@ -1,9 +1,10 @@
 use ethers::providers::{JsonRpcClient, Provider};
+use ethers::types::{Address, U256};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
 use super::generators::storage::EthStorageProofGenerator;
-use super::vars::storage::{EthAccountVariable, EthLogVariable};
+use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::vars::Bytes32Variable;
