@@ -19,67 +19,54 @@ use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 
 #[derive(Debug, Clone)]
-pub struct EthStorageProofGenerator<
-    P: Clone + JsonRpcClient + 'static,
-    F: RichField + Extendable<D>,
-    const D: usize,
-> {
-    pub address: AddressVariable,
-    pub storage_key: Bytes32Variable,
-    pub account: EthAccountVariable,
-    pub account_proof: EthProofVariable,
-    pub storage_proof: EthProofVariable,
+pub struct EthStorageProofGenerator<F: RichField + Extendable<D>, const D: usize> {
+    address: AddressVariable,
+    storage_key: Bytes32Variable,
+    block_hash: Bytes32Variable,
     pub value: Bytes32Variable,
-    pub block_number: u64,
-    pub provider: Provider<P>,
+    chain_id: u64,
     _phantom: PhantomData<F>,
 }
 
-impl<P: Clone + JsonRpcClient + 'static, F: RichField + Extendable<D>, const D: usize>
-    EthStorageProofGenerator<P, F, D>
-{
+impl<F: RichField + Extendable<D>, const D: usize> EthStorageProofGenerator<F, D> {
     pub fn new(
         builder: &mut CircuitBuilder<F, D>,
-        provider: Provider<P>,
         address: AddressVariable,
         storage_key: Bytes32Variable,
-        block_number: u64,
-    ) -> EthStorageProofGenerator<P, F, D> {
-        let account = builder.init::<EthAccountVariable>();
-        let account_proof = builder.init::<EthProofVariable>();
-        let storage_proof = builder.init::<EthProofVariable>();
+        block_hash: Bytes32Variable,
+    ) -> EthStorageProofGenerator<F, D> {
+        let chain_id = builder.get_execution_chain_id();
         let value = builder.init::<Bytes32Variable>();
         EthStorageProofGenerator {
             address,
             storage_key,
-            account,
-            account_proof,
-            storage_proof,
+            block_hash,
             value,
-            block_number,
-            provider,
+            chain_id,
             _phantom: PhantomData::<F>,
         }
     }
 }
 
-impl<P: Clone + JsonRpcClient + 'static, F: RichField + Extendable<D>, const D: usize>
-    SimpleGenerator<F, D> for EthStorageProofGenerator<P, F, D>
+impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
+    for EthStorageProofGenerator<F, D>
 {
     fn id(&self) -> String {
         "GetStorageProofGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
-        vec![self.address.targets(), self.storage_key.targets()]
-            .into_iter()
-            .flatten()
-            .collect()
+        let mut targets = Vec::new();
+        targets.extend(self.address.targets());
+        targets.extend(self.storage_key.targets());
+        targets.extend(self.block_hash.targets());
+        targets
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, buffer: &mut GeneratedValues<F>) {
         let address = self.address.get(witness);
         let location = self.storage_key.get(witness);
+        // TODO instantiate provider from self.chain_id
         let get_proof_closure = || -> EIP1186ProofResponse {
             let rt = Runtime::new().unwrap();
             rt.block_on(async {

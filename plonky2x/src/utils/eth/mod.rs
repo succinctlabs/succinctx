@@ -19,3 +19,15 @@ impl From<Vec<u8>> for BLSPubkey {
         Self(a)
     }
 }
+
+pub fn write_chain_id(chain_id: u32) -> Vec<u8> {}
+
+pub fn read_chain_id(bytes: &[u8]) -> u32 {}
+
+pub fn get_provider(chain_id: u32) -> Provider<Http> {
+    dotenv::dotenv().ok();
+    let rpc_str = format!("RPC_{}", chain_id);
+    let rpc_url = env::var(rpc_str).unwrap();
+    let provider = Provider::<Http>::try_from(rpc_url).unwrap();
+    provider
+}

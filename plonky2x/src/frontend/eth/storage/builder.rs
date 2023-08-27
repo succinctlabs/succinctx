@@ -2,23 +2,50 @@ use ethers::providers::{JsonRpcClient, Provider};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
-use super::generator::EthStorageProofGenerator;
+use super::generators::storage::EthStorageProofGenerator;
+use super::vars::storage::{EthAccountVariable, EthLogVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::vars::Bytes32Variable;
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn get_eth_storage_slot_at<P: Clone + JsonRpcClient + 'static>(
+    pub fn get_storage_key_at(
         &mut self,
-        provider: Provider<P>,
+        mapping_location: U256,
+        map_key: Bytes32Variable,
+    ) -> Bytes32Variable {
+        todo!();
+    }
+
+    pub fn eth_getStorageAt(
+        &mut self,
         address: AddressVariable,
         storage_key: Bytes32Variable,
-        block_number: u64,
+        block_hash: Bytes32Variable,
     ) -> Bytes32Variable {
-        let generator =
-            EthStorageProofGenerator::new(self, provider, address, storage_key, block_number);
-        self.api.add_simple_generator(generator.clone());
+        let generator = EthStorageProofGenerator::new(self, address, storage_key, block_hash);
         generator.value
+    }
+
+    pub fn eth_getBlockByHash(&mut self, block_hash: Bytes32Variable) -> EthHeaderVariable {
+        todo!()
+    }
+
+    pub fn eth_getAccount(
+        &mut self,
+        address: Address,
+        block_hash: Bytes32Variable,
+    ) -> EthAccountVariable {
+        todo!()
+    }
+
+    pub fn eth_getTransactionReceipt(
+        &mut self,
+        transaction_hash: Bytes32Variable,
+        block_hash: Bytes32Variable,
+        log_index: usize,
+    ) -> EthLogVariable {
+        todo!()
     }
 }
 
@@ -37,7 +64,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_storage_at_location() {
+    fn test_eth_getStorageAt() {
         dotenv::dotenv().ok();
 
         type F = GoldilocksField;
@@ -48,13 +75,15 @@ mod tests {
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
         let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_execution_client(provider);
+
         let state_root = builder.init::<Bytes32Variable>();
         let address = builder.init::<AddressVariable>();
         let location = builder.init::<Bytes32Variable>();
         let claimed_value = builder.init::<Bytes32Variable>();
         let block_number = 17880427u64;
 
-        let value = builder.get_eth_storage_slot_at(provider, address, location, block_number);
+        let value = builder.get_eth_storage_slot_at(address, location, block_number);
 
         let mut pw = PartialWitness::new();
         state_root.set(
