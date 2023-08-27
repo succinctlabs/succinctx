@@ -18,6 +18,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         todo!();
     }
 
+    #[allow(non_snake_case)]
     pub fn eth_getStorageAt(
         &mut self,
         address: AddressVariable,
@@ -29,10 +30,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         generator.value
     }
 
+    #[allow(non_snake_case)]
     pub fn eth_getBlockByHash(&mut self, block_hash: Bytes32Variable) -> EthHeaderVariable {
         todo!()
     }
 
+    #[allow(non_snake_case)]
     pub fn eth_getAccount(
         &mut self,
         address: Address,
@@ -41,6 +44,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         todo!()
     }
 
+    #[allow(non_snake_case)]
     pub fn eth_getTransactionReceipt(
         &mut self,
         transaction_hash: Bytes32Variable,
@@ -66,6 +70,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
+    #[allow(non_snake_case)]
     fn test_eth_getStorageAt() {
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
