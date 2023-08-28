@@ -1,10 +1,9 @@
-use ethers::types::Address;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
 use super::generators::block::EthBlockGenerator;
 use super::generators::storage::{
-    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+    EthAccountProofGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::frontend::builder::CircuitBuilder;
@@ -45,10 +44,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     #[allow(non_snake_case)]
     pub fn eth_get_account(
         &mut self,
-        _address: Address,
-        _block_hash: Bytes32Variable,
+        address: AddressVariable,
+        block_hash: Bytes32Variable,
     ) -> EthAccountVariable {
-        todo!()
+        let generator = EthAccountProofGenerator::new(self, address, block_hash);
+        self.add_simple_generator(&generator);
+        generator.value
     }
 
     #[allow(non_snake_case)]
@@ -74,7 +75,7 @@ mod tests {
 
     use super::*;
     use crate::frontend::eth::storage::utils::get_map_storage_location;
-    use crate::frontend::eth::storage::vars::{EthHeader, EthLog};
+    use crate::frontend::eth::storage::vars::{EthAccount, EthHeader, EthLog};
     use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
 
@@ -299,6 +300,60 @@ mod tests {
                     "0x5cdda96947975d4afbc971c9aa8bb2cc684e158d10a0d878b3a5b8b0f895262c"
                 )
             }
+        );
+
+        let _ = circuit.serialize().unwrap();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    #[allow(non_snake_case)]
+    fn test_eth_get_account() {
+        dotenv::dotenv().ok();
+        let rpc_url = env::var("RPC_1").unwrap();
+        let provider = Provider::<Http>::try_from(rpc_url).unwrap();
+
+        // This is the circuit definition
+        let mut builder = CircuitBuilderX::new();
+        builder.set_execution_client(provider);
+        let block_hash = builder.read::<Bytes32Variable>();
+        let address = builder.read::<AddressVariable>();
+
+        let value = builder.eth_get_account(address, block_hash);
+        builder.write(value);
+
+        // Build your circuit.
+        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+
+        // Write to the circuit input.
+        // These values are taken from Ethereum block https://etherscan.io/block/17880427
+        let mut input = circuit.input();
+        input.write::<Bytes32Variable>(bytes32!(
+            "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
+        ));
+        input.write::<AddressVariable>(address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"));
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
+
+        // Read output.
+        let circuit_value = output.read::<EthAccountVariable>();
+        println!("{:?}", circuit_value);
+        assert_eq!(
+            circuit_value,
+            EthAccount {
+                nonce: U64::from(1),
+                balance: U256::from(0),
+                code_hash: bytes32!(
+                    "0xb9c1c929064cd21734c102a698e68bf617feefcfa5a9f62407c45401546736bf"
+                ),
+                storage_hash: bytes32!(
+                    "0x073d71569b4b986bc20b6921dbbc1b74145588f765627dd5e566d65a6b7b33cc"
+                ),
+            },
         );
 
         let _ = circuit.serialize().unwrap();
