@@ -13,6 +13,7 @@ import (
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/consensys/gnark/logger"
 	"github.com/consensys/gnark/test"
+	"github.com/rs/zerolog/log"
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
 )
@@ -119,30 +120,39 @@ func LoadVerifierCircuit(path string) (constraint.ConstraintSystem, groth16.Prov
 		return nil, nil, nil, fmt.Errorf("failed to open r1cs file: %w", err)
 	}
 	r1cs := groth16.NewCS(ecc.BN254)
+	start := time.Now()
 	_, err = r1cs.ReadFrom(r1csFile)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to read r1cs file: %w", err)
 	}
+	elapsed := time.Since(start)
+	log.Debug().Msg("Successfully loaded constraint system, time: " + elapsed.String())
 
 	pkFile, err := os.Open(path + "/pk.bin")
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to open pk file: %w", err)
 	}
 	pk := groth16.NewProvingKey(ecc.BN254)
+	start = time.Now()
 	_, err = pk.ReadFrom(pkFile)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to read pk file: %w", err)
 	}
+	elapsed = time.Since(start)
+	log.Debug().Msg("Successfully loaded proving key, time: " + elapsed.String())
 
 	vkFile, err := os.Open(path + "/vk.bin")
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to open vk file: %w", err)
 	}
 	vk := groth16.NewVerifyingKey(ecc.BN254)
+	start = time.Now()
 	_, err = vk.ReadFrom(vkFile)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to read vk file: %w", err)
 	}
+	elapsed = time.Since(start)
+	log.Debug().Msg("Successfully loaded verifying key, time: " + elapsed.String())
 
 	return r1cs, pk, vk, nil
 }
