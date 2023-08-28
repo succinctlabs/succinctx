@@ -26,7 +26,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         address: AddressVariable,
         storage_key: Bytes32Variable,
     ) -> Bytes32Variable {
-        let generator = EthStorageProofGenerator::new(self, block_hash, address, storage_key );
+        let generator = EthStorageProofGenerator::new(self, block_hash, address, storage_key);
         self.add_simple_generator(&generator);
         generator.value
     }
