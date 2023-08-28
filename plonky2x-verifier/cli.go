@@ -10,8 +10,7 @@ func main() {
 	circuitName := flag.String("circuit", "", "Circuit data directory")
 	proofFlag := flag.Bool("verify", false, "profile the circuit")
 	testFlag := flag.Bool("test", false, "test the circuit")
-	compileFlag := flag.Bool("compile", false, "Compile the universal verifier circuit")
-	serializeFlag := flag.Bool("serialize", false, "Serialize the universal verifier circuit")
+	compileFlag := flag.Bool("compile", false, "Compile and save the universal verifier circuit")
 	flag.Parse()
 
 	if *circuitName == "" {
@@ -34,9 +33,12 @@ func main() {
 	if *compileFlag {
 		fmt.Println("Checking for an existing verifier circuit")
 		fmt.Println("Compiling verifier circuit")
-		if *serializeFlag {
-			fmt.Println("Serializing verifier circuit")
+		r1cs, pk, vk, err := CompileVerifierCircuit("./data/dummy")
+		if err != nil {
+			fmt.Println("Failed to compile verifier circuit:", err)
+			os.Exit(1)
 		}
+		SaveVerifierCircuit("./build", r1cs, pk, vk)
 	}
 
 	if *proofFlag {
