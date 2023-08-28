@@ -284,7 +284,7 @@ mod tests {
 
         setup_logger();
 
-        let build_path = format!("../plonky2x_verifier/data");
+        let build_path = format!("../plonky2x-verifier/data");
         let path = format!("{}/test_circuit/", build_path);
         let dummy_path = format!("{}/dummy/", build_path);
 
