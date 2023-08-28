@@ -3,8 +3,7 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
 use super::generators::block::EthBlockGenerator;
-use super::generators::storage::{EthStorageProofGenerator, EthLogGenerator};
-
+use super::generators::storage::{EthLogGenerator, EthStorageProofGenerator};
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
@@ -217,7 +216,6 @@ mod tests {
             "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
         ));
 
-
         // Generate a proof.
         let (proof, output) = circuit.prove(&input);
 
@@ -236,7 +234,9 @@ mod tests {
                     bytes32!("0x00000000000000000000000059b4bb1f5d943cf71a10df63f6b743ee4a4489ee"),
                     bytes32!("0x000000000000000000000000def1c0ded9bec7f1a1670819833240f027b25eff")
                 ],
-                data_hash: bytes32!("0x5cdda96947975d4afbc971c9aa8bb2cc684e158d10a0d878b3a5b8b0f895262c")
+                data_hash: bytes32!(
+                    "0x5cdda96947975d4afbc971c9aa8bb2cc684e158d10a0d878b3a5b8b0f895262c"
+                )
             }
         );
     }

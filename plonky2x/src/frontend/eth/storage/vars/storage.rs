@@ -120,8 +120,7 @@ impl CircuitVariable for EthAccountVariable {
         offset += 32 * 8;
         let nonce = U256Variable::from_variables(&variables[offset..offset + 4]);
         offset += 4;
-        let storage_hash =
-            Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        let storage_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
         Self {
             balance,
             code_hash,

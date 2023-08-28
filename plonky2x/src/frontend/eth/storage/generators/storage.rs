@@ -14,7 +14,7 @@ use sha2::Digest;
 use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::storage::vars::{EthLogVariable, EthLog};
+use crate::frontend::eth::storage::vars::{EthLog, EthLogVariable};
 use crate::frontend::eth::utils::u256_to_h256_be;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
@@ -151,9 +151,7 @@ impl<F: RichField + Extendable<D>, const D: usize> EthLogGenerator<F, D> {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for EthLogGenerator<F, D>
-{
+impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D> for EthLogGenerator<F, D> {
     fn id(&self) -> String {
         "GetEthLogGenerator".to_string()
     }
@@ -163,7 +161,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         targets.extend(self.transaction_hash.targets());
         targets.extend(self.block_hash.targets());
         targets
-    } 
+    }
 
     fn run_once(&self, witness: &PartitionWitness<F>, buffer: &mut GeneratedValues<F>) {
         let transaction_hash = self.transaction_hash.get(witness);
@@ -172,13 +170,15 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
         let provider = get_provider(self.chain_id);
         let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result: TransactionReceipt = rt.block_on(async {
-            provider
-                .get_transaction_receipt(transaction_hash)
-                .await
-                .expect("Failed to call get_transaction_receipt")
-        }).expect("No transaction receipt found");
-        
+        let result: TransactionReceipt = rt
+            .block_on(async {
+                provider
+                    .get_transaction_receipt(transaction_hash)
+                    .await
+                    .expect("Failed to call get_transaction_receipt")
+            })
+            .expect("No transaction receipt found");
+
         let log = &result.logs[self.log_index as usize];
         let value = EthLog {
             address: log.address,
