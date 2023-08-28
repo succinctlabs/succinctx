@@ -64,13 +64,10 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, buffer: &mut GeneratedValues<F>) {
-        println!("Running generator at the top");
         let address = self.address.get(witness);
         let location = self.storage_key.get(witness);
         let block_hash = self.block_hash.get(witness);
-        println!("Done with getting all variable");
         let provider = get_provider(self.chain_id);
-        println!("Done with getting provider");
         let rt = Runtime::new().expect("failed to create tokio runtime");
         let result: EIP1186ProofResponse = rt.block_on(async {
             provider
@@ -78,18 +75,15 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
                 .await
                 .expect("Failed to get proof")
         });
-        println!("Done with getting result");
         let value = u256_to_h256_be(result.storage_proof[0].value);
         self.value.set(buffer, value);
     }
 
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        println!("Serializing generator");
         let chain_id_bytes = self.chain_id.to_be_bytes();
         dst.write_usize(8)?;
         dst.write_all(&chain_id_bytes)?;
-        println!("Serializing generator after chain id");
 
         dst.write_target_vec(&self.block_hash.targets())?;
         dst.write_target_vec(&self.address.targets())?;
@@ -99,7 +93,6 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        println!("deserializing generator");
         let mut chain_id_bytes = [0u8; 8];
         src.read_exact(&mut chain_id_bytes)?;
         let chain_id = u64::from_be_bytes(chain_id_bytes);
