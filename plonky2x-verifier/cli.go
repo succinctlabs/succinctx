@@ -6,12 +6,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/logger"
 )
 
 func main() {
-	circuitName := flag.String("circuit", "", "Circuit data directory")
-	proofFlag := flag.Bool("verify", false, "profile the circuit")
+	circuitName := flag.String("circuit", "", "circuit data directory")
+	proofFlag := flag.Bool("prove", false, "create a proof")
+	verifyFlag := flag.Bool("verify", false, "verify a proof")
 	testFlag := flag.Bool("test", false, "test the circuit")
 	compileFlag := flag.Bool("compile", false, "Compile and save the universal verifier circuit")
 	flag.Parse()
@@ -23,7 +25,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Debug().Msg("Circuit path: " + "./data/"+*circuitName)
+	log.Debug().Msg("Circuit path: " + "./data/" + *circuitName)
 
 	if *testFlag {
 		log.Debug().Msg("testing circuit")
@@ -41,7 +43,7 @@ func main() {
 		log.Info().Msg("compiling verifier circuit")
 		r1cs, pk, vk, err := CompileVerifierCircuit("./data/dummy")
 		if err != nil {
-		    log.Error().Msg("failed to compile verifier circuit:" + err.Error())
+			log.Error().Msg("failed to compile verifier circuit:" + err.Error())
 			os.Exit(1)
 		}
 		err = SaveVerifierCircuit("./build", r1cs, pk, vk)
@@ -59,10 +61,19 @@ func main() {
 			os.Exit(1)
 		}
 		log.Info().Msg("creating the groth16 verifier proof")
-		_, _, err = Prove("./data/"+*circuitName, r1cs, pk, vk)
+		proof, publicWitness, err := Prove("./data/"+*circuitName, r1cs, pk)
 		if err != nil {
 			log.Err(err).Msg("failed to create the proof")
 			os.Exit(1)
 		}
+		err = groth16.Verify(proof, vk, publicWitness)
+		if err != nil {
+			log.Error().Msg("failed to verify proof: %w" + err.Error())
+			os.Exit(1)
+		}
+		log.Info().Msg("Successfully verified proof")
+	}
+
+	if *verifyFlag {
 	}
 }

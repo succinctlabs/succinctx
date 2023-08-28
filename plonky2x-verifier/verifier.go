@@ -13,7 +13,6 @@ import (
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/consensys/gnark/logger"
 	"github.com/consensys/gnark/test"
-	"github.com/rs/zerolog/log"
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
 )
@@ -115,6 +114,7 @@ func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth
 }
 
 func LoadVerifierCircuit(path string) (constraint.ConstraintSystem, groth16.ProvingKey, groth16.VerifyingKey, error) {
+	log := logger.Logger()
 	r1csFile, err := os.Open(path + "/r1cs.bin")
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to open r1cs file: %w", err)
@@ -157,7 +157,7 @@ func LoadVerifierCircuit(path string) (constraint.ConstraintSystem, groth16.Prov
 	return r1cs, pk, vk, nil
 }
 
-func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey, vk groth16.VerifyingKey) (groth16.Proof, witness.Witness, error) {
+func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey) (groth16.Proof, witness.Witness, error) {
 	log := logger.Logger()
 
 	verifierOnlyCircuitData := verifier.DeserializeVerifierOnlyCircuitData(circuitPath + "/verifier_only_circuit_data.json")
@@ -170,7 +170,7 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 		CircuitPath:  circuitPath,
 	}
 
-    log.Debug().Msg("Generating witness")
+	log.Debug().Msg("Generating witness")
 	start := time.Now()
 	witness, err := frontend.NewWitness(assignment, ecc.BN254.ScalarField())
 	if err != nil {
@@ -186,17 +186,12 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 		return nil, nil, fmt.Errorf("failed to create proof: %w", err)
 	}
 	elapsed = time.Since(start)
-	log.Info().Msg("Successfully created proof, time: " +  elapsed.String())
+	log.Info().Msg("Successfully created proof, time: " + elapsed.String())
 
 	publicWitness, err := witness.Public()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get public witness: %w", err)
 	}
-	err = groth16.Verify(proof, vk, publicWitness)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to verify proof: %w", err)
-	}
-	log.Info().Msg("Successfully verified proof")
 
 	return proof, publicWitness, nil
 }
