@@ -33,6 +33,7 @@ pub struct WrappedCircuit<
     InnerConfig::Hasher: AlgebraicHasher<F>,
 {
     circuit: Circuit<F, InnerConfig, D>,
+    hash_circuit : Circuit<F, InnerConfig, D>,
     recursive_circuit: Circuit<F, InnerConfig, D>,
     circuit_proof_target: ProofWithPublicInputsTarget<D>,
     circuit_verifier_target: VerifierCircuitTarget,
@@ -155,6 +156,7 @@ where
 
         Self {
             circuit,
+            hash_circuit,
             recursive_circuit,
             circuit_proof_target,
             circuit_verifier_target,
