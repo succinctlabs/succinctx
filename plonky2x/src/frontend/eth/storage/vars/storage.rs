@@ -187,8 +187,7 @@ impl CircuitVariable for EthLogVariable {
         vars.extend(
             self.topics
                 .iter()
-                .map(|t| t.variables())
-                .flatten()
+                .flat_map(|t| t.variables())
                 .collect::<Vec<Variable>>(),
         );
         vars.extend(self.data_hash.variables());
@@ -204,7 +203,7 @@ impl CircuitVariable for EthLogVariable {
             Bytes32Variable::from_variables(&variables[offset + 32 * 8..offset + 32 * 8 * 2]),
             Bytes32Variable::from_variables(&variables[offset + 32 * 8 * 2..offset + 32 * 8 * 3]),
         ];
-        offset = offset + 32 * 8 * 3;
+        offset += 32 * 8 * 3;
         let data_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
         Self {
             address,
