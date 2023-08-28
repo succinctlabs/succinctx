@@ -192,8 +192,8 @@ mod tests {
         // This is the circuit definition
         let mut builder = CircuitBuilderX::new();
         builder.set_execution_client(provider);
-        let block_hash = builder.read::<Bytes32Variable>();
         let transaction_hash = builder.read::<Bytes32Variable>();
+        let block_hash = builder.read::<Bytes32Variable>();
         let log_index = 0u64;
 
         let value = builder.eth_get_transaction_log(transaction_hash, block_hash, log_index);
@@ -205,13 +205,13 @@ mod tests {
         // Write to the circuit input.
         // These values are taken from Ethereum block https://etherscan.io/block/17880427
         let mut input = circuit.input();
-        // block hash
-        input.write::<Bytes32Variable>(bytes32!(
-            "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
-        ));
         // transaction hash
         input.write::<Bytes32Variable>(bytes32!(
             "0xead2251970404128e6f9bdff0133badb7338c5fa7ea4eec24e88af85a6d03cf2"
+        ));
+        // block hash
+        input.write::<Bytes32Variable>(bytes32!(
+            "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
         ));
 
 
