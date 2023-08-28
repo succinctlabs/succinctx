@@ -82,7 +82,6 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
         let chain_id_bytes = self.chain_id.to_be_bytes();
-        dst.write_usize(8)?;
         dst.write_all(&chain_id_bytes)?;
 
         dst.write_target_vec(&self.block_hash.targets())?;
