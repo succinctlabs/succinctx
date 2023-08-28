@@ -19,7 +19,7 @@ use std::env;
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::AlgebraicHasher;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::Circuit;
 use plonky2x::backend::function::CircuitFunction;
 use plonky2x::frontend::vars::ByteVariable;
@@ -31,8 +31,8 @@ impl CircuitFunction for Function {
     fn build<F, C, const D: usize>() -> Circuit<F, C, D>
     where
         F: RichField + Extendable<D>,
-        C: plonky2::plonk::config::GenericConfig<D, F = F> + 'static,
-        <C as plonky2::plonk::config::GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+        C: GenericConfig<D, F = F> + 'static,
+        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
     {
         let mut builder = CircuitBuilder::<F, D>::new();
         let a = builder.evm_read::<ByteVariable>();
