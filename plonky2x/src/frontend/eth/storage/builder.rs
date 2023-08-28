@@ -54,7 +54,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         block_hash: Bytes32Variable,
         log_index: u64,
     ) -> EthLogVariable {
-        // todo!()
         let generator = EthLogGenerator::new(self, transaction_hash, block_hash, log_index);
         self.add_simple_generator(&generator);
         generator.value
