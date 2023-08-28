@@ -6,7 +6,6 @@
 #![feature(decl_macro)]
 #![feature(core_intrinsics)]
 #![feature(async_fn_in_trait)]
-#![feature(is_terminal)]
 
 extern crate alloc;
 extern crate clap;
