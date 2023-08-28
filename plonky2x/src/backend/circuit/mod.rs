@@ -121,7 +121,6 @@ where
         // Setup serializers.
         let (gate_serializer, generator_serializer) = Self::serializers();
 
-        println!("Setting up buffer");
         // Setup buffer.
         let mut buffer = Vec::new();
         let circuit_bytes = self
@@ -129,10 +128,8 @@ where
             .to_bytes(&gate_serializer, &generator_serializer)?;
         buffer.write_usize(circuit_bytes.len())?;
         buffer.write_all(&circuit_bytes)?;
-        println!("end of write all");
 
         if self.io.evm.is_some() {
-            println!("At top of evm io");
             let io = self.io.evm.as_ref().unwrap();
             buffer.write_usize(0)?;
             buffer.write_target_vec(
@@ -142,7 +139,6 @@ where
                     .collect_vec()
                     .as_slice(),
             )?;
-            println!("hmmm");
 
             buffer.write_target_vec(
                 io.output_bytes
