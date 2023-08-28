@@ -1,4 +1,4 @@
-use std::fs::{File, self};
+use std::fs::{self, File};
 use std::path::Path;
 
 use anyhow::Result;
