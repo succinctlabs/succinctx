@@ -115,9 +115,11 @@ impl CircuitVariable for EthAccountVariable {
 
     fn from_variables(variables: &[Variable]) -> Self {
         let balance = U256Variable::from_variables(&variables[0..4]);
-        let code_hash = Bytes32Variable::from_variables(&variables[4..36]);
-        let nonce = U256Variable::from_variables(&variables[36..40]);
-        let storage_hash = Bytes32Variable::from_variables(&variables[40..72]);
+        let code_hash = Bytes32Variable::from_variables(&variables[4..4 + 32 * 8]);
+        let offset = 4 + 32 * 8;
+        let nonce = U256Variable::from_variables(&variables[offset..offset + 4]);
+        let storage_hash =
+            Bytes32Variable::from_variables(&variables[offset + 4..offset + 4 + 32 * 8]);
         Self {
             balance,
             code_hash,
@@ -196,8 +198,8 @@ impl CircuitVariable for EthLogVariable {
 
     fn from_variables(variables: &[Variable]) -> Self {
         // TODO: include assertion about how long variables are
-        let address = AddressVariable::from_variables(&variables[0..8 * 160]);
-        let mut offset = 8 * 160;
+        let address = AddressVariable::from_variables(&variables[0..8 * 20]);
+        let mut offset = 8 * 20;
         let topics = [
             Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]),
             Bytes32Variable::from_variables(&variables[offset + 32 * 8..offset + 32 * 8 * 2]),
