@@ -127,15 +127,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Mul<F, D> for U32Variable {
 
     fn mul(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
         let self_target = self.0 .0;
-        let other_target = rhs.0 .0;
+        let rhs_target = rhs.0 .0;
         let self_biguint = BigUintTarget {
             limbs: vec![U32Target(self_target)],
         };
-        let other_biguint = BigUintTarget {
-            limbs: vec![U32Target(other_target)],
+        let rhs_biguint = BigUintTarget {
+            limbs: vec![U32Target(rhs_target)],
         };
 
-        let product_biguint = builder.api.mul_biguint(&self_biguint, &other_biguint);
+        let product_biguint = builder.api.mul_biguint(&self_biguint, &rhs_biguint);
 
         // Get the least significant limb
         let product = product_biguint.limbs[0].0;
@@ -148,15 +148,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Add<F, D> for U32Variable {
 
     fn add(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
         let self_target = self.0 .0;
-        let other_target = rhs.0 .0;
+        let rhs_target = rhs.0 .0;
         let self_biguint = BigUintTarget {
             limbs: vec![U32Target(self_target)],
         };
-        let other_biguint = BigUintTarget {
-            limbs: vec![U32Target(other_target)],
+        let rhs_biguint = BigUintTarget {
+            limbs: vec![U32Target(rhs_target)],
         };
 
-        let sum_biguint = builder.api.add_biguint(&self_biguint, &other_biguint);
+        let sum_biguint = builder.api.add_biguint(&self_biguint, &rhs_biguint);
 
         // Get the least significant limb
         let sum = sum_biguint.limbs[0].0;
@@ -170,15 +170,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for U32Variable {
 
     fn sub(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
         let self_target = self.0 .0;
-        let other_target = rhs.0 .0;
+        let rhs_target = rhs.0 .0;
         let self_biguint = BigUintTarget {
             limbs: vec![U32Target(self_target)],
         };
-        let other_biguint = BigUintTarget {
-            limbs: vec![U32Target(other_target)],
+        let rhs_biguint = BigUintTarget {
+            limbs: vec![U32Target(rhs_target)],
         };
 
-        let diff_biguint = builder.api.sub_biguint(&self_biguint, &other_biguint);
+        let diff_biguint = builder.api.sub_biguint(&self_biguint, &rhs_biguint);
         let diff = diff_biguint.limbs[0].0;
         Self(Variable(diff))
     }
