@@ -7,15 +7,17 @@ use std::fs;
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::PartialWitness;
+use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
-use plonky2::util::serialization::{Buffer, DefaultGateSerializer, IoResult, Read, Write};
+use plonky2::util::serialization::{
+    Buffer, DefaultGateSerializer, IoResult, Read, Remaining, Write,
+};
 
 use self::io::{CircuitInput, CircuitOutput};
 use self::utils::CustomGeneratorSerializer;
-use crate::frontend::builder::io::{EvmIO, FieldIO};
+use crate::frontend::builder::io::{EvmIO, FieldIO, RecursiveProofIO};
 use crate::frontend::builder::CircuitIO;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
 use crate::utils::hex;
@@ -33,28 +35,33 @@ where
     <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
 {
     /// Returns an input instance for the circuit.
-    pub fn input(&self) -> CircuitInput<F, D> {
+    pub fn input(&self) -> CircuitInput<F, C, D> {
         CircuitInput {
             io: self.io.clone(),
             buffer: Vec::new(),
+            proofs: Vec::new(),
         }
     }
 
     /// Returns an input instance for the circuit.
-    pub fn output(&self) -> CircuitOutput<F, D> {
+    pub fn output(&self) -> CircuitOutput<F, C, D> {
         CircuitOutput {
             io: self.io.clone(),
             buffer: Vec::new(),
+            proofs: Vec::new(),
         }
     }
 
     /// Generates a proof for the circuit. The proof can be verified using `verify`.
     pub fn prove(
         &self,
-        input: &CircuitInput<F, D>,
-    ) -> (ProofWithPublicInputs<F, C, D>, CircuitOutput<F, D>) {
-        // Get input variables from io.
+        input: &CircuitInput<F, C, D>,
+    ) -> (ProofWithPublicInputs<F, C, D>, CircuitOutput<F, C, D>) {
+        let mut pw = PartialWitness::new();
+
+        // Set the input variables.
         let input_variables = if self.io.evm.is_some() {
+            println!("using emv io");
             self.io
                 .evm
                 .clone()
@@ -64,16 +71,30 @@ where
                 .flat_map(|b| b.variables())
                 .collect()
         } else if self.io.field.is_some() {
+            println!("using field io");
             self.io.field.clone().unwrap().input_variables
         } else {
-            todo!()
+            vec![]
         };
         assert_eq!(input_variables.len(), input.buffer.len());
-
-        // Assign input variables.
-        let mut pw = PartialWitness::new();
         for i in 0..input_variables.len() {
             input_variables[i].set(&mut pw, input.buffer[i]);
+        }
+
+        // Set the recursive proof inputs.
+        if self.io.recursive_proof.is_some() {
+            println!("got here?");
+            let proofs = self
+                .io
+                .recursive_proof
+                .as_ref()
+                .unwrap()
+                .input_proofs
+                .clone();
+            for i in 0..proofs.len() {
+                println!("set proof");
+                pw.set_proof_with_pis_target(&proofs[i], &input.proofs[i]);
+            }
         }
 
         // Generate the proof.
@@ -83,6 +104,7 @@ where
         let output = CircuitOutput {
             io: self.io.clone(),
             buffer: proof.public_inputs[input_variables.len()..].to_vec(),
+            proofs: Vec::new(),
         };
 
         (proof, output)
@@ -92,8 +114,8 @@ where
     pub fn verify(
         &self,
         proof: &ProofWithPublicInputs<F, C, D>,
-        input: &CircuitInput<F, D>,
-        output: &CircuitOutput<F, D>,
+        input: &CircuitInput<F, C, D>,
+        output: &CircuitOutput<F, C, D>,
     ) {
         let mut public_inputs = Vec::new();
         public_inputs.extend(input.buffer.clone());
@@ -172,8 +194,15 @@ where
                     .collect_vec()
                     .as_slice(),
             )?;
-        } else {
-            todo!()
+        }
+
+        if self.io.recursive_proof.is_some() {
+            let io = self.io.recursive_proof.as_ref().unwrap();
+            buffer.write_usize(2)?;
+            buffer.write_usize(io.input_proofs.len())?;
+            for i in 0..io.input_proofs.len() {
+                buffer.write_target_proof_with_public_inputs(&io.input_proofs[i])?;
+            }
         }
 
         Ok(buffer)
@@ -221,6 +250,23 @@ where
             circuit.io.field = Some(FieldIO {
                 input_variables: input_targets.into_iter().map(Variable).collect_vec(),
                 output_variables: output_targets.into_iter().map(Variable).collect_vec(),
+            });
+        }
+
+        println!("GOT EHRE");
+        if !buffer.is_empty() {
+            println!("BUFFER IS NOT EMPTY!");
+            buffer.read_usize()?;
+            let input_proof_count = buffer.read_usize()?;
+            println!("input_proof_count={}", input_proof_count);
+            let mut input_proofs = Vec::new();
+            for _ in 0..input_proof_count {
+                input_proofs.push(buffer.read_target_proof_with_public_inputs()?);
+                println!("hm");
+            }
+            circuit.io.recursive_proof = Some(RecursiveProofIO {
+                input_proofs,
+                output_variables: Vec::new(),
             });
         }
 

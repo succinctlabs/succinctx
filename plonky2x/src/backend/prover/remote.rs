@@ -40,8 +40,8 @@ impl Prover for RemoteProver {
     async fn prove<F, C, const D: usize>(
         &self,
         circuit: &Circuit<F, C, D>,
-        input: &CircuitInput<F, D>,
-    ) -> (ProofWithPublicInputs<F, C, D>, CircuitOutput<F, D>)
+        input: &CircuitInput<F, C, D>,
+    ) -> (ProofWithPublicInputs<F, C, D>, CircuitOutput<F, C, D>)
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,
@@ -92,7 +92,7 @@ impl Prover for RemoteProver {
         let proof = ProofWithPublicInputs::<F, C, D>::deserialize_from_json(
             result.clone().unwrap().get("proof").unwrap().to_owned(),
         );
-        let output = CircuitOutput::<F, D>::deserialize_from_json(
+        let output = CircuitOutput::<F, C, D>::deserialize_from_json(
             circuit,
             result.unwrap().get("output").unwrap().to_owned(),
         );
@@ -102,8 +102,11 @@ impl Prover for RemoteProver {
     async fn prove_batch<F, C, const D: usize>(
         &self,
         circuit: &Circuit<F, C, D>,
-        inputs: Vec<CircuitInput<F, D>>,
-    ) -> Vec<(ProofWithPublicInputs<F, C, D>, CircuitOutput<F, D>)>
+        inputs: Vec<CircuitInput<F, C, D>>,
+    ) -> (
+        Vec<ProofWithPublicInputs<F, C, D>>,
+        Vec<CircuitOutput<F, C, D>>,
+    )
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,
@@ -115,6 +118,6 @@ impl Prover for RemoteProver {
             let future = self.prove(circuit, &inputs[i]);
             futures.push(future);
         }
-        join_all(futures).await
+        join_all(futures).await.into_iter().unzip()
     }
 }

@@ -1,8 +1,10 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
 use super::CircuitBuilder;
+use crate::backend::circuit::Circuit;
 use crate::frontend::vars::EvmVariable;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
 
@@ -47,7 +49,7 @@ impl<const D: usize> CircuitIO<D> {
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     fn init_field_io(&mut self) {
-        if self.io.evm.is_some() || self.io.recursive_proof.is_some() {
+        if self.io.evm.is_some() {
             panic!("cannot use field io and other io methods at the same time")
         } else if self.io.field.is_none() {
             self.io.field = Some(FieldIO {
@@ -58,12 +60,21 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     fn init_evm_io(&mut self) {
-        if self.io.field.is_some() || self.io.recursive_proof.is_some() {
+        if self.io.field.is_some() {
             panic!("cannot use evm io and other io methods at the same time")
         } else if self.io.evm.is_none() {
             self.io.evm = Some(EvmIO {
                 input_bytes: Vec::new(),
                 output_bytes: Vec::new(),
+            })
+        }
+    }
+
+    fn init_proof_io(&mut self) {
+        if self.io.recursive_proof.is_none() {
+            self.io.recursive_proof = Some(RecursiveProofIO {
+                input_proofs: Vec::new(),
+                output_variables: Vec::new(),
             })
         }
     }
@@ -91,6 +102,23 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             None => panic!("cannot read from field io"),
         }
         variable
+    }
+
+    pub fn proof_read<C>(&mut self, cd: &Circuit<F, C, D>) -> ProofWithPublicInputsTarget<D>
+    where
+        C: GenericConfig<D, F = F> + 'static,
+        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+    {
+        println!("read proof");
+        self.init_proof_io();
+        let proof = self.add_virtual_proof_with_pis(&cd.data.common);
+        self.io
+            .recursive_proof
+            .as_mut()
+            .unwrap()
+            .input_proofs
+            .push(proof.clone());
+        proof
     }
 
     pub fn write<V: CircuitVariable>(&mut self, variable: V) {

@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 
 use curta::math::prelude::PrimeField64;
+use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
@@ -14,15 +15,28 @@ use crate::prelude::{ByteVariable, CircuitVariable};
 
 /// A circuit input. Write to the input using `write` and `evm_write`.
 #[derive(Debug, Clone)]
-pub struct CircuitInput<F: RichField + Extendable<D>, const D: usize> {
+pub struct CircuitInput<F, C, const D: usize>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F> + 'static,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+{
     pub io: CircuitIO<D>,
     pub buffer: Vec<F>,
+    pub proofs: Vec<ProofWithPublicInputs<F, C, D>>,
 }
 
 /// A circuit output. Read from the output using `read` `evm_read`.
-pub struct CircuitOutput<F: RichField + Extendable<D>, const D: usize> {
+#[derive(Debug, Clone)]
+pub struct CircuitOutput<F, C, const D: usize>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F> + 'static,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+{
     pub io: CircuitIO<D>,
     pub buffer: Vec<F>,
+    pub proofs: Vec<ProofWithPublicInputs<F, C, D>>,
 }
 
 /// A trait that implements methods for loading and save proofs from disk.
@@ -33,7 +47,12 @@ pub trait ProofWithPublicInputsSerializable<F: RichField + Extendable<D>, const 
     fn load(&self, path: &str) -> Self;
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitInput<F, D> {
+impl<F, C, const D: usize> CircuitInput<F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F> + 'static,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+{
     /// Writes a value to the public circuit input using field-based serialization.
     pub fn write<V: CircuitVariable>(&mut self, value: V::ValueType<F>) {
         self.io.field.as_ref().expect("field io is not enabled");
@@ -67,6 +86,16 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitInput<F, D> {
             .flat_map(|b| ByteVariable::elements(*b))
             .collect();
         self.buffer.extend(elements);
+    }
+
+    /// Writes a proof to the public circuit input.
+    pub fn proof_write(&mut self, proof: ProofWithPublicInputs<F, C, D>) {
+        self.proofs.push(proof);
+    }
+
+    /// Writes a batch of proofs to the public circuit input.
+    pub fn proof_write_all(&mut self, proofs: &[ProofWithPublicInputs<F, C, D>]) {
+        self.proofs.extend_from_slice(proofs);
     }
 
     /// Sets a value to the circuit input. This method only works if the circuit is using
@@ -110,7 +139,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitInput<F, D> {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
+impl<F, C, const D: usize> CircuitOutput<F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F> + 'static,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+{
     /// Reads a value from the public circuit output using field-based serialization.
     pub fn read<V: CircuitVariable>(self) -> V::ValueType<F> {
         self.io.field.as_ref().expect("field io is not enabled");
@@ -159,6 +193,16 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
         bytes
     }
 
+    /// Reads a proof from the public circuit output.
+    pub fn proof_read(self) -> ProofWithPublicInputs<F, C, D> {
+        self.proofs.into_iter().take(1).collect_vec()[0].to_owned()
+    }
+
+    /// Reads a batch of proofs from the public circuit output.
+    pub fn proof_read_all(self) -> Vec<ProofWithPublicInputs<F, C, D>> {
+        self.proofs
+    }
+
     /// Reads a value from the circuit output. It also can access the value of any intermediate
     /// variable in the circuit.
     pub fn get<V: CircuitVariable>(&self, _: V) -> V::ValueType<F> {
@@ -176,7 +220,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
     }
 
     /// Deserializes the output buffer from json.
-    pub fn deserialize_from_json<C>(circuit: &Circuit<F, C, D>, data: String) -> Self
+    pub fn deserialize_from_json(circuit: &Circuit<F, C, D>, data: String) -> Self
     where
         C: GenericConfig<D, F = F> + 'static,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
@@ -188,6 +232,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
                 .iter()
                 .map(|x| F::from_canonical_u64(x.parse().unwrap()))
                 .collect(),
+            proofs: Vec::new(),
         };
         output
     }

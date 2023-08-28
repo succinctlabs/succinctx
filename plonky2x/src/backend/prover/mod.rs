@@ -21,8 +21,8 @@ pub trait Prover {
     async fn prove<F, C, const D: usize>(
         &self,
         circuit: &Circuit<F, C, D>,
-        input: &CircuitInput<F, D>,
-    ) -> (ProofWithPublicInputs<F, C, D>, CircuitOutput<F, D>)
+        input: &CircuitInput<F, C, D>,
+    ) -> (ProofWithPublicInputs<F, C, D>, CircuitOutput<F, C, D>)
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,
@@ -32,8 +32,11 @@ pub trait Prover {
     async fn prove_batch<F, C, const D: usize>(
         &self,
         circuit: &Circuit<F, C, D>,
-        inputs: Vec<CircuitInput<F, D>>,
-    ) -> Vec<(ProofWithPublicInputs<F, C, D>, CircuitOutput<F, D>)>
+        inputs: Vec<CircuitInput<F, C, D>>,
+    ) -> (
+        Vec<ProofWithPublicInputs<F, C, D>>,
+        Vec<CircuitOutput<F, C, D>>,
+    )
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,
