@@ -9,7 +9,7 @@ use super::uint32_n::{U32NVariable, ValueTrait};
 use super::AlgebraicVariable;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
-use crate::prelude::ByteVariable;
+use crate::prelude::{Add, ByteVariable, Mul, Sub};
 
 impl ValueTrait for U256 {
     fn to_limbs<const N: usize>(self) -> [u32; N] {
@@ -165,6 +165,30 @@ impl AlgebraicVariable for U256Variable {
     }
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> Mul<F, D> for U256Variable {
+    type Output = Self;
+
+    fn mul(self, rhs: U256Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        AlgebraicVariable::mul(&self, builder, &rhs)
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Add<F, D> for U256Variable {
+    type Output = Self;
+
+    fn add(self, rhs: U256Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        AlgebraicVariable::add(&self, builder, &rhs)
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for U256Variable {
+    type Output = Self;
+
+    fn sub(self, rhs: U256Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        AlgebraicVariable::sub(&self, builder, &rhs)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use ethers::types::U256;
@@ -172,7 +196,6 @@ mod tests {
     use rand::Rng;
 
     use crate::frontend::uint::uint256::U256Variable;
-    use crate::frontend::uint::AlgebraicVariable;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
@@ -287,7 +310,7 @@ mod tests {
 
         let a = U256Variable::constant(&mut builder, a);
         let b = U256Variable::constant(&mut builder, b);
-        let result = a.add(&mut builder, &b);
+        let result = builder.add(a, b);
         let expected_result_var = U256Variable::constant(&mut builder, expected_value);
 
         for i in 0..8 {
@@ -302,7 +325,7 @@ mod tests {
     }
 
     #[test]
-    fn test_u256sub() {
+    fn test_u256_sub() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -329,7 +352,7 @@ mod tests {
 
         let a = U256Variable::constant(&mut builder, a);
         let b = U256Variable::constant(&mut builder, b);
-        let result = a.sub(&mut builder, &b);
+        let result = builder.sub(a, b);
         let expected_result_var = U256Variable::constant(&mut builder, expected_value);
 
         for i in 0..8 {
@@ -371,7 +394,7 @@ mod tests {
 
         let a = U256Variable::constant(&mut builder, a);
         let b = U256Variable::constant(&mut builder, b);
-        let result = a.mul(&mut builder, &b);
+        let result = builder.mul(a, b);
         let expected_result_var = U256Variable::constant(&mut builder, expected_value);
 
         for i in 0..8 {

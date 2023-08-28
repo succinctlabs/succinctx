@@ -9,7 +9,7 @@ use super::uint32_n::{U32NVariable, ValueTrait};
 use super::AlgebraicVariable;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
-use crate::prelude::ByteVariable;
+use crate::prelude::{Add, ByteVariable, Mul, Sub};
 
 impl ValueTrait for U128 {
     fn to_limbs<const N: usize>(self) -> [u32; N] {
@@ -165,13 +165,36 @@ impl AlgebraicVariable for U128Variable {
     }
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> Mul<F, D> for U128Variable {
+    type Output = Self;
+
+    fn mul(self, rhs: U128Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        AlgebraicVariable::mul(&self, builder, &rhs)
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Add<F, D> for U128Variable {
+    type Output = Self;
+
+    fn add(self, rhs: U128Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        AlgebraicVariable::add(&self, builder, &rhs)
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for U128Variable {
+    type Output = Self;
+
+    fn sub(self, rhs: U128Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        AlgebraicVariable::sub(&self, builder, &rhs)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use ethers::types::U128;
     use rand::Rng;
 
     use crate::frontend::uint::uint128::U128Variable;
-    use crate::frontend::uint::AlgebraicVariable;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
@@ -257,7 +280,7 @@ mod tests {
             &mut builder,
             U128([operand_b as u64, (operand_b >> 64) as u64]),
         );
-        let result = a.add(&mut builder, &b);
+        let result = builder.add(a, b);
         let expected_result_var = U128Variable::constant(
             &mut builder,
             U128([expected_result as u64, (expected_result >> 64) as u64]),
@@ -297,7 +320,7 @@ mod tests {
             U128([operand_b as u64, (operand_b >> 64) as u64]),
         );
 
-        let result = a.sub(&mut builder, &b);
+        let result = builder.sub(a, b);
         let expected_result_var = U128Variable::constant(
             &mut builder,
             U128([expected_result as u64, (expected_result >> 64) as u64]),
@@ -337,7 +360,7 @@ mod tests {
             U128([operand_b as u64, (operand_b >> 64) as u64]),
         );
 
-        let result = a.mul(&mut builder, &b);
+        let result = builder.mul(a, b);
         let expected_result_var = U128Variable::constant(
             &mut builder,
             U128([expected_result as u64, (expected_result >> 64) as u64]),

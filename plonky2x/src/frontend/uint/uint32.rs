@@ -10,7 +10,7 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
-use crate::prelude::{BoolVariable, ByteVariable, One, Zero};
+use crate::prelude::{Add, BoolVariable, ByteVariable, Mul, One, Sub, Zero};
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
@@ -200,12 +200,35 @@ impl AlgebraicVariable for U32Variable {
     }
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> Mul<F, D> for U32Variable {
+    type Output = Self;
+
+    fn mul(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        AlgebraicVariable::mul(&self, builder, &rhs)
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Add<F, D> for U32Variable {
+    type Output = Self;
+
+    fn add(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        AlgebraicVariable::add(&self, builder, &rhs)
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for U32Variable {
+    type Output = Self;
+
+    fn sub(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        AlgebraicVariable::sub(&self, builder, &rhs)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rand::Rng;
 
     use super::U32Variable;
-    use crate::frontend::uint::AlgebraicVariable;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
@@ -270,7 +293,7 @@ mod tests {
 
         let a = U32Variable::constant(&mut builder, operand_a);
         let b = U32Variable::constant(&mut builder, operand_b);
-        let result = a.add(&mut builder, &b);
+        let result = builder.add(a, b);
         let expected_result_var = U32Variable::constant(&mut builder, expected_result);
 
         builder.assert_is_equal(result.0, expected_result_var.0);
@@ -297,7 +320,7 @@ mod tests {
 
         let a = U32Variable::constant(&mut builder, operand_a);
         let b = U32Variable::constant(&mut builder, operand_b);
-        let result = a.sub(&mut builder, &b);
+        let result = builder.sub(a, b);
         let expected_result_var = U32Variable::constant(&mut builder, expected_result);
 
         builder.assert_is_equal(result.0, expected_result_var.0);
@@ -324,7 +347,7 @@ mod tests {
 
         let a = U32Variable::constant(&mut builder, operand_a);
         let b = U32Variable::constant(&mut builder, operand_b);
-        let result = a.mul(&mut builder, &b);
+        let result = builder.mul(a, b);
         let expected_result_var = U32Variable::constant(&mut builder, expected_result);
 
         builder.assert_is_equal(result.0, expected_result_var.0);
