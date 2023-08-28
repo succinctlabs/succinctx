@@ -4,7 +4,6 @@ use plonky2::hash::hash_types::RichField;
 
 use super::generators::block::EthBlockGenerator;
 use super::generators::storage::EthStorageProofGenerator;
-use super::generators::storage;
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;

@@ -1,8 +1,8 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use ethers::providers::{JsonRpcClient, Middleware, Provider};
-use ethers::types::{EIP1186ProofResponse, Block, H256};
+use ethers::providers::{Middleware};
+use ethers::types::{Block, H256};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -12,11 +12,8 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
-use super::super::vars::{EthAccountVariable, EthProofVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::storage::vars::{EthHeaderVariable, EthHeader};
-use crate::frontend::eth::utils::u256_to_h256_be;
-use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::utils::eth::get_provider;
 

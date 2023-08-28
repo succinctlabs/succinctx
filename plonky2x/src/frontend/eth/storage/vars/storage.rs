@@ -114,10 +114,9 @@ impl CircuitVariable for EthAccountVariable {
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        let idx_so_far = 0;
         let balance = U256Variable::from_variables(&variables[0..4]);
         let code_hash = Bytes32Variable::from_variables(&variables[4..4+32*8]);
-        let mut offset = 4 + 32 * 8;
+        let offset = 4 + 32 * 8;
         let nonce = U256Variable::from_variables(&variables[offset..offset+4]);
         let storage_hash = Bytes32Variable::from_variables(&variables[offset+4..offset+4+32*8]);
         Self {

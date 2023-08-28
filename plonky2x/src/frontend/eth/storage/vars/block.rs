@@ -105,16 +105,16 @@ impl CircuitVariable for EthHeaderVariable {
         let coinbase = AddressVariable::from_variables(&variables[64*8..64*8 + 8 * 20]);
         let mut offset = 64*8 + 8 * 20;
         let root = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
-        offset = offset + 32 * 8;
+        offset += 32 * 8;
         
         let tx_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
-        offset = offset + 32 * 8;
+        offset += 32 * 8;
 
         let receipt_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
-        offset = offset + 32 * 8;
+        offset += 32 * 8;
 
         let bloom = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
-        offset = offset + 32 * 8;
+        offset += 32 * 8;
 
         let difficulty = U256Variable::from_variables(&variables[offset..offset+4]);
 
