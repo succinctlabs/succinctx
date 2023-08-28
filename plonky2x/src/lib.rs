@@ -24,4 +24,5 @@ pub mod prelude {
     pub use crate::frontend::vars::{
         BoolVariable, ByteVariable, BytesVariable, CircuitVariable, Variable,
     };
+    pub use crate::utils::{address, bytes, bytes32, hex};
 }
