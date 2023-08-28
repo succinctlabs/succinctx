@@ -65,6 +65,7 @@ mod tests {
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::*;
+    use crate::frontend::eth::storage::vars::EthHeader;
     use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
 
@@ -111,6 +112,57 @@ mod tests {
         assert_eq!(
             circuit_value,
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
+        );
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    #[allow(non_snake_case)]
+    fn test_eth_get_block_by_hash() {
+        dotenv::dotenv().ok();
+        let rpc_url = env::var("RPC_1").unwrap();
+        let provider = Provider::<Http>::try_from(rpc_url).unwrap();
+
+        // This is the circuit definition
+        let mut builder = CircuitBuilderX::new();
+        builder.set_execution_client(provider);
+        let block_hash = builder.read::<Bytes32Variable>();
+
+        let value = builder.eth_get_block_by_hash(block_hash);
+        builder.write(value);
+
+        // Build your circuit.
+        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+
+        // Write to the circuit input.
+        // These values are taken from Ethereum block https://etherscan.io/block/17880427
+        let mut input = circuit.input();
+        // block hash
+        input.write::<Bytes32Variable>(bytes32!(
+            "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
+        ));
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
+
+        // Read output.
+        let circuit_value = output.read::<EthHeaderVariable>();
+        println!("{:?}", circuit_value);
+        assert_eq!(
+            circuit_value,
+            EthHeader {
+                parent_hash: bytes32!("0x7b012bf12a831368d7278edad91eb968df7912902aeb45bce0948f1ec8b411df"),
+                uncle_hash: bytes32!("0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"),
+                coinbase: address!("0xa8c62111e4652b07110a0fc81816303c42632f64"),
+                root: bytes32!("0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e"),
+                tx_hash: bytes32!("0x8d0a3c10b76930ebda83551649856882b51455de61689184c9db535ef5c29e93"),
+                receipt_hash: bytes32!("0x8fa46ad6b448faefbfc010736a3d39595ca68eb8bdd4e6b4ab30513bab688068"),
+                difficulty: U256::from("0x0"),
+                number: U256::from("0x110d56b"),
+            }
         );
     }
 }

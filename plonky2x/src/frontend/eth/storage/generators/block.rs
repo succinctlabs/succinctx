@@ -64,7 +64,16 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
                 .await
                 .expect("Failed to get block from RPC")
         }).expect("No matching block found");
-        
+
+        // Copy u64 into U256
+        let mut bytes = [0u8; 8];
+        result.number.expect("No block number").to_big_endian(&mut bytes);
+        // Append 24 zero bytes to the beginning of the number
+        let mut total_bytes = [0u8; 32];
+        total_bytes[24..].copy_from_slice(&bytes);
+
+
+        let number = ethers::types::U256::from_big_endian(&total_bytes);
         let value = EthHeader {
             parent_hash: result.parent_hash,
             uncle_hash: result.uncles_hash,
@@ -72,14 +81,14 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
             root: result.state_root,
             tx_hash: result.transactions_root,
             receipt_hash: result.receipts_root,
-            bloom: H256::from_slice(&result.logs_bloom.expect("No bloom").0),
+            // bloom: H256::from_slice(&result.logs_bloom.expect("No bloom").0),
             difficulty: result.difficulty,
             // TODO: Convert to U64Variable
-            number: ethers::types::U256([0, 0, 0, result.number.expect("No block number").as_u64()]),
+            number,
             // gas_limit: result.gas_limit,
             // gas_used: result.gas_used,
             // time: result.timestamp,
-            extra: result.extra_data,
+            // extra: result.extra_data,
         };
         self.value.set(buffer, value);
     }
