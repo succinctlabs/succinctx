@@ -1,5 +1,5 @@
 {
     "preset": "plonky2",
     "build_command": "rm -rf ./build && cd plonky2x && rustup override set nightly && mkdir build && cargo run --release --example map_reduce_example build && mv ./build ../build && mv ./target/release/examples/map_reduce_example ../../build/map_reduce_example",
-    "prove_command": "./build/mapreduce_example prove"
+    "prove_command": "./build/map_reduce_example prove"
 }
