@@ -113,6 +113,8 @@ mod tests {
             circuit_value,
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
         );
+
+        let _ = circuit.serialize().unwrap();
     }
 
     #[test]
