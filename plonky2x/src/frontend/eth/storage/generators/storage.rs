@@ -153,7 +153,7 @@ impl<F: RichField + Extendable<D>, const D: usize> EthLogGenerator<F, D> {
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D> for EthLogGenerator<F, D> {
     fn id(&self) -> String {
-        "GetEthLogGenerator".to_string()
+        "EthLogGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
