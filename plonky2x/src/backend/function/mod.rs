@@ -118,7 +118,7 @@ contract FunctionVerifier is IFunctionVerifier {
             b: [[0, 0], [0, 0]],
             c: [0, 0],
             input: hex::encode(bytes.clone()),
-            output: hex::ecode(output_bytes.clone()),
+            output: hex::encode(output_bytes.clone()),
         };
         let json = serde_json::to_string_pretty(&dummy_groth16_proof).unwrap();
         let mut file = File::create("proof.json").unwrap();
