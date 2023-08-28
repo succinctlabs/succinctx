@@ -9,7 +9,7 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
-use crate::prelude::{Add, BoolVariable, ByteVariable, Mul, One, Sub, Zero};
+use crate::prelude::*;
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
