@@ -1,3 +1,4 @@
+use core::str::Bytes;
 use std::fmt::Debug;
 
 use array_macro::array;
@@ -72,11 +73,12 @@ impl<const N: usize> EvmVariable for BytesVariable<N> {
     }
 
     fn decode<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
+        _builder: &mut CircuitBuilder<F, D>,
         bytes: &[ByteVariable],
     ) -> Self {
-        assert_eq!(bytes.len(), N * 8);
-        Self(array![i => ByteVariable::decode(builder, &bytes[i*8..(i+1)*8]); N])
+        assert_eq!(bytes.len(), N);
+        let byte_array: [_; N] = core::array::from_fn(|i| bytes[i]);
+        BytesVariable(byte_array)
     }
 
     fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {

@@ -94,6 +94,10 @@ impl ByteVariable {
         bits.reverse();
         bits
     }
+
+    pub fn from_be_bits(bits: [BoolVariable; 8]) -> ByteVariable {
+        ByteVariable(bits)
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Not<F, D> for ByteVariable {
