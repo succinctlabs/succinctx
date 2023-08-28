@@ -177,7 +177,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
                 .get_transaction_receipt(transaction_hash)
                 .await
                 .expect("Failed to call get_transaction_receipt")
-        }).expect("Failed to get transaction receipt");
+        }).expect("No transaction receipt found");
         
         let log = &result.logs[self.log_index as usize];
         let value = EthLog {

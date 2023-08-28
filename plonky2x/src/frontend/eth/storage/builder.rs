@@ -69,7 +69,7 @@ mod tests {
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::*;
-    use crate::frontend::eth::storage::vars::EthHeader;
+    use crate::frontend::eth::storage::vars::{EthHeader, EthLog};
     use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
 
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
-    fn test_get_transaction_log() {
+    fn test_eth_get_transaction_log() {
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
@@ -208,10 +208,11 @@ mod tests {
         input.write::<Bytes32Variable>(bytes32!(
             "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
         ));
+        // transaction hash
         input.write::<Bytes32Variable>(bytes32!(
-            "0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"
+            "0xead2251970404128e6f9bdff0133badb7338c5fa7ea4eec24e88af85a6d03cf2"
         ));
-        input.write::<u64>(0);
+
 
         // Generate a proof.
         let (proof, output) = circuit.prove(&input);
@@ -220,29 +221,18 @@ mod tests {
         circuit.verify(&proof, &input, &output);
 
         // Read output.
-        let circuit_value = output.read::<EthHeaderVariable>();
+        let circuit_value = output.read::<EthLogVariable>();
         println!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
-            EthHeader {
-                parent_hash: bytes32!(
-                    "0x7b012bf12a831368d7278edad91eb968df7912902aeb45bce0948f1ec8b411df"
-                ),
-                uncle_hash: bytes32!(
-                    "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
-                ),
-                coinbase: address!("0xa8c62111e4652b07110a0fc81816303c42632f64"),
-                root: bytes32!(
-                    "0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e"
-                ),
-                tx_hash: bytes32!(
-                    "0x8d0a3c10b76930ebda83551649856882b51455de61689184c9db535ef5c29e93"
-                ),
-                receipt_hash: bytes32!(
-                    "0x8fa46ad6b448faefbfc010736a3d39595ca68eb8bdd4e6b4ab30513bab688068"
-                ),
-                difficulty: U256::from("0x0"),
-                number: U256::from("0x110d56b"),
+            EthLog {
+                address: address!("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+                topics: [
+                    bytes32!("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+                    bytes32!("0x00000000000000000000000059b4bb1f5d943cf71a10df63f6b743ee4a4489ee"),
+                    bytes32!("0x000000000000000000000000def1c0ded9bec7f1a1670819833240f027b25eff")
+                ],
+                data_hash: bytes32!("0x5cdda96947975d4afbc971c9aa8bb2cc684e158d10a0d878b3a5b8b0f895262c")
             }
         );
     }
