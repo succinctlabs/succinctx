@@ -72,6 +72,7 @@ impl CircuitVariable for EthHeaderVariable {
         }
     }
 
+    #[allow(unused_variables)]
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
@@ -97,11 +98,12 @@ impl CircuitVariable for EthHeaderVariable {
         vars
     }
 
+    #[allow(unused_variables)]
     fn from_variables(variables: &[Variable]) -> Self {
         let parent_hash = Bytes32Variable::from_variables(&variables[0..32*8]);
         let uncle_hash = Bytes32Variable::from_variables(&variables[32*8..64*8]);
-        let coinbase = AddressVariable::from_variables(&variables[64*8..64*8 + 8 * 160]);
-        let mut offset = 64*8 + 8 * 160;
+        let coinbase = AddressVariable::from_variables(&variables[64*8..64*8 + 8 * 20]);
+        let mut offset = 64*8 + 8 * 20;
         let root = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
         offset = offset + 32 * 8;
         
@@ -139,11 +141,39 @@ impl CircuitVariable for EthHeaderVariable {
         }
     }
 
+    #[allow(unused_variables)]
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        todo!()
+        EthHeader {
+            parent_hash: self.parent_hash.get(witness),
+            uncle_hash: self.uncle_hash.get(witness),
+            coinbase: self.coinbase.get(witness),
+            root: self.root.get(witness),
+            tx_hash: self.tx_hash.get(witness),
+            receipt_hash: self.receipt_hash.get(witness),
+            bloom: self.bloom.get(witness),
+            difficulty: self.difficulty.get(witness),
+            number: self.number.get(witness),
+            // gas_limit: self.gas_limit.get(witness),
+            // gas_used: self.gas_used.get(witness),
+            // time: self.time.get(witness),
+            extra: self.extra.get(witness).as_bytes().to_vec().into(),
+        }
     }
 
+    #[allow(unused_variables)]
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        todo!()
+        self.parent_hash.set(witness, value.parent_hash);
+        self.uncle_hash.set(witness, value.uncle_hash);
+        self.coinbase.set(witness, value.coinbase);
+        self.root.set(witness, value.root);
+        self.tx_hash.set(witness, value.tx_hash);
+        self.receipt_hash.set(witness, value.receipt_hash);
+        self.bloom.set(witness, value.bloom);
+        self.difficulty.set(witness, value.difficulty);
+        self.number.set(witness, value.number);
+        // self.gas_limit.set(witness, value.gas_limit);
+        // self.gas_used.set(witness, value.gas_used);
+        // self.time.set(witness, value.time);
+        self.extra.set(witness, H256::from_slice(value.extra.0.as_ref()));
     }
 }

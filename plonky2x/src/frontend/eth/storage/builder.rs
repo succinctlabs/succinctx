@@ -1,4 +1,3 @@
-use ethers::providers::{JsonRpcClient, Provider};
 use ethers::types::{Address, U256};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -14,14 +13,14 @@ use crate::frontend::vars::Bytes32Variable;
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn get_storage_key_at(
         &mut self,
-        mapping_location: U256,
-        map_key: Bytes32Variable,
+        _mapping_location: U256,
+        _map_key: Bytes32Variable,
     ) -> Bytes32Variable {
         todo!();
     }
 
     #[allow(non_snake_case)]
-    pub fn eth_getStorageAt(
+    pub fn eth_get_storage_at(
         &mut self,
         address: AddressVariable,
         storage_key: Bytes32Variable,
@@ -33,27 +32,27 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     #[allow(non_snake_case)]
-    pub fn eth_getBlockByHash(&mut self, block_hash: Bytes32Variable) -> EthHeaderVariable {
+    pub fn eth_get_block_by_hash(&mut self, block_hash: Bytes32Variable) -> EthHeaderVariable {
         let generator = EthBlockGenerator::new(self, block_hash);
         self.add_simple_generator(&generator);
         generator.value
     }
 
     #[allow(non_snake_case)]
-    pub fn eth_getAccount(
+    pub fn eth_get_account(
         &mut self,
-        address: Address,
-        block_hash: Bytes32Variable,
+        _address: Address,
+        _block_hash: Bytes32Variable,
     ) -> EthAccountVariable {
         todo!()
     }
 
     #[allow(non_snake_case)]
-    pub fn eth_getTransactionReceipt(
+    pub fn eth_get_transaction_receipt(
         &mut self,
-        transaction_hash: Bytes32Variable,
-        block_hash: Bytes32Variable,
-        log_index: usize,
+        _transaction_hash: Bytes32Variable,
+        _block_hash: Bytes32Variable,
+        _log_index: usize,
     ) -> EthLogVariable {
         todo!()
     }
@@ -63,26 +62,20 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 mod tests {
     use std::env;
 
-    use ethers::providers::Http;
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::iop::witness::PartialWitness;
+    use ethers::providers::{Http, Provider};
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::*;
-    use crate::prelude::{CircuitBuilderX, CircuitVariable};
+    use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
-    fn test_eth_getStorageAt() {
+    fn test_eth_get_storage_at() {
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
-
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
 
         // This is the circuit definition
         let mut builder = CircuitBuilderX::new();
@@ -90,7 +83,7 @@ mod tests {
         let block_hash = builder.read::<Bytes32Variable>();
         let address = builder.read::<AddressVariable>();
         let location = builder.read::<Bytes32Variable>();
-        let value = builder.eth_getStorageAt(address, location, block_hash);
+        let value = builder.eth_get_storage_at(address, location, block_hash);
         builder.write(value);
 
         // Build your circuit.

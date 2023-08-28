@@ -63,7 +63,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let rt = Runtime::new().expect("failed to create tokio runtime");
         let result: Block<H256> = rt.block_on(async {
             provider
-                .get_block(block_hash.into())
+                .get_block(block_hash)
                 .await
                 .expect("Failed to get block from RPC")
         }).expect("No matching block found");
@@ -77,7 +77,8 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
             receipt_hash: result.receipts_root,
             bloom: H256::from_slice(&result.logs_bloom.expect("No bloom").0),
             difficulty: result.difficulty,
-            number: ethers::types::U256result.number.expect("No block number"),
+            // TODO: Convert to U64Variable
+            number: ethers::types::U256([0, 0, 0, result.number.expect("No block number").as_u64()]),
             // gas_limit: result.gas_limit,
             // gas_used: result.gas_used,
             // time: result.timestamp,
