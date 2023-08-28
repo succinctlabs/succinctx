@@ -106,10 +106,10 @@ contract FunctionVerifier is IFunctionVerifier {
             proof: hex::encode(proof.to_bytes()),
         };
         let json = serde_json::to_string_pretty(&function_output).unwrap();
-        let mut file = File::create("output.json").unwrap();
+        let mut file = File::create("plonky2_output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
         info!(
-            "Succesfully wrote output of {} bytes and proof to output.json.",
+            "Succesfully wrote output of {} bytes and proof to plonky2_output.json.",
             output_bytes.len()
         );
 
@@ -123,9 +123,9 @@ contract FunctionVerifier is IFunctionVerifier {
             output: output_hex_string,
         };
         let json = serde_json::to_string_pretty(&dummy_groth16_proof).unwrap();
-        let mut file = File::create("proof.json").unwrap();
+        let mut file = File::create("output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
-        info!("Succesfully wrote dummy proof to proof.json.");
+        info!("Succesfully wrote dummy proof to output.json.");
     }
 
     /// Generates a proof with field-based inputs and outputs.
