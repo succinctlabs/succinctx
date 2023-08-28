@@ -1,4 +1,4 @@
-package plonky2xverifier
+package main
 
 import (
 	"testing"

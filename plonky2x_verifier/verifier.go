@@ -1,11 +1,10 @@
-package plonky2xverifier
+package main
 
 import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
 )
-
 
 type Plonky2xVerifierCircuit struct {
 	ProofWithPis        types.ProofWithPublicInputs
