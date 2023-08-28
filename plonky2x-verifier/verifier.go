@@ -10,6 +10,7 @@ import (
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
+	"github.com/consensys/gnark/logger"
 	"github.com/consensys/gnark/test"
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
@@ -75,39 +76,41 @@ func CompileVerifierCircuit(dummyCircuitPath string) (constraint.ConstraintSyste
 }
 
 func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey, vk groth16.VerifyingKey) error {
-
-	fmt.Println("Saving circuit constraints to", path+"/r1cs.bin")
+	log := logger.Logger()
+	os.MkdirAll(path, 0755)
+	log.Info().Msg("Saving circuit constraints to " + path + "/r1cs.bin")
 	r1csFile, err := os.Create(path + "/r1cs.bin")
 	if err != nil {
-		fmt.Println("error in creating r1cs file", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to create r1cs file: %w", err)
 	}
 	r1cs.WriteTo(r1csFile)
 	r1csFile.Close()
-	fmt.Println("Successfully saved circuit constraints")
+	log.Info().Msg("Successfully saved circuit constraints")
 
-	fmt.Println("Saving proving key to", path+"/pk.bin")
+	log.Info().Msg("Saving proving key to " + path + "/pk.bin")
 	pkFile, err := os.Create(path + "/pk.bin")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create pk file: %w", err)
 	}
 	pk.WriteRawTo(pkFile)
 	pkFile.Close()
-	fmt.Println("Successfully saved proving key")
+	log.Info().Msg("Successfully saved proving key")
 
 	fmt.Println("Saving verifying key to", path+"/vk.bin")
 	vkFile, err := os.Create(path + "/vk.bin")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create vk file: %w", err)
 	}
 	vk.WriteRawTo(vkFile)
 	vkFile.Close()
-	fmt.Println("Successfully saved verifying key")
+	log.Info().Msg("Successfully saved verifying key")
 
 	return nil
 }
 
 func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey) (groth16.Proof, error) {
+	log := logger.Logger()
+
 	verifierOnlyCircuitData := verifier.DeserializeVerifierOnlyCircuitData(circuitPath + "/verifier_only_circuit_data.json")
 	proofWithPis := verifier.DeserializeProofWithPublicInputs(circuitPath + "/proof_with_public_inputs.json")
 
@@ -118,21 +121,23 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 		CircuitPath:  circuitPath,
 	}
 
-	fmt.Println("Generating witness")
+    log.Debug().Msg("Generating witness")
 	start := time.Now()
 	witness, err := frontend.NewWitness(assignment, ecc.BN254.ScalarField())
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Successfully generated witness, time: ", time.Since(start))
+	elapsed := time.Since(start)
+	log.Debug().Msg("Successfully generated witness, time: " + elapsed.String())
 
-	fmt.Println("Creating proof")
+	log.Debug().Msg("Creating proof")
 	start = time.Now()
 	proof, err := groth16.Prove(r1cs, pk, witness)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Successfully created proof, time: ", time.Since(start))
+	elapsed = time.Since(start)
+	log.Info().Msg("Successfully created proof, time: " +  elapsed.String())
 
 	return proof, nil
 }
