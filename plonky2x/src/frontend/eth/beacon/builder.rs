@@ -40,22 +40,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         self.add_simple_generator(&generator);
         generator.validator
     }
-
-    /// Get a validator from a given index.
-    pub fn get_balance_from_u64(
-        &mut self,
-        validators: BeaconValidatorsVariable,
-        index: u64,
-    ) -> BeaconValidatorVariable {
-        let generator = BeaconValidatorGenerator::new(
-            self,
-            validators.block_root,
-            validators.validators_root,
-            index,
-        );
-        self.add_simple_generator(&generator);
-        generator.validator
-    }
 }
 
 #[cfg(test)]
