@@ -2,7 +2,7 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 
 use ethers::providers::Middleware;
-use ethers::types::EIP1186ProofResponse;
+use ethers::types::{EIP1186ProofResponse, TransactionReceipt};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -10,9 +10,11 @@ use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use sha2::Digest;
 use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::eth::storage::vars::{EthLogVariable, EthLog};
 use crate::frontend::eth::utils::u256_to_h256_be;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
@@ -112,6 +114,117 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
             address,
             storage_key,
             block_hash,
+            value,
+            chain_id,
+            _phantom: PhantomData::<F>,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EthLogGenerator<F: RichField + Extendable<D>, const D: usize> {
+    transaction_hash: Bytes32Variable,
+    block_hash: Bytes32Variable,
+    log_index: u64,
+    pub value: EthLogVariable,
+    chain_id: u64,
+    _phantom: PhantomData<F>,
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> EthLogGenerator<F, D> {
+    pub fn new(
+        builder: &mut CircuitBuilder<F, D>,
+        transaction_hash: Bytes32Variable,
+        block_hash: Bytes32Variable,
+        log_index: u64,
+    ) -> EthLogGenerator<F, D> {
+        let chain_id = builder.get_chain_id();
+        let value = builder.init::<EthLogVariable>();
+        EthLogGenerator {
+            transaction_hash,
+            block_hash,
+            log_index,
+            value,
+            chain_id,
+            _phantom: PhantomData::<F>,
+        }
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
+    for EthLogGenerator<F, D>
+{
+    fn id(&self) -> String {
+        "GetEthLogGenerator".to_string()
+    }
+
+    fn dependencies(&self) -> Vec<Target> {
+        let mut targets = Vec::new();
+        targets.extend(self.transaction_hash.targets());
+        targets.extend(self.block_hash.targets());
+        targets
+    } 
+
+    fn run_once(&self, witness: &PartitionWitness<F>, buffer: &mut GeneratedValues<F>) {
+        let transaction_hash = self.transaction_hash.get(witness);
+        // block_hash is unused
+        let _block_hash = self.block_hash.get(witness);
+
+        let provider = get_provider(self.chain_id);
+        let rt = Runtime::new().expect("failed to create tokio runtime");
+        let result: TransactionReceipt = rt.block_on(async {
+            provider
+                .get_transaction_receipt(transaction_hash)
+                .await
+                .expect("Failed to call get_transaction_receipt")
+        }).expect("Failed to get transaction receipt");
+        
+        let log = &result.logs[self.log_index as usize];
+        let value = EthLog {
+            address: log.address,
+            topics: [log.topics[0], log.topics[1], log.topics[2]],
+            data_hash: ethers::types::H256::from_slice(sha2::Sha256::digest(&log.data).as_ref()),
+        };
+        self.value.set(buffer, value);
+    }
+
+    #[allow(unused_variables)]
+    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
+        let chain_id_bytes = self.chain_id.to_be_bytes();
+        dst.write_all(&chain_id_bytes)?;
+
+        dst.write_target_vec(&self.transaction_hash.targets())?;
+        dst.write_target_vec(&self.block_hash.targets())?;
+
+        let log_index_bytes = self.log_index.to_be_bytes();
+        dst.write_all(&log_index_bytes)?;
+
+        dst.write_target_vec(&self.value.targets())
+    }
+
+    #[allow(unused_variables)]
+    fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
+        let mut chain_id_bytes = [0u8; 8];
+        src.read_exact(&mut chain_id_bytes)?;
+        let chain_id = u64::from_be_bytes(chain_id_bytes);
+
+        let transaction_hash_targets = src.read_target_vec()?;
+        let transaction_hash = Bytes32Variable::from_targets(&transaction_hash_targets);
+
+        let block_hash_targets = src.read_target_vec()?;
+        let block_hash = Bytes32Variable::from_targets(&block_hash_targets);
+
+        let mut log_index_bytes = [0u8; 8];
+        src.read_exact(&mut log_index_bytes)?;
+        let log_index = u64::from_be_bytes(log_index_bytes);
+
+        let value_targets = src.read_target_vec()?;
+        let value = EthLogVariable::from_targets(&value_targets);
+
+        Ok(Self {
+            block_hash,
+            transaction_hash,
+            log_index,
             value,
             chain_id,
             _phantom: PhantomData::<F>,
