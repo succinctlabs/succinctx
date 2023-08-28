@@ -5,7 +5,6 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::AlgebraicVariable;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
@@ -109,31 +108,47 @@ impl EvmVariable for U32Variable {
     }
 }
 
-impl AlgebraicVariable for U32Variable {
-    /// Returns the zero value of the variable.
-    fn zero<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for U32Variable {
+    fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
         let zero = Variable::zero(builder);
         Self(zero)
     }
+}
 
-    /// Returns the one value of the variable.
-    fn one<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+impl<F: RichField + Extendable<D>, const D: usize> One<F, D> for U32Variable {
+    fn one(builder: &mut CircuitBuilder<F, D>) -> Self {
         let one = Variable::one(builder);
         Self(one)
     }
+}
 
-    // Adds two variables together.
-    fn add<F: RichField + Extendable<D>, const D: usize>(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        other: &Self,
-    ) -> Self {
+impl<F: RichField + Extendable<D>, const D: usize> Mul<F, D> for U32Variable {
+    type Output = Self;
+
+    fn mul(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
         let self_target = self.0 .0;
-        let other_target = other.0 .0;
+        let other_target = rhs.0 .0;
+        let self_biguint = BigUintTarget {
+            limbs: vec![U32Target(self_target)],
+        };
+        let other_biguint = BigUintTarget {
+            limbs: vec![U32Target(other_target)],
+        };
+
+        let product_biguint = builder.api.mul_biguint(&self_biguint, &other_biguint);
+
+        // Get the least significant limb
+        let product = product_biguint.limbs[0].0;
+        Self(Variable(product))
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Add<F, D> for U32Variable {
+    type Output = Self;
+
+    fn add(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        let self_target = self.0 .0;
+        let other_target = rhs.0 .0;
         let self_biguint = BigUintTarget {
             limbs: vec![U32Target(self_target)],
         };
@@ -148,79 +163,24 @@ impl AlgebraicVariable for U32Variable {
 
         Self(Variable(sum))
     }
-
-    // Subtracts two variables.
-    fn sub<F: RichField + Extendable<D>, const D: usize>(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        other: &Self,
-    ) -> Self {
-        let self_target = self.0 .0;
-        let other_target = other.0 .0;
-        let self_biguint = BigUintTarget {
-            limbs: vec![U32Target(self_target)],
-        };
-        let other_biguint = BigUintTarget {
-            limbs: vec![U32Target(other_target)],
-        };
-
-        let sum_biguint = builder.api.sub_biguint(&self_biguint, &other_biguint);
-        let sum = sum_biguint.limbs[0].0;
-        Self(Variable(sum))
-    }
-
-    // Multiplies two variables.
-    fn mul<F: RichField + Extendable<D>, const D: usize>(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        other: &Self,
-    ) -> Self {
-        let self_target = self.0 .0;
-        let other_target = other.0 .0;
-        let self_biguint = BigUintTarget {
-            limbs: vec![U32Target(self_target)],
-        };
-        let other_biguint = BigUintTarget {
-            limbs: vec![U32Target(other_target)],
-        };
-
-        let sum_biguint = builder.api.mul_biguint(&self_biguint, &other_biguint);
-
-        // Get the least significant limb
-        let sum = sum_biguint.limbs[0].0;
-        Self(Variable(sum))
-    }
-
-    // Negates a variable.
-    fn neg<F: RichField + Extendable<D>, const D: usize>(
-        &self,
-        _builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
-        todo!()
-    }
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Mul<F, D> for U32Variable {
-    type Output = Self;
-
-    fn mul(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        AlgebraicVariable::mul(&self, builder, &rhs)
-    }
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Add<F, D> for U32Variable {
-    type Output = Self;
-
-    fn add(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        AlgebraicVariable::add(&self, builder, &rhs)
-    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for U32Variable {
     type Output = Self;
 
     fn sub(self, rhs: U32Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        AlgebraicVariable::sub(&self, builder, &rhs)
+        let self_target = self.0 .0;
+        let other_target = rhs.0 .0;
+        let self_biguint = BigUintTarget {
+            limbs: vec![U32Target(self_target)],
+        };
+        let other_biguint = BigUintTarget {
+            limbs: vec![U32Target(other_target)],
+        };
+
+        let diff_biguint = builder.api.sub_biguint(&self_biguint, &other_biguint);
+        let diff = diff_biguint.limbs[0].0;
+        Self(Variable(diff))
     }
 }
 
