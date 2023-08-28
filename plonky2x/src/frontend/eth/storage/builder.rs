@@ -154,12 +154,22 @@ mod tests {
         assert_eq!(
             circuit_value,
             EthHeader {
-                parent_hash: bytes32!("0x7b012bf12a831368d7278edad91eb968df7912902aeb45bce0948f1ec8b411df"),
-                uncle_hash: bytes32!("0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"),
+                parent_hash: bytes32!(
+                    "0x7b012bf12a831368d7278edad91eb968df7912902aeb45bce0948f1ec8b411df"
+                ),
+                uncle_hash: bytes32!(
+                    "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
+                ),
                 coinbase: address!("0xa8c62111e4652b07110a0fc81816303c42632f64"),
-                root: bytes32!("0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e"),
-                tx_hash: bytes32!("0x8d0a3c10b76930ebda83551649856882b51455de61689184c9db535ef5c29e93"),
-                receipt_hash: bytes32!("0x8fa46ad6b448faefbfc010736a3d39595ca68eb8bdd4e6b4ab30513bab688068"),
+                root: bytes32!(
+                    "0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e"
+                ),
+                tx_hash: bytes32!(
+                    "0x8d0a3c10b76930ebda83551649856882b51455de61689184c9db535ef5c29e93"
+                ),
+                receipt_hash: bytes32!(
+                    "0x8fa46ad6b448faefbfc010736a3d39595ca68eb8bdd4e6b4ab30513bab688068"
+                ),
                 difficulty: U256::from("0x0"),
                 number: U256::from("0x110d56b"),
             }

@@ -100,13 +100,13 @@ impl CircuitVariable for EthHeaderVariable {
 
     #[allow(unused_variables)]
     fn from_variables(variables: &[Variable]) -> Self {
-        let parent_hash = Bytes32Variable::from_variables(&variables[0..32*8]);
-        let uncle_hash = Bytes32Variable::from_variables(&variables[32*8..64*8]);
-        let coinbase = AddressVariable::from_variables(&variables[64*8..64*8 + 8 * 20]);
-        let mut offset = 64*8 + 8 * 20;
+        let parent_hash = Bytes32Variable::from_variables(&variables[0..32 * 8]);
+        let uncle_hash = Bytes32Variable::from_variables(&variables[32 * 8..64 * 8]);
+        let coinbase = AddressVariable::from_variables(&variables[64 * 8..64 * 8 + 8 * 20]);
+        let mut offset = 64 * 8 + 8 * 20;
         let root = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
         offset += 32 * 8;
-        
+
         let tx_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
         offset += 32 * 8;
 
@@ -116,9 +116,9 @@ impl CircuitVariable for EthHeaderVariable {
         // let bloom = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
         // offset += 32 * 8;
 
-        let difficulty = U256Variable::from_variables(&variables[offset..offset+4]);
+        let difficulty = U256Variable::from_variables(&variables[offset..offset + 4]);
 
-        let number = U256Variable::from_variables(&variables[offset+4..offset+8]);
+        let number = U256Variable::from_variables(&variables[offset + 4..offset + 8]);
 
         // let gas_limit = U64Variable::from_variables(&variables[offset+8..offset+9]);
         // let gas_used = U64Variable::from_variables(&variables[offset+9..offset+10]);

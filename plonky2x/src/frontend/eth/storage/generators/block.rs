@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use ethers::providers::{Middleware};
+use ethers::providers::Middleware;
 use ethers::types::{Block, H256};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -13,7 +13,7 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::storage::vars::{EthHeaderVariable, EthHeader};
+use crate::frontend::eth::storage::vars::{EthHeader, EthHeaderVariable};
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::utils::eth::get_provider;
 
@@ -58,20 +58,24 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let block_hash = self.block_hash.get(witness);
         let provider = get_provider(self.chain_id);
         let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result: Block<H256> = rt.block_on(async {
-            provider
-                .get_block(block_hash)
-                .await
-                .expect("Failed to get block from RPC")
-        }).expect("No matching block found");
+        let result: Block<H256> = rt
+            .block_on(async {
+                provider
+                    .get_block(block_hash)
+                    .await
+                    .expect("Failed to get block from RPC")
+            })
+            .expect("No matching block found");
 
         // Copy u64 into U256
         let mut bytes = [0u8; 8];
-        result.number.expect("No block number").to_big_endian(&mut bytes);
+        result
+            .number
+            .expect("No block number")
+            .to_big_endian(&mut bytes);
         // Append 24 zero bytes to the beginning of the number
         let mut total_bytes = [0u8; 32];
         total_bytes[24..].copy_from_slice(&bytes);
-
 
         let number = ethers::types::U256::from_big_endian(&total_bytes);
         let value = EthHeader {
