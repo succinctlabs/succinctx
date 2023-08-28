@@ -1,5 +1,4 @@
-use core::str::Bytes;
-use std::fs::File;
+use std::fs::{File, self};
 use std::path::Path;
 
 use anyhow::Result;
@@ -229,6 +228,9 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
     where
         C: Serialize,
     {
+        if !path.as_ref().exists() {
+            fs::create_dir_all(&path)?;
+        }
         let common_data_file = File::create(path.as_ref().join("common_circuit_data.json"))?;
         serde_json::to_writer(&common_data_file, &self.common_data)?;
         info!("Succesfully wrote common circuit data to common_circuit_data.json");
