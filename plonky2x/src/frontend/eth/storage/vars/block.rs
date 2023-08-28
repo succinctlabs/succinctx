@@ -98,7 +98,45 @@ impl CircuitVariable for EthHeaderVariable {
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        todo!()
+        let parent_hash = Bytes32Variable::from_variables(&variables[0..32*8]);
+        let uncle_hash = Bytes32Variable::from_variables(&variables[32*8..64*8]);
+        let coinbase = AddressVariable::from_variables(&variables[64*8..64*8 + 8 * 160]);
+        let mut offset = 64*8 + 8 * 160;
+        let root = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        offset = offset + 32 * 8;
+        
+        let tx_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        offset = offset + 32 * 8;
+
+        let receipt_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        offset = offset + 32 * 8;
+
+        let bloom = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        offset = offset + 32 * 8;
+
+        let difficulty = U256Variable::from_variables(&variables[offset..offset+4]);
+
+        let number = U256Variable::from_variables(&variables[offset+4..offset+8]);
+
+        // let gas_limit = U64Variable::from_variables(&variables[offset+8..offset+9]);
+        // let gas_used = U64Variable::from_variables(&variables[offset+9..offset+10]);
+        // let time = U64Variable::from_variables(&variables[offset+10..offset+11]);
+        // let extra = Bytes32Variable::from_variables(&variables[offset+11..offset+11+32*8]);
+
+        let extra = Bytes32Variable::from_variables(&variables[offset+8..offset+8+32*8]);
+
+        Self {
+            parent_hash,
+            uncle_hash,
+            coinbase,
+            root,
+            tx_hash,
+            receipt_hash,
+            bloom,
+            difficulty,
+            number,
+            extra
+        }
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

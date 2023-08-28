@@ -3,7 +3,9 @@ use ethers::types::{Address, U256};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
+use super::generators::block::EthBlockGenerator;
 use super::generators::storage::EthStorageProofGenerator;
+use super::generators::storage;
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
@@ -32,7 +34,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     #[allow(non_snake_case)]
     pub fn eth_getBlockByHash(&mut self, block_hash: Bytes32Variable) -> EthHeaderVariable {
-        todo!()
+        let generator = EthBlockGenerator::new(self, block_hash);
+        self.add_simple_generator(&generator);
+        generator.value
     }
 
     #[allow(non_snake_case)]
