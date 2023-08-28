@@ -168,10 +168,8 @@ impl AlgebraicVariable for U256Variable {
 #[cfg(test)]
 mod tests {
     use ethers::types::U256;
-    use rand::Rng;
 
     use crate::frontend::uint::uint256::U256Variable;
-    use crate::frontend::uint::AlgebraicVariable;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
