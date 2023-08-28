@@ -168,8 +168,11 @@ impl AlgebraicVariable for U256Variable {
 #[cfg(test)]
 mod tests {
     use ethers::types::U256;
+    use rand::rngs::OsRng;
+    use rand::Rng;
 
     use crate::frontend::uint::uint256::U256Variable;
+    use crate::frontend::uint::AlgebraicVariable;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
@@ -256,28 +259,38 @@ mod tests {
         );
     }
 
-    /*
     #[test]
     fn test_u256_add() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
+        let mut rng = OsRng;
+
+        // Get the limbs for the a_operand
+        let a_operand_0 = rng.gen();
+        let a_operand_1 = rng.gen();
+        let a_operand_2 = rng.gen();
+        let a_operand_3 = rng.gen();
+        let a = U256([a_operand_0, a_operand_1, a_operand_2, a_operand_3]);
+
+        // Get the limbs for the b_operand
+        let b_operand_0 = rng.gen();
+        let b_operand_1 = rng.gen();
+        let b_operand_2 = rng.gen();
+        let b_operand_3 = rng.gen();
+        let b = U256([b_operand_0, b_operand_1, b_operand_2, b_operand_3]);
+
+        let (expected_value, _) = a.overflowing_add(b);
+
         let mut builder = CircuitBuilder::<F, D>::new();
 
-        let mut rng = rand::thread_rng();
-        let operand_a: u256 = rng.gen();
-        let operand_b: u256 = rng.gen();
-
-        // Perform addition without overflow panic
-        let expected_result = operand_a.wrapping_add(operand_b);
-
-        let a = U256Variable::constant(&mut builder, U256([operand_a as u64, (operand_a >> 64) as u64]));
-        let b = U256Variable::constant(&mut builder, U256([operand_b as u64, (operand_b >> 64) as u64]));
+        let a = U256Variable::constant(&mut builder, a);
+        let b = U256Variable::constant(&mut builder, b);
         let result = a.add(&mut builder, &b);
-        let expected_result_var = U128Variable::constant(&mut builder, U128([expected_result as u64, (expected_result >> 64) as u64]));
+        let expected_result_var = U256Variable::constant(&mut builder, expected_value);
 
-        for i in 0..4 {
+        for i in 0..8 {
             builder.assert_is_equal(result.0.limbs[i].0, expected_result_var.0.limbs[i].0);
         }
 
@@ -289,26 +302,37 @@ mod tests {
     }
 
     #[test]
-    fn test_u128_sub() {
+    fn test_u256sub() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
+        let mut rng = OsRng;
+
+        // Get the limbs for the a_operand
+        let a_operand_0 = rng.gen();
+        let a_operand_1 = rng.gen();
+        let a_operand_2 = rng.gen();
+        let a_operand_3 = rng.gen();
+        let a = U256([a_operand_0, a_operand_1, a_operand_2, a_operand_3]);
+
+        // Get the limbs for the b_operand
+        let b_operand_0 = rng.gen();
+        let b_operand_1 = rng.gen();
+        let b_operand_2 = rng.gen();
+        let b_operand_3 = rng.gen();
+        let b = U256([b_operand_0, b_operand_1, b_operand_2, b_operand_3]);
+
+        let (expected_value, _) = a.overflowing_sub(b);
+
         let mut builder = CircuitBuilder::<F, D>::new();
 
-        let mut rng = rand::thread_rng();
-        let operand_a: u128 = rng.gen();
-        let operand_b: u128 = rng.gen();
-
-        let expected_result = operand_a.wrapping_sub(operand_b);
-
-        let a = U128Variable::constant(&mut builder, U128([operand_a as u64, (operand_a >> 64) as u64]));
-        let b = U128Variable::constant(&mut builder, U128([operand_b as u64, (operand_b >> 64) as u64]));
-
+        let a = U256Variable::constant(&mut builder, a);
+        let b = U256Variable::constant(&mut builder, b);
         let result = a.sub(&mut builder, &b);
-        let expected_result_var = U128Variable::constant(&mut builder, U128([expected_result as u64, (expected_result >> 64) as u64]));
+        let expected_result_var = U256Variable::constant(&mut builder, expected_value);
 
-        for i in 0..4 {
+        for i in 0..8 {
             builder.assert_is_equal(result.0.limbs[i].0, expected_result_var.0.limbs[i].0);
         }
 
@@ -320,27 +344,37 @@ mod tests {
     }
 
     #[test]
-    fn test_u128_mul() {
+    fn test_u256_mul() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
+        let mut rng = OsRng;
+
+        // Get the limbs for the a_operand
+        let a_operand_0 = rng.gen();
+        let a_operand_1 = rng.gen();
+        let a_operand_2 = rng.gen();
+        let a_operand_3 = rng.gen();
+        let a = U256([a_operand_0, a_operand_1, a_operand_2, a_operand_3]);
+
+        // Get the limbs for the b_operand
+        let b_operand_0 = rng.gen();
+        let b_operand_1 = rng.gen();
+        let b_operand_2 = rng.gen();
+        let b_operand_3 = rng.gen();
+        let b = U256([b_operand_0, b_operand_1, b_operand_2, b_operand_3]);
+
+        let (expected_value, _) = a.overflowing_mul(b);
+
         let mut builder = CircuitBuilder::<F, D>::new();
 
-
-        let mut rng = rand::thread_rng();
-        let operand_a: u128 = rng.gen();
-        let operand_b: u128 = rng.gen();
-
-        let expected_result = operand_a.wrapping_mul(operand_b);
-
-        let a = U128Variable::constant(&mut builder, U128([operand_a as u64, (operand_a >> 64) as u64]));
-        let b = U128Variable::constant(&mut builder, U128([operand_b as u64, (operand_b >> 64) as u64]));
-
+        let a = U256Variable::constant(&mut builder, a);
+        let b = U256Variable::constant(&mut builder, b);
         let result = a.mul(&mut builder, &b);
-        let expected_result_var = U128Variable::constant(&mut builder, U128([expected_result as u64, (expected_result >> 64) as u64]));
+        let expected_result_var = U256Variable::constant(&mut builder, expected_value);
 
-        for i in 0..4 {
+        for i in 0..8 {
             builder.assert_is_equal(result.0.limbs[i].0, expected_result_var.0.limbs[i].0);
         }
 
@@ -350,5 +384,4 @@ mod tests {
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
     }
-    */
 }
