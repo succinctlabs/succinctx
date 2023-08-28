@@ -80,11 +80,11 @@ mod tests {
         // This is the circuit definition
         let mut builder = CircuitBuilderX::new();
         builder.set_execution_client(provider);
-        let block_hash = builder.read::<Bytes32Variable>();
-        let address = builder.read::<AddressVariable>();
-        let location = builder.read::<Bytes32Variable>();
+        let block_hash = builder.evm_read::<Bytes32Variable>();
+        let address = builder.evm_read::<AddressVariable>();
+        let location = builder.evm_read::<Bytes32Variable>();
         let value = builder.eth_get_storage_at(address, location, block_hash);
-        builder.write(value);
+        builder.evm_write(value);
 
         // Build your circuit.
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
@@ -92,11 +92,11 @@ mod tests {
         // Write to the circuit input.
         // These values are taken from Ethereum block https://etherscan.io/block/17880427
         let mut input = circuit.input();
-        input.write::<Bytes32Variable>(bytes32!(
+        input.evm_write::<Bytes32Variable>(bytes32!(
             "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
         ));
-        input.write::<AddressVariable>(address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"));
-        input.write::<Bytes32Variable>(bytes32!(
+        input.evm_write::<AddressVariable>(address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"));
+        input.evm_write::<Bytes32Variable>(bytes32!(
             "0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"
         ));
 
@@ -107,7 +107,7 @@ mod tests {
         circuit.verify(&proof, &input, &output);
 
         // Read output.
-        let circuit_value = output.read::<Bytes32Variable>();
+        let circuit_value = output.evm_read::<Bytes32Variable>();
         println!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
