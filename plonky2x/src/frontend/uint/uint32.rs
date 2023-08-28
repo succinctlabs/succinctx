@@ -281,4 +281,58 @@ mod tests {
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
     }
+
+    #[test]
+    fn test_u32_sub() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let mut rng = rand::thread_rng();
+        let operand_a: u32 = rng.gen();
+        let operand_b: u32 = rng.gen();
+        let expected_result = operand_a.wrapping_sub(operand_b);
+
+        let a = U32Variable::constant(&mut builder, operand_a);
+        let b = U32Variable::constant(&mut builder, operand_b);
+        let result = a.sub(&mut builder, &b);
+        let expected_result_var = U32Variable::constant(&mut builder, expected_result);
+
+        builder.assert_is_equal(result.0, expected_result_var.0);
+
+        let circuit = builder.build::<C>();
+        let pw = PartialWitness::new();
+
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_u32_mul() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let mut rng = rand::thread_rng();
+        let operand_a: u32 = rng.gen();
+        let operand_b: u32 = rng.gen();
+        let expected_result = operand_a.wrapping_mul(operand_b);
+
+        let a = U32Variable::constant(&mut builder, operand_a);
+        let b = U32Variable::constant(&mut builder, operand_b);
+        let result = a.mul(&mut builder, &b);
+        let expected_result_var = U32Variable::constant(&mut builder, expected_result);
+
+        builder.assert_is_equal(result.0, expected_result_var.0);
+
+        let circuit = builder.build::<C>();
+        let pw = PartialWitness::new();
+
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
 }
