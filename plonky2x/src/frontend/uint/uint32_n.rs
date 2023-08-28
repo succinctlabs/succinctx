@@ -30,7 +30,7 @@ impl ValueTrait for U256 {
         let mut bytes = [0u8; 32];
         self.to_little_endian(&mut bytes);
         let mut ret: [u32; N] = [0; N];
-        for i in (0..=N).step_by(4) {
+        for i in 0..=N {
             let byte_offset = i * 4;
             ret[i] = u32::from_le_bytes([
                 bytes[byte_offset],

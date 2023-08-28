@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use ethers::types::U64;
+use ethers::types::U128;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
@@ -11,9 +11,9 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
 use crate::prelude::ByteVariable;
 
-impl ValueTrait for U64 {
+impl ValueTrait for U128 {
     fn to_limbs<const N: usize>(self) -> [u32; N] {
-        let mut bytes = [0u8; 8];
+        let mut bytes = [0u8; 16];
         self.to_little_endian(&mut bytes);
         let mut ret: [u32; N] = [0; N];
         for i in 0..N {
@@ -48,15 +48,15 @@ impl ValueTrait for U64 {
     }
 }
 
-const NUM_LIMBS: usize = 2;
+const NUM_LIMBS: usize = 4;
 
 /// A variable in the circuit representing a u64 value. Under the hood, it is represented as
 /// two U32Variable elements.
 #[derive(Debug, Clone, Copy)]
-pub struct U64Variable(pub U32NVariable<U64, NUM_LIMBS>);
+pub struct U128Variable(pub U32NVariable<U128, NUM_LIMBS>);
 
-impl CircuitVariable for U64Variable {
-    type ValueType<F: RichField> = U64;
+impl CircuitVariable for U128Variable {
+    type ValueType<F: RichField> = U128;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -68,7 +68,7 @@ impl CircuitVariable for U64Variable {
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        Self(U32NVariable::<U64, 2>::constant(builder, value))
+        Self(U32NVariable::constant(builder, value))
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -88,7 +88,7 @@ impl CircuitVariable for U64Variable {
     }
 }
 
-impl EvmVariable for U64Variable {
+impl EvmVariable for U128Variable {
     fn encode<F: RichField + Extendable<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
@@ -110,11 +110,11 @@ impl EvmVariable for U64Variable {
     }
 
     fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
-        U64::from_big_endian(bytes)
+        U128::from_big_endian(bytes)
     }
 }
 
-impl AlgebraicVariable for U64Variable {
+impl AlgebraicVariable for U128Variable {
     /// Returns the zero value of the variable.
     fn zero<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -167,16 +167,16 @@ impl AlgebraicVariable for U64Variable {
 
 #[cfg(test)]
 mod tests {
-    use ethers::types::U64;
+    use ethers::types::U128;
     use rand::Rng;
 
-    use crate::frontend::uint::uint64::U64Variable;
+    use crate::frontend::uint::uint128::U128Variable;
     use crate::frontend::uint::AlgebraicVariable;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
     #[test]
-    fn test_u64_evm() {
+    fn test_u128_evm() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -184,17 +184,17 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new();
 
         let mut var_bytes = vec![];
-        for i in 0..8 {
+        for i in 0..16 {
             let byte = ByteVariable::constant(&mut builder, i as u8);
             var_bytes.push(byte);
         }
-        let decoded = U64Variable::decode(&mut builder, &var_bytes);
+        let decoded = U128Variable::decode(&mut builder, &var_bytes);
         let encoded = decoded.encode(&mut builder);
-        let redecoded = U64Variable::decode(&mut builder, &encoded[0..8]);
-        for i in 0..2 {
+        let redecoded = U128Variable::decode(&mut builder, &encoded[0..16]);
+        for i in 0..4 {
             builder.assert_is_equal(decoded.0.limbs[i].0, redecoded.0.limbs[i].0);
         }
-        for i in 0..8 {
+        for i in 0..16 {
             for j in 0..8 {
                 builder.assert_is_equal(encoded[i].0[j].0, var_bytes[i].0[j].0);
             }
@@ -208,12 +208,12 @@ mod tests {
     }
 
     #[test]
-    fn test_u64_evm_value() {
+    fn test_u128_evm_value() {
         type F = GoldilocksField;
 
         let val = 0x123456789abcdef0_u64;
-        let encoded = U64Variable::encode_value::<F>(U64([val]));
-        let decoded = U64Variable::decode_value::<F>(&encoded);
+        let encoded = U128Variable::encode_value::<F>(U128([val, val]));
+        let decoded = U128Variable::decode_value::<F>(&encoded);
         assert_eq!(encoded[0], 0x12);
         assert_eq!(encoded[1], 0x34);
         assert_eq!(encoded[2], 0x56);
@@ -222,11 +222,20 @@ mod tests {
         assert_eq!(encoded[5], 0xbc);
         assert_eq!(encoded[6], 0xde);
         assert_eq!(encoded[7], 0xf0);
-        assert_eq!(decoded, U64([0x123456789abcdef0]));
+        assert_eq!(encoded[8], 0x12);
+        assert_eq!(encoded[9], 0x34);
+        assert_eq!(encoded[10], 0x56);
+        assert_eq!(encoded[11], 0x78);
+        assert_eq!(encoded[12], 0x9a);
+        assert_eq!(encoded[13], 0xbc);
+        assert_eq!(encoded[14], 0xde);
+        assert_eq!(encoded[15], 0xf0);
+
+        assert_eq!(decoded, U128([0x123456789abcdef0, 0x123456789abcdef0]));
     }
 
     #[test]
-    fn test_u64_add() {
+    fn test_u128_add() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -234,17 +243,27 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new();
 
         let mut rng = rand::thread_rng();
-        let operand_a: u64 = rng.gen();
-        let operand_b: u64 = rng.gen();
+        let operand_a: u128 = rng.gen();
+        let operand_b: u128 = rng.gen();
+
         // Perform addition without overflow panic
         let expected_result = operand_a.wrapping_add(operand_b);
 
-        let a = U64Variable::constant(&mut builder, U64([operand_a]));
-        let b = U64Variable::constant(&mut builder, U64([operand_b]));
+        let a = U128Variable::constant(
+            &mut builder,
+            U128([operand_a as u64, (operand_a >> 64) as u64]),
+        );
+        let b = U128Variable::constant(
+            &mut builder,
+            U128([operand_b as u64, (operand_b >> 64) as u64]),
+        );
         let result = a.add(&mut builder, &b);
-        let expected_result_var = U64Variable::constant(&mut builder, U64([expected_result]));
+        let expected_result_var = U128Variable::constant(
+            &mut builder,
+            U128([expected_result as u64, (expected_result >> 64) as u64]),
+        );
 
-        for i in 0..2 {
+        for i in 0..4 {
             builder.assert_is_equal(result.0.limbs[i].0, expected_result_var.0.limbs[i].0);
         }
 
@@ -256,7 +275,7 @@ mod tests {
     }
 
     #[test]
-    fn test_u64_sub() {
+    fn test_u128_sub() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -264,16 +283,27 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new();
 
         let mut rng = rand::thread_rng();
-        let operand_a: u64 = rng.gen();
-        let operand_b: u64 = rng.gen();
+        let operand_a: u128 = rng.gen();
+        let operand_b: u128 = rng.gen();
+
         let expected_result = operand_a.wrapping_sub(operand_b);
 
-        let a = U64Variable::constant(&mut builder, U64([operand_a]));
-        let b = U64Variable::constant(&mut builder, U64([operand_b]));
-        let result = a.sub(&mut builder, &b);
-        let expected_result_var = U64Variable::constant(&mut builder, U64([expected_result]));
+        let a = U128Variable::constant(
+            &mut builder,
+            U128([operand_a as u64, (operand_a >> 64) as u64]),
+        );
+        let b = U128Variable::constant(
+            &mut builder,
+            U128([operand_b as u64, (operand_b >> 64) as u64]),
+        );
 
-        for i in 0..2 {
+        let result = a.sub(&mut builder, &b);
+        let expected_result_var = U128Variable::constant(
+            &mut builder,
+            U128([expected_result as u64, (expected_result >> 64) as u64]),
+        );
+
+        for i in 0..4 {
             builder.assert_is_equal(result.0.limbs[i].0, expected_result_var.0.limbs[i].0);
         }
 
@@ -285,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn test_u64_mul() {
+    fn test_u128_mul() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -293,16 +323,27 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new();
 
         let mut rng = rand::thread_rng();
-        let operand_a: u64 = rng.gen();
-        let operand_b: u64 = rng.gen();
+        let operand_a: u128 = rng.gen();
+        let operand_b: u128 = rng.gen();
+
         let expected_result = operand_a.wrapping_mul(operand_b);
 
-        let a = U64Variable::constant(&mut builder, U64([operand_a]));
-        let b = U64Variable::constant(&mut builder, U64([operand_b]));
-        let result = a.mul(&mut builder, &b);
-        let expected_result_var = U64Variable::constant(&mut builder, U64([expected_result]));
+        let a = U128Variable::constant(
+            &mut builder,
+            U128([operand_a as u64, (operand_a >> 64) as u64]),
+        );
+        let b = U128Variable::constant(
+            &mut builder,
+            U128([operand_b as u64, (operand_b >> 64) as u64]),
+        );
 
-        for i in 0..2 {
+        let result = a.mul(&mut builder, &b);
+        let expected_result_var = U128Variable::constant(
+            &mut builder,
+            U128([expected_result as u64, (expected_result >> 64) as u64]),
+        );
+
+        for i in 0..4 {
             builder.assert_is_equal(result.0.limbs[i].0, expected_result_var.0.limbs[i].0);
         }
 
