@@ -29,3 +29,14 @@ pub struct FunctionOutput {
     pub elements: Option<Vec<u64>>,
     pub proof: String,
 }
+
+/// A serializable struct containing the function output as groth16.
+/// TODO: For now, we just write a "dummy proof" to work with the dummy verifier
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FunctionOutputGroth16 {
+    pub a: [u64; 2],
+    pub b: [[u64; 2]; 2],
+    pub c: [u64; 2],
+    pub input: String,
+    pub output: String,
+}

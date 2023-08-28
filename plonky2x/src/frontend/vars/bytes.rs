@@ -75,8 +75,8 @@ impl<const N: usize> EvmVariable for BytesVariable<N> {
         builder: &mut CircuitBuilder<F, D>,
         bytes: &[ByteVariable],
     ) -> Self {
-        assert_eq!(bytes.len(), N * 8);
-        Self(array![i => ByteVariable::decode(builder, &bytes[i*8..(i+1)*8]); N])
+        assert_eq!(bytes.len(), N);
+        Self(array![i => ByteVariable::decode(builder, &bytes[i..i+1]); N])
     }
 
     fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {

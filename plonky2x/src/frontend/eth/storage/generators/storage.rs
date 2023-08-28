@@ -54,7 +54,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for EthStorageProofGenerator<F, D>
 {
     fn id(&self) -> String {
-        "GetStorageProofGenerator".to_string()
+        "EthStorageProofGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
