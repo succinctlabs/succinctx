@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use ethers::providers::{JsonRpcClient, Middleware, Provider};
+use ethers::providers::Middleware;
 use ethers::types::EIP1186ProofResponse;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -12,7 +12,6 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
-use super::super::vars::{EthAccountVariable, EthProofVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::utils::u256_to_h256_be;
 use crate::frontend::eth::vars::AddressVariable;

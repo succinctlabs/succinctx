@@ -72,6 +72,7 @@ impl CircuitVariable for EthHeaderVariable {
         }
     }
 
+    #[allow(unused_variables)]
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
@@ -97,14 +98,17 @@ impl CircuitVariable for EthHeaderVariable {
         vars
     }
 
+    #[allow(unused_variables)]
     fn from_variables(variables: &[Variable]) -> Self {
         todo!()
     }
 
+    #[allow(unused_variables)]
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
         todo!()
     }
 
+    #[allow(unused_variables)]
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         todo!()
     }
