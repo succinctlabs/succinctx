@@ -81,8 +81,7 @@ mod tests {
         let mut builder = CircuitBuilderX::new();
         builder.set_execution_client(provider);
         let block_hash = builder.evm_read::<Bytes32Variable>();
-        let address = builder
-            .constant::<AddressVariable>(address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"));
+        let address = builder.evm_read::<AddressVariable>();
         let location = builder.evm_read::<Bytes32Variable>();
         let value = builder.eth_get_storage_at(address, location, block_hash);
         builder.evm_write(value);
@@ -96,7 +95,7 @@ mod tests {
         input.evm_write::<Bytes32Variable>(bytes32!(
             "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
         ));
-        // input.evm_write::<AddressVariable>(address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"));
+        input.evm_write::<AddressVariable>(address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"));
         input.evm_write::<Bytes32Variable>(bytes32!(
             "0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"
         ));
