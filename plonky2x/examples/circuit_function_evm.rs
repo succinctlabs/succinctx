@@ -53,6 +53,7 @@ fn main() {
 mod tests {
     use std::path::PathBuf;
 
+    use plonky2::plonk::proof::ProofWithPublicInputs;
     use plonky2x::prelude::{GoldilocksField, PoseidonGoldilocksConfig};
 
     use super::*;

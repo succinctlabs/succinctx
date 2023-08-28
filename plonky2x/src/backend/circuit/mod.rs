@@ -40,6 +40,14 @@ where
         }
     }
 
+    /// Returns an input instance for the circuit.
+    pub fn output(&self) -> CircuitOutput<F, D> {
+        CircuitOutput {
+            io: self.io.clone(),
+            buffer: Vec::new(),
+        }
+    }
+
     /// Generates a proof for the circuit. The proof can be verified using `verify`.
     pub fn prove(
         &self,

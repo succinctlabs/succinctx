@@ -1,8 +1,10 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
+
+use super::circuit::io::{CircuitInput, CircuitOutput};
+use super::circuit::Circuit;
 
 pub mod enviroment;
 pub mod local;
@@ -18,10 +20,9 @@ pub trait Prover {
     /// Generates a proof with the given input.
     async fn prove<F, C, const D: usize>(
         &self,
-        circuit: &CircuitData<F, C, D>,
-        targets: ProverInputTargets<D>,
-        values: ProverInputValues<F, C, D>,
-    ) -> ProofWithPublicInputs<F, C, D>
+        circuit: &Circuit<F, C, D>,
+        input: &CircuitInput<F, D>,
+    ) -> (ProofWithPublicInputs<F, C, D>, CircuitOutput<F, D>)
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,
@@ -30,10 +31,9 @@ pub trait Prover {
     /// Generates a batch of proofs with the given input.
     async fn prove_batch<F, C, const D: usize>(
         &self,
-        circuit: &CircuitData<F, C, D>,
-        targets: ProverInputTargets<D>,
-        values: Vec<ProverInputValues<F, C, D>>,
-    ) -> Vec<ProofWithPublicInputs<F, C, D>>
+        circuit: &Circuit<F, C, D>,
+        inputs: Vec<CircuitInput<F, D>>,
+    ) -> Vec<(ProofWithPublicInputs<F, C, D>, CircuitOutput<F, D>)>
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,

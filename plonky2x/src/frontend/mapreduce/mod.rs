@@ -1,6 +1,5 @@
 #[macro_use]
 pub mod utils;
-pub mod serialize;
 
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -17,11 +16,11 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
-use crate::builder::CircuitBuilder;
-use crate::mapreduce::serialize::CircuitDataSerializable;
-use crate::prover::enviroment::EnviromentProver;
-use crate::prover::Prover;
-use crate::vars::CircuitVariable;
+use crate::backend::circuit::Circuit;
+use crate::backend::prover::enviroment::EnviromentProver;
+use crate::backend::prover::Prover;
+use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::vars::CircuitVariable;
 
 #[derive(Debug, Clone)]
 pub struct MapReduceRecursiveProofGenerator<F, C, I, O, const D: usize>
@@ -78,24 +77,26 @@ where
 
         // Load the map circuit from disk & generate the proofs.
         let map_circuit_path = format!("./build/{}.circuit", self.map_circuit_id);
-        let (map_circuit, map_circuit_input) = CircuitData::<F, C, D>::load::<I>(map_circuit_path);
-        let targets = map_circuit_input.targets().into();
-        let values = self
-            .inputs
-            .iter()
-            .map(|x| witness.get_targets(x.targets().as_slice()).into())
+        let map_circuit = Circuit::<F, C, D>::load(&map_circuit_path).unwrap();
+
+        let map_circuit_inputs = (0..self.inputs.len())
+            .map(|i| {
+                let input = map_circuit.input();
+                input.write(self.inputs[i].get(witness));
+                input
+            })
             .collect_vec();
         let mut proofs =
-            rt.block_on(async { prover.prove_batch(&map_circuit, targets, values).await });
+            rt.block_on(async { prover.prove_batch(&map_circuit, map_circuit_inputs).await });
 
         // Each reduce layer takes N leave proofs and produces N / 2 proofs using a simple
         // linear and binary reduction strategy.
         let nb_reduce_layers = (self.inputs.len() as f64).log2().ceil() as usize;
         for i in 0..nb_reduce_layers {
             let reduce_circuit_path = format!("./build/{}.circuit", self.reduce_circuit_ids[i]);
-            let (reduce_circuit, _, reduce_circuit_inputs) =
-                CircuitData::<F, C, D>::load_with_proof_targets(reduce_circuit_path);
+            let reduce_circuit = Circuit::<F, C, D>::load(reduce_circuit_path.as_str()).unwrap();
             let nb_proofs = self.inputs.len() / (2usize.pow((i + 1) as u32));
+
             let targets = reduce_circuit_inputs.into();
             let mut values = Vec::new();
             for j in 0..nb_proofs {

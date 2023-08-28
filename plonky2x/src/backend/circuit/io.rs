@@ -1,12 +1,19 @@
+use std::fs::File;
+use std::io::{Read, Write};
+
 use curta::math::prelude::PrimeField64;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::proof::ProofWithPublicInputs;
 
+use super::Circuit;
 use crate::frontend::builder::CircuitIO;
 use crate::frontend::vars::EvmVariable;
 use crate::prelude::{ByteVariable, CircuitVariable};
 
 /// A circuit input. Write to the input using `write` and `evm_write`.
+#[derive(Debug, Clone)]
 pub struct CircuitInput<F: RichField + Extendable<D>, const D: usize> {
     pub io: CircuitIO<D>,
     pub buffer: Vec<F>,
@@ -16,6 +23,14 @@ pub struct CircuitInput<F: RichField + Extendable<D>, const D: usize> {
 pub struct CircuitOutput<F: RichField + Extendable<D>, const D: usize> {
     pub io: CircuitIO<D>,
     pub buffer: Vec<F>,
+}
+
+/// A trait that implements methods for loading and save proofs from disk.
+pub trait ProofWithPublicInputsSerializable<F: RichField + Extendable<D>, const D: usize> {
+    fn serialize_to_json(&self) -> String;
+    fn deserialize_from_json(data: String) -> Self;
+    fn save(&self, path: &str);
+    fn load(&self, path: &str) -> Self;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitInput<F, D> {
@@ -58,6 +73,40 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitInput<F, D> {
     /// field element-based IO.
     pub fn set<V: CircuitVariable>(&mut self, _: V, _: V::ValueType<F>) {
         todo!()
+    }
+
+    /// Serializes the input buffer to a vector of elements encoded as base 10 strings.
+    pub fn serialize_to_json(&self) -> String {
+        let buffer: Vec<String> = self
+            .buffer
+            .iter()
+            .map(|x| x.as_canonical_u64().to_string())
+            .collect();
+        serde_json::to_string_pretty(&buffer).unwrap()
+    }
+
+    /// Deserializes the input buffer form a vector of elements encoded as base 10 strings.
+    pub fn deserialize_from_json(&mut self, data: String) {
+        let buffer: Vec<String> = serde_json::from_str(&data).unwrap();
+        self.buffer = buffer
+            .iter()
+            .map(|x| F::from_canonical_u64(x.parse().unwrap()))
+            .collect();
+    }
+
+    /// Saves the input buffer to a file.
+    pub fn save(&self, path: &str) {
+        let json = self.serialize_to_json();
+        let mut file = File::create(path).unwrap();
+        file.write_all(json.as_bytes()).unwrap();
+    }
+
+    /// Loads the input buffer from a file.
+    pub fn load(&mut self, path: &str) {
+        let mut file = File::open(path).unwrap();
+        let mut data = String::new();
+        file.read_to_string(&mut data).unwrap();
+        self.deserialize_from_json(data);
     }
 }
 
@@ -114,5 +163,65 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
     /// variable in the circuit.
     pub fn get<V: CircuitVariable>(&self, _: V) -> V::ValueType<F> {
         todo!()
+    }
+
+    /// Serializes the output buffer to json.
+    pub fn serialize_to_json(&self) -> String {
+        let buffer: Vec<String> = self
+            .buffer
+            .iter()
+            .map(|x| x.as_canonical_u64().to_string())
+            .collect();
+        serde_json::to_string_pretty(&buffer).unwrap()
+    }
+
+    /// Deserializes the output buffer from json.
+    pub fn deserialize_from_json<C>(circuit: &Circuit<F, C, D>, data: String) -> Self
+    where
+        C: GenericConfig<D, F = F> + 'static,
+        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+    {
+        let buffer: Vec<String> = serde_json::from_str(&data).unwrap();
+        let output = CircuitOutput {
+            io: circuit.io.clone(),
+            buffer: buffer
+                .iter()
+                .map(|x| F::from_canonical_u64(x.parse().unwrap()))
+                .collect(),
+        };
+        output
+    }
+
+    /// Saves the output buffer to a file.
+    pub fn save(&self, path: &str) {
+        let json = self.serialize_to_json();
+        let mut file = File::create(path).unwrap();
+        file.write_all(json.as_bytes()).unwrap();
+    }
+}
+
+impl<F: RichField + Extendable<D>, C, const D: usize> ProofWithPublicInputsSerializable<F, D>
+    for ProofWithPublicInputs<F, C, D>
+where
+    C: GenericConfig<D, F = F> + 'static,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+{
+    fn serialize_to_json(&self) -> String {
+        serde_json::to_string_pretty(&self).unwrap()
+    }
+
+    fn deserialize_from_json(data: String) -> Self {
+        serde_json::from_str(&data).unwrap()
+    }
+
+    fn save(&self, path: &str) {
+        let json = self.serialize_to_json();
+        let mut file = File::create(path).unwrap();
+        file.write_all(json.as_bytes()).unwrap();
+    }
+
+    fn load(&self, path: &str) -> Self {
+        let file = File::open(path).unwrap();
+        serde_json::from_reader(file).unwrap()
     }
 }

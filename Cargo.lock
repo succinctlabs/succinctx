@@ -2551,6 +2551,7 @@ dependencies = [
  "dotenv",
  "env_logger",
  "ethers",
+ "futures",
  "hex",
  "itertools 0.10.5",
  "log",

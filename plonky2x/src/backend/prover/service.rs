@@ -22,12 +22,13 @@ pub struct GetProofResponse {
     pub result: Option<HashMap<String, String>>,
 }
 
-pub struct SuccinctService {
+#[derive(Default)]
+pub struct ProvingService {
     client: Client,
     base_url: String,
 }
 
-impl SuccinctService {
+impl ProvingService {
     pub fn new() -> Self {
         Self {
             client: Client::new(),
@@ -52,7 +53,7 @@ impl SuccinctService {
             .json()
             .await
             .unwrap();
-        return create_response.proof_id;
+        create_response.proof_id
     }
 
     /// Gets the status of a proof request with the given proof id.
