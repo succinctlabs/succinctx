@@ -13,7 +13,7 @@ use crate::prelude::ByteVariable;
 
 impl ValueTrait for U64 {
     fn to_limbs<const N: usize>(self) -> [u32; N] {
-        let mut bytes = [0u8; 32];
+        let mut bytes = [0u8; 8];
         self.to_little_endian(&mut bytes);
         let mut ret: [u32; N] = [0; N];
         for i in (0..=N).step_by(4) {
@@ -62,18 +62,18 @@ impl CircuitVariable for U64Variable {
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
     ) -> Self {
-        Self(U32NVariable::<U64type, NUM_LIMBS>::init(builder))
+        Self(U32NVariable::init(builder))
     }
 
     fn constant<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        Self(U32NVariable::<U64type, NUM_LIMBS>::constant(builder, value))
+        Self(U32NVariable::<U64, 2>::constant(builder, value))
     }
 
     fn variables(&self) -> Vec<Variable> {
-        U32NVariable::<U64type, NUM_LIMBS>::variables(&self.0)
+        U32NVariable::variables(&self.0)
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
@@ -83,11 +83,11 @@ impl CircuitVariable for U64Variable {
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        U32NVariable::<U64type, NUM_LIMBS>::get(self, witness)
+        U32NVariable::get(&self.0, witness)
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        U32NVariable::<U64type, NUM_LIMBS>::set(self, witness, value)
+        U32NVariable::set(&self.0, witness, value)
     }
 }
 
@@ -96,22 +96,24 @@ impl EvmVariable for U64Variable {
         &self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> Vec<ByteVariable> {
-        U32NVariable::<U64type, NUM_LIMBS>::encode(self, builder)
+        U32NVariable::encode(&self.0, builder)
     }
 
     fn decode<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
         bytes: &[ByteVariable],
     ) -> Self {
-        U32NVariable::<U64type, NUM_LIMBS>::decode(builder, bytes)
+        Self(U32NVariable::decode(builder, bytes))
     }
 
     fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {
-        U32NVariable::<U64type, NUM_LIMBS>::encode_value(value)
+        let mut bytes = [0u8; NUM_LIMBS * 4];
+        value.to_big_endian(&mut bytes);
+        bytes.to_vec()
     }
 
     fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
-        U32NVariable::<U64type, NUM_LIMBS>::decode_value(bytes)
+        U64::from_big_endian(bytes)
     }
 }
 
@@ -120,14 +122,14 @@ impl AlgebraicVariable for U64Variable {
     fn zero<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
     ) -> Self {
-        Self(U32NVariable::<U64type, NUM_LIMBS>::zero(builder))
+        Self(U32NVariable::zero(builder))
     }
 
     /// Returns the one value of the variable.
     fn one<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
     ) -> Self {
-        Self(U32NVariable::<U64type, NUM_LIMBS>::one(builder))
+        Self(U32NVariable::one(builder))
     }
 
     // Adds two variables together.
@@ -136,8 +138,8 @@ impl AlgebraicVariable for U64Variable {
         builder: &mut CircuitBuilder<F, D>,
         other: &Self,
     ) -> Self {
-        Self(U32NVariable::<U64type, NUM_LIMBS>::add(
-            self, builder, other,
+        Self(U32NVariable::add(
+            &self.0, builder, &other.0,
         ))
     }
 
@@ -147,8 +149,8 @@ impl AlgebraicVariable for U64Variable {
         builder: &mut CircuitBuilder<F, D>,
         other: &Self,
     ) -> Self {
-        Self(U32NVariable::<U64type, NUM_LIMBS>::sub(
-            self, builder, other,
+        Self(U32NVariable::sub(
+            &self.0, builder, &other.0,
         ))
     }
 
@@ -158,8 +160,8 @@ impl AlgebraicVariable for U64Variable {
         builder: &mut CircuitBuilder<F, D>,
         other: &Self,
     ) -> Self {
-        Self(U32NVariable::<U64type, NUM_LIMBS>::mul(
-            self, builder, other,
+        Self(U32NVariable::mul(
+            &self.0, builder, &other.0,
         ))
     }
 
@@ -190,22 +192,21 @@ mod tests {
 
         let mut builder = CircuitBuilder::<F, D>::new();
 
-        let var = U64Variable::constant(&mut builder, U64([0x1234567812345678]));
-
-        let encoded = var.encode(&mut builder);
-
-        let bytes = [0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78];
-
-        for (i, byte) in encoded.iter().enumerate() {
-            let expected = ByteVariable::constant(&mut builder, bytes[i]).0;
-            byte.0.iter().enumerate().for_each(|(j, &bit)| {
-                builder.assert_is_equal(bit.0, expected[j].0);
-            });
+        let mut var_bytes = vec![];
+        for i in 0..8 {
+            let byte = ByteVariable::constant(&mut builder, i as u8);
+            var_bytes.push(byte);
         }
-
-        let decoded = U64Variable::decode(&mut builder, &encoded[0..4]);
+        let decoded = U64Variable::decode(&mut builder, &var_bytes);
+        let encoded = decoded.encode(&mut builder);
+        let redecoded = U64Variable::decode(&mut builder, &encoded[0..8]);
         for i in 0..2 {
-            builder.assert_is_equal(decoded.0.limbs[i].0, var.0.limbs[i].0);
+            builder.assert_is_equal(decoded.0.limbs[i].0, redecoded.0.limbs[i].0);
+        }
+        for i in 0..8 {
+            for j in 0..8 {
+                builder.assert_is_equal(encoded[i].0[j].0, var_bytes[i].0[j].0);
+            }
         }
 
         let circuit = builder.build::<C>();
@@ -216,21 +217,21 @@ mod tests {
     }
 
     #[test]
-    fn test_u32_evm_value() {
+    fn test_u64_evm_value() {
         type F = GoldilocksField;
 
-        let val = 0x1234567812345678_u64;
+        let val = 0x123456789abcdef0_u64;
         let encoded = U64Variable::encode_value::<F>(U64([val]));
         let decoded = U64Variable::decode_value::<F>(&encoded);
         assert_eq!(encoded[0], 0x12);
         assert_eq!(encoded[1], 0x34);
         assert_eq!(encoded[2], 0x56);
         assert_eq!(encoded[3], 0x78);
-        assert_eq!(encoded[4], 0x12);
-        assert_eq!(encoded[5], 0x34);
-        assert_eq!(encoded[6], 0x56);
-        assert_eq!(encoded[7], 0x78);
-        assert_eq!(decoded, U64([0x1234567812345678]));
+        assert_eq!(encoded[4], 0x9a);
+        assert_eq!(encoded[5], 0xbc);
+        assert_eq!(encoded[6], 0xde);
+        assert_eq!(encoded[7], 0xf0);
+        assert_eq!(decoded, U64([0x123456789abcdef0]));
     }
 
     #[test]
@@ -264,7 +265,7 @@ mod tests {
     }
 
     #[test]
-    fn test_u32_sub() {
+    fn test_u64_sub() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -293,7 +294,7 @@ mod tests {
     }
 
     #[test]
-    fn test_u32_mul() {
+    fn test_u64_mul() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;

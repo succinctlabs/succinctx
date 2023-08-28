@@ -229,7 +229,7 @@ where
 
         let sum_biguint = builder.api.add_biguint(&self_biguint, &other_biguint);
 
-        // Get the least significant limb
+        // Get the least significant limbs
         let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
         for i in 0..N {
             limbs[i] = U32Variable(Variable(sum_biguint.limbs[i].0));
