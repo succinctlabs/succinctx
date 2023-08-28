@@ -22,9 +22,9 @@ use crate::utils::eth::get_provider;
 
 #[derive(Debug, Clone)]
 pub struct EthStorageProofGenerator<F: RichField + Extendable<D>, const D: usize> {
+    block_hash: Bytes32Variable,
     address: AddressVariable,
     storage_key: Bytes32Variable,
-    block_hash: Bytes32Variable,
     pub value: Bytes32Variable,
     chain_id: u64,
     _phantom: PhantomData<F>,
@@ -33,16 +33,16 @@ pub struct EthStorageProofGenerator<F: RichField + Extendable<D>, const D: usize
 impl<F: RichField + Extendable<D>, const D: usize> EthStorageProofGenerator<F, D> {
     pub fn new(
         builder: &mut CircuitBuilder<F, D>,
+        block_hash: Bytes32Variable,
         address: AddressVariable,
         storage_key: Bytes32Variable,
-        block_hash: Bytes32Variable,
     ) -> EthStorageProofGenerator<F, D> {
         let chain_id = builder.get_chain_id();
         let value = builder.init::<Bytes32Variable>();
         EthStorageProofGenerator {
+            block_hash,
             address,
             storage_key,
-            block_hash,
             value,
             chain_id,
             _phantom: PhantomData::<F>,

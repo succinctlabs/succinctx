@@ -22,11 +22,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     #[allow(non_snake_case)]
     pub fn eth_get_storage_at(
         &mut self,
+        block_hash: Bytes32Variable,
         address: AddressVariable,
         storage_key: Bytes32Variable,
-        block_hash: Bytes32Variable,
     ) -> Bytes32Variable {
-        let generator = EthStorageProofGenerator::new(self, address, storage_key, block_hash);
+        let generator = EthStorageProofGenerator::new(self, block_hash, address, storage_key );
         self.add_simple_generator(&generator);
         generator.value
     }
@@ -86,7 +86,7 @@ mod tests {
         let block_hash = builder.evm_read::<Bytes32Variable>();
         let address = builder.evm_read::<AddressVariable>();
         let location = builder.evm_read::<Bytes32Variable>();
-        let value = builder.eth_get_storage_at(address, location, block_hash);
+        let value = builder.eth_get_storage_at(block_hash, address, location);
         builder.evm_write(value);
 
         // Build your circuit.
@@ -95,10 +95,13 @@ mod tests {
         // Write to the circuit input.
         // These values are taken from Ethereum block https://etherscan.io/block/17880427
         let mut input = circuit.input();
+        // block hash
         input.evm_write::<Bytes32Variable>(bytes32!(
             "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
         ));
+        // address
         input.evm_write::<AddressVariable>(address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"));
+        // location
         input.evm_write::<Bytes32Variable>(bytes32!(
             "0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"
         ));
