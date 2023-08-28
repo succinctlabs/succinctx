@@ -73,12 +73,11 @@ impl<const N: usize> EvmVariable for BytesVariable<N> {
     }
 
     fn decode<F: RichField + Extendable<D>, const D: usize>(
-        _builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
         bytes: &[ByteVariable],
     ) -> Self {
         assert_eq!(bytes.len(), N);
-        let byte_array: [_; N] = core::array::from_fn(|i| bytes[i]);
-        BytesVariable(byte_array)
+        Self(array![i => ByteVariable::decode(builder, &bytes[i..i+1]); N])
     }
 
     fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {

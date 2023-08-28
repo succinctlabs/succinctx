@@ -15,7 +15,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksC
 use self::cli::{BuildArgs, ProveArgs};
 use crate::backend::circuit::Circuit;
 use crate::backend::function::cli::{Args, Commands};
-use crate::backend::function::io::{FunctionInput, FunctionOutput};
+use crate::backend::function::io::{FunctionInput, FunctionOutput, FunctionOutputGroth16};
 
 pub trait CircuitFunction {
     /// Builds the circuit.
@@ -71,6 +71,14 @@ contract FunctionVerifier is IFunctionVerifier {
     }
 
     /// Generates a proof with evm-based inputs and outputs.
+    /// type Groth16Proof struct {
+    //     A      [2]*big.Int    `json:"a"`
+    //     B      [2][2]*big.Int `json:"b"`
+    //     C      [2]*big.Int    `json:"c"`
+    //     Input  hexutil.Bytes  `json:"input"`
+    //     Output hexutil.Bytes  `json:"output"`
+    // }
+
     fn prove_with_evm_io<F, C, const D: usize>(args: ProveArgs, bytes: Vec<u8>)
     where
         F: RichField + Extendable<D>,
@@ -98,12 +106,26 @@ contract FunctionVerifier is IFunctionVerifier {
             proof: hex::encode(proof.to_bytes()),
         };
         let json = serde_json::to_string_pretty(&function_output).unwrap();
-        let mut file = File::create("output.json").unwrap();
+        let mut file = File::create("plonky2_output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
         info!(
-            "Succesfully wrote output of {} bytes and proof to output.json.",
+            "Succesfully wrote output of {} bytes and proof to plonky2_output.json.",
             output_bytes.len()
         );
+
+        let input_hex_string = format!("0x{}", hex::encode(bytes.clone()));
+        let output_hex_string = format!("0x{}", hex::encode(output_bytes.clone()));
+        let dummy_groth16_proof = FunctionOutputGroth16 {
+            a: [0, 0],
+            b: [[0, 0], [0, 0]],
+            c: [0, 0],
+            input: input_hex_string,
+            output: output_hex_string,
+        };
+        let json = serde_json::to_string_pretty(&dummy_groth16_proof).unwrap();
+        let mut file = File::create("output.json").unwrap();
+        file.write_all(json.as_bytes()).unwrap();
+        info!("Succesfully wrote dummy proof to output.json.");
     }
 
     /// Generates a proof with field-based inputs and outputs.

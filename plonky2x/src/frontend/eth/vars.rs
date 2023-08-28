@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::{BytesVariable, CircuitVariable};
+use crate::frontend::vars::{ByteVariable, BytesVariable, CircuitVariable, EvmVariable};
 use crate::prelude::Variable;
 
 #[derive(Debug, Clone, Copy)]
@@ -84,5 +84,29 @@ impl CircuitVariable for AddressVariable {
             witness,
             value.as_bytes().try_into().expect("wrong slice length"),
         )
+    }
+}
+
+impl EvmVariable for AddressVariable {
+    fn encode<F: RichField + Extendable<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Vec<ByteVariable> {
+        self.0.encode(builder)
+    }
+
+    fn decode<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        bytes: &[ByteVariable],
+    ) -> Self {
+        Self(BytesVariable::decode(builder, bytes))
+    }
+
+    fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {
+        value.as_bytes().to_vec()
+    }
+
+    fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
+        H160::from_slice(bytes)
     }
 }
