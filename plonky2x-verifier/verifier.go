@@ -77,8 +77,9 @@ func Compile(dummyCircuitPath string) (constraint.ConstraintSystem, groth16.Prov
 }
 
 func Save(path string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey, vk groth16.VerifyingKey) {
-	fmt.Println("Saving proving key to", path+"/pk.bin")
-	pk.Write(path + "/pk.bin")
-	fmt.Println("Saving verifying key to", path+"/vk.bin")
-	vk.Write(path + "/vk.bin")
+// 	fmt.Println("Saving proving key to", path+"/pk.bin")
+// 	pk.Write(path + "/pk.bin")
+// 	fmt.Println("Saving verifying key to", path+"/vk.bin")
+// 	vk.Write(path + "/vk.bin")
+// 
 }
