@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use array_macro::array;
-use ethers::types::U256;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
@@ -23,43 +22,6 @@ pub trait ValueTrait {
     fn to_big_endian(&self, bytes: &mut [u8]);
 
     fn from_big_endian(slice: &[u8]) -> Self;
-}
-
-impl ValueTrait for U256 {
-    fn to_limbs<const N: usize>(self) -> [u32; N] {
-        let mut bytes = [0u8; 32];
-        self.to_little_endian(&mut bytes);
-        let mut ret: [u32; N] = [0; N];
-        for i in 0..=N {
-            let byte_offset = i * 4;
-            ret[i] = u32::from_le_bytes([
-                bytes[byte_offset],
-                bytes[byte_offset + 1],
-                bytes[byte_offset + 2],
-                bytes[byte_offset + 3],
-            ])
-        }
-        ret
-    }
-
-    fn to_value<const N: usize>(limbs: [u32; N]) -> Self
-    where
-        [(); N * 4]:,
-    {
-        let mut bytes = [0u8; N * 4];
-        for (i, &limb) in limbs.iter().enumerate() {
-            bytes[i * 4..(i + 1) * 4].copy_from_slice(&limb.to_le_bytes());
-        }
-        Self::from_little_endian(&bytes)
-    }
-
-    fn to_big_endian(&self, bytes: &mut [u8]) {
-        self.to_big_endian(bytes);
-    }
-
-    fn from_big_endian(bytes: &[u8]) -> Self {
-        Self::from_big_endian(bytes)
-    }
 }
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
