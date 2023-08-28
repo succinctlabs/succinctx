@@ -6,6 +6,9 @@ use crate::frontend::vars::CircuitVariable;
 
 pub mod uint256;
 pub mod uint32;
+pub mod uint64;
+
+mod uint32_n;
 
 /// A variable in the circuit representing an algebraic value.
 ///
