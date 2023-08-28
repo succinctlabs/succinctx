@@ -28,6 +28,9 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, IoResult, WitnessGeneratorSerializer};
 
+use crate::frontend::mapreduce::MapReduceRecursiveProofGenerator;
+use crate::prelude::Variable;
+
 #[macro_export]
 macro_rules! impl_generator_serializer {
     ($serializer:ty, $( $generator:ty, $name:expr ),* $(,)* ) => {
@@ -136,6 +139,7 @@ where
         ReducingGenerator<D>, "ReducingGenerator",
         ReducingExtensionGenerator<D>, "ReducingExtensionGenerator",
         SplitGenerator, "SplitGenerator",
-        WireSplitGenerator, "WireSplitGenerator"
+        WireSplitGenerator, "WireSplitGenerator",
+        MapReduceRecursiveProofGenerator<F, C, Variable, Variable, D>, "MapReduceRecursiveProofGenerator",
     }
 }

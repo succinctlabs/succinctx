@@ -80,18 +80,15 @@ where
         let map_circuit_path = format!("./build/{}.circuit", self.map_circuit_id);
         let map_circuit = Circuit::<F, C, D>::load(&map_circuit_path).unwrap();
 
-        println!("generating map circuit");
         let map_circuit_inputs = (0..self.inputs.len())
             .map(|i| {
                 let mut input = map_circuit.input();
                 input.write::<I>(self.inputs[i].get(witness));
-                println!("wrote");
                 input
             })
             .collect_vec();
         let (mut proofs, mut outputs) =
             rt.block_on(async { prover.prove_batch(&map_circuit, map_circuit_inputs).await });
-        println!("finished map circuit");
 
         // Each reduce layer takes N leave proofs and produces N / 2 proofs using a simple
         // linear and binary reduction strategy.
@@ -118,7 +115,6 @@ where
                     .await
             });
         }
-        println!("got here");
 
         // Set the proof target with the final proof.
         out_buffer.set_proof_with_pis_target(&self.proof, &proofs[0]);
@@ -237,12 +233,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     {
         // Build a map circuit which maps from I -> O using the closure `m`.
         let map_circuit = self.build_map_circuit::<I, O, C, M>(&m);
+        debug!("built map circuit with id={}", map_circuit.id());
 
         // Save map circuit and map circuit input target to build folder.
         let map_circuit_id = map_circuit.id();
         let map_circuit_path = format!("./build/{}.circuit", map_circuit_id);
         map_circuit.save(&map_circuit_path);
-        debug!("map_circuit_id={}", map_circuit_id);
+        debug!("saved map circuit to disk at {}", map_circuit_path);
 
         // For each reduce layer, we need to build a reduce circuit which reduces two input proofs
         // to an output O.
@@ -256,11 +253,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
                 &reduce_circuits[i - 1]
             };
             let reduce_circuit = self.build_reduce_circuit::<O, C, R>(child_circuit_data, &r);
+            debug!("building reduce circuit with id={}", reduce_circuit.id());
 
             // Save reduce circuit and reduce circuit input proofs to build folder.
             let reduce_circuit_id = reduce_circuit.id();
             let reduce_circuit_path = format!("./build/{}.circuit", reduce_circuit_id);
             reduce_circuit.save(&reduce_circuit_path);
+            debug!("saved reduce circuit to disk at {}", reduce_circuit_path);
             reduce_circuits.push(reduce_circuit);
         }
 
@@ -278,20 +277,20 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             _phantom3: PhantomData::<O>,
         };
         self.add_simple_generator(&generator);
+        debug!("added map reduce recursive proof generator to circuit");
 
         // Verify the final proof.
         let vd = self.constant_verifier_data(&last_reduce_circuit.data);
         self.verify_proof::<C>(&proof, &vd, &last_reduce_circuit.data.common);
 
         // Deserialize the output from the final proof.
-        println!("{}", generator.proof.public_inputs.len());
-
         O::from_targets(&generator.proof.public_inputs[I::nb_elements::<F, D>() * 2..])
     }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use log::info;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
@@ -301,6 +300,8 @@ pub(crate) mod tests {
 
     #[test]
     fn test_simple_mapreduce_circuit() {
+        env_logger::init();
+
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -323,14 +324,14 @@ pub(crate) mod tests {
         );
         builder.register_public_inputs(output.targets().as_slice());
 
-        println!("compiling outer circuit");
+        info!("compiling outer circuit");
         let circuit = builder.build::<C>();
 
-        println!("proving outer circuit");
+        info!("proving outer circuit");
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
 
-        println!("result: {:?}", proof.public_inputs);
+        info!("result: {:?}", proof.public_inputs);
     }
 }

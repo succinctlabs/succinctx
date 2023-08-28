@@ -25,8 +25,8 @@ pub struct FieldIO {
 /// Stores circuit variables used for recursive proof verification.
 #[derive(Debug, Clone)]
 pub struct RecursiveProofIO<const D: usize> {
-    pub input_proofs: Vec<ProofWithPublicInputsTarget<D>>,
-    pub output_variables: Vec<Variable>,
+    pub proofs: Vec<ProofWithPublicInputsTarget<D>>,
+    pub child_circuit_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -73,8 +73,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     fn init_proof_io(&mut self) {
         if self.io.recursive_proof.is_none() {
             self.io.recursive_proof = Some(RecursiveProofIO {
-                input_proofs: Vec::new(),
-                output_variables: Vec::new(),
+                proofs: Vec::new(),
+                child_circuit_ids: Vec::new(),
             })
         }
     }
@@ -109,15 +109,21 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         C: GenericConfig<D, F = F> + 'static,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
     {
-        println!("read proof");
         self.init_proof_io();
         let proof = self.add_virtual_proof_with_pis(&cd.data.common);
         self.io
             .recursive_proof
             .as_mut()
             .unwrap()
-            .input_proofs
+            .proofs
             .push(proof.clone());
+        self.io
+            .recursive_proof
+            .as_mut()
+            .unwrap()
+            .child_circuit_ids
+            .push(cd.id());
+
         proof
     }
 

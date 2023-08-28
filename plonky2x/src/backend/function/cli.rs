@@ -17,10 +17,15 @@ pub struct ProveArgs {
     pub input_json: String,
 }
 
+#[derive(Parser, Debug, Clone)]
+#[command(about = "Generate a proof for a child circuit.")]
+pub struct ProveChildArgs {}
+
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     Build(BuildArgs),
     Prove(ProveArgs),
+    ProveChild(ProveChildArgs),
 }
 
 #[derive(Parser, Debug, Clone)]

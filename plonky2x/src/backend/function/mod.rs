@@ -6,16 +6,20 @@ use std::io::{Read, Write};
 
 use clap::Parser;
 use curta::math::prelude::PrimeField64;
-use log::{info, warn};
+use itertools::Itertools;
+use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig};
+use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use self::cli::{BuildArgs, ProveArgs};
 use crate::backend::circuit::Circuit;
 use crate::backend::function::cli::{Args, Commands};
 use crate::backend::function::io::{FunctionInput, FunctionOutput};
+use crate::backend::prover::remote::ContextData;
 
 pub trait CircuitFunction {
     /// Builds the circuit.
@@ -173,7 +177,59 @@ contract FunctionVerifier is IFunctionVerifier {
                 } else if input.elements.is_some() {
                     Self::prove_with_field_io::<F, C, D>(args, input.elements());
                 } else {
-                    warn!("No input bytes or elements found in input.json.");
+                    panic!("No input bytes or elements found in input.json.");
+                }
+            }
+            Commands::ProveChild(_) => {
+                let mut file = File::open("context").unwrap();
+                let mut context = String::new();
+                file.read_to_string(&mut context).unwrap();
+                let context: ContextData = serde_json::from_str(context.as_str()).unwrap();
+                let circuit_path = format!("./build/{}.circuit", context.circuit_id);
+
+                if context.tag == "map" {
+                    let circuit = Circuit::<F, C, D>::load(circuit_path.as_str()).unwrap();
+                    let input_values = context
+                        .input
+                        .iter()
+                        .map(|s| F::from_canonical_u64(s.parse::<u64>().unwrap()))
+                        .collect_vec();
+                    let mut input = circuit.input();
+                    input.write_all(&input_values);
+                    let (proof, output) = circuit.prove(&input);
+                    circuit.verify(&proof, &input, &output);
+                    let file_path = "./proof.json";
+                    let json = serde_json::to_string_pretty(&proof).unwrap();
+                    std::fs::write(file_path, json).unwrap();
+                    println!("Successfully generated proof.");
+                } else if context.tag == "reduce" {
+                    let circuit = Circuit::<F, C, D>::load(circuit_path.as_str()).unwrap();
+                    let io = circuit.io.recursive_proof.as_ref().unwrap();
+                    let mut input = circuit.input();
+                    for i in 0..io.child_circuit_ids.len() {
+                        let path = format!("./build/{}.circuit", io.child_circuit_ids[i]);
+                        let child_circuit = Circuit::<F, C, D>::load(&path).unwrap();
+                        let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(
+                            hex::decode(context.input[i].as_str()).unwrap(),
+                            &child_circuit.data.common,
+                        )
+                        .unwrap();
+                        input.proof_write(proof);
+                    }
+
+                    let input_values = context
+                        .input
+                        .iter()
+                        .map(|s| F::from_canonical_u64(s.parse::<u64>().unwrap()))
+                        .collect_vec();
+                    input.write_all(&input_values);
+
+                    let (proof, output) = circuit.prove(&input);
+                    circuit.verify(&proof, &input, &output);
+                    let file_path = "./proof.json";
+                    let json = serde_json::to_string_pretty(&proof).unwrap();
+                    std::fs::write(file_path, json).unwrap();
+                    println!("Successfully generated proof.");
                 }
             }
         }

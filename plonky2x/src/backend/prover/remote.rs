@@ -21,6 +21,7 @@ use crate::backend::circuit::Circuit;
 pub struct ContextData {
     pub circuit_id: String,
     pub input: Vec<String>,
+    pub proofs: Vec<String>,
     pub tag: String,
 }
 
@@ -53,6 +54,11 @@ impl Prover for RemoteProver {
         let context = serde_json::to_string_pretty(&ContextData {
             circuit_id: circuit_id.clone(),
             input: input.buffer.iter().map(|x| x.to_string()).collect(),
+            proofs: input
+                .proofs
+                .iter()
+                .map(|x| hex::encode(x.to_bytes()))
+                .collect(),
             tag: "map".to_string(),
         })
         .unwrap();

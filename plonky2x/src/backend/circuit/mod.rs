@@ -61,7 +61,6 @@ where
 
         // Set the input variables.
         let input_variables = if self.io.evm.is_some() {
-            println!("using emv io");
             self.io
                 .evm
                 .clone()
@@ -71,7 +70,6 @@ where
                 .flat_map(|b| b.variables())
                 .collect()
         } else if self.io.field.is_some() {
-            println!("using field io");
             self.io.field.clone().unwrap().input_variables
         } else {
             vec![]
@@ -83,16 +81,8 @@ where
 
         // Set the recursive proof inputs.
         if self.io.recursive_proof.is_some() {
-            println!("got here?");
-            let proofs = self
-                .io
-                .recursive_proof
-                .as_ref()
-                .unwrap()
-                .input_proofs
-                .clone();
+            let proofs = self.io.recursive_proof.as_ref().unwrap().proofs.clone();
             for i in 0..proofs.len() {
-                println!("set proof");
                 pw.set_proof_with_pis_target(&proofs[i], &input.proofs[i]);
             }
         }
@@ -199,9 +189,14 @@ where
         if self.io.recursive_proof.is_some() {
             let io = self.io.recursive_proof.as_ref().unwrap();
             buffer.write_usize(2)?;
-            buffer.write_usize(io.input_proofs.len())?;
-            for i in 0..io.input_proofs.len() {
-                buffer.write_target_proof_with_public_inputs(&io.input_proofs[i])?;
+            buffer.write_usize(io.proofs.len())?;
+            for i in 0..io.proofs.len() {
+                buffer.write_target_proof_with_public_inputs(&io.proofs[i])?;
+            }
+            for i in 0..io.proofs.len() {
+                let bytes = &io.child_circuit_ids[i].as_bytes();
+                buffer.write_usize(bytes.len())?;
+                buffer.write_all(bytes)?;
             }
         }
 
@@ -253,20 +248,23 @@ where
             });
         }
 
-        println!("GOT EHRE");
         if !buffer.is_empty() {
-            println!("BUFFER IS NOT EMPTY!");
             buffer.read_usize()?;
             let input_proof_count = buffer.read_usize()?;
-            println!("input_proof_count={}", input_proof_count);
             let mut input_proofs = Vec::new();
             for _ in 0..input_proof_count {
                 input_proofs.push(buffer.read_target_proof_with_public_inputs()?);
-                println!("hm");
+            }
+            let mut child_circuit_ids = Vec::new();
+            for _ in 0..input_proof_count {
+                let length = buffer.read_usize()?;
+                let mut circuit_id_bytes = vec![0u8; length];
+                buffer.read_exact(&mut circuit_id_bytes)?;
+                child_circuit_ids.push(String::from_utf8(circuit_id_bytes).unwrap());
             }
             circuit.io.recursive_proof = Some(RecursiveProofIO {
-                input_proofs,
-                output_variables: Vec::new(),
+                proofs: input_proofs,
+                child_circuit_ids,
             });
         }
 
