@@ -6,7 +6,6 @@ import (
 	"os"
 )
 
-
 func main() {
 	circuitName := flag.String("circuit", "", "Circuit data directory")
 	proofFlag := flag.Bool("verify", false, "profile the circuit")
@@ -20,15 +19,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Circuit path is", "./data/" + *circuitName)
+	fmt.Println("Circuit path is", "./data/"+*circuitName)
 
 	if *testFlag {
 		fmt.Println("Testing circuit")
+		err := VerifierCircuitTest("./data/"+*circuitName, "./data/dummy")
+		if err != nil {
+			fmt.Println("Verifier test failed:", err)
+			os.Exit(1)
+		}
+		fmt.Println("Verifier test succeeded!")
 	}
 
 	if *compileFlag {
+		fmt.Println("Checking for an existing verifier circuit")
 		fmt.Println("Compiling verifier circuit")
-
 		if *serializeFlag {
 			fmt.Println("Serializing verifier circuit")
 		}
