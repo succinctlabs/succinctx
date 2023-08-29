@@ -89,27 +89,36 @@ func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth
 	if err != nil {
 		return fmt.Errorf("failed to create r1cs file: %w", err)
 	}
-	r1cs.WriteTo(r1csFile)
+	r1csWriter := bufio.NewWriter(r1csFile)
+	start := time.Now()
+	r1cs.WriteTo(r1csWriter)
 	r1csFile.Close()
-	log.Info().Msg("Successfully saved circuit constraints")
+	elapsed := time.Since(start)
+	log.Debug().Msg("Successfully saved circuit constraints, time: " + elapsed.String())
 
 	log.Info().Msg("Saving proving key to " + path + "/pk.bin")
 	pkFile, err := os.Create(path + "/pk.bin")
 	if err != nil {
 		return fmt.Errorf("failed to create pk file: %w", err)
 	}
-	pk.WriteRawTo(pkFile)
+	pkWriter := bufio.NewWriter(pkFile)
+	start = time.Now()
+	pk.WriteRawTo(pkWriter)
 	pkFile.Close()
-	log.Info().Msg("Successfully saved proving key")
-
-	fmt.Println("Saving verifying key to", path+"/vk.bin")
+	elapsed = time.Since(start)
+	log.Debug().Msg("Successfully saved proving key, time: " + elapsed.String())
+	
+    log.Info().Msg("Saving verifying key to" + path + "/vk.bin")
 	vkFile, err := os.Create(path + "/vk.bin")
 	if err != nil {
 		return fmt.Errorf("failed to create vk file: %w", err)
 	}
-	vk.WriteRawTo(vkFile)
+	vkWriter := bufio.NewWriter(vkFile)
+	start = time.Now()
+	vk.WriteRawTo(vkWriter)
 	vkFile.Close()
-	log.Info().Msg("Successfully saved verifying key")
+	elapsed = time.Since(start)
+	log.Info().Msg("Successfully saved verifying key, time: " + elapsed.String())
 
 	return nil
 }
@@ -188,7 +197,8 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create proof file: %w", err)
 	}
-	proof.WriteRawTo(proofFile)
+	proofWriter := bufio.NewWriter(proofFile)
+	proof.WriteRawTo(proofWriter)
 	proofFile.Close()
 	log.Info().Msg("Successfully saved proof")
 
@@ -197,7 +207,8 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create public witness file: %w", err)
 	}
-	publicWitness.WriteTo(witnessFile)
+	witnessWriter := bufio.NewWriter(witnessFile)
+	publicWitness.WriteTo(witnessWriter)
 	witnessFile.Close()
 	log.Info().Msg("Successfully saved public witness")	
 
@@ -206,36 +217,63 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 }
 
 
-func LoadVerifierData(path string) (groth16.VerifyingKey, witness.Witness, error) {
+func LoadVerifierKey(path string) (groth16.VerifyingKey, error) {
 	log := logger.Logger()
 	vkFile, err := os.Open(path + "/vk.bin")
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open vk file: %w", err)
+		return nil, fmt.Errorf("failed to open vk file: %w", err)
 	}
 	vk := groth16.NewVerifyingKey(ecc.BN254)
 	start := time.Now()
 	_, err = vk.ReadFrom(vkFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read vk file: %w", err)
+		return nil,  fmt.Errorf("failed to read vk file: %w", err)
 	}
+	vkFile.Close()
 	elapsed := time.Since(start)
 	log.Debug().Msg("Successfully loaded verifying key, time: " + elapsed.String())
 
-	witnessFile, err := os.Open(path + "/public_witness.bin")
+	return vk, nil
+}
+
+func LoadPublicWitness(circuitPath string) (witness.Witness, error) {
+	log := logger.Logger()
+	witnessFile, err := os.Open(circuitPath + "/public_witness.bin")
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open public witness file: %w", err)
+		return nil, fmt.Errorf("failed to open public witness file: %w", err)
 	}
 	publicWitness, err := witness.New(ecc.BN254.ScalarField())
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create public witness: %w", err)
+		return nil, fmt.Errorf("failed to create public witness: %w", err)
 	}
-	start = time.Now()
+	start := time.Now()
 	_, err = publicWitness.ReadFrom(witnessFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read public witness file: %w", err)
+		return nil, fmt.Errorf("failed to read public witness file: %w", err)
 	}
-	elapsed = time.Since(start)
+	witnessFile.Close()
+	elapsed := time.Since(start)
 	log.Debug().Msg("Successfully loaded public witness, time: " + elapsed.String())
 
-	return vk, publicWitness, nil
+	return publicWitness, nil
+}
+
+func LoadProof(circuitPath string) (groth16.Proof, error) {
+	log := logger.Logger()
+	proofFile, err := os.Open(circuitPath + "/proof.bin")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open proof file: %w", err)
+	}
+	proof := groth16.NewProof(ecc.BN254)
+	proofReader := bufio.NewReader(proofFile)
+	start := time.Now()
+	_, err = proof.ReadFrom(proofReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read proof file: %w", err)
+	}
+	proofFile.Close()
+	elapsed := time.Since(start)
+	log.Debug().Msg("Successfully loaded proof, time: " + elapsed.String())
+
+	return proof, nil
 }
