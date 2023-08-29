@@ -113,48 +113,35 @@ func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth
 	return nil
 }
 
-func LoadVerifierCircuit(path string) (constraint.ConstraintSystem, groth16.ProvingKey, groth16.VerifyingKey, error) {
+func LoadVerifierProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKey, error) {
 	log := logger.Logger()
 	r1csFile, err := os.Open(path + "/r1cs.bin")
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to open r1cs file: %w", err)
+		return nil, nil, fmt.Errorf("failed to open r1cs file: %w", err)
 	}
 	r1cs := groth16.NewCS(ecc.BN254)
 	start := time.Now()
 	_, err = r1cs.ReadFrom(r1csFile)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to read r1cs file: %w", err)
+		return nil, nil, fmt.Errorf("failed to read r1cs file: %w", err)
 	}
 	elapsed := time.Since(start)
 	log.Debug().Msg("Successfully loaded constraint system, time: " + elapsed.String())
 
 	pkFile, err := os.Open(path + "/pk.bin")
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to open pk file: %w", err)
+		return nil, nil, fmt.Errorf("failed to open pk file: %w", err)
 	}
 	pk := groth16.NewProvingKey(ecc.BN254)
 	start = time.Now()
 	_, err = pk.ReadFrom(pkFile)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to read pk file: %w", err)
+		return nil, nil, fmt.Errorf("failed to read pk file: %w", err)
 	}
 	elapsed = time.Since(start)
 	log.Debug().Msg("Successfully loaded proving key, time: " + elapsed.String())
 
-	vkFile, err := os.Open(path + "/vk.bin")
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to open vk file: %w", err)
-	}
-	vk := groth16.NewVerifyingKey(ecc.BN254)
-	start = time.Now()
-	_, err = vk.ReadFrom(vkFile)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to read vk file: %w", err)
-	}
-	elapsed = time.Since(start)
-	log.Debug().Msg("Successfully loaded verifying key, time: " + elapsed.String())
-
-	return r1cs, pk, vk, nil
+	return r1cs, pk, nil
 }
 
 func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey) (groth16.Proof, witness.Witness, error) {
@@ -193,5 +180,59 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 		return nil, nil, fmt.Errorf("failed to get public witness: %w", err)
 	}
 
+	log.Info().Msg("Saving proof to " + circuitPath + "/proof.bin")
+	proofFile, err := os.Create(circuitPath + "/proof.bin")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create proof file: %w", err)
+	}
+	proof.WriteRawTo(proofFile)
+	proofFile.Close()
+	log.Info().Msg("Successfully saved proof")
+
+	log.Info().Msg("Saving public witness to " + circuitPath + "/public_witness.bin")
+	witnessFile, err := os.Create(circuitPath + "/public_witness.bin")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create public witness file: %w", err)
+	}
+	publicWitness.WriteTo(witnessFile)
+	witnessFile.Close()
+	log.Info().Msg("Successfully saved public witness")	
+
+
 	return proof, publicWitness, nil
+}
+
+
+func LoadVerifierData(path string) (groth16.VerifyingKey, witness.Witness, error) {
+	log := logger.Logger()
+	vkFile, err := os.Open(path + "/vk.bin")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open vk file: %w", err)
+	}
+	vk := groth16.NewVerifyingKey(ecc.BN254)
+	start := time.Now()
+	_, err = vk.ReadFrom(vkFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read vk file: %w", err)
+	}
+	elapsed := time.Since(start)
+	log.Debug().Msg("Successfully loaded verifying key, time: " + elapsed.String())
+
+	witnessFile, err := os.Open(path + "/public_witness.bin")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open public witness file: %w", err)
+	}
+	publicWitness, err := witness.New(ecc.BN254.ScalarField())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create public witness: %w", err)
+	}
+	start = time.Now()
+	_, err = publicWitness.ReadFrom(witnessFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read public witness file: %w", err)
+	}
+	elapsed = time.Since(start)
+	log.Debug().Msg("Successfully loaded public witness, time: " + elapsed.String())
+
+	return vk, publicWitness, nil
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/logger"
 )
@@ -55,25 +56,46 @@ func main() {
 
 	if *proofFlag {
 		log.Info().Msg("loading the groth16 proving key and circuit data")
-		r1cs, pk, vk, err := LoadVerifierCircuit("./build")
+		r1cs, pk, err := LoadVerifierProverData("./build")
 		if err != nil {
 			log.Err(err).Msg("failed to load the verifier circuit")
 			os.Exit(1)
 		}
 		log.Info().Msg("creating the groth16 verifier proof")
-		proof, publicWitness, err := Prove("./data/"+*circuitName, r1cs, pk)
+		_, _, err = Prove("./data/"+*circuitName, r1cs, pk)
 		if err != nil {
 			log.Err(err).Msg("failed to create the proof")
 			os.Exit(1)
 		}
-		err = groth16.Verify(proof, vk, publicWitness)
-		if err != nil {
-			log.Error().Msg("failed to verify proof: %w" + err.Error())
-			os.Exit(1)
-		}
+
 		log.Info().Msg("Successfully verified proof")
 	}
 
 	if *verifyFlag {
+		log.Info().Msg("loading the proof, verifying key and public inputs")
+		vk, publicWitness, err := LoadVerifierData("./data/"+*circuitName)
+		if err != nil {
+			log.Err(err).Msg("failed to load the verifier data")
+			os.Exit(1)
+		}
+		log.Info().Msg("loading the proof")
+		proof := groth16.NewProof(ecc.BN254)
+		proofFile, err := os.Open("./data/" + *circuitName + "/proof.bin")
+		if err != nil {
+			log.Err(err).Msg("failed to open proof file")
+			os.Exit(1)
+		}
+		_, err = proof.ReadFrom(proofFile)
+		if err != nil {
+			log.Err(err).Msg("failed to read proof file")
+			os.Exit(1)
+		}
+		log.Info().Msg("verifying the proof")
+		err = groth16.Verify(proof, vk, publicWitness)
+		if err != nil {
+			log.Err(err).Msg("failed to verify proof")
+			os.Exit(1)
+		}
+		log.Info().Msg("Successfully verified proof")
 	}
 }
