@@ -13,13 +13,13 @@ import (
 	"github.com/consensys/gnark/logger"
 )
 
-//go:embed "data/test_circuit/pk.bin"
+//go:embed build/pk.bin
 var pkBytes []byte
 
-//go:embed "data/test_circuit/vk.bin"
+//go:embed build/vk.bin
 var vkBytes []byte
 
-//go:embed "data/test_circuit/r1cs.bin"
+//go:embed build/r1cs.bin
 var r1csBytes []byte
 
 func main() {
