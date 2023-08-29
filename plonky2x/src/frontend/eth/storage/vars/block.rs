@@ -24,7 +24,7 @@ pub struct EthHeader {
     pub root: H256,
     pub tx_hash: H256,
     pub receipt_hash: H256,
-    // pub bloom: H256,
+    // pub bloom: Bytes,
     pub difficulty: U256,
     pub number: U64,
     pub gas_limit: U256,
@@ -41,7 +41,7 @@ pub struct EthHeaderVariable {
     pub root: Bytes32Variable,
     pub tx_hash: Bytes32Variable,
     pub receipt_hash: Bytes32Variable,
-    // pub bloom: Bytes32Variable, // TODO: add back once we have arbitrary bytes variables
+    // pub bloom: BytesVariable, // TODO: add back once we have arbitrary bytes variables
     pub difficulty: U256Variable,
     pub number: U64Variable,
     pub gas_limit: U256Variable,
