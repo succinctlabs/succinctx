@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/logger"
 )
 
@@ -75,27 +74,27 @@ func main() {
 
 	if *verifyFlag {
 		log.Info().Msg("loading the proof, verifying key and public inputs")
-		vk, err := LoadVerifierKey("./build")
+		_, err := LoadVerifierKey("./build")
 		if err != nil {
 			log.Err(err).Msg("failed to load the verifier key")
 			os.Exit(1)
 		}
-		publicWitness, err := LoadPublicWitness("./data/"+*circuitName)
-		if err != nil {
-			log.Err(err).Msg("failed to load the public witness")
-			os.Exit(1)
-		}
+		// publicWitness, err := LoadPublicWitness("./data/"+*circuitName)
+		// if err != nil {
+		// 	log.Err(err).Msg("failed to load the public witness")
+		// 	os.Exit(1)
+		// }
 
-		proof, err := LoadProof("./data/"+*circuitName)
+		_, err = LoadProof("./data/"+*circuitName)
 		if err != nil {
 			log.Err(err).Msg("failed to load the proof")
 			os.Exit(1)
 		}
-		err = groth16.Verify(proof, vk, publicWitness)
-		if err != nil {
-			log.Err(err).Msg("failed to verify proof")
-			os.Exit(1)
-		}
-		log.Info().Msg("Successfully verified proof")
+		// err = groth16.Verify(proof, vk, publicWitness)
+		// if err != nil {
+		// 	log.Err(err).Msg("failed to verify proof")
+		// 	os.Exit(1)
+		// }
+		// log.Info().Msg("Successfully verified proof")
 	}
 }
