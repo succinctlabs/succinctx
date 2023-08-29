@@ -6,7 +6,7 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
+use plonky2::util::serialization::{Buffer, IoResult, Write, Read};
 use ethers::utils::keccak256;
 use ethers::types::H256;
 
@@ -50,11 +50,45 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
+        // Write each input as a target
+        let input_bytes = self.input.iter().flat_map(|x| x.targets() ).collect::<Vec<Target>>();
+        dst.write_target_vec(&input_bytes)?;
+
+        dst.write_target_vec(&self.output.targets())?;
+
+        if self.length.is_some() {
+            dst.write_target_vec(&self.length.unwrap().targets())
+        } else {
+            Ok(())
+        }
     }
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        todo!()
+        let input_targets = src.read_target_vec()?;
+        // Convert input_targets progressively into ByteVariables by chunks of 8
+        let mut input = Vec::new();
+        for i in 0..input_targets.len() / 8 {
+            let mut byte_targets = Vec::new();
+            for j in 0..8 {
+                byte_targets.push(input_targets[i * 8 + j]);
+            }
+            let byte_variable = ByteVariable::from_targets(&byte_targets);
+            input.push(byte_variable);
+        }
+
+        let output_targets = src.read_target_vec()?;
+        let output = Bytes32Variable::from_targets(&input_targets);
+
+        let length = src.read_target_vec()
+            .map(|targets| Some(Variable::from_targets(&targets)))
+            .unwrap_or(None);
+
+        Ok(Self {
+            input,
+            output,
+            length,
+            _phantom: PhantomData::<F>,
+        })
     }
 }
