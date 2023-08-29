@@ -163,6 +163,8 @@ mod tests {
             circuit_value,
             bytes32!("0xca77d4e79102603cb6842afffd8846a3123877159ed214aeadfc4333d595fd50"),
         );
+
+        let _ = circuit.serialize().unwrap();
     }
 
     #[test]
@@ -198,7 +200,7 @@ mod tests {
         // Verify proof.
         circuit.verify(&proof, &input, &output);
 
-        // Read output.
+        // Read output
         let circuit_value = output.read::<EthHeaderVariable>();
         println!("{:?}", circuit_value);
         assert_eq!(
@@ -224,5 +226,7 @@ mod tests {
                 number: U256::from("0x110d56b"),
             }
         );
+
+        let _ = circuit.serialize().unwrap();
     }
 }
