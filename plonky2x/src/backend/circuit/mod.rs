@@ -58,7 +58,7 @@ where
         } else if self.io.field.is_some() {
             self.io.field.clone().unwrap().input_variables
         } else {
-            todo!()
+            vec![]
         };
         assert_eq!(input_variables.len(), input.buffer.len());
 

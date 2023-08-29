@@ -14,5 +14,5 @@
         "warnings",
         "-A",
         "incomplete-features"
-      ],
+    ],
 }
