@@ -6,10 +6,9 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::uint32_n::{U32NVariable, ValueTrait};
-use super::AlgebraicVariable;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
-use crate::prelude::{Add, ByteVariable, Mul, Sub};
+use crate::prelude::*;
 
 impl ValueTrait for U128 {
     fn to_limbs<const N: usize>(self) -> [u32; N] {
@@ -114,54 +113,15 @@ impl EvmVariable for U128Variable {
     }
 }
 
-impl AlgebraicVariable for U128Variable {
-    /// Returns the zero value of the variable.
-    fn zero<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for U128Variable {
+    fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
         Self(U32NVariable::zero(builder))
     }
+}
 
-    /// Returns the one value of the variable.
-    fn one<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+impl<F: RichField + Extendable<D>, const D: usize> One<F, D> for U128Variable {
+    fn one(builder: &mut CircuitBuilder<F, D>) -> Self {
         Self(U32NVariable::one(builder))
-    }
-
-    // Adds two variables together.
-    fn add<F: RichField + Extendable<D>, const D: usize>(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        other: &Self,
-    ) -> Self {
-        Self(U32NVariable::add(&self.0, builder, &other.0))
-    }
-
-    // Subtracts two variables.
-    fn sub<F: RichField + Extendable<D>, const D: usize>(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        other: &Self,
-    ) -> Self {
-        Self(U32NVariable::sub(&self.0, builder, &other.0))
-    }
-
-    // Multiplies two variables.
-    fn mul<F: RichField + Extendable<D>, const D: usize>(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        other: &Self,
-    ) -> Self {
-        Self(U32NVariable::mul(&self.0, builder, &other.0))
-    }
-
-    // Negates a variable.
-    fn neg<F: RichField + Extendable<D>, const D: usize>(
-        &self,
-        _builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
-        todo!()
     }
 }
 
@@ -169,7 +129,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Mul<F, D> for U128Variable {
     type Output = Self;
 
     fn mul(self, rhs: U128Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        AlgebraicVariable::mul(&self, builder, &rhs)
+        Self(U32NVariable::mul(self.0, rhs.0, builder))
     }
 }
 
@@ -177,7 +137,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Add<F, D> for U128Variable {
     type Output = Self;
 
     fn add(self, rhs: U128Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        AlgebraicVariable::add(&self, builder, &rhs)
+        Self(U32NVariable::add(self.0, rhs.0, builder))
     }
 }
 
@@ -185,7 +145,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for U128Variable {
     type Output = Self;
 
     fn sub(self, rhs: U128Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        AlgebraicVariable::sub(&self, builder, &rhs)
+        Self(U32NVariable::sub(self.0, rhs.0, builder))
     }
 }
 
