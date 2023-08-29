@@ -198,7 +198,10 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 		return nil, nil, fmt.Errorf("failed to create proof file: %w", err)
 	}
 	proofWriter := bufio.NewWriter(proofFile)
-	proof.WriteRawTo(proofWriter)
+	_, err = proof.WriteRawTo(proofWriter)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to write proof file: %w", err)
+	}
 	proofFile.Close()
 	log.Info().Msg("Successfully saved proof")
 
@@ -207,7 +210,10 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create public witness file: %w", err)
 	}
-	publicWitness.WriteTo(witnessFile)
+	_, err = publicWitness.WriteTo(witnessFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to write public witness file: %w", err)
+	}
 	witnessFile.Close()
 	log.Info().Msg("Successfully saved public witness")	
 
