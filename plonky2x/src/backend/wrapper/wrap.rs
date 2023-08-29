@@ -176,7 +176,7 @@ where
             &self.circuit_verifier_target,
             &self.circuit.data.verifier_only,
         );
-        pw.set_proof_with_pis_target(&self.circuit_proof_target, &inner_proof);
+        pw.set_proof_with_pis_target(&self.circuit_proof_target, inner_proof);
 
         let hash_proof = self.hash_circuit.data.prove(pw).unwrap();
         self.hash_circuit.data.verify(hash_proof.clone()).unwrap();
@@ -284,7 +284,7 @@ mod tests {
 
         setup_logger();
 
-        let build_path = format!("../plonky2x-verifier/data");
+        let build_path = "../plonky2x-verifier/data".to_string();
         let path = format!("{}/test_circuit/", build_path);
         let dummy_path = format!("{}/dummy/", build_path);
 

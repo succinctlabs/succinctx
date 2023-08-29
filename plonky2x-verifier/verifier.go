@@ -1,8 +1,9 @@
 package main
 
 import (
-	"bufio"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -41,14 +42,13 @@ func LoadPublicWitness(circuitPath string) (witness.Witness, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create public witness: %w", err)
 	}
-	start := time.Now()
-	_, err = publicWitness.ReadFrom(witnessFile)
+	jsonPublicWitness, err := io.ReadAll(witnessFile)
+	err = json.Unmarshal(jsonPublicWitness, publicWitness)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read public witness file: %w", err)
 	}
 	witnessFile.Close()
-	elapsed := time.Since(start)
-	log.Debug().Msg("Successfully loaded public witness, time: " + elapsed.String())
+	log.Debug().Msg("Successfully loaded public witness")
 
 	return publicWitness, nil
 }
@@ -60,15 +60,16 @@ func LoadProof(circuitPath string) (groth16.Proof, error) {
 		return nil, fmt.Errorf("failed to open proof file: %w", err)
 	}
 	proof := groth16.NewProof(ecc.BN254)
-	proofReader := bufio.NewReader(proofFile)
-	start := time.Now()
-	_, err = proof.ReadFrom(proofReader)
+	jsonProof, err := io.ReadAll(proofFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read proof file: %w", err)
+	}
+	err = json.Unmarshal(jsonProof, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read proof file: %w", err)
 	}
 	proofFile.Close()
-	elapsed := time.Since(start)
-	log.Debug().Msg("Successfully loaded proof, time: " + elapsed.String())
+	log.Debug().Msg("Successfully loaded proof")
 
 	return proof, nil
 }

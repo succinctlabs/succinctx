@@ -118,6 +118,5 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	witnessFile.Close()
 	log.Info().Msg("Successfully saved public witness")	
 
-
 	return proof, publicWitness, nil
 }
