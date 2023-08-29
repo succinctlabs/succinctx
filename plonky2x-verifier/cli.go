@@ -100,30 +100,30 @@ func main() {
 	}
 
 	if *verifyFlag {
-		log.Info().Msg("loading the proof, verifying key and public inputs")
-		vk, publicWitness, err := LoadVerifierData("./data/"+*circuitName)
-		if err != nil {
-			log.Err(err).Msg("failed to load the verifier data")
-			os.Exit(1)
-		}
-		log.Info().Msg("loading the proof")
-		proof := groth16.NewProof(ecc.BN254)
-		proofFile, err := os.Open("./data/" + *circuitName + "/proof.bin")
-		if err != nil {
-			log.Err(err).Msg("failed to open proof file")
-			os.Exit(1)
-		}
-		_, err = proof.ReadFrom(proofFile)
-		if err != nil {
-			log.Err(err).Msg("failed to read proof file")
-			os.Exit(1)
-		}
-		log.Info().Msg("verifying the proof")
-		err = groth16.Verify(proof, vk, publicWitness)
-		if err != nil {
-			log.Err(err).Msg("failed to verify proof")
-			os.Exit(1)
-		}
-		log.Info().Msg("Successfully verified proof")
+		// log.Info().Msg("loading the proof, verifying key and public inputs")
+		// vk, publicWitness, err := LoadVerifierData("./data/"+*circuitName)
+		// if err != nil {
+		// 	log.Err(err).Msg("failed to load the verifier data")
+		// 	os.Exit(1)
+		// }
+		// log.Info().Msg("loading the proof")
+		// proof := groth16.NewProof(ecc.BN254)
+		// proofFile, err := os.Open("./data/" + *circuitName + "/proof.bin")
+		// if err != nil {
+		// 	log.Err(err).Msg("failed to open proof file")
+		// 	os.Exit(1)
+		// }
+		// _, err = proof.ReadFrom(proofFile)
+		// if err != nil {
+		// 	log.Err(err).Msg("failed to read proof file")
+		// 	os.Exit(1)
+		// }
+		// log.Info().Msg("verifying the proof")
+		// err = groth16.Verify(proof, vk, publicWitness)
+		// if err != nil {
+		// 	log.Err(err).Msg("failed to verify proof")
+		// 	os.Exit(1)
+		// }
+		// log.Info().Msg("Successfully verified proof")
 	}
 }
