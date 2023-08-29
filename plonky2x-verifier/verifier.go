@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"time"
@@ -113,7 +114,7 @@ func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth
 	return nil
 }
 
-func LoadVerifierProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKey, error) {
+func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKey, error) {
 	log := logger.Logger()
 	r1csFile, err := os.Open(path + "/r1cs.bin")
 	if err != nil {
@@ -121,7 +122,8 @@ func LoadVerifierProverData(path string) (constraint.ConstraintSystem, groth16.P
 	}
 	r1cs := groth16.NewCS(ecc.BN254)
 	start := time.Now()
-	_, err = r1cs.ReadFrom(r1csFile)
+	r1csReader := bufio.NewReader(r1csFile)
+	_, err = r1cs.ReadFrom(r1csReader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read r1cs file: %w", err)
 	}
@@ -134,7 +136,8 @@ func LoadVerifierProverData(path string) (constraint.ConstraintSystem, groth16.P
 	}
 	pk := groth16.NewProvingKey(ecc.BN254)
 	start = time.Now()
-	_, err = pk.ReadFrom(pkFile)
+	pkReader := bufio.NewReader(pkFile)
+	_, err = pk.ReadFrom(pkReader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read pk file: %w", err)
 	}
