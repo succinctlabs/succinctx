@@ -34,7 +34,7 @@ func LoadVerifierKey(path string) (groth16.VerifyingKey, error) {
 
 func LoadPublicWitness(circuitPath string) (witness.Witness, error) {
 	log := logger.Logger()
-	witnessFile, err := os.Open(circuitPath + "/public_witness.bin")
+	witnessFile, err := os.Open(circuitPath + "/public_witness.json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open public witness file: %w", err)
 	}
@@ -58,7 +58,7 @@ func LoadPublicWitness(circuitPath string) (witness.Witness, error) {
 
 func LoadProof(circuitPath string) (groth16.Proof, error) {
 	log := logger.Logger()
-	proofFile, err := os.Open(circuitPath + "/proof.bin")
+	proofFile, err := os.Open(circuitPath + "/proof.json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open proof file: %w", err)
 	}
