@@ -45,7 +45,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for EthBlockGenerator<F, D>
 {
     fn id(&self) -> String {
-        "GetBlockByHashGenerator".to_string()
+        "EthBlockGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {

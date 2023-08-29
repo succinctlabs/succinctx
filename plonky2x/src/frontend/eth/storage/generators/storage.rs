@@ -13,8 +13,10 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::eth::storage::utils::get_map_storage_location;
 use crate::frontend::eth::utils::u256_to_h256_be;
 use crate::frontend::eth::vars::AddressVariable;
+use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::utils::eth::get_provider;
 
@@ -114,6 +116,79 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
             block_hash,
             value,
             chain_id,
+            _phantom: PhantomData::<F>,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EthStorageKeyGenerator<F: RichField + Extendable<D>, const D: usize> {
+    mapping_location: U256Variable,
+    map_key: Bytes32Variable,
+    pub value: Bytes32Variable,
+    _phantom: PhantomData<F>,
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> EthStorageKeyGenerator<F, D> {
+    pub fn new(
+        builder: &mut CircuitBuilder<F, D>,
+        mapping_location: U256Variable,
+        map_key: Bytes32Variable,
+    ) -> EthStorageKeyGenerator<F, D> {
+        let value = builder.init::<Bytes32Variable>();
+        EthStorageKeyGenerator {
+            mapping_location,
+            map_key,
+            value,
+            _phantom: PhantomData::<F>,
+        }
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
+    for EthStorageKeyGenerator<F, D>
+{
+    fn id(&self) -> String {
+        "EthStorageKeyGenerator".to_string()
+    }
+
+    fn dependencies(&self) -> Vec<Target> {
+        let mut targets = Vec::new();
+        targets.extend(self.mapping_location.targets());
+        targets.extend(self.map_key.targets());
+        targets
+    }
+
+    fn run_once(&self, witness: &PartitionWitness<F>, buffer: &mut GeneratedValues<F>) {
+        let mapping_location = self.mapping_location.get(witness);
+        let map_key = self.map_key.get(witness);
+        
+        let location = get_map_storage_location(mapping_location.as_u128(), map_key);
+        self.value.set(buffer, location);
+    }
+
+    #[allow(unused_variables)]
+    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
+        dst.write_target_vec(&self.mapping_location.targets())?;
+        dst.write_target_vec(&self.map_key.targets())?;
+        dst.write_target_vec(&self.value.targets())
+    }
+
+    #[allow(unused_variables)]
+    fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
+        let mapping_location_targets = src.read_target_vec()?;
+        let mapping_location = U256Variable::from_targets(&mapping_location_targets);
+
+        let map_key_targets = src.read_target_vec()?;
+        let map_key = Bytes32Variable::from_targets(&map_key_targets);
+
+        let value_targets = src.read_target_vec()?;
+        let value = Bytes32Variable::from_targets(&value_targets);
+
+        Ok(Self {
+            mapping_location,
+            map_key,
+            value,
             _phantom: PhantomData::<F>,
         })
     }
