@@ -54,7 +54,8 @@ where
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        let limbs = VT::to_limbs::<N>(value);
+        let mut limbs = VT::to_limbs::<N>(value);
+        limbs.reverse();
         Self {
             limbs: array![i => U32Variable::constant(builder, limbs[i]); N],
             _marker: core::marker::PhantomData,
