@@ -1,12 +1,13 @@
 use std::fmt::Debug;
 
-use ethers::types::{Address, H256, U256};
+use ethers::types::{Address, H256, U256, U64};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
+use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable};
 use crate::prelude::Variable;
 
@@ -25,7 +26,7 @@ pub struct EthHeader {
     pub receipt_hash: H256,
     // pub bloom: H256,
     pub difficulty: U256,
-    pub number: U256,
+    pub number: U64,
     pub gas_limit: U256,
     pub gas_used: U256,
     pub time: U256,
@@ -42,7 +43,7 @@ pub struct EthHeaderVariable {
     pub receipt_hash: Bytes32Variable,
     // pub bloom: Bytes32Variable, // TODO: add back once we have arbitrary bytes variables
     pub difficulty: U256Variable,
-    pub number: U256Variable,
+    pub number: U64Variable,
     pub gas_limit: U256Variable,
     pub gas_used: U256Variable,
     pub time: U256Variable,
@@ -64,7 +65,7 @@ impl CircuitVariable for EthHeaderVariable {
             receipt_hash: Bytes32Variable::init(builder),
             // bloom: Bytes32Variable::init(builder),
             difficulty: U256Variable::init(builder),
-            number: U256Variable::init(builder),
+            number: U64Variable::init(builder),
             gas_limit: U256Variable::init(builder),
             gas_used: U256Variable::init(builder),
             time: U256Variable::init(builder),
@@ -119,8 +120,8 @@ impl CircuitVariable for EthHeaderVariable {
         let difficulty = U256Variable::from_variables(&variables[offset..offset + 4]);
         offset += 4;
 
-        let number = U256Variable::from_variables(&variables[offset..offset + 4]);
-        offset += 4;
+        let number = U64Variable::from_variables(&variables[offset..offset + 1]);
+        offset += 1;
 
         let gas_limit = U256Variable::from_variables(&variables[offset..offset + 4]);
         offset += 4;

@@ -65,7 +65,7 @@ mod tests {
     use std::env;
 
     use ethers::providers::{Http, Provider};
-    use ethers::types::U256;
+    use ethers::types::{U256, U64};
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::*;
@@ -223,7 +223,7 @@ mod tests {
                     "0x8fa46ad6b448faefbfc010736a3d39595ca68eb8bdd4e6b4ab30513bab688068"
                 ),
                 difficulty: U256::from("0x0"),
-                number: U256::from("0x110d56b"),
+                number: U64::from("0x110d56b"),
                 gas_limit: U256::from("0x1c9c380"),
                 gas_used: U256::from("0x16041f6"),
                 time: U256::from("0x64d41817"),
