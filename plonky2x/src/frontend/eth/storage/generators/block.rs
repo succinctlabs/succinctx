@@ -45,7 +45,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for EthBlockGenerator<F, D>
 {
     fn id(&self) -> String {
-        "GetBlockByHashGenerator".to_string()
+        "EthBlockGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -89,9 +89,9 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
             difficulty: result.difficulty,
             // TODO: Convert to U64Variable
             number,
-            // gas_limit: result.gas_limit,
-            // gas_used: result.gas_used,
-            // time: result.timestamp,
+            gas_limit: result.gas_limit,
+            gas_used: result.gas_used,
+            time: result.timestamp,
             // extra: result.extra_data,
         };
         self.value.set(buffer, value);

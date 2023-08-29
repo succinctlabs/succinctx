@@ -174,7 +174,12 @@ mod tests {
                 ),
                 difficulty: U256::from("0x0"),
                 number: U256::from("0x110d56b"),
+                gas_limit: U256::from("0x1c9c380"),
+                gas_used: U256::from("0x16041f6"),
+                time: U256::from("0x64d41817"),
             }
         );
+
+        let _ = circuit.serialize().unwrap();
     }
 }

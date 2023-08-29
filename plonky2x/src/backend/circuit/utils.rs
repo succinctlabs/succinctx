@@ -29,6 +29,7 @@ use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, IoResult, WitnessGeneratorSerializer};
 
 use crate::frontend::eth::storage::generators::storage::EthStorageProofGenerator;
+use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 
 #[macro_export]
 macro_rules! impl_generator_serializer {
@@ -139,6 +140,7 @@ where
         ReducingExtensionGenerator<D>, "ReducingExtensionGenerator",
         SplitGenerator, "SplitGenerator",
         WireSplitGenerator, "WireSplitGenerator",
-        EthStorageProofGenerator<F, D>, "EthStorageProofGenerator"
+        EthStorageProofGenerator<F, D>, "EthStorageProofGenerator",
+        EthBlockGenerator<F, D>, "EthBlockGenerator"
     }
 }
