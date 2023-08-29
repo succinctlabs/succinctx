@@ -1,17 +1,16 @@
 use core::marker::PhantomData;
 
+use ethers::types::H256;
+use ethers::utils::keccak256;
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{RichField};
+use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult, Write, Read};
-use ethers::utils::keccak256;
-use ethers::types::H256;
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
-
-use crate::frontend::vars::{Variable, ByteVariable, Bytes32Variable, CircuitVariable};
+use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, Variable};
 
 #[derive(Debug, Clone)]
 pub struct Keccack256Generator<F: RichField + Extendable<D>, const D: usize> {
@@ -30,7 +29,12 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
     fn dependencies(&self) -> Vec<Target> {
         let mut targets: Vec<Target> = Vec::new();
-        targets.extend(self.input.iter().flat_map(|x| x.targets()).collect::<Vec<Target>>());
+        targets.extend(
+            self.input
+                .iter()
+                .flat_map(|x| x.targets())
+                .collect::<Vec<Target>>(),
+        );
         if let Some(length) = self.length {
             targets.extend(length.targets());
         }
@@ -51,7 +55,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
         // Write each input as a target
-        let input_bytes = self.input.iter().flat_map(|x| x.targets() ).collect::<Vec<Target>>();
+        let input_bytes = self
+            .input
+            .iter()
+            .flat_map(|x| x.targets())
+            .collect::<Vec<Target>>();
         dst.write_target_vec(&input_bytes)?;
 
         dst.write_target_vec(&self.output.targets())?;
@@ -80,7 +88,8 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let output_targets = src.read_target_vec()?;
         let output = Bytes32Variable::from_targets(&input_targets);
 
-        let length = src.read_target_vec()
+        let length = src
+            .read_target_vec()
             .map(|targets| Some(Variable::from_targets(&targets)))
             .unwrap_or(None);
 
