@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	_ "embed"
 	"flag"
 	"fmt"
 	"os"
@@ -10,6 +12,15 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/logger"
 )
+
+//go:embed "data/test_circuit/pk.bin"
+var pkBytes []byte
+
+//go:embed "data/test_circuit/vk.bin"
+var vkBytes []byte
+
+//go:embed "data/test_circuit/r1cs.bin"
+var r1csBytes []byte
 
 func main() {
 	circuitName := flag.String("circuit", "", "circuit data directory")
@@ -56,11 +67,27 @@ func main() {
 
 	if *proofFlag {
 		log.Info().Msg("loading the groth16 proving key and circuit data")
-		r1cs, pk, err := LoadVerifierProverData("./build")
+		r1cs := groth16.NewCS(ecc.BN254)
+
+		csReader := bytes.NewReader(r1csBytes)
+		_, err := r1cs.ReadFrom(csReader)
 		if err != nil {
-			log.Err(err).Msg("failed to load the verifier circuit")
+			log.Err(err).Msg("failed to read r1cs file")
 			os.Exit(1)
 		}
+
+		pkReader := bytes.NewReader(pkBytes)
+		pk := groth16.NewProvingKey(ecc.BN254)
+		_, err = pk.ReadFrom(pkReader)
+		if err != nil {
+			log.Err(err).Msg("failed to read pk file")
+			os.Exit(1)
+		}
+		// r1cs, pk, err := LoadVerifierProverData("./build")
+		// if err != nil {
+		// 	log.Err(err).Msg("failed to load the verifier circuit")
+		// 	os.Exit(1)
+		// }
 		log.Info().Msg("creating the groth16 verifier proof")
 		_, _, err = Prove("./data/"+*circuitName, r1cs, pk)
 		if err != nil {
