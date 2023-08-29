@@ -69,6 +69,7 @@ func main() {
 		}
 
 		log.Info().Msg("Successfully verified proof")
+		*verifyFlag = true
 	}
 
 	if *verifyFlag {
