@@ -43,6 +43,9 @@ func LoadPublicWitness(circuitPath string) (witness.Witness, error) {
 		return nil, fmt.Errorf("failed to create public witness: %w", err)
 	}
 	jsonPublicWitness, err := io.ReadAll(witnessFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read public witness file: %w", err)
+	}
 	err = json.Unmarshal(jsonPublicWitness, publicWitness)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read public witness file: %w", err)
