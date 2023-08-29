@@ -122,13 +122,13 @@ impl CircuitVariable for EthHeaderVariable {
         let number = U256Variable::from_variables(&variables[offset..offset + 4]);
         offset += 4;
 
-        let gas_limit = U256Variable::from_variables(&variables[offset..offset+4]);
+        let gas_limit = U256Variable::from_variables(&variables[offset..offset + 4]);
         offset += 4;
 
-        let gas_used = U256Variable::from_variables(&variables[offset..offset+4]);
+        let gas_used = U256Variable::from_variables(&variables[offset..offset + 4]);
         offset += 4;
 
-        let time = U256Variable::from_variables(&variables[offset..offset+4]);
+        let time = U256Variable::from_variables(&variables[offset..offset + 4]);
 
         // let extra = Bytes32Variable::from_variables(&variables[offset+8..offset+8+32*8]);
 

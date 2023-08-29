@@ -70,6 +70,7 @@ pub(crate) mod tests {
         let client = BeaconClient::new(consensus_rpc);
 
         let mut builder = CircuitBuilder::<F, D>::new();
+
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(

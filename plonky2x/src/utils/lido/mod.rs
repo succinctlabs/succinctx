@@ -47,7 +47,7 @@ impl LidoUtils {
         // Get the storage value
         // Sanity check against calling the contract
         // Return [storagekey, storagevalue, storageproof]
-        let location: H256 = get_map_storage_location(0, operator_id.into());
+        let location: H256 = get_map_storage_location(0, H256::from_low_u64_be(operator_id));
         let storage_value = self
             .provider
             .get_storage_at(
