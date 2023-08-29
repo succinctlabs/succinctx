@@ -208,7 +208,11 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 		return nil, nil, fmt.Errorf("failed to create public witness file: %w", err)
 	}
 	witnessWriter := bufio.NewWriter(witnessFile)
-	publicWitness.WriteTo(witnessWriter)
+	witnessData, err := publicWitness.MarshalBinary()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal public witness: %w", err)
+	}
+	witnessWriter.Write(witnessData)
 	witnessFile.Close()
 	log.Info().Msg("Successfully saved public witness")	
 
