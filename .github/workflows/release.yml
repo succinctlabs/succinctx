@@ -14,7 +14,7 @@ permissions:
 jobs:
   test:
     name: Release
-    runs-on: self-hosted
+    runs-on: chad
 
     steps:
       - name: Checkout repo
