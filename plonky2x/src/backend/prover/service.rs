@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+
+use crate::backend::function::FunctionOutput;
 
 #[derive(Debug, Serialize)]
 pub struct CreateProofPayload {
@@ -19,7 +19,7 @@ pub struct CreateProofResponse {
 pub struct GetProofResponse {
     pub id: String,
     pub status: String,
-    pub result: Option<HashMap<String, Option<String>>>,
+    pub result: Option<FunctionOutput>,
 }
 
 #[derive(Default)]

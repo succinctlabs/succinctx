@@ -6,6 +6,7 @@ use std::io::{Read, Write};
 
 use clap::Parser;
 use curta::math::prelude::PrimeField64;
+pub use io::{FunctionInput, FunctionOutput};
 use itertools::Itertools;
 use log::info;
 use plonky2::field::extension::Extendable;
@@ -18,7 +19,6 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 use self::cli::{BuildArgs, ProveArgs};
 use crate::backend::circuit::Circuit;
 use crate::backend::function::cli::{Args, Commands};
-use crate::backend::function::io::{FunctionInput, FunctionOutput};
 use crate::backend::prover::remote::ContextData;
 
 pub trait CircuitFunction {
