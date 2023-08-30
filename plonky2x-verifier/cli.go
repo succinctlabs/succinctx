@@ -11,7 +11,6 @@ import (
 	"github.com/consensys/gnark/logger"
 )
 
-
 func main() {
 	circuitName := flag.String("circuit", "", "circuit data directory")
 	proofFlag := flag.Bool("prove", false, "create a proof")
@@ -80,13 +79,13 @@ func main() {
 			log.Err(err).Msg("failed to load the verifier key")
 			os.Exit(1)
 		}
-		publicWitness, err := LoadPublicWitness("./data/"+*circuitName)
+		publicWitness, err := LoadPublicWitness("./data/" + *circuitName)
 		if err != nil {
 			log.Err(err).Msg("failed to load the public witness")
 			os.Exit(1)
 		}
 
-		proof, err := LoadProof("./data/"+*circuitName)
+		proof, err := LoadProof("./data/" + *circuitName)
 		if err != nil {
 			log.Err(err).Msg("failed to load the proof")
 			os.Exit(1)

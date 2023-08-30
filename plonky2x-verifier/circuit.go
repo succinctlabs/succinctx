@@ -21,20 +21,64 @@ type Plonky2xVerifierCircuit struct {
 	ProofWithPis types.ProofWithPublicInputs
 	VerifierData types.VerifierOnlyCircuitData
 
+	// A digest of the verifier information of the plonky2x circuit.
+	VerifierDigest frontend.Variable `gnark:"verifierDigest,public"`
+
+	// The input hash is the hash of all onchain inputs into the function.
+	InputHash frontend.Variable `gnark:"inputHash,public"`
+
+	// The output hash is the hash of all outputs from the function.
+	OutputHash frontend.Variable `gnark:"outputHash,public"`
+
 	verifierChip *verifier.VerifierChip `gnark:"-"`
 	CircuitPath  string                 `gnark:"-"`
 }
 
 func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error {
+	// load the common circuit data
 	commonCircuitData := verifier.DeserializeCommonCircuitData(c.CircuitPath + "/common_circuit_data.json")
-
+	// initialize the verifier chip
 	c.verifierChip = verifier.NewVerifierChip(api, commonCircuitData)
-
+	// verify the plonky2 proof
 	c.verifierChip.Verify(c.ProofWithPis.Proof, c.ProofWithPis.PublicInputs, c.VerifierData, commonCircuitData)
+
+	publicInputs := c.ProofWithPis.PublicInputs
+
+	verifierDigestBytes := make([]frontend.Variable, 32)
+	for i := range verifierDigestBytes {
+		pubByte := publicInputs[i].Limb
+		verifierDigestBytes[i] = pubByte
+	}
+	verifierDigest := frontend.Variable(0)
+	for i := range verifierDigestBytes {
+		verifierDigest = api.Add(verifierDigest, api.Mul(verifierDigestBytes[i], frontend.Variable(1<<(8*i))))
+	}
+	c.VerifierDigest = verifierDigest
+
+	inputDigestBytes := make([]frontend.Variable, 32)
+	for i := range inputDigestBytes {
+		pubByte := publicInputs[i+32].Limb
+		inputDigestBytes[i] = pubByte
+	}
+	inputDigest := frontend.Variable(0)
+	for i := range inputDigestBytes {
+		inputDigest = api.Add(inputDigest, api.Mul(inputDigestBytes[i], frontend.Variable(1<<(8*i))))
+	}
+	c.InputHash = inputDigest
+
+	outputDigestBytes := make([]frontend.Variable, 32)
+	for i := range outputDigestBytes {
+		pubByte := publicInputs[i+64].Limb
+		outputDigestBytes[i] = pubByte
+	}
+	outputDigest := frontend.Variable(0)
+	for i := range outputDigestBytes {
+		outputDigest = api.Add(outputDigest, api.Mul(outputDigestBytes[i], frontend.Variable(1<<(8*i))))
+	}
+	c.OutputHash = outputDigest
 
 	return nil
 }
-
 
 func VerifierCircuitTest(circuitPath string, dummyCircuitPath string) error {
 	verifierOnlyCircuitData := verifier.DeserializeVerifierOnlyCircuitData(dummyCircuitPath + "/verifier_only_circuit_data.json")
@@ -81,7 +125,6 @@ func CompileVerifierCircuit(dummyCircuitPath string) (constraint.ConstraintSyste
 	return r1cs, pk, vk, nil
 }
 
-
 func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey, vk groth16.VerifyingKey) error {
 	log := logger.Logger()
 	os.MkdirAll(path, 0755)
@@ -108,8 +151,8 @@ func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth
 	pkFile.Close()
 	elapsed = time.Since(start)
 	log.Debug().Msg("Successfully saved proving key, time: " + elapsed.String())
-	
-    log.Info().Msg("Saving verifying key to" + path + "/vk.bin")
+
+	log.Info().Msg("Saving verifying key to" + path + "/vk.bin")
 	vkFile, err := os.Create(path + "/vk.bin")
 	if err != nil {
 		return fmt.Errorf("failed to create vk file: %w", err)

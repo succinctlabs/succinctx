@@ -23,7 +23,7 @@ func LoadVerifierKey(path string) (groth16.VerifyingKey, error) {
 	start := time.Now()
 	_, err = vk.ReadFrom(vkFile)
 	if err != nil {
-		return nil,  fmt.Errorf("failed to read vk file: %w", err)
+		return nil, fmt.Errorf("failed to read vk file: %w", err)
 	}
 	vkFile.Close()
 	elapsed := time.Since(start)
