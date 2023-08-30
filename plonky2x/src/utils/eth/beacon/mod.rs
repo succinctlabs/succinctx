@@ -1,4 +1,5 @@
 use anyhow::Result;
+use ethers::types::U256;
 use num::BigInt;
 use reqwest::Client;
 use serde::Deserialize;
@@ -55,10 +56,41 @@ pub struct GetBeaconValidatorsRoot {
     pub description: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct InnerData {
+    index: String,
+    balance: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Data {
+    data: Vec<InnerData>,
+    execution_optimistic: bool,
+    finalized: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct Wrapper {
+    data: Data,
+}
+
 impl BeaconClient {
     /// Creates a new BeaconClient based on a rpc url.
     pub fn new(rpc_url: String) -> Self {
         Self { rpc_url }
+    }
+
+    pub async fn get_validator_balance(&self, _: String, validator_idx: u64) -> Result<U256> {
+        let endpoint = format!(
+            "{}/eth/v1/beacon/states/head/validator_balances?id={}",
+            self.rpc_url, validator_idx
+        );
+        println!("{}", endpoint);
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let response: Wrapper = response.json().await?;
+        let balance = response.data.data[0].balance.parse::<u64>()?;
+        Ok(U256::from(balance))
     }
 
     /// Gets the validators root based on a beacon_id and the SSZ proof from

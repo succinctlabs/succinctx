@@ -1,10 +1,12 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
+use super::generators::balance::BeaconValidatorBalanceGenerator;
 use super::generators::validator::BeaconValidatorGenerator;
 use super::vars::{BeaconValidatorVariable, BeaconValidatorsVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
+use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::Variable;
 
@@ -59,6 +61,23 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         self.add_simple_generator(&generator);
         generator.validator
     }
+
+    /// Get a validator balance from a given deterministic index.
+    pub fn get_beacon_validator_balance(
+        &mut self,
+        validators: BeaconValidatorsVariable,
+        index: Variable,
+    ) -> U256Variable {
+        let generator = BeaconValidatorBalanceGenerator::new(
+            self,
+            validators.block_root,
+            validators.validators_root,
+            None,
+            Some(index),
+        );
+        self.add_simple_generator(&generator);
+        generator.balance
+    }
 }
 
 #[cfg(test)]
@@ -106,6 +125,8 @@ pub(crate) mod tests {
         (0..1).for_each(|i| {
             let idx = builder.constant::<Variable>(F::from_canonical_u64(i));
             let validator = builder.get_beacon_validator(validators, idx);
+            let balance = builder.get_beacon_validator_balance(validators, idx);
+            builder.watch(&balance, "balance");
             builder.watch(&validator.effective_balance, "hi");
         });
 
