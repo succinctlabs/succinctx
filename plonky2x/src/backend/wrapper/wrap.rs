@@ -121,21 +121,20 @@ where
             .map(|b| BoolTarget::new_unsafe(b.targets()[0]))
             .collect::<Vec<_>>();
 
-        let input_hash: [Target; 256] = sha256(&mut hash_builder.api, &input_bits)
+        let input_hash = sha256(&mut hash_builder.api, &input_bits)
             .into_iter()
             .map(|x| x.target)
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-        let output_hash: [Target; 256] = sha256(&mut hash_builder.api, &output_bits)
+            .collect::<Vec<_>>();
+        let output_hash = sha256(&mut hash_builder.api, &output_bits)
             .into_iter()
             .map(|x| x.target)
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
+            .collect::<Vec<_>>();
 
-        let input_hash_bytes = Bytes32Variable::from_targets(&input_hash);
-        let output_hash_bytes = Bytes32Variable::from_targets(&output_hash);
+        let input_hash_truncated: [Target; 255] = input_hash[..255].try_into().unwrap();
+        let output_hash_truncated: [Target; 255] = output_hash[..255].try_into().unwrap();
+
+        let input_hash_bytes = Bytes32Variable::from_targets(&input_hash_truncated);
+        let output_hash_bytes = Bytes32Variable::from_targets(&output_hash_truncated);
 
         hash_builder.write(input_hash_bytes);
         hash_builder.write(output_hash_bytes);

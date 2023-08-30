@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"time"
 
@@ -143,9 +141,8 @@ func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth
 	if err != nil {
 		return fmt.Errorf("failed to create r1cs file: %w", err)
 	}
-	r1csWriter := io.Writer(r1csFile)
 	start := time.Now()
-	r1cs.WriteTo(r1csWriter)
+	r1cs.WriteTo(r1csFile)
 	r1csFile.Close()
 	elapsed := time.Since(start)
 	log.Debug().Msg("Successfully saved circuit constraints, time: " + elapsed.String())
@@ -166,9 +163,8 @@ func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth
 	if err != nil {
 		return fmt.Errorf("failed to create vk file: %w", err)
 	}
-	vkWriter := bufio.NewWriter(vkFile)
 	start = time.Now()
-	vk.WriteRawTo(vkWriter)
+	vk.WriteRawTo(vkFile)
 	vkFile.Close()
 	elapsed = time.Since(start)
 	log.Info().Msg("Successfully saved verifying key, time: " + elapsed.String())
