@@ -119,8 +119,9 @@ impl CircuitVariable for EthHeaderVariable {
         // offset += 32 * 8;
 
         let difficulty = U256Variable::from_variables(&variables[offset..offset + 4]);
+        offset += 4;
 
-        let number = U256Variable::from_variables(&variables[offset + 4..offset + 8]);
+        let number = U256Variable::from_variables(&variables[offset..offset + 4]);
 
         // let gas_limit = U64Variable::from_variables(&variables[offset+8..offset+9]);
         // let gas_used = U64Variable::from_variables(&variables[offset+9..offset+10]);

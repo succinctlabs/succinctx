@@ -101,6 +101,7 @@ where
     ) -> Vec<ByteVariable> {
         self.limbs
             .iter()
+            .rev()
             .flat_map(|x| x.encode(builder))
             .collect::<Vec<_>>()
     }
@@ -114,6 +115,7 @@ where
         for i in 0..N {
             limbs[i] = U32Variable::decode(builder, &bytes[i * 4..(i + 1) * 4]);
         }
+        limbs.reverse();
         Self {
             limbs,
             _marker: core::marker::PhantomData,
