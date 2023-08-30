@@ -102,9 +102,11 @@ impl CircuitVariable for EthHeaderVariable {
     #[allow(unused_variables)]
     fn from_variables(variables: &[Variable]) -> Self {
         let parent_hash = Bytes32Variable::from_variables(&variables[0..32 * 8]);
-        let uncle_hash = Bytes32Variable::from_variables(&variables[32 * 8..64 * 8]);
-        let coinbase = AddressVariable::from_variables(&variables[64 * 8..64 * 8 + 8 * 20]);
-        let mut offset = 64 * 8 + 8 * 20;
+        let mut offset = 32 * 8;
+        let uncle_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        offset += 32 * 8;
+        let coinbase = AddressVariable::from_variables(&variables[offset..offset + 8 * 20]);
+        offset += 8 * 20;
         let root = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
         offset += 32 * 8;
 
