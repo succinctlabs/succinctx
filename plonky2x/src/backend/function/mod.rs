@@ -195,9 +195,21 @@ contract FunctionVerifier is IFunctionVerifier {
                     input.write_all(&input_values);
                     let (proof, output) = circuit.prove(&input);
                     circuit.verify(&proof, &input, &output);
-                    let file_path = "./proof.json";
-                    let json = serde_json::to_string_pretty(&proof).unwrap();
-                    std::fs::write(file_path, json).unwrap();
+
+                    let output_elements = output.read_all();
+                    let function_output = FunctionOutput {
+                        bytes: None,
+                        elements: Some(
+                            output_elements
+                                .iter()
+                                .map(|e| e.as_canonical_u64())
+                                .collect(),
+                        ),
+                        proof: hex::encode(proof.to_bytes()),
+                    };
+                    let json = serde_json::to_string_pretty(&function_output).unwrap();
+                    let mut file = File::create("output.json").unwrap();
+                    file.write_all(json.as_bytes()).unwrap();
                     println!("Successfully generated proof.");
                 } else if context.tag == "reduce" {
                     let circuit = Circuit::<F, C, D>::load(circuit_path.as_str()).unwrap();
@@ -223,9 +235,21 @@ contract FunctionVerifier is IFunctionVerifier {
 
                     let (proof, output) = circuit.prove(&input);
                     circuit.verify(&proof, &input, &output);
-                    let file_path = "./proof.json";
-                    let json = serde_json::to_string_pretty(&proof).unwrap();
-                    std::fs::write(file_path, json).unwrap();
+
+                    let output_elements = output.read_all();
+                    let function_output = FunctionOutput {
+                        bytes: None,
+                        elements: Some(
+                            output_elements
+                                .iter()
+                                .map(|e| e.as_canonical_u64())
+                                .collect(),
+                        ),
+                        proof: hex::encode(proof.to_bytes()),
+                    };
+                    let json = serde_json::to_string_pretty(&function_output).unwrap();
+                    let mut file = File::create("output.json").unwrap();
+                    file.write_all(json.as_bytes()).unwrap();
                     println!("Successfully generated proof.");
                 }
 
