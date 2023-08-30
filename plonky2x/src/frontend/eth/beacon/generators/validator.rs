@@ -59,6 +59,9 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let mut targets = Vec::new();
         targets.extend(self.block_root.targets());
         targets.extend(self.validators_root.targets());
+        if self.dynamic_idx.is_some() {
+            targets.extend(self.dynamic_idx.unwrap().targets());
+        }
         targets
     }
 
