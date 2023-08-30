@@ -13,9 +13,8 @@ use tokio::time::sleep;
 
 use super::service::{GetProofResponse, ProvingService};
 use super::Prover;
-use crate::backend::circuit::io::{CircuitInput, CircuitOutput, ProofWithPublicInputsSerializable};
+use crate::backend::circuit::io::{CircuitInput, CircuitOutput};
 use crate::backend::circuit::Circuit;
-// use crate::mapreduce::serialize::CircuitDataSerializable;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ContextData {
@@ -95,8 +94,11 @@ impl Prover for RemoteProver {
 
         // Deserialize the proof.
         let result = response.result;
-        let proof =
-            ProofWithPublicInputs::<F, C, D>::deserialize_from_json(result.clone().unwrap().proof);
+        let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(
+            hex::decode(result.clone().unwrap().proof).unwrap(),
+            &circuit.data.common,
+        )
+        .unwrap();
         let output = CircuitOutput::<F, C, D>::deserialize_from_json(
             circuit,
             result

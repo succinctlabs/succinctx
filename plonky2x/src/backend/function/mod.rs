@@ -142,6 +142,12 @@ contract FunctionVerifier is IFunctionVerifier {
             ),
             proof: hex::encode(proof.to_bytes()),
         };
+
+        ProofWithPublicInputs::<F, C, D>::from_bytes(
+            hex::decode(function_output.clone().proof).unwrap(),
+            &circuit.data.common,
+        )
+        .unwrap();
         let json = serde_json::to_string_pretty(&function_output).unwrap();
         let mut file = File::create("output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();

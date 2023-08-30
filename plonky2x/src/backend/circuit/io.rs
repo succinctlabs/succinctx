@@ -225,7 +225,9 @@ where
         C: GenericConfig<D, F = F> + 'static,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
     {
+        println!("step1");
         let buffer: Vec<String> = serde_json::from_str(&data).unwrap();
+        println!("step2");
         let output = CircuitOutput {
             io: circuit.io.clone(),
             buffer: buffer
