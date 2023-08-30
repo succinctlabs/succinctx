@@ -30,7 +30,7 @@ use plonky2::util::serialization::{Buffer, IoResult, WitnessGeneratorSerializer}
 
 use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
-    EthStorageKeyGenerator, EthStorageProofGenerator, EthLogGenerator
+    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
 use crate::frontend::hash::keccak::keccak256::Keccack256Generator;
 
