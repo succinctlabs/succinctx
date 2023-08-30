@@ -34,7 +34,6 @@ use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
 use plonky2::{get_gate_tag_impl, impl_gate_serializer, read_gate_impl};
 
-<<<<<<< HEAD
 use crate::frontend::eth::beacon::generators::balance::BeaconValidatorBalanceGenerator;
 use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
@@ -44,12 +43,6 @@ use crate::frontend::eth::storage::generators::storage::{
 };
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
-=======
-use crate::frontend::eth::storage::generators::storage::EthStorageProofGenerator;
-use crate::frontend::eth::storage::generators::storage::EthAccountProofGenerator;
-use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
-
->>>>>>> efe1cf1 (add generator to macro, dummy serialzie in circuit)
 
 #[macro_export]
 macro_rules! impl_generator_serializer {
@@ -160,7 +153,6 @@ where
         SplitGenerator, "SplitGenerator",
         WireSplitGenerator, "WireSplitGenerator",
         EthStorageProofGenerator<F, D>, "EthStorageProofGenerator",
-<<<<<<< HEAD
         EthLogGenerator<F, D>, "EthLogGenerator",
         EthBlockGenerator<F, D>, "EthBlockGenerator",
         EthStorageKeyGenerator<F, D>, "EthStorageKeyGenerator",
@@ -194,9 +186,5 @@ impl<F: RichField + Extendable<D>, const D: usize> GateSerializer<F, D> for Cust
         ReducingExtensionGate<D>,
         ReducingGate<D>,
         U32AddManyGate<F, D>
-=======
-        EthAccountProofGenerator<F, D>, "EthAccountProofGenerator",
-        EthBlockGenerator<F, D>, "EthBlockGenerator",
->>>>>>> efe1cf1 (add generator to macro, dummy serialzie in circuit)
     }
 }
