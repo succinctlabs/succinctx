@@ -1,3 +1,5 @@
+#![feature(generic_const_exprs)]
+
 use std::env;
 
 use plonky2::field::extension::Extendable;
