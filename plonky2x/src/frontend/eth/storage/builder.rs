@@ -4,10 +4,14 @@ use plonky2::hash::hash_types::RichField;
 use super::generators::block::EthBlockGenerator;
 use super::generators::storage::{
 <<<<<<< HEAD
+<<<<<<< HEAD
     EthAccountProofGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 =======
     EthAccountProofGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 >>>>>>> 7bbb677 (chore: cargo fmt)
+=======
+    EthAccountProofGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+>>>>>>> a4c5c7e (chore: cargo fmt)
 };
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::frontend::builder::CircuitBuilder;

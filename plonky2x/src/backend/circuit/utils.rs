@@ -39,7 +39,7 @@ use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerato
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
 use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
-    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+    EthAccountProofGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
