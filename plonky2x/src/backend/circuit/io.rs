@@ -226,14 +226,11 @@ where
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
     {
         println!("step1");
-        let buffer: Vec<String> = serde_json::from_str(&data).unwrap();
+        let buffer: Vec<u64> = serde_json::from_str(&data).unwrap();
         println!("step2");
         let output = CircuitOutput {
             io: circuit.io.clone(),
-            buffer: buffer
-                .iter()
-                .map(|x| F::from_canonical_u64(x.parse().unwrap()))
-                .collect(),
+            buffer: buffer.iter().map(|x| F::from_canonical_u64(*x)).collect(),
             proofs: Vec::new(),
         };
         output

@@ -51,6 +51,12 @@ impl Prover for RemoteProver {
         // Calculate create proof payload.
         let release_id = env::var("RELEASE_ID").expect("enviroment variable RELEASE_ID is not set");
         let circuit_id = circuit.id();
+
+        let tag = if input.io.recursive_proof.is_some() {
+            "reduce"
+        } else {
+            "map"
+        };
         let context = serde_json::to_string_pretty(&ContextData {
             circuit_id: circuit_id.clone(),
             input: input.buffer.iter().map(|x| x.to_string()).collect(),
@@ -59,7 +65,7 @@ impl Prover for RemoteProver {
                 .iter()
                 .map(|x| hex::encode(x.to_bytes()))
                 .collect(),
-            tag: "map".to_string(),
+            tag: tag.to_string(),
         })
         .unwrap();
 
@@ -101,16 +107,18 @@ impl Prover for RemoteProver {
         let proof = buffer
             .read_proof_with_public_inputs(&circuit.data.common)
             .unwrap();
-        let output = CircuitOutput::<F, C, D>::deserialize_from_json(
-            circuit,
-            result
+        let output = CircuitOutput {
+            io: circuit.io.clone(),
+            buffer: result
                 .unwrap()
                 .elements
                 .unwrap()
                 .iter()
-                .map(|x| x.to_string())
+                .map(|x| F::from_canonical_u64(*x))
                 .collect(),
-        );
+            proofs: Vec::new(),
+        };
+
         (proof, output)
     }
 

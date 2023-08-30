@@ -220,6 +220,7 @@ contract FunctionVerifier is IFunctionVerifier {
                     for i in 0..io.child_circuit_ids.len() {
                         let path = format!("./build/{}.circuit", io.child_circuit_ids[i]);
                         let child_circuit = Circuit::<F, C, D>::load(&path).unwrap();
+                        println!("{}", context.input[i].as_str());
                         let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(
                             hex::decode(context.input[i].as_str()).unwrap(),
                             &child_circuit.data.common,
