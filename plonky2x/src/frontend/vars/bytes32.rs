@@ -14,11 +14,11 @@ use crate::frontend::vars::BytesVariable;
 pub struct Bytes32Variable(pub BytesVariable<32>);
 
 impl Bytes32Variable {
-    fn as_bytes(&self) -> [ByteVariable; 32] {
+    pub fn as_bytes(&self) -> [ByteVariable; 32] {
         self.0 .0
     }
 
-    fn as_u256<F: RichField + Extendable<D>, const D: usize>(
+    pub fn as_u256<F: RichField + Extendable<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> U256Variable {
