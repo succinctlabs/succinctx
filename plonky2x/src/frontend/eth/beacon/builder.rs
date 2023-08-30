@@ -6,6 +6,7 @@ use super::vars::{BeaconValidatorVariable, BeaconValidatorsVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
 use crate::frontend::vars::Bytes32Variable;
+use crate::prelude::Variable;
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     /// Get the validators for a given block root.
@@ -25,7 +26,24 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         }
     }
 
-    /// Get a validator from a given index.
+    /// Get a beacon validator from a given dynamic index.
+    pub fn get_beacon_validator(
+        &mut self,
+        validators: BeaconValidatorsVariable,
+        index: Variable,
+    ) -> BeaconValidatorVariable {
+        let generator = BeaconValidatorGenerator::new(
+            self,
+            validators.block_root,
+            validators.validators_root,
+            None,
+            Some(index),
+        );
+        self.add_simple_generator(&generator);
+        generator.validator
+    }
+
+    /// Get a validator from a given deterministic index.
     pub fn get_beacon_validator_from_u64(
         &mut self,
         validators: BeaconValidatorsVariable,
@@ -35,7 +53,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             self,
             validators.block_root,
             validators.validators_root,
-            index,
+            Some(index),
+            None,
         );
         self.add_simple_generator(&generator);
         generator.validator
@@ -46,20 +65,21 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 pub(crate) mod tests {
     use std::env;
 
-    use itertools::Itertools;
+    use curta::math::prelude::Field;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::vars::Bytes32Variable;
+    use crate::prelude::Variable;
+    use crate::utils::bytes32;
     use crate::utils::eth::beacon::BeaconClient;
-    use crate::utils::{bytes32, setup_logger};
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validator_generator() {
-        setup_logger();
+        env_logger::init();
         dotenv::dotenv().ok();
 
         type F = GoldilocksField;
@@ -78,13 +98,16 @@ pub(crate) mod tests {
         ));
         let validators = builder.get_beacon_validators(block_root);
 
-        let balances = (0..4)
-            .map(|i| {
-                let validator = builder.get_beacon_validator_from_u64(validators, i);
-                validator.effective_balance
-            })
-            .collect_vec();
-        println!("balances: {:?}", balances);
+        (0..1).for_each(|i| {
+            let validator = builder.get_beacon_validator_from_u64(validators, i);
+            builder.watch(&validator.effective_balance, "hi");
+        });
+
+        (0..1).for_each(|i| {
+            let idx = builder.constant::<Variable>(F::from_canonical_u64(i));
+            let validator = builder.get_beacon_validator(validators, idx);
+            builder.watch(&validator.effective_balance, "hi");
+        });
 
         let circuit = builder.build::<C>();
         let pw = PartialWitness::new();

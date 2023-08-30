@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 
+use curta::math::prelude::PrimeField64;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -12,6 +13,7 @@ use tokio::runtime::Runtime;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::vars::BeaconValidatorVariable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
+use crate::prelude::Variable;
 use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::hex;
 
@@ -20,7 +22,8 @@ pub struct BeaconValidatorGenerator<F: RichField + Extendable<D>, const D: usize
     client: BeaconClient,
     block_root: Bytes32Variable,
     validators_root: Bytes32Variable,
-    idx: u64,
+    deterministic_idx: Option<u64>,
+    dynamic_idx: Option<Variable>,
     pub validator: BeaconValidatorVariable,
     _phantom: PhantomData<F>,
 }
@@ -30,13 +33,15 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorGenerator<F, D
         builder: &mut CircuitBuilder<F, D>,
         block_root: Bytes32Variable,
         validators_root: Bytes32Variable,
-        idx: u64,
+        deterministic_idx: Option<u64>,
+        dynamic_idx: Option<Variable>,
     ) -> Self {
         Self {
             client: builder.beacon_client.clone().unwrap(),
             block_root,
             validators_root,
-            idx,
+            deterministic_idx,
+            dynamic_idx,
             validator: builder.init::<BeaconValidatorVariable>(),
             _phantom: PhantomData,
         }
@@ -61,10 +66,18 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let block_root = self.block_root.get(witness);
         let rt = Runtime::new().expect("failed to create tokio runtime");
         let result = rt.block_on(async {
-            self.client
-                .get_validator(hex!(block_root), self.idx)
-                .await
-                .expect("failed to get validator")
+            if self.deterministic_idx.is_some() {
+                self.client
+                    .get_validator(hex!(block_root), self.deterministic_idx.unwrap())
+                    .await
+                    .expect("failed to get validator")
+            } else {
+                let idx = self.dynamic_idx.unwrap().get(witness).as_canonical_u64();
+                self.client
+                    .get_validator(hex!(block_root), idx)
+                    .await
+                    .expect("failed to get validator")
+            }
         });
         self.validator.set(out_buffer, result.validator);
     }
@@ -117,7 +130,8 @@ pub(crate) mod tests {
             &mut builder,
             validators.block_root,
             validators.validators_root,
-            0,
+            Some(0),
+            None,
         );
         builder.add_simple_generator(&generator);
 
