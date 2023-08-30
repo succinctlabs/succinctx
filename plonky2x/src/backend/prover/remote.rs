@@ -7,6 +7,7 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
+use plonky2::util::serialization::{Buffer, Read};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
@@ -94,11 +95,12 @@ impl Prover for RemoteProver {
 
         // Deserialize the proof.
         let result = response.result;
-        let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(
-            hex::decode(result.clone().unwrap().proof).unwrap(),
-            &circuit.data.common,
-        )
-        .unwrap();
+        let bytes = hex::decode(result.clone().unwrap().proof).unwrap();
+        println!("bytes: {:?}", bytes.len());
+        let mut buffer = Buffer::new(&bytes);
+        let proof = buffer
+            .read_proof_with_public_inputs(&circuit.data.common)
+            .unwrap();
         let output = CircuitOutput::<F, C, D>::deserialize_from_json(
             circuit,
             result
