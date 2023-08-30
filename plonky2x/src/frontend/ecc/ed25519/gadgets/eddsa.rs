@@ -181,9 +181,10 @@ where
 
         let mut digest = Vec::new();
 
+        let false_t = builder._false();
         for i in 0..max_num_chunks * CHUNK_BITS_1024 {
             builder.connect(builder.zero(), hash_msg[i].target);
-            digest.push(builder._false());
+            digest.push(false_t);
         }
 
         let digest = biguint_from_le_bytes(builder, digest);
