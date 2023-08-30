@@ -72,14 +72,25 @@ func main() {
 			os.Exit(1)
 		}
 		log.Info().Msg("creating the groth16 verifier proof")
-		_, _, err = Prove("./data/"+*circuitName, r1cs, pk)
+		proof, publicWitness, err := Prove("./data/"+*circuitName, r1cs, pk)
 		if err != nil {
 			log.Err(err).Msg("failed to create the proof")
 			os.Exit(1)
 		}
 
 		log.Info().Msg("Successfully verified proof")
-		*verifyFlag = true
+		log.Info().Msg("loading the proof, verifying key and verifying proof")
+		vk, err := LoadVerifierKey("./build")
+		if err != nil {
+			log.Err(err).Msg("failed to load the verifier key")
+			os.Exit(1)
+		}
+		err = groth16.Verify(proof, vk, publicWitness)
+		if err != nil {
+			log.Err(err).Msg("failed to verify proof")
+			os.Exit(1)
+		}
+		log.Info().Msg("Successfully verified proof")
 	}
 
 	if *verifyFlag {
