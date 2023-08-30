@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -84,23 +85,23 @@ func VerifierCircuitTest(circuitPath string, dummyCircuitPath string) error {
 	verifierOnlyCircuitData := verifier.DeserializeVerifierOnlyCircuitData(dummyCircuitPath + "/verifier_only_circuit_data.json")
 	proofWithPis := verifier.DeserializeProofWithPublicInputs(dummyCircuitPath + "/proof_with_public_inputs.json")
 	circuit := Plonky2xVerifierCircuit{
-		ProofWithPis: proofWithPis,
-		VerifierData: verifierOnlyCircuitData,
+		ProofWithPis:   proofWithPis,
+		VerifierData:   verifierOnlyCircuitData,
 		VerifierDigest: new(frontend.Variable),
-		InputHash:    new(frontend.Variable),
-		OutputHash:    new(frontend.Variable),
-		CircuitPath:  dummyCircuitPath,
+		InputHash:      new(frontend.Variable),
+		OutputHash:     new(frontend.Variable),
+		CircuitPath:    dummyCircuitPath,
 	}
 
 	verifierOnlyCircuitData = verifier.DeserializeVerifierOnlyCircuitData(circuitPath + "/verifier_only_circuit_data.json")
 	proofWithPis = verifier.DeserializeProofWithPublicInputs(circuitPath + "/proof_with_public_inputs.json")
 	witness := Plonky2xVerifierCircuit{
-		ProofWithPis: proofWithPis,
-		VerifierData: verifierOnlyCircuitData,
+		ProofWithPis:   proofWithPis,
+		VerifierData:   verifierOnlyCircuitData,
 		VerifierDigest: new(frontend.Variable),
-		InputHash:    new(frontend.Variable),
-		OutputHash:    new(frontend.Variable),
-		CircuitPath:  dummyCircuitPath,
+		InputHash:      new(frontend.Variable),
+		OutputHash:     new(frontend.Variable),
+		CircuitPath:    dummyCircuitPath,
 	}
 	return test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 }
@@ -110,12 +111,12 @@ func CompileVerifierCircuit(dummyCircuitPath string) (constraint.ConstraintSyste
 	verifierOnlyCircuitData := verifier.DeserializeVerifierOnlyCircuitData(dummyCircuitPath + "/verifier_only_circuit_data.json")
 	proofWithPis := verifier.DeserializeProofWithPublicInputs(dummyCircuitPath + "/proof_with_public_inputs.json")
 	circuit := Plonky2xVerifierCircuit{
-		ProofWithPis: proofWithPis,
-		VerifierData: verifierOnlyCircuitData,
+		ProofWithPis:   proofWithPis,
+		VerifierData:   verifierOnlyCircuitData,
 		VerifierDigest: new(frontend.Variable),
-		InputHash:    new(frontend.Variable),
-		OutputHash:    new(frontend.Variable),
-		CircuitPath:  dummyCircuitPath,
+		InputHash:      new(frontend.Variable),
+		OutputHash:     new(frontend.Variable),
+		CircuitPath:    dummyCircuitPath,
 	}
 	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 	if err != nil {
@@ -142,7 +143,7 @@ func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth
 	if err != nil {
 		return fmt.Errorf("failed to create r1cs file: %w", err)
 	}
-	r1csWriter := bufio.NewWriter(r1csFile)
+	r1csWriter := io.Writer(r1csFile)
 	start := time.Now()
 	r1cs.WriteTo(r1csWriter)
 	r1csFile.Close()
@@ -154,9 +155,8 @@ func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth
 	if err != nil {
 		return fmt.Errorf("failed to create pk file: %w", err)
 	}
-	pkWriter := bufio.NewWriter(pkFile)
 	start = time.Now()
-	pk.WriteRawTo(pkWriter)
+	pk.WriteRawTo(pkFile)
 	pkFile.Close()
 	elapsed = time.Since(start)
 	log.Debug().Msg("Successfully saved proving key, time: " + elapsed.String())

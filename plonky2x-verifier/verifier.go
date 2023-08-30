@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -75,4 +78,64 @@ func LoadProof(circuitPath string) (groth16.Proof, error) {
 	log.Debug().Msg("Successfully loaded proof")
 
 	return proof, nil
+}
+
+func ExportIFunctionVerifierSolidity(path string, vk groth16.VerifyingKey) error {
+	log := logger.Logger()
+	// Create a new buffer and export the VerifyingKey into it as a Solidity contract and
+	// convert the buffer content to a string for further manipulation.
+	buf := new(bytes.Buffer)
+	err := vk.ExportSolidity(buf)
+	if err != nil {
+		log.Err(err).Msg("failed to export verifying key to solidity")
+		return err
+	}
+	content := buf.String()
+
+	contractFile, err := os.Create(path + "/FunctionVerifier.sol")
+	if err != nil {
+		return err
+	}
+	w := bufio.NewWriter(contractFile)
+
+	// Custom replacements to make compatible with IFunctionVerifier.
+	content = strings.ReplaceAll(content, "uint256[2] calldata input", "uint256[2] memory input")
+	content = strings.ReplaceAll(content, "pragma solidity ^0.8.0;", "pragma solidity ^0.8.16;")
+	// write the new content to the writer
+	_, err = w.Write([]byte(content))
+	if err != nil {
+		return err
+	}
+
+	// Generate the IFunctionVerifier interface and FunctionVerifier contract.
+	solidityIFunctionVerifier := `
+interface IFunctionVerifier {
+    function verify(bytes32 _circuitDigest, bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool);
+
+    function verificationKeyHash() external pure returns (bytes32);
+}
+
+contract FunctionVerifier is IFunctionVerifier, Verifier {
+    function verify(bytes32 _circuitDigest, bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool) {
+        (uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c) =
+            abi.decode(_proof, (uint256[2], uint256[2][2], uint256[2]));
+
+        uint256[3] memory input = [uint256(_circuitDigest), uint256(_inputHash), uint256(_outputHash)];
+        input[0] = input[0] & ((1 << 253) - 1);
+        input[1] = input[1] & ((1 << 253) - 1);
+		input[2] = input[2] & ((1 << 253) - 1); 
+
+        return verifyProof(a, b, c, input);
+    }
+
+    function verificationKeyHash() external pure returns (bytes32) {
+        return keccak256(abi.encode(verifyingKey()));
+    }
+}
+`
+	// write the IFunctionVerifier and FunctionVerifier to the writer
+
+	_, err = w.Write([]byte(solidityIFunctionVerifier))
+	contractFile.Close()
+	return err
 }

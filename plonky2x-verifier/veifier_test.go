@@ -22,8 +22,8 @@ func TestPlonky2xVerifierCircuit(t *testing.T) {
 			ProofWithPis:   proofWithPis,
 			VerifierData:   verifierOnlyCircuitData,
 			VerifierDigest: new(frontend.Variable),
-			InputHash:    new(frontend.Variable),
-			OutputHash:    new(frontend.Variable),
+			InputHash:      new(frontend.Variable),
+			OutputHash:     new(frontend.Variable),
 			CircuitPath:    dummyCircuitPath,
 		}
 
@@ -33,8 +33,8 @@ func TestPlonky2xVerifierCircuit(t *testing.T) {
 			ProofWithPis:   proofWithPis,
 			VerifierData:   verifierOnlyCircuitData,
 			VerifierDigest: new(frontend.Variable),
-			InputHash:    new(frontend.Variable),
-			OutputHash:    new(frontend.Variable),
+			InputHash:      new(frontend.Variable),
+			OutputHash:     new(frontend.Variable),
 			CircuitPath:    dummyCircuitPath,
 		}
 		return test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())

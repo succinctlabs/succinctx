@@ -17,6 +17,7 @@ func main() {
 	verifyFlag := flag.Bool("verify", false, "verify a proof")
 	testFlag := flag.Bool("test", false, "test the circuit")
 	compileFlag := flag.Bool("compile", false, "Compile and save the universal verifier circuit")
+	contractFlag := flag.Bool("contract", true, "Generate solidity contract")
 	flag.Parse()
 
 	log := logger.Logger()
@@ -51,6 +52,15 @@ func main() {
 		if err != nil {
 			log.Error().Msg("failed to save verifier circuit:" + err.Error())
 			os.Exit(1)
+		}
+
+		if *contractFlag {
+			log.Info().Msg("generating solidity contract")
+			err := ExportIFunctionVerifierSolidity("./build", vk)
+			if err != nil {
+				log.Error().Msg("failed to generate solidity contract:" + err.Error())
+				os.Exit(1)
+			}
 		}
 	}
 

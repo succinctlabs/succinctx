@@ -57,12 +57,12 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 
 	// Circuit assignment
 	assignment := &Plonky2xVerifierCircuit{
-		ProofWithPis: proofWithPis,
-		VerifierData: verifierOnlyCircuitData,
+		ProofWithPis:   proofWithPis,
+		VerifierData:   verifierOnlyCircuitData,
 		VerifierDigest: new(frontend.Variable),
-		InputHash:    new(frontend.Variable),
-		OutputHash:    new(frontend.Variable),
-		CircuitPath:  circuitPath,
+		InputHash:      new(frontend.Variable),
+		OutputHash:     new(frontend.Variable),
+		CircuitPath:    circuitPath,
 	}
 
 	log.Debug().Msg("Generating witness")
