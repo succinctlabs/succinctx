@@ -165,8 +165,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Fails if i1 != i2.
-    pub fn assert_is_equal(&mut self, i1: Variable, i2: Variable) {
-        self.api.connect(i1.0, i2.0);
+    pub fn assert_is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) {
+        assert_eq!(i1.targets().len(), i2.targets().len());
+        for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
+            self.api.connect(*t1, *t2);
+        }
     }
 }
 
