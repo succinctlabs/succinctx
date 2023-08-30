@@ -162,7 +162,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     fn run_once(&self, witness: &PartitionWitness<F>, buffer: &mut GeneratedValues<F>) {
         let mapping_location = self.mapping_location.get(witness);
         let map_key = self.map_key.get(witness);
-        
+
         let location = get_map_storage_location(mapping_location.as_u128(), map_key);
         self.value.set(buffer, location);
     }
