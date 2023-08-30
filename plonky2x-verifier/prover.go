@@ -107,7 +107,7 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	}
 
 	log.Info().Msg("Saving public witness to " + circuitPath + "/public_witness.bin")
-	witnessFile, err := os.Create(circuitPath + "/public_witness.json")
+	witnessFile, err := os.Create(circuitPath + "/public_witness.bin")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create public witness file: %w", err)
 	}
