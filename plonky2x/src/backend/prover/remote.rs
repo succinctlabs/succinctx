@@ -96,11 +96,17 @@ impl Prover for RemoteProver {
         // Deserialize the proof.
         let result = response.result;
         let proof = ProofWithPublicInputs::<F, C, D>::deserialize_from_json(
-            result.clone().unwrap().get("proof").unwrap().to_owned(),
+            result
+                .clone()
+                .unwrap()
+                .get("proof")
+                .unwrap()
+                .to_owned()
+                .unwrap(),
         );
         let output = CircuitOutput::<F, C, D>::deserialize_from_json(
             circuit,
-            result.unwrap().get("output").unwrap().to_owned(),
+            result.unwrap().get("elements").unwrap().to_owned().unwrap(),
         );
         (proof, output)
     }

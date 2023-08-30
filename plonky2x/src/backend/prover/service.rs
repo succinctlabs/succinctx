@@ -19,7 +19,7 @@ pub struct CreateProofResponse {
 pub struct GetProofResponse {
     pub id: String,
     pub status: String,
-    pub result: Option<HashMap<String, String>>,
+    pub result: Option<HashMap<String, Option<String>>>,
 }
 
 #[derive(Default)]
