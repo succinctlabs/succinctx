@@ -4,8 +4,12 @@ use plonky2::hash::hash_types::RichField;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::CircuitVariable;
 
+pub mod uint128;
 pub mod uint256;
 pub mod uint32;
+pub mod uint64;
+
+mod uint32_n;
 
 /// A variable in the circuit representing an algebraic value.
 ///
