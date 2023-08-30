@@ -29,6 +29,7 @@ func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKe
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read r1cs file: %w", err)
 	}
+	r1csFile.Close()
 	elapsed := time.Since(start)
 	log.Debug().Msg("Successfully loaded constraint system, time: " + elapsed.String())
 
@@ -43,6 +44,7 @@ func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKe
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read pk file: %w", err)
 	}
+	pkFile.Close()
 	elapsed = time.Since(start)
 	log.Debug().Msg("Successfully loaded proving key, time: " + elapsed.String())
 
@@ -59,9 +61,9 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	assignment := &Plonky2xVerifierCircuit{
 		ProofWithPis:   proofWithPis,
 		VerifierData:   verifierOnlyCircuitData,
-		VerifierDigest: new(frontend.Variable),
-		InputHash:      new(frontend.Variable),
-		OutputHash:     new(frontend.Variable),
+		VerifierDigest: frontend.Variable(0),
+		InputHash:      frontend.Variable(0),
+		OutputHash:     frontend.Variable(0),
 		CircuitPath:    circuitPath,
 	}
 
