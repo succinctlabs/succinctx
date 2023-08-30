@@ -18,8 +18,7 @@ use serde::Serialize;
 use crate::backend::circuit::Circuit;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::hash::sha::sha256::sha256;
-use crate::frontend::vars::Bytes32Variable;
-use crate::frontend::vars::{CircuitVariable, ByteVariable};
+use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable};
 
 #[derive(Debug)]
 pub struct WrappedCircuit<
