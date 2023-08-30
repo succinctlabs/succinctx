@@ -183,7 +183,7 @@ where
 
         let false_t = builder._false();
         for i in 0..max_num_chunks * CHUNK_BITS_1024 {
-            builder.connect(builder.zero(), hash_msg[i].target);
+            builder.connect(false_t.target, hash_msg[i].target);
             digest.push(false_t);
         }
 
