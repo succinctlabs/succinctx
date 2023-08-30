@@ -1,3 +1,4 @@
+use core::iter::once;
 use std::fs::{self, File};
 use std::path::Path;
 
@@ -18,7 +19,7 @@ use crate::backend::circuit::Circuit;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::hash::sha::sha256::sha256;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{ByteVariable, CircuitVariable};
+use crate::frontend::vars::{CircuitVariable, ByteVariable};
 
 #[derive(Debug)]
 pub struct WrappedCircuit<
@@ -66,6 +67,30 @@ where
             &circuit_verifier_target,
             &circuit.data.common,
         );
+
+        let circuit_digest_bits = circuit_verifier_target
+            .constants_sigmas_cap
+            .0
+            .iter()
+            .chain(once(&circuit_verifier_target.circuit_digest))
+            .flat_map(|x| x.elements)
+            .flat_map(|x| {
+                let mut bits = hash_builder.api.split_le(x, 64);
+                bits.reverse();
+                bits
+            })
+            .collect::<Vec<_>>();
+
+        let circuit_digest_hash: [Target; 256] =
+            sha256(&mut hash_builder.api, &circuit_digest_bits)
+                .into_iter()
+                .map(|x| x.target)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
+
+        let circuit_digest_bytes = Bytes32Variable::from_targets(&circuit_digest_hash);
+        hash_builder.write(circuit_digest_bytes);
 
         let num_input_targets = evm_io
             .input_bytes
@@ -131,6 +156,8 @@ where
             &hash_circuit.data.common,
         );
 
+        recursive_builder.register_public_inputs(&hash_proof_target.public_inputs);
+
         let recursive_circuit = recursive_builder.build::<InnerConfig>();
         debug!(
             "Recursive circuit degree: {}",
@@ -149,6 +176,8 @@ where
             &verifier_target,
             &recursive_circuit.data.common,
         );
+
+        wrapper_builder.register_public_inputs(&proof_target.public_inputs);
 
         let wrapper_data = wrapper_builder.build::<OuterConfig>().data;
         debug!("Wrapped circuit degree: {}", wrapper_data.common.degree());
@@ -170,7 +199,7 @@ where
     pub fn prove(
         &self,
         inner_proof: &ProofWithPublicInputs<F, InnerConfig, D>,
-    ) -> WrappedOutput<F, OuterConfig, D> {
+    ) -> Result<WrappedOutput<F, OuterConfig, D>> {
         let mut pw = PartialWitness::new();
         pw.set_verifier_data_target(
             &self.circuit_verifier_target,
@@ -178,8 +207,8 @@ where
         );
         pw.set_proof_with_pis_target(&self.circuit_proof_target, inner_proof);
 
-        let hash_proof = self.hash_circuit.data.prove(pw).unwrap();
-        self.hash_circuit.data.verify(hash_proof.clone()).unwrap();
+        let hash_proof = self.hash_circuit.data.prove(pw)?;
+        self.hash_circuit.data.verify(hash_proof.clone())?;
         debug!("Successfully verified hash proof");
 
         let mut pw = PartialWitness::new();
@@ -189,11 +218,10 @@ where
         );
         pw.set_proof_with_pis_target(&self.hash_proof_target, &hash_proof);
 
-        let recursive_proof = self.recursive_circuit.data.prove(pw).unwrap();
+        let recursive_proof = self.recursive_circuit.data.prove(pw)?;
         self.recursive_circuit
             .data
-            .verify(recursive_proof.clone())
-            .unwrap();
+            .verify(recursive_proof.clone())?;
         debug!("Successfully verified recursive proof");
 
         let mut pw = PartialWitness::new();
@@ -203,14 +231,15 @@ where
         );
         pw.set_proof_with_pis_target(&self.proof_target, &recursive_proof);
 
-        let proof = self.wrapper_data.prove(pw).unwrap();
-        self.wrapper_data.verify(proof.clone()).unwrap();
+        let proof = self.wrapper_data.prove(pw)?;
+        self.wrapper_data.verify(proof.clone())?;
+        debug!("Successfully verified wrapper proof");
 
-        WrappedOutput {
+        Ok(WrappedOutput {
             proof,
             common_data: self.wrapper_data.common.clone(),
             verifier_data: self.wrapper_data.verifier_only.clone(),
-        }
+        })
     }
 }
 
@@ -299,7 +328,7 @@ mod tests {
         dummy_circuit.verify(&dummy_inner_proof, &dummy_input, &dummy_output);
 
         let dummy_wrapper = WrappedCircuit::<F, InnerConfig, OuterConfig, D>::build(dummy_circuit);
-        let dummy_wrapped_proof = dummy_wrapper.prove(&dummy_inner_proof);
+        let dummy_wrapped_proof = dummy_wrapper.prove(&dummy_inner_proof).unwrap();
         dummy_wrapped_proof.save(dummy_path).unwrap();
 
         // Set up the circuit and wrapper
@@ -344,7 +373,7 @@ mod tests {
             dummy_wrapper.wrapper_data.common,
         );
 
-        let wrapped_proof = wrapped_circuit.prove(&proof);
+        let wrapped_proof = wrapped_circuit.prove(&proof).unwrap();
         wrapped_proof.save(path).unwrap();
     }
 }
