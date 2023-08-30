@@ -481,7 +481,7 @@ mod tests {
         .unwrap();
         let mut msg_bits = to_bits(msg.to_vec());
 
-        // // Length of the message in bits (should be less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
+        // Length of the message in bits (should be less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
         let length = builder.constant(F::from_canonical_usize(msg_bits.len()));
 
         msg_bits.extend(vec![
@@ -500,14 +500,6 @@ mod tests {
             .collect::<Vec<_>>();
 
         let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets, length);
-
-        // for i in 0..digest_bits.len() {
-        //     if digest_bits[i] {
-        //         builder.assert_one(msg_hash[i].target);
-        //     } else {
-        //         builder.assert_zero(msg_hash[i].target);
-        //     }
-        // }
 
         let mut pw = PartialWitness::new();
 
