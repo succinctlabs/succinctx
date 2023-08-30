@@ -28,10 +28,11 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, IoResult, WitnessGeneratorSerializer};
 
-use crate::frontend::eth::storage::generators::storage::EthStorageProofGenerator;
 use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
+use crate::frontend::eth::storage::generators::storage::{
+    EthStorageKeyGenerator, EthStorageProofGenerator,
+};
 use crate::frontend::hash::keccak::keccak256::Keccack256Generator;
-use crate::frontend::eth::storage::generators::storage::EthStorageKeyGenerator;
 
 #[macro_export]
 macro_rules! impl_generator_serializer {

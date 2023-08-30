@@ -3,7 +3,7 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
 use super::generators::block::EthBlockGenerator;
-use super::generators::storage::{EthStorageProofGenerator, EthStorageKeyGenerator};
+use super::generators::storage::{EthStorageKeyGenerator, EthStorageProofGenerator};
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
@@ -144,11 +144,15 @@ mod tests {
         // mapping_location
         input.write::<U256Variable>(mapping_location);
 
-        let map_key = bytes32!("0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe");
+        let map_key =
+            bytes32!("0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe");
         // map_key
         input.write::<Bytes32Variable>(map_key);
 
-        println!("storage key: {:?}", get_map_storage_location(mapping_location.as_u128(), map_key));
+        println!(
+            "storage key: {:?}",
+            get_map_storage_location(mapping_location.as_u128(), map_key)
+        );
 
         // Generate a proof.
         let (proof, output) = circuit.prove(&input);
