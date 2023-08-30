@@ -86,6 +86,9 @@ func VerifierCircuitTest(circuitPath string, dummyCircuitPath string) error {
 	circuit := Plonky2xVerifierCircuit{
 		ProofWithPis: proofWithPis,
 		VerifierData: verifierOnlyCircuitData,
+		VerifierDigest: new(frontend.Variable),
+		InputHash:    new(frontend.Variable),
+		OutputHash:    new(frontend.Variable),
 		CircuitPath:  dummyCircuitPath,
 	}
 
@@ -94,6 +97,9 @@ func VerifierCircuitTest(circuitPath string, dummyCircuitPath string) error {
 	witness := Plonky2xVerifierCircuit{
 		ProofWithPis: proofWithPis,
 		VerifierData: verifierOnlyCircuitData,
+		VerifierDigest: new(frontend.Variable),
+		InputHash:    new(frontend.Variable),
+		OutputHash:    new(frontend.Variable),
 		CircuitPath:  dummyCircuitPath,
 	}
 	return test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
@@ -106,6 +112,9 @@ func CompileVerifierCircuit(dummyCircuitPath string) (constraint.ConstraintSyste
 	circuit := Plonky2xVerifierCircuit{
 		ProofWithPis: proofWithPis,
 		VerifierData: verifierOnlyCircuitData,
+		VerifierDigest: new(frontend.Variable),
+		InputHash:    new(frontend.Variable),
+		OutputHash:    new(frontend.Variable),
 		CircuitPath:  dummyCircuitPath,
 	}
 	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)

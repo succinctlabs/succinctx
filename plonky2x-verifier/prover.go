@@ -59,6 +59,9 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	assignment := &Plonky2xVerifierCircuit{
 		ProofWithPis: proofWithPis,
 		VerifierData: verifierOnlyCircuitData,
+		VerifierDigest: new(frontend.Variable),
+		InputHash:    new(frontend.Variable),
+		OutputHash:    new(frontend.Variable),
 		CircuitPath:  circuitPath,
 	}
 
