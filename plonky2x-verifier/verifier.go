@@ -37,7 +37,7 @@ func LoadVerifierKey(path string) (groth16.VerifyingKey, error) {
 
 func LoadPublicWitness(circuitPath string) (witness.Witness, error) {
 	log := logger.Logger()
-	witnessFile, err := os.Open(circuitPath + "/public_witness.json")
+	witnessFile, err := os.Open(circuitPath + "/public_witness.bin")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open public witness file: %w", err)
 	}
@@ -45,14 +45,7 @@ func LoadPublicWitness(circuitPath string) (witness.Witness, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create public witness: %w", err)
 	}
-	jsonPublicWitness, err := io.ReadAll(witnessFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read public witness file: %w", err)
-	}
-	err = json.Unmarshal(jsonPublicWitness, publicWitness)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read public witness file: %w", err)
-	}
+	publicWitness.ReadFrom(witnessFile)
 	witnessFile.Close()
 	log.Debug().Msg("Successfully loaded public witness")
 
