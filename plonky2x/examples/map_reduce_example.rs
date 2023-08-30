@@ -36,7 +36,7 @@ impl CircuitFunction for Function {
 }
 
 fn main() {
-    env::set_var("RUST_LOG", "info");
+    env::set_var("RUST_LOG", "debug");
     env_logger::init();
     Function::cli();
 }
