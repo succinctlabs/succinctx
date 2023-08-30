@@ -185,6 +185,7 @@ contract FunctionVerifier is IFunctionVerifier {
                 let context: ContextData = serde_json::from_str(context.as_str()).unwrap();
                 let circuit_path = format!("./build/{}.circuit", context.circuit_id);
                 if context.tag == "map" {
+                    println!("MAPPING");
                     let circuit = Circuit::<F, C, D>::load(circuit_path.as_str()).unwrap();
                     let input_values = context
                         .input
@@ -212,6 +213,7 @@ contract FunctionVerifier is IFunctionVerifier {
                     file.write_all(json.as_bytes()).unwrap();
                     println!("Successfully generated proof.");
                 } else if context.tag == "reduce" {
+                    println!("REDUCING");
                     let circuit = Circuit::<F, C, D>::load(circuit_path.as_str()).unwrap();
                     let io = circuit.io.recursive_proof.as_ref().unwrap();
                     let mut input = circuit.input();
@@ -251,15 +253,15 @@ contract FunctionVerifier is IFunctionVerifier {
                     let mut file = File::create("output.json").unwrap();
                     file.write_all(json.as_bytes()).unwrap();
                     println!("Successfully generated proof.");
-                }
-
-                let input = Self::read_function_input(args.clone().input_json);
-                if input.bytes.is_some() {
-                    Self::prove_with_evm_io::<F, C, D>(args, input.bytes());
-                } else if input.elements.is_some() {
-                    Self::prove_with_field_io::<F, C, D>(args, input.elements());
                 } else {
-                    panic!("No input bytes or elements found in input.json.");
+                    let input = Self::read_function_input(args.clone().input_json);
+                    if input.bytes.is_some() {
+                        Self::prove_with_evm_io::<F, C, D>(args, input.bytes());
+                    } else if input.elements.is_some() {
+                        Self::prove_with_field_io::<F, C, D>(args, input.elements());
+                    } else {
+                        panic!("No input bytes or elements found in input.json.");
+                    }
                 }
             }
             Commands::ProveChild(_) => {
