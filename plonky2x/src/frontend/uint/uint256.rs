@@ -5,49 +5,30 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::uint32_n::{U32NVariable, ValueTrait};
+use super::uint32_n::{U32NVariable, Uint};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
 use crate::prelude::*;
 
-impl ValueTrait for U256 {
-    fn to_limbs<const N: usize>(self) -> [u32; N] {
-        let mut bytes = [0u8; 32];
-        self.to_little_endian(&mut bytes);
-        let mut ret: [u32; N] = [0; N];
-        for i in 0..N {
-            let byte_offset = i * 4;
-            ret[i] = u32::from_le_bytes([
-                bytes[byte_offset],
-                bytes[byte_offset + 1],
-                bytes[byte_offset + 2],
-                bytes[byte_offset + 3],
-            ])
-        }
-        ret
+const NUM_LIMBS: usize = 8;
+
+impl Uint<NUM_LIMBS> for U256 {
+    fn to_little_endian(&self, bytes: &mut [u8]) {
+        self.to_little_endian(bytes);
     }
 
-    fn to_value<const N: usize>(limbs: [u32; N]) -> Self
-    where
-        [(); N * 4]:,
-    {
-        let mut bytes = [0u8; N * 4];
-        for (i, &limb) in limbs.iter().enumerate() {
-            bytes[i * 4..(i + 1) * 4].copy_from_slice(&limb.to_le_bytes());
-        }
-        Self::from_little_endian(&bytes)
+    fn from_little_endian(slice: &[u8]) -> Self {
+        Self::from_little_endian(slice)
     }
 
     fn to_big_endian(&self, bytes: &mut [u8]) {
         self.to_big_endian(bytes);
     }
 
-    fn from_big_endian(bytes: &[u8]) -> Self {
-        Self::from_big_endian(bytes)
+    fn from_big_endian(slice: &[u8]) -> Self {
+        Self::from_big_endian(slice)
     }
 }
-
-const NUM_LIMBS: usize = 8;
 
 /// A variable in the circuit representing a u64 value. Under the hood, it is represented as
 /// two U32Variable elements.

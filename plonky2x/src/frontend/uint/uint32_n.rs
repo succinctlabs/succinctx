@@ -11,35 +11,50 @@ use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, U32Variable, Variable};
 use crate::prelude::*;
 
-pub trait ValueTrait {
-    fn to_limbs<const N: usize>(self) -> [u32; N];
+pub trait Uint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
+    fn to_little_endian(&self, bytes: &mut [u8]);
 
-    fn to_value<const N: usize>(limbs: [u32; N]) -> Self
-    where
-        [(); N * 4]:;
+    fn from_little_endian(slice: &[u8]) -> Self;
 
     fn to_big_endian(&self, bytes: &mut [u8]);
 
     fn from_big_endian(slice: &[u8]) -> Self;
+
+    fn to_limbs(self) -> [u32; N] {
+        let mut bytes = vec![0u8; N * 4];
+        self.to_little_endian(&mut bytes);
+        let mut ret: [u32; N] = [0; N];
+        for i in 0..N {
+            let byte_offset = i * 4;
+            ret[i] = u32::from_le_bytes([
+                bytes[byte_offset],
+                bytes[byte_offset + 1],
+                bytes[byte_offset + 2],
+                bytes[byte_offset + 3],
+            ])
+        }
+        ret
+    }
+
+    fn to_value(limbs: [u32; N]) -> Self {
+        let bytes = limbs
+            .iter()
+            .flat_map(|x| x.to_le_bytes())
+            .collect::<Vec<_>>();
+        Self::from_little_endian(&bytes)
+    }
 }
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
 #[derive(Debug, Clone, Copy)]
-pub struct U32NVariable<
-    VT: ValueTrait + Debug + Clone + Copy + Sync + Send + 'static,
-    const N: usize,
-> {
+pub struct U32NVariable<U: Uint<N>, const N: usize> {
     pub limbs: [U32Variable; N],
-    _marker: std::marker::PhantomData<VT>,
+    _marker: std::marker::PhantomData<U>,
 }
 
-impl<VT: ValueTrait + Debug + Clone + Copy + Sync + Send + 'static, const N: usize> CircuitVariable
-    for U32NVariable<VT, N>
-where
-    [(); N * 4]:,
-{
-    type ValueType<F: RichField> = VT;
+impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
+    type ValueType<F: RichField> = U;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -54,7 +69,7 @@ where
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        let limbs = VT::to_limbs::<N>(value);
+        let limbs = U::to_limbs(value);
         Self {
             limbs: array![i => U32Variable::constant(builder, limbs[i]); N],
             _marker: core::marker::PhantomData,
@@ -79,22 +94,18 @@ where
             value_limbs[i] = self.limbs[i].get(witness);
         }
 
-        VT::to_value(value_limbs)
+        U::to_value(value_limbs)
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: VT) {
-        let limbs = VT::to_limbs::<N>(value);
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: U) {
+        let limbs = U::to_limbs(value);
         for i in 0..N {
             self.limbs[i].set(witness, limbs[i]);
         }
     }
 }
 
-impl<VT: ValueTrait + Debug + Clone + Copy + Sync + Send + 'static, const N: usize> EvmVariable
-    for U32NVariable<VT, N>
-where
-    [(); N * 4]:,
-{
+impl<U: Uint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
     fn encode<F: RichField + Extendable<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
@@ -123,22 +134,18 @@ where
     }
 
     fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {
-        let mut bytes = [0u8; N * 4];
-        VT::to_big_endian(&value, &mut bytes);
+        let mut bytes = vec![0u8; N * 4];
+        U::to_big_endian(&value, &mut bytes);
         bytes.to_vec()
     }
 
     fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
-        VT::from_big_endian(bytes)
+        U::from_big_endian(bytes)
     }
 }
 
-impl<
-        F: RichField + Extendable<D>,
-        const D: usize,
-        VT: ValueTrait + Debug + Clone + Copy + Sync + Send + 'static,
-        const N: usize,
-    > Zero<F, D> for U32NVariable<VT, N>
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Zero<F, D>
+    for U32NVariable<U, N>
 {
     fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
         let zero = U32Variable::zero(builder);
@@ -149,12 +156,8 @@ impl<
     }
 }
 
-impl<
-        F: RichField + Extendable<D>,
-        const D: usize,
-        VT: ValueTrait + Debug + Clone + Copy + Sync + Send + 'static,
-        const N: usize,
-    > One<F, D> for U32NVariable<VT, N>
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> One<F, D>
+    for U32NVariable<U, N>
 {
     fn one(builder: &mut CircuitBuilder<F, D>) -> Self {
         let zero = U32Variable::zero(builder);
@@ -169,16 +172,12 @@ impl<
     }
 }
 
-impl<
-        F: RichField + Extendable<D>,
-        const D: usize,
-        VT: ValueTrait + Debug + Clone + Copy + Sync + Send + 'static,
-        const N: usize,
-    > Mul<F, D> for U32NVariable<VT, N>
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Mul<F, D>
+    for U32NVariable<U, N>
 {
     type Output = Self;
 
-    fn mul(self, rhs: U32NVariable<VT, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn mul(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
         let self_targets = self
             .limbs
             .iter()
@@ -212,16 +211,12 @@ impl<
     }
 }
 
-impl<
-        F: RichField + Extendable<D>,
-        const D: usize,
-        VT: ValueTrait + Debug + Clone + Copy + Sync + Send + 'static,
-        const N: usize,
-    > Add<F, D> for U32NVariable<VT, N>
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Add<F, D>
+    for U32NVariable<U, N>
 {
     type Output = Self;
 
-    fn add(self, rhs: U32NVariable<VT, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn add(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
         let self_targets = self
             .limbs
             .iter()
@@ -255,16 +250,12 @@ impl<
     }
 }
 
-impl<
-        F: RichField + Extendable<D>,
-        const D: usize,
-        VT: ValueTrait + Debug + Clone + Copy + Sync + Send + 'static,
-        const N: usize,
-    > Sub<F, D> for U32NVariable<VT, N>
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Sub<F, D>
+    for U32NVariable<U, N>
 {
     type Output = Self;
 
-    fn sub(self, rhs: U32NVariable<VT, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn sub(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
         let self_targets = self
             .limbs
             .iter()
