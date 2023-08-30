@@ -176,14 +176,17 @@ where
 
         msgs.push(msg);
 
-        let sha512_targets = sha512_variable::<F, D>(builder, max_num_chunks);
-        builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_length);
+        // let sha512_targets = sha512_variable::<F, D>(builder, max_num_chunks);
+        // builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_length);
+
+        let digest = Vec::new();
 
         for i in 0..max_num_chunks * CHUNK_BITS_1024 {
-            builder.connect(sha512_targets.message[i].target, hash_msg[i].target);
+            builder.connect(builder.zero(), hash_msg[i].target);
+            digest.push(builder.zero());
         }
 
-        let digest = biguint_from_le_bytes(builder, sha512_targets.digest);
+        let digest = biguint_from_le_bytes(builder, digest);
         let h_scalar = builder.reduce::<Ed25519Scalar>(&digest);
 
         let h_scalar_limbs = h_scalar.value.limbs.iter().map(|x| x.0).collect::<Vec<_>>();
