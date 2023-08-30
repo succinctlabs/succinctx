@@ -10,10 +10,10 @@ on:
     branches:
       - "**"
 
-jobs:  
+jobs:
   test:
     name: CI Test Suite
-    runs-on: chad
+    runs-on: self-hosted
     if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     steps:
       - name: Checkout sources
@@ -62,7 +62,7 @@ jobs:
 
   lints:
     name: Formatting & Clippy
-    runs-on: chad
+    runs-on: self-hosted
     if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     steps:
       - name: Checkout sources
