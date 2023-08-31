@@ -6,19 +6,24 @@ use plonky2::gadgets::arithmetic_extension::QuotientGeneratorExtension;
 use plonky2::gadgets::range_check::LowHighGenerator;
 use plonky2::gadgets::split_base::BaseSumGenerator;
 use plonky2::gadgets::split_join::{SplitGenerator, WireSplitGenerator};
-use plonky2::gates::arithmetic_base::ArithmeticBaseGenerator;
-use plonky2::gates::arithmetic_extension::ArithmeticExtensionGenerator;
-use plonky2::gates::base_sum::BaseSplitGenerator;
-use plonky2::gates::coset_interpolation::InterpolationGenerator;
-use plonky2::gates::exponentiation::ExponentiationGenerator;
-use plonky2::gates::lookup::LookupGenerator;
-use plonky2::gates::lookup_table::LookupTableGenerator;
-use plonky2::gates::multiplication_extension::MulExtensionGenerator;
-use plonky2::gates::poseidon::PoseidonGenerator;
-use plonky2::gates::poseidon_mds::PoseidonMdsGenerator;
-use plonky2::gates::random_access::RandomAccessGenerator;
-use plonky2::gates::reducing::ReducingGenerator;
-use plonky2::gates::reducing_extension::ReducingGenerator as ReducingExtensionGenerator;
+use plonky2::gates::arithmetic_base::{ArithmeticBaseGenerator, ArithmeticGate};
+use plonky2::gates::arithmetic_extension::{ArithmeticExtensionGate, ArithmeticExtensionGenerator};
+use plonky2::gates::base_sum::{BaseSplitGenerator, BaseSumGate};
+use plonky2::gates::constant::ConstantGate;
+use plonky2::gates::coset_interpolation::{CosetInterpolationGate, InterpolationGenerator};
+use plonky2::gates::exponentiation::{ExponentiationGate, ExponentiationGenerator};
+use plonky2::gates::lookup::{LookupGate, LookupGenerator};
+use plonky2::gates::lookup_table::{LookupTableGate, LookupTableGenerator};
+use plonky2::gates::multiplication_extension::{MulExtensionGate, MulExtensionGenerator};
+use plonky2::gates::noop::NoopGate;
+use plonky2::gates::poseidon::{PoseidonGate, PoseidonGenerator};
+use plonky2::gates::poseidon_mds::{PoseidonMdsGate, PoseidonMdsGenerator};
+use plonky2::gates::public_input::PublicInputGate;
+use plonky2::gates::random_access::{RandomAccessGate, RandomAccessGenerator};
+use plonky2::gates::reducing::{ReducingGate, ReducingGenerator};
+use plonky2::gates::reducing_extension::{
+    ReducingExtensionGate, ReducingGenerator as ReducingExtensionGenerator,
+};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{
     ConstantGenerator, CopyGenerator, NonzeroTestGenerator, RandomValueGenerator,
@@ -26,7 +31,8 @@ use plonky2::iop::generator::{
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::recursion::dummy_circuit::DummyProofGenerator;
-use plonky2::util::serialization::{Buffer, IoResult, WitnessGeneratorSerializer};
+use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
+use plonky2::{get_gate_tag_impl, impl_gate_serializer, read_gate_impl};
 
 use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::eth::beacon::generators::balance::BeaconValidatorBalanceGenerator;
@@ -37,6 +43,7 @@ use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
 use crate::frontend::hash::keccak::keccak256::Keccack256Generator;
+use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 
 #[macro_export]
 macro_rules! impl_generator_serializer {
@@ -46,6 +53,7 @@ macro_rules! impl_generator_serializer {
             buf: &mut Buffer,
             common_data: &CommonCircuitData<F, D>,
         ) -> IoResult<plonky2::iop::generator::WitnessGeneratorRef<F, D>> {
+            println!("read generator");
             let tag = plonky2::util::serialization::Read::read_u32(buf)?;
             read_generator_impl! {
                 buf,
@@ -61,6 +69,7 @@ macro_rules! impl_generator_serializer {
             generator: &plonky2::iop::generator::WitnessGeneratorRef<F, D>,
             common_data: &CommonCircuitData<F, D>,
         ) -> IoResult<()> {
+            println!("write generator");
             let tag = get_generator_tag_impl! {
                 generator,
                 $( $generator, $name ),*
@@ -154,6 +163,32 @@ where
         Keccack256Generator<F, D>, "Keccak256Generator",
         BeaconValidatorBalanceGenerator<F, D>, "BeaconValidatorBalanceGenerator",
         BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
-        BeaconValidatorsRootGenerator<F, D>, "BeaconValidatorsGenerator"
+        BeaconValidatorsRootGenerator<F, D>, "BeaconValidatorsGenerator",
+        U32AddManyGenerator<F, D>, "U32AddManyGenerator",
+    }
+}
+
+pub struct CustomGateSerializer;
+
+impl<F: RichField + Extendable<D>, const D: usize> GateSerializer<F, D> for CustomGateSerializer {
+    impl_gate_serializer! {
+        DefaultGateSerializer,
+        ArithmeticGate,
+        ArithmeticExtensionGate<D>,
+        BaseSumGate<2>,
+        ConstantGate,
+        CosetInterpolationGate<F, D>,
+        ExponentiationGate<F, D>,
+        LookupGate,
+        LookupTableGate,
+        MulExtensionGate<D>,
+        NoopGate,
+        PoseidonMdsGate<F, D>,
+        PoseidonGate<F, D>,
+        PublicInputGate,
+        RandomAccessGate<F, D>,
+        ReducingExtensionGate<D>,
+        ReducingGate<D>,
+        U32AddManyGate<F, D>
     }
 }
