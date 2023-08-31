@@ -11,7 +11,7 @@ use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, U32Variable, Variable};
 use crate::prelude::*;
 
-pub trait Uint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
+pub trait EthersUint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
     fn to_little_endian(&self, bytes: &mut [u8]);
 
     fn from_little_endian(slice: &[u8]) -> Self;
@@ -19,6 +19,12 @@ pub trait Uint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
     fn to_big_endian(&self, bytes: &mut [u8]);
 
     fn from_big_endian(slice: &[u8]) -> Self;
+
+    fn overflowing_add(self, rhs: Self) -> (Self, bool);
+
+    fn overflowing_sub(self, rhs: Self) -> (Self, bool);
+
+    fn overflowing_mul(self, rhs: Self) -> (Self, bool);
 
     fn to_limbs(self) -> [u32; N] {
         let mut bytes = vec![0u8; N * 4];
@@ -36,7 +42,7 @@ pub trait Uint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
         ret
     }
 
-    fn to_value(limbs: [u32; N]) -> Self {
+    fn from_limbs(limbs: [u32; N]) -> Self {
         let bytes = limbs
             .iter()
             .flat_map(|x| x.to_le_bytes())
@@ -48,12 +54,12 @@ pub trait Uint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
 #[derive(Debug, Clone, Copy)]
-pub struct U32NVariable<U: Uint<N>, const N: usize> {
+pub struct U32NVariable<U: EthersUint<N>, const N: usize> {
     pub limbs: [U32Variable; N],
     _marker: std::marker::PhantomData<U>,
 }
 
-impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
+impl<U: EthersUint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
     type ValueType<F: RichField> = U;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
@@ -94,7 +100,7 @@ impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
             value_limbs[i] = self.limbs[i].get(witness);
         }
 
-        U::to_value(value_limbs)
+        U::from_limbs(value_limbs)
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: U) {
@@ -105,7 +111,7 @@ impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
     }
 }
 
-impl<U: Uint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
+impl<U: EthersUint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
     fn encode<F: RichField + Extendable<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
@@ -136,7 +142,7 @@ impl<U: Uint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
     fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {
         let mut bytes = vec![0u8; N * 4];
         U::to_big_endian(&value, &mut bytes);
-        bytes.to_vec()
+        bytes
     }
 
     fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
@@ -144,7 +150,7 @@ impl<U: Uint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Zero<F, D>
+impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: usize> Zero<F, D>
     for U32NVariable<U, N>
 {
     fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
@@ -156,7 +162,7 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Z
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> One<F, D>
+impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: usize> One<F, D>
     for U32NVariable<U, N>
 {
     fn one(builder: &mut CircuitBuilder<F, D>) -> Self {
@@ -172,7 +178,7 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> O
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Mul<F, D>
+impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: usize> Mul<F, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
@@ -211,7 +217,7 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> M
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Add<F, D>
+impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: usize> Add<F, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
@@ -250,7 +256,7 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> A
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Sub<F, D>
+impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: usize> Sub<F, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
@@ -285,5 +291,179 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> S
             limbs,
             _marker: core::marker::PhantomData,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ethers::types::{U128, U256, U64};
+    use rand::rngs::OsRng;
+    use rand::Rng;
+
+    use crate::frontend::uint::uint256::U256Variable;
+    use crate::frontend::uint::uint32_n::{EthersUint, U32NVariable};
+    use crate::frontend::vars::EvmVariable;
+    use crate::prelude::*;
+
+    // #[test]
+    fn test_u32n_evm<U: EthersUint<N>, const N: usize>() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+        let num_bytes = N * 4;
+
+        // for
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut var_bytes = vec![];
+        for i in 0..(num_bytes) {
+            let byte = ByteVariable::constant(&mut builder, i as u8);
+            var_bytes.push(byte);
+        }
+        let decoded: U32NVariable<U, N> = U32NVariable::decode(&mut builder, &var_bytes);
+        let encoded = decoded.encode(&mut builder);
+        let redecoded = U32NVariable::decode(&mut builder, &encoded[0..num_bytes]);
+
+        builder.assert_is_equal(decoded, redecoded);
+        for i in 0..(num_bytes) {
+            builder.assert_is_equal(var_bytes[i], encoded[i]);
+        }
+
+        let circuit = builder.build::<C>();
+        let pw = PartialWitness::new();
+
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_uint_evm() {
+        test_u32n_evm::<U64, 2>();
+        test_u32n_evm::<U128, 4>();
+        test_u32n_evm::<U256, 8>();
+    }
+
+    fn test_u32n_evm_value<U: EthersUint<N>, const N: usize>() {
+        type F = GoldilocksField;
+
+        let limbs = [OsRng.gen::<u32>(); N];
+        let num = U::from_limbs(limbs);
+        let encoded = U32NVariable::encode_value::<F>(num);
+        let decoded: U = U32NVariable::decode_value::<F>(&encoded);
+
+        assert_eq!(decoded.to_limbs(), num.to_limbs());
+    }
+
+    #[test]
+    fn test_uint_evm_value() {
+        test_u32n_evm_value::<U64, 2>();
+        test_u32n_evm_value::<U128, 4>();
+        test_u32n_evm_value::<U256, 8>();
+    }
+
+    fn test_u32n_add<U: EthersUint<N>, const N: usize>() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut rng = OsRng;
+
+        let a = U::from_limbs([rng.gen(); N]);
+        let b = U::from_limbs([rng.gen(); N]);
+
+        let (expected_value, _) = a.overflowing_add(b);
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let a = U32NVariable::constant(&mut builder, a);
+        let b = U32NVariable::constant(&mut builder, b);
+        let result = builder.add(a, b);
+        let expected_result_var = U32NVariable::constant(&mut builder, expected_value);
+
+        builder.assert_is_equal(result, expected_result_var);
+
+        let circuit = builder.build::<C>();
+        let pw = PartialWitness::new();
+
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_uint_add() {
+        test_u32n_add::<U64, 2>();
+        test_u32n_add::<U128, 4>();
+        test_u32n_add::<U256, 8>();
+    }
+
+    fn test_u256_sub<U: EthersUint<N>, const N: usize>() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+        let num_bytes = N * 4;
+
+        let mut rng = OsRng;
+
+        let a = U::from_limbs([rng.gen(); N]);
+        let b = U::from_limbs([rng.gen(); N]);
+
+        let (expected_value, _) = a.overflowing_sub(b);
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let a = U32NVariable::constant(&mut builder, a);
+        let b = U32NVariable::constant(&mut builder, b);
+        let result = builder.sub(a, b);
+        let expected_result_var = U32NVariable::constant(&mut builder, expected_value);
+
+        builder.assert_is_equal(result, expected_result_var);
+
+        let circuit = builder.build::<C>();
+        let pw = PartialWitness::new();
+
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_uint_sub() {
+        test_u256_sub::<U64, 2>();
+        test_u256_sub::<U128, 4>();
+        test_u256_sub::<U256, 8>();
+    }
+
+    fn test_u256_mul<U: EthersUint<N>, const N: usize>() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut rng = OsRng;
+
+        let a = U::from_limbs([rng.gen(); N]);
+        let b = U::from_limbs([rng.gen(); N]);
+
+        let (expected_value, _) = a.overflowing_mul(b);
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let a = U32NVariable::constant(&mut builder, a);
+        let b = U32NVariable::constant(&mut builder, b);
+        let result = builder.mul(a, b);
+        let expected_result_var = U32NVariable::constant(&mut builder, expected_value);
+
+        builder.assert_is_equal(result, expected_result_var);
+
+        let circuit = builder.build::<C>();
+        let pw = PartialWitness::new();
+
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_uint_mul() {
+        test_u256_mul::<U64, 2>();
+        test_u256_mul::<U128, 4>();
+        test_u256_mul::<U256, 8>();
     }
 }

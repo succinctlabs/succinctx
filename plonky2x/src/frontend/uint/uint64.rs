@@ -5,14 +5,14 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::uint32_n::{U32NVariable, Uint};
+use super::uint32_n::{EthersUint, U32NVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
 use crate::prelude::*;
 
 const NUM_LIMBS: usize = 2;
 
-impl Uint<NUM_LIMBS> for U64 {
+impl EthersUint<NUM_LIMBS> for U64 {
     fn to_little_endian(&self, bytes: &mut [u8]) {
         self.to_little_endian(bytes);
     }
@@ -27,6 +27,18 @@ impl Uint<NUM_LIMBS> for U64 {
 
     fn from_big_endian(slice: &[u8]) -> Self {
         Self::from_big_endian(slice)
+    }
+
+    fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+        self.overflowing_add(rhs)
+    }
+
+    fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
+        self.overflowing_sub(rhs)
+    }
+
+    fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
+        self.overflowing_mul(rhs)
     }
 }
 
