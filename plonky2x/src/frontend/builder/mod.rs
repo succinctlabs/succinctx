@@ -1,5 +1,6 @@
 mod boolean;
 pub mod io;
+pub mod mux;
 mod proof;
 pub mod watch;
 
