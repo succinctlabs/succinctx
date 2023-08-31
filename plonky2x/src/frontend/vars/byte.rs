@@ -94,6 +94,13 @@ impl ByteVariable {
         bits.reverse();
         bits
     }
+
+    pub fn to_nibbles<F: RichField + Extendable<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> [ByteVariable; 2] {
+        todo!()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Not<F, D> for ByteVariable {
@@ -279,6 +286,28 @@ mod tests {
             x_rot_left.set(&mut pw, x.rotate_left(i));
         }
 
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_to_nibbles() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let value = rand::random::<u8>();
+        let byte = builder.constant(value);
+        let nibbles = byte.to_nibbles(&mut builder);
+
+        // TODO: test that the nibbles are correct
+
+        let circuit = builder.build::<C>();
+
+        let mut pw = PartialWitness::new();
+        byte.set(&mut pw, value);
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
     }

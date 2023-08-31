@@ -9,6 +9,7 @@ use super::{CircuitVariable, EvmVariable, Variable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 use crate::frontend::vars::ByteVariable;
+use crate::prelude::BoolVariable;
 
 /// A variable in the circuit representing a byte value.
 #[derive(Debug, Clone, Copy)]
@@ -254,6 +255,20 @@ impl<F: RichField + Extendable<D>, const D: usize, const N: usize> RotateRight<F
                 .try_into()
                 .unwrap(),
         )
+    }
+}
+
+impl BytesVariable {
+    pub fn to_nibbles<F: RichField + Extendable<D>, const D: usize, const N: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> [ByteVariable; N * 2] {
+        self.0
+            .iter()
+            .flat_map(|b| b.to_nibbles(builder))
+            .collect()
+            .try_into()
+            .unwrap()
     }
 }
 
