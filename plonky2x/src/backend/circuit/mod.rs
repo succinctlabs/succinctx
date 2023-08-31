@@ -226,6 +226,7 @@ where
     }
 
     pub fn save(&self, path: &String) {
+        println!("{:#?}", self.data);
         let bytes = self.serialize().unwrap();
         fs::write(path, bytes).unwrap();
     }

@@ -87,12 +87,12 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
+        panic!("not implemented")
     }
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        todo!()
+        panic!("not implemented")
     }
 }
 

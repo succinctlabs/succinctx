@@ -67,6 +67,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
         dst.write_target_vec(&self.block_root.targets())?;
         dst.write_target_vec(&self.validators_root.targets())?;
+        Ok(())
     }
 
     #[allow(unused_variables)]
