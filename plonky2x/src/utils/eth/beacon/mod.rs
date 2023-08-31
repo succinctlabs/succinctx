@@ -58,15 +58,15 @@ pub struct GetBeaconValidatorsRoot {
 
 #[derive(Debug, Deserialize)]
 struct InnerData {
-    index: String,
-    balance: String,
+    pub index: String,
+    pub balance: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct Data {
-    data: Vec<InnerData>,
-    execution_optimistic: bool,
-    finalized: bool,
+    pub data: Vec<InnerData>,
+    pub execution_optimistic: bool,
+    pub finalized: bool,
 }
 
 #[derive(Debug, Deserialize)]
