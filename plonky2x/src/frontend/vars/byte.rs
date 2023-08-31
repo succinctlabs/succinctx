@@ -99,7 +99,27 @@ impl ByteVariable {
         self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> [ByteVariable; 2] {
-        todo!()
+        let bits = self.to_be_bits();
+        let mut x: [BoolVariable; 8] = [BoolVariable::init(builder); 8];
+        let mut y: [BoolVariable; 8] = [BoolVariable::init(builder); 8];
+        x[..4].clone_from_slice(&bits);
+        x[4] = BoolVariable::constant(builder, false);
+        x[5] = BoolVariable::constant(builder, false);
+        x[6] = BoolVariable::constant(builder, false);
+        x[7] = BoolVariable::constant(builder, false);
+        let one = ByteVariable(x);
+
+        y[0] = bits[5];
+        y[1] = bits[6];
+        y[2] = bits[7];
+        y[3] = bits[8];
+        y[4] = BoolVariable::constant(builder, false);
+        y[5] = BoolVariable::constant(builder, false);
+        y[6] = BoolVariable::constant(builder, false);
+        y[7] = BoolVariable::constant(builder, false);
+        let two = ByteVariable(x);
+
+        [two, one]
     }
 }
 
@@ -298,11 +318,12 @@ mod tests {
 
         let mut builder = CircuitBuilder::<F, D>::new();
 
-        let value = rand::random::<u8>();
-        let byte = builder.constant(value);
+        let value = 1u8;
+        let byte: ByteVariable = builder.constant(value);
         let nibbles = byte.to_nibbles(&mut builder);
 
-        // TODO: test that the nibbles are correct
+        let data1 = ByteVariable::constant(&mut builder, [0u8, 0, 0, 1] as u8);
+        let data2 = ByteVariable::constant(&mut builder, [0u8, 0, 0, 0] as u8);
 
         let circuit = builder.build::<C>();
 
