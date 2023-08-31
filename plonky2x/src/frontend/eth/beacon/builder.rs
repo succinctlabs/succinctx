@@ -2,13 +2,10 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
-
-
 use super::generators::validator::BeaconValidatorGenerator;
 use super::vars::{BeaconValidatorVariable, BeaconValidatorsVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
-use crate:: frontend::hash::sha::sha256;
 use crate::frontend::vars::{Bytes32Variable, ByteVariable};
 use crate::frontend::vars::CircuitVariable;
 
@@ -64,7 +61,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             let mut data = [ByteVariable::init(self); 64];
             data[..32].copy_from_slice(&first);
             data[32..].copy_from_slice(&second); 
-            hasher = sha256::sha_for_builder(self, &data);
+            hasher = self.sha(&data);
         }
         hasher
     }
