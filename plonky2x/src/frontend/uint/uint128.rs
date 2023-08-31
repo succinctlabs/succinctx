@@ -1,5 +1,3 @@
-
-
 use ethers::types::U128;
 
 use super::uint32_n::{EthersUint, U32NVariable};
