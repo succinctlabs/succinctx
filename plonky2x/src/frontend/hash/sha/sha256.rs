@@ -281,7 +281,7 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
 
 /// SHA256 implementation for builder 
 pub fn sha_for_builder<F: RichField + Extendable<D>, const D: usize>(builder: &mut Plonky2xCircuitBuilder<F,D>, input: &[ByteVariable]) -> Bytes32Variable {
-    let input_bool: Vec<BoolTarget> = input.iter().flat_map(|byte| byte.to_bool_targets().to_vec()).collect();
+    let input_bool: Vec<BoolTarget> = input.iter().flat_map(|byte| byte.as_bool_targets().to_vec()).collect();
     let hash_bool = sha256::<F,D>(&mut builder.api, &input_bool);
     let hash_bytes_vec = hash_bool.chunks(8).map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8])).collect::<Vec<_>>();
     let mut hash_bytes_array = [ByteVariable::init(builder); 32];

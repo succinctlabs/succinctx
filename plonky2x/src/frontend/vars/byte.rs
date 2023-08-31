@@ -197,7 +197,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for ByteVariable {
 }
 
 impl ByteVariable {
-    pub fn to_bool_targets(&self) -> [BoolTarget; 8] {
+    pub fn as_bool_targets(&self) -> [BoolTarget; 8] {
         self.0.iter().map(|bool_variable| BoolTarget::new_unsafe(bool_variable.0 .0)).collect::<Vec<_>>().try_into().unwrap()
     }
 }

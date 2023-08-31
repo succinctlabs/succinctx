@@ -46,29 +46,27 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         generator.validator
     }
 
-    /// SSZ Merkle Proof 
+    /// Computes the expected merkle root given a leaf, branch, and deterministic index. 
     pub fn ssz_restore_merkle_root(
         &mut self,
         leaf: Bytes32Variable,
-        index: u64,
         branch: Vec<Bytes32Variable>,
+        index: u64,
     ) -> Bytes32Variable {
         assert!(2u64.pow(branch.len() as u32 + 1) > index);
-        let mut hasher = leaf; // Initialize the hasher with the leaf node
-        for i in 0..branch.len() { // Iterate over each level of the Merkle tree
+        let mut hasher = leaf; 
+        for i in 0..branch.len() { 
             let (first, second) = if (index >> i) & 1 == 1 { 
-                // Determine the order of hashing based on the index
                 (branch[i].as_bytes(), hasher.as_bytes())
             } else {
                 (hasher.as_bytes(), branch[i].as_bytes())
             };
-            let mut data = [ByteVariable::init(self); 64]; // Initialize an array of 64 bytes
-            // Combine the first and second slices into a single array
+            let mut data = [ByteVariable::init(self); 64];
             data[..32].copy_from_slice(&first);
             data[32..].copy_from_slice(&second); 
-            hasher = sha256::sha_for_builder(self, &data); // Compute the hash of the data
+            hasher = sha256::sha_for_builder(self, &data);
         }
-        hasher // Return the computed Merkle root
+        hasher
     }
     
 
@@ -142,7 +140,7 @@ fn test_ssz_restore_merkle_root() {
         builder.constant::<Bytes32Variable>(bytes32!("0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321")),
     ];
 
-    let computed_root = builder.ssz_restore_merkle_root(leaf, index, branch);
+    let computed_root = builder.ssz_restore_merkle_root(leaf, branch, index);
 
     println!("Computed root: {:?}", computed_root);
 
