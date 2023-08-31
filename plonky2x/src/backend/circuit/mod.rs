@@ -122,14 +122,19 @@ where
         let (gate_serializer, generator_serializer) = Self::serializers();
 
         // Setup buffer.
+        println!("1");
         let mut buffer = Vec::new();
         let circuit_bytes = self
             .data
             .to_bytes(&gate_serializer, &generator_serializer)?;
+        println!("2");
         buffer.write_usize(circuit_bytes.len())?;
+        println!("3");
         buffer.write_all(&circuit_bytes)?;
 
+        println!("4");
         if self.io.evm.is_some() {
+            println!("5");
             let io = self.io.evm.as_ref().unwrap();
             buffer.write_usize(0)?;
             buffer.write_target_vec(
@@ -148,6 +153,7 @@ where
                     .as_slice(),
             )?;
         } else if self.io.field.is_some() {
+            println!("6");
             let io = self.io.field.as_ref().unwrap();
             buffer.write_usize(1)?;
             buffer.write_target_vec(

@@ -153,6 +153,6 @@ where
         Keccack256Generator<F, D>, "Keccak256Generator",
         BeaconValidatorBalanceGenerator<F, D>, "BeaconValidatorBalanceGenerator",
         BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
-        BeaconValidatorsRootGenerator<F, D>, "BeaconValidatorsRootGenerator",
+        BeaconValidatorsRootGenerator<F, D>, "BeaconValidatorsGenerator",
     }
 }
