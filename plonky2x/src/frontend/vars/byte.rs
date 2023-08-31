@@ -100,26 +100,13 @@ impl ByteVariable {
         builder: &mut CircuitBuilder<F, D>,
     ) -> [ByteVariable; 2] {
         let bits = self.to_be_bits();
-        let mut x: [BoolVariable; 8] = [BoolVariable::init(builder); 8];
-        let mut y: [BoolVariable; 8] = [BoolVariable::init(builder); 8];
-        x[..4].clone_from_slice(&bits);
-        x[4] = BoolVariable::constant(builder, false);
-        x[5] = BoolVariable::constant(builder, false);
-        x[6] = BoolVariable::constant(builder, false);
-        x[7] = BoolVariable::constant(builder, false);
-        let one = ByteVariable(x);
+        let mut left = array![i => builder.constant(false); 8];
+        left[4..8].clone_from_slice(&bits[0..4]);
 
-        y[0] = bits[5];
-        y[1] = bits[6];
-        y[2] = bits[7];
-        y[3] = bits[8];
-        y[4] = BoolVariable::constant(builder, false);
-        y[5] = BoolVariable::constant(builder, false);
-        y[6] = BoolVariable::constant(builder, false);
-        y[7] = BoolVariable::constant(builder, false);
-        let two = ByteVariable(x);
+        let mut right: [BoolVariable; 8] = array![i => builder.constant(false); 8];
+        right[4..8].clone_from_slice(&bits[4..8]);
 
-        [two, one]
+        [ByteVariable(right), ByteVariable(left)]
     }
 }
 
