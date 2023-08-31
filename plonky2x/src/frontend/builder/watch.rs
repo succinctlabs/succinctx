@@ -30,7 +30,7 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
     for WatchGenerator<V>
 {
     fn id(&self) -> String {
-        todo!()
+        "WatchGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
