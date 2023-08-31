@@ -311,10 +311,15 @@ mod tests {
 
         let value = rand::random::<u8>();
         let byte = builder.constant::<ByteVariable>(value);
-        let _nibbles = byte.to_nibbles(&mut builder);
+        let nibbles = byte.to_nibbles(&mut builder);
 
         // TODO: test that the nibbles are correct
-
+        let first_4_bits = (value >>4) & 0xF;
+        let second_4_bits = value & 0xF;
+        for i in 0..8 {
+            assert!(nibbles[0].0[i].0 == builder.constant::<ByteVariable>(first_4_bits).0[i].0);
+            assert!(nibbles[1].0[i].0 == builder.constant::<ByteVariable>(second_4_bits).0[i].0);
+        } 
 
         let circuit = builder.build::<C>();
 
