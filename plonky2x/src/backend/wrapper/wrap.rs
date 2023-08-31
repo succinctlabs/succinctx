@@ -58,8 +58,7 @@ where
         // Standartize the public inputs/outputs to their hash and verify the circuit recursively
         let mut hash_builder = CircuitBuilder::<F, D>::new();
         let circuit_proof_target = hash_builder.add_virtual_proof_with_pis(&circuit.data.common);
-        let circuit_verifier_target = hash_builder
-            .constant_verifier_data(&circuit.data); //circuit.data.common.config.fri_config.cap_height);
+        let circuit_verifier_target = hash_builder.constant_verifier_data(&circuit.data);
         hash_builder.verify_proof::<InnerConfig>(
             &circuit_proof_target,
             &circuit_verifier_target,
@@ -151,8 +150,7 @@ where
         let mut recursive_builder = CircuitBuilder::<F, D>::new();
         let hash_proof_target =
             recursive_builder.add_virtual_proof_with_pis(&hash_circuit.data.common);
-        let hash_verifier_target = recursive_builder
-            .constant_verifier_data(&hash_circuit.data);//hash_circuit.data.common.config.fri_config.cap_height);
+        let hash_verifier_target = recursive_builder.constant_verifier_data(&hash_circuit.data);
         recursive_builder.verify_proof::<InnerConfig>(
             &hash_proof_target,
             &hash_verifier_target,
