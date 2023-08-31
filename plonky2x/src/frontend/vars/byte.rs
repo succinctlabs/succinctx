@@ -97,9 +97,20 @@ impl ByteVariable {
 
     pub fn to_nibbles<F: RichField + Extendable<D>, const D: usize>(
         self,
-        _builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
     ) -> [ByteVariable; 2] {
-        todo!()
+        // this function split the bytevariables [abcdefgh] to [0000abcd] and [0000efgh], please implement it 
+        // let bits = self.to_be_bits();
+        
+        let bits = self.to_be_bits();
+       
+        let mut left_nibble = array![_ => builder.constant(false); 8];
+        left_nibble[4..].copy_from_slice(&bits[0..4]);
+
+        let mut right_nibble = array![_ => builder.constant(false); 8];
+        right_nibble[4..].copy_from_slice(&bits[4..8]);
+
+        [ByteVariable(left_nibble), ByteVariable(right_nibble)]
     }
 }
 
@@ -303,6 +314,7 @@ mod tests {
         let _nibbles = byte.to_nibbles(&mut builder);
 
         // TODO: test that the nibbles are correct
+
 
         let circuit = builder.build::<C>();
 
