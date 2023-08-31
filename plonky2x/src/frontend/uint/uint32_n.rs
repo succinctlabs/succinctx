@@ -300,7 +300,7 @@ mod tests {
     use rand::rngs::OsRng;
     use rand::Rng;
 
-    use crate::frontend::uint::uint256::U256Variable;
+    
     use crate::frontend::uint::uint32_n::{EthersUint, U32NVariable};
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
@@ -400,7 +400,7 @@ mod tests {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
-        let num_bytes = N * 4;
+        let _num_bytes = N * 4;
 
         let mut rng = OsRng;
 
