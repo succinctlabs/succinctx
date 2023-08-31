@@ -125,4 +125,31 @@ pub(crate) mod tests {
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
     }
+
+    #[test]
+fn test_ssz_restore_merkle_root() {
+    type F = GoldilocksField;
+    type C = PoseidonGoldilocksConfig;
+    const D: usize = 2;
+
+    let mut builder = CircuitBuilder::<F, D>::new();
+
+    // Example values
+    let leaf = builder.constant::<Bytes32Variable>(bytes32!("0xa1b2c3d4e5f60718291a2b3c4d5e6f708192a2b3c4d5e6f7a1b2c3d4e5f60718"));
+    let index = 2;
+    let branch = vec![
+        builder.constant::<Bytes32Variable>(bytes32!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")),
+        builder.constant::<Bytes32Variable>(bytes32!("0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321")),
+    ];
+
+    let computed_root = builder.ssz_restore_merkle_root(leaf, index, branch);
+
+    println!("Computed root: {:?}", computed_root);
+
+    let circuit = builder.build::<C>();
+    let pw = PartialWitness::new();
+    let proof = circuit.data.prove(pw).unwrap();
+    circuit.data.verify(proof).unwrap();
+}
+
 }
