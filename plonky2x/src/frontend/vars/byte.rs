@@ -97,7 +97,7 @@ impl ByteVariable {
 
     pub fn to_nibbles<F: RichField + Extendable<D>, const D: usize>(
         self,
-        builder: &mut CircuitBuilder<F, D>,
+        _builder: &mut CircuitBuilder<F, D>,
     ) -> [ByteVariable; 2] {
         todo!()
     }
@@ -299,8 +299,8 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new();
 
         let value = rand::random::<u8>();
-        let byte = builder.constant(value);
-        let nibbles = byte.to_nibbles(&mut builder);
+        let byte = builder.constant::<ByteVariable>(value);
+        let _nibbles = byte.to_nibbles(&mut builder);
 
         // TODO: test that the nibbles are correct
 
