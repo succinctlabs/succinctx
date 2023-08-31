@@ -107,6 +107,9 @@ impl ByteVariable {
         let mut right: [BoolVariable; 8] = array![i => builder.constant(false); 8];
         right[4..8].clone_from_slice(&bits[4..8]);
 
+        builder.watch(&ByteVariable(right), "1");
+        builder.watch(&ByteVariable(left), "1");
+
         [ByteVariable(right), ByteVariable(left)]
     }
 }
@@ -315,20 +318,25 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
+        let value = rand::random::<u8>();
+
         let mut builder = CircuitBuilder::<F, D>::new();
-
-        let value = 1u8;
         let byte: ByteVariable = builder.constant(value);
-        let nibbles = byte.to_nibbles(&mut builder);
-
-        let data1 = ByteVariable::constant(&mut builder, [0u8, 0, 0, 1] as u8);
-        let data2 = ByteVariable::constant(&mut builder, [0u8, 0, 0, 0] as u8);
-
+        let nibbles: [ByteVariable; 2] = byte.to_nibbles(&mut builder);
+        builder.write(nibbles[0]);
+        builder.write(nibbles[1]);
         let circuit = builder.build::<C>();
 
-        let mut pw = PartialWitness::new();
-        byte.set(&mut pw, value);
-        let proof = circuit.data.prove(pw).unwrap();
-        circuit.data.verify(proof).unwrap();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+
+        let nibble0 = output.read::<ByteVariable>();
+        let nibble1 = output.read::<ByteVariable>();
+        println!("{}", nibble0);
+        println!("{}", nibble1);
+
+        assert_eq!(value & 0x0f, nibble0);
+        assert_eq!(value & 0xf0, nibble1);
     }
 }
