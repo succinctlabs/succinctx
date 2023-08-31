@@ -1,4 +1,5 @@
 use curta::math::prelude::PrimeField64;
+use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
@@ -65,13 +66,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
     /// Reads a value from the public circuit output using field-based serialization.
     pub fn read<V: CircuitVariable>(&self) -> V::ValueType<F> {
         self.io.field.as_ref().expect("field io is not enabled");
-        let elements: Vec<F> = self
+        let elements = self
             .buffer
-            .clone()
-            .into_iter()
+            .iter()
             .take(V::nb_elements::<F, D>())
-            .collect();
-        V::from_elements(elements.as_slice())
+            .collect_vec();
+        V::from_elements(elements.into_iter().copied().collect_vec().as_slice())
     }
 
     /// Reads the entire stream of field elements from the public circuit output.
@@ -84,7 +84,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
     pub fn evm_read<V: EvmVariable>(&self) -> V::ValueType<F> {
         self.io.evm.as_ref().expect("evm io is not enabled");
         let nb_bytes = V::nb_bytes::<F, D>();
-        let bits: Vec<F> = self.buffer.clone().into_iter().take(nb_bytes * 8).collect();
+        let bits = self.buffer.iter().take(nb_bytes * 8).collect_vec();
         let mut bytes = Vec::new();
         for i in 0..bits.len() / 8 {
             let mut byte = 0u8;
@@ -99,7 +99,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
     /// Reads the entire stream of bytes from the public circuit output.
     pub fn evm_read_all(&self) -> Vec<u8> {
         self.io.evm.as_ref().expect("evm io is not enabled");
-        let bits: Vec<F> = self.buffer.clone().into_iter().collect();
+        let bits = self.buffer.iter().collect_vec();
         let mut bytes = Vec::new();
         for i in 0..bits.len() / 8 {
             let mut byte = 0u8;
