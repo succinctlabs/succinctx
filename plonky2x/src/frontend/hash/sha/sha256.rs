@@ -1,13 +1,16 @@
+use array_macro::array;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
+use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
 use crate::frontend::hash::bit_operations::util::{_right_rotate, _shr, uint32_to_bits};
 use crate::frontend::hash::bit_operations::{
     add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add,
 };
-
+use crate::frontend::vars::{BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable};
 pub struct Sha256Target {
     pub message: Vec<BoolTarget>,
     pub digest: Vec<BoolTarget>,
@@ -274,6 +277,16 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
     }
 
     process_sha256(builder, &msg_input)
+}
+
+/// SHA256 implementation for builder 
+pub fn sha_for_builder<F: RichField + Extendable<D>, const D: usize>(builder: &mut Plonky2xCircuitBuilder<F,D>, input: &[ByteVariable]) -> Bytes32Variable {
+    let input_bool: Vec<BoolTarget> = input.iter().flat_map(|byte| byte.to_bool_targets().to_vec()).collect();
+    let hash_bool = sha256::<F,D>(&mut builder.api, &input_bool);
+    let hash_bytes_vec = hash_bool.chunks(8).map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8])).collect::<Vec<_>>();
+    let mut hash_bytes_array = [ByteVariable::init(builder); 32];
+    hash_bytes_array.copy_from_slice(&hash_bytes_vec);
+    Bytes32Variable(BytesVariable(hash_bytes_array))
 }
 
 #[cfg(test)]
