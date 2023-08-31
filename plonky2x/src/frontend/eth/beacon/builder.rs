@@ -119,15 +119,12 @@ pub(crate) mod tests {
 
         (0..1).for_each(|i| {
             let validator = builder.get_beacon_validator_from_u64(validators, i);
-            builder.watch(&validator.effective_balance, "hi");
         });
 
         (0..1).for_each(|i| {
             let idx = builder.constant::<Variable>(F::from_canonical_u64(i));
             let validator = builder.get_beacon_validator(validators, idx);
             let balance = builder.get_beacon_validator_balance(validators, idx);
-            builder.watch(&balance, "balance");
-            builder.watch(&validator.effective_balance, "hi");
         });
 
         let circuit = builder.build::<C>();
