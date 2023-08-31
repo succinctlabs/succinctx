@@ -194,8 +194,8 @@ impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: us
             .iter()
             .map(|x| U32Target(x.0 .0))
             .collect::<Vec<_>>();
-        assert!(self_targets.len() == rhs_targets.len());
-        assert!(self_targets.len() == N);
+        assert_eq!(self_targets.len(), rhs_targets.len());
+        assert_eq!(self_targets.len(), N);
 
         let self_biguint = BigUintTarget {
             limbs: self_targets,
@@ -233,8 +233,8 @@ impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: us
             .iter()
             .map(|x| U32Target(x.0 .0))
             .collect::<Vec<_>>();
-        assert!(self_targets.len() == rhs_targets.len());
-        assert!(self_targets.len() == N);
+        assert_eq!(self_targets.len(), rhs_targets.len());
+        assert_eq!(self_targets.len(), N);
 
         let self_biguint = BigUintTarget {
             limbs: self_targets,
@@ -272,8 +272,8 @@ impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: us
             .iter()
             .map(|x| U32Target(x.0 .0))
             .collect::<Vec<_>>();
-        assert!(self_targets.len() == rhs_targets.len());
-        assert!(self_targets.len() == N);
+        assert_eq!(self_targets.len(), rhs_targets.len());
+        assert_eq!(self_targets.len(), N);
 
         let self_biguint = BigUintTarget {
             limbs: self_targets,
