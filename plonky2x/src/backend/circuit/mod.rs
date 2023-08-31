@@ -11,10 +11,10 @@ use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
-use plonky2::util::serialization::{Buffer, DefaultGateSerializer, IoResult, Read, Write};
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use self::io::{CircuitInput, CircuitOutput};
-use self::utils::CustomGeneratorSerializer;
+use self::utils::{CustomGateSerializer, CustomGeneratorSerializer};
 use crate::frontend::builder::io::{EvmIO, FieldIO};
 use crate::frontend::builder::CircuitIO;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
@@ -97,8 +97,8 @@ where
         self.data.verify(proof.clone()).unwrap();
     }
 
-    fn serializers() -> (DefaultGateSerializer, CustomGeneratorSerializer<C, D>) {
-        let gate_serializer = DefaultGateSerializer;
+    fn serializers() -> (CustomGateSerializer, CustomGeneratorSerializer<C, D>) {
+        let gate_serializer = CustomGateSerializer;
         let generator_serializer = CustomGeneratorSerializer::<C, D> {
             _phantom: PhantomData,
         };
@@ -122,19 +122,14 @@ where
         let (gate_serializer, generator_serializer) = Self::serializers();
 
         // Setup buffer.
-        println!("1");
         let mut buffer = Vec::new();
         let circuit_bytes = self
             .data
             .to_bytes(&gate_serializer, &generator_serializer)?;
-        println!("2");
         buffer.write_usize(circuit_bytes.len())?;
-        println!("3");
         buffer.write_all(&circuit_bytes)?;
 
-        println!("4");
         if self.io.evm.is_some() {
-            println!("5");
             let io = self.io.evm.as_ref().unwrap();
             buffer.write_usize(0)?;
             buffer.write_target_vec(
@@ -153,7 +148,6 @@ where
                     .as_slice(),
             )?;
         } else if self.io.field.is_some() {
-            println!("6");
             let io = self.io.field.as_ref().unwrap();
             buffer.write_usize(1)?;
             buffer.write_target_vec(

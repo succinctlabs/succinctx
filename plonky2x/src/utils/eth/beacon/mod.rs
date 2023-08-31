@@ -85,7 +85,6 @@ impl BeaconClient {
             "{}/eth/v1/beacon/states/head/validator_balances?id={}",
             self.rpc_url, validator_idx
         );
-        println!("{}", endpoint);
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
         let response: Wrapper = response.json().await?;

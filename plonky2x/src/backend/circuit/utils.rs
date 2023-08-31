@@ -34,7 +34,6 @@ use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
 use plonky2::{get_gate_tag_impl, impl_gate_serializer, read_gate_impl};
 
-use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::eth::beacon::generators::balance::BeaconValidatorBalanceGenerator;
 use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
@@ -42,7 +41,7 @@ use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
-use crate::frontend::hash::keccak::keccak256::Keccack256Generator;
+use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 
 #[macro_export]
@@ -53,7 +52,6 @@ macro_rules! impl_generator_serializer {
             buf: &mut Buffer,
             common_data: &CommonCircuitData<F, D>,
         ) -> IoResult<plonky2::iop::generator::WitnessGeneratorRef<F, D>> {
-            println!("read generator");
             let tag = plonky2::util::serialization::Read::read_u32(buf)?;
             read_generator_impl! {
                 buf,
@@ -69,7 +67,6 @@ macro_rules! impl_generator_serializer {
             generator: &plonky2::iop::generator::WitnessGeneratorRef<F, D>,
             common_data: &CommonCircuitData<F, D>,
         ) -> IoResult<()> {
-            println!("write generator");
             let tag = get_generator_tag_impl! {
                 generator,
                 $( $generator, $name ),*
@@ -89,8 +86,7 @@ macro_rules! get_generator_tag_impl {
             Ok(tag)
         } else)*
         {
-            log::log!(log::Level::Error, "attempted to serialize generator with id {} which is unsupported by this generator serializer", $generator.0.id());
-            Err(plonky2::util::serialization::IoError)
+            panic!("attempted to serialize generator with id {} which is unsupported by this generator serializer", $generator.0.id());
         }
     }};
 }
@@ -160,7 +156,7 @@ where
         EthLogGenerator<F, D>, "EthLogGenerator",
         EthBlockGenerator<F, D>, "EthBlockGenerator",
         EthStorageKeyGenerator<F, D>, "EthStorageKeyGenerator",
-        Keccack256Generator<F, D>, "Keccak256Generator",
+        Keccak256Generator<F, D>, "Keccak256Generator",
         BeaconValidatorBalanceGenerator<F, D>, "BeaconValidatorBalanceGenerator",
         BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
         BeaconValidatorsRootGenerator<F, D>, "BeaconValidatorsGenerator",
@@ -172,7 +168,7 @@ pub struct CustomGateSerializer;
 
 impl<F: RichField + Extendable<D>, const D: usize> GateSerializer<F, D> for CustomGateSerializer {
     impl_gate_serializer! {
-        DefaultGateSerializer,
+        CustomGateSerializer,
         ArithmeticGate,
         ArithmeticExtensionGate<D>,
         BaseSumGate<2>,
