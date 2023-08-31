@@ -21,3 +21,6 @@ keystore
 **/__pycache__
 **/Verifier.sol
 **/FunctionVerifier.sol
+
+
+.idea/
