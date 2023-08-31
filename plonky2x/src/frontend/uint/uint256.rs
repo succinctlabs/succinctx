@@ -1,10 +1,10 @@
 use ethers::types::U256;
 
-use super::uint32_n::{EthersUint, U32NVariable};
+use super::uint32_n::{U32NVariable, Uint};
 
 const NUM_LIMBS: usize = 8;
 
-impl EthersUint<NUM_LIMBS> for U256 {
+impl Uint<NUM_LIMBS> for U256 {
     fn to_little_endian(&self, bytes: &mut [u8]) {
         self.to_little_endian(bytes);
     }

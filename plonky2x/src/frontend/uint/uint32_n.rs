@@ -11,7 +11,7 @@ use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, U32Variable, Variable};
 use crate::prelude::*;
 
-pub trait EthersUint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
+pub trait Uint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
     fn to_little_endian(&self, bytes: &mut [u8]);
 
     fn from_little_endian(slice: &[u8]) -> Self;
@@ -26,7 +26,7 @@ pub trait EthersUint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'stat
 
     fn overflowing_mul(self, rhs: Self) -> (Self, bool);
 
-    fn to_limbs(self) -> [u32; N] {
+    fn to_u32_limbs(self) -> [u32; N] {
         let mut bytes = vec![0u8; N * 4];
         self.to_little_endian(&mut bytes);
         let mut ret: [u32; N] = [0; N];
@@ -42,7 +42,7 @@ pub trait EthersUint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'stat
         ret
     }
 
-    fn from_limbs(limbs: [u32; N]) -> Self {
+    fn from_u32_limbs(limbs: [u32; N]) -> Self {
         let bytes = limbs
             .iter()
             .flat_map(|x| x.to_le_bytes())
@@ -54,12 +54,12 @@ pub trait EthersUint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'stat
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
 #[derive(Debug, Clone, Copy)]
-pub struct U32NVariable<U: EthersUint<N>, const N: usize> {
+pub struct U32NVariable<U: Uint<N>, const N: usize> {
     pub limbs: [U32Variable; N],
     _marker: std::marker::PhantomData<U>,
 }
 
-impl<U: EthersUint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
+impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
     type ValueType<F: RichField> = U;
 
     fn init<F: RichField + Extendable<D>, const D: usize>(
@@ -75,7 +75,7 @@ impl<U: EthersUint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        let limbs = U::to_limbs(value);
+        let limbs = U::to_u32_limbs(value);
         Self {
             limbs: array![i => U32Variable::constant(builder, limbs[i]); N],
             _marker: core::marker::PhantomData,
@@ -100,18 +100,18 @@ impl<U: EthersUint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
             value_limbs[i] = self.limbs[i].get(witness);
         }
 
-        U::from_limbs(value_limbs)
+        U::from_u32_limbs(value_limbs)
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: U) {
-        let limbs = U::to_limbs(value);
+        let limbs = U::to_u32_limbs(value);
         for i in 0..N {
             self.limbs[i].set(witness, limbs[i]);
         }
     }
 }
 
-impl<U: EthersUint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
+impl<U: Uint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
     fn encode<F: RichField + Extendable<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
@@ -150,7 +150,7 @@ impl<U: EthersUint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: usize> Zero<F, D>
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Zero<F, D>
     for U32NVariable<U, N>
 {
     fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
@@ -162,7 +162,7 @@ impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: us
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: usize> One<F, D>
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> One<F, D>
     for U32NVariable<U, N>
 {
     fn one(builder: &mut CircuitBuilder<F, D>) -> Self {
@@ -178,7 +178,7 @@ impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: us
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: usize> Mul<F, D>
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Mul<F, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
@@ -217,7 +217,7 @@ impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: us
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: usize> Add<F, D>
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Add<F, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
@@ -256,7 +256,7 @@ impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: us
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: EthersUint<N>, const N: usize> Sub<F, D>
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Sub<F, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
@@ -300,12 +300,12 @@ mod tests {
     use rand::rngs::OsRng;
     use rand::Rng;
 
-    use crate::frontend::uint::uint32_n::{EthersUint, U32NVariable};
+    use crate::frontend::uint::uint32_n::{U32NVariable, Uint};
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
     // #[test]
-    fn test_u32n_evm<U: EthersUint<N>, const N: usize>() {
+    fn test_u32n_evm<U: Uint<N>, const N: usize>() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -342,15 +342,15 @@ mod tests {
         test_u32n_evm::<U256, 8>();
     }
 
-    fn test_u32n_evm_value<U: EthersUint<N>, const N: usize>() {
+    fn test_u32n_evm_value<U: Uint<N>, const N: usize>() {
         type F = GoldilocksField;
 
         let limbs = [OsRng.gen::<u32>(); N];
-        let num = U::from_limbs(limbs);
+        let num = U::from_u32_limbs(limbs);
         let encoded = U32NVariable::encode_value::<F>(num);
         let decoded: U = U32NVariable::decode_value::<F>(&encoded);
 
-        assert_eq!(decoded.to_limbs(), num.to_limbs());
+        assert_eq!(decoded.to_u32_limbs(), num.to_u32_limbs());
     }
 
     #[test]
@@ -360,15 +360,15 @@ mod tests {
         test_u32n_evm_value::<U256, 8>();
     }
 
-    fn test_u32n_add<U: EthersUint<N>, const N: usize>() {
+    fn test_u32n_add<U: Uint<N>, const N: usize>() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
         let mut rng = OsRng;
 
-        let a = U::from_limbs([rng.gen(); N]);
-        let b = U::from_limbs([rng.gen(); N]);
+        let a = U::from_u32_limbs([rng.gen(); N]);
+        let b = U::from_u32_limbs([rng.gen(); N]);
 
         let (expected_value, _) = a.overflowing_add(b);
 
@@ -395,7 +395,7 @@ mod tests {
         test_u32n_add::<U256, 8>();
     }
 
-    fn test_u256_sub<U: EthersUint<N>, const N: usize>() {
+    fn test_u256_sub<U: Uint<N>, const N: usize>() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -403,8 +403,8 @@ mod tests {
 
         let mut rng = OsRng;
 
-        let a = U::from_limbs([rng.gen(); N]);
-        let b = U::from_limbs([rng.gen(); N]);
+        let a = U::from_u32_limbs([rng.gen(); N]);
+        let b = U::from_u32_limbs([rng.gen(); N]);
 
         let (expected_value, _) = a.overflowing_sub(b);
 
@@ -431,15 +431,15 @@ mod tests {
         test_u256_sub::<U256, 8>();
     }
 
-    fn test_u256_mul<U: EthersUint<N>, const N: usize>() {
+    fn test_u256_mul<U: Uint<N>, const N: usize>() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
         let mut rng = OsRng;
 
-        let a = U::from_limbs([rng.gen(); N]);
-        let b = U::from_limbs([rng.gen(); N]);
+        let a = U::from_u32_limbs([rng.gen(); N]);
+        let b = U::from_u32_limbs([rng.gen(); N]);
 
         let (expected_value, _) = a.overflowing_mul(b);
 
