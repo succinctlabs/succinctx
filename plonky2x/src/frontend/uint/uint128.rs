@@ -1,10 +1,10 @@
-use ethers::types::U256;
+use ethers::types::U128;
 
 use super::uint32_n::{U32NVariable, Uint};
 
-const NUM_LIMBS: usize = 8;
+const NUM_LIMBS: usize = 4;
 
-impl Uint<NUM_LIMBS> for U256 {
+impl Uint<NUM_LIMBS> for U128 {
     fn to_little_endian(&self, bytes: &mut [u8]) {
         self.to_little_endian(bytes);
     }
@@ -34,4 +34,6 @@ impl Uint<NUM_LIMBS> for U256 {
     }
 }
 
-pub type U256Variable = U32NVariable<U256, NUM_LIMBS>;
+/// A variable in the circuit representing a u64 value. Under the hood, it is represented as
+/// two U32Variable elements.
+pub type U128Variable = U32NVariable<U128, NUM_LIMBS>;

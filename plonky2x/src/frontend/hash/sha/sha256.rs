@@ -1,13 +1,17 @@
+use array_macro::array;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
+use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
 use crate::frontend::hash::bit_operations::util::{_right_rotate, _shr, uint32_to_bits};
 use crate::frontend::hash::bit_operations::{
     add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add,
 };
-
+use crate::frontend::vars::{
+    BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable,
+};
 pub struct Sha256Target {
     pub message: Vec<BoolTarget>,
     pub digest: Vec<BoolTarget>,
@@ -79,12 +83,12 @@ pub fn sha256_variable_length_single_chunk<F: RichField + Extendable<D>, const D
 }
 
 // Pad a variable length, single SHA256 chunk from a message
-fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
+pub fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     message: &[BoolTarget],
     // Length in bits (assumes less than SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8)
     length: Target,
-) -> Vec<BoolTarget> {
+) -> [BoolTarget; CHUNK_64_BYTES * 8] {
     assert!(message.len() <= SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8);
     // 1) Adds all message bits before idx = length
     // 2) Adds padding bit when idx = length
@@ -127,7 +131,11 @@ fn pad_single_sha256_chunk<F: RichField + Extendable<D>, const D: usize>(
         msg_input.push(length_bits[i]);
     }
 
-    msg_input
+    let mut padded_msg = [builder._false(); CHUNK_64_BYTES * 8];
+
+    padded_msg[..(CHUNK_64_BYTES * 8)].copy_from_slice(&msg_input[..(CHUNK_64_BYTES * 8)]);
+
+    padded_msg
 }
 
 // Process SHA256 on padded chunks
@@ -270,6 +278,24 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
     }
 
     process_sha256(builder, &msg_input)
+}
+
+/// Implements SHA256 implementation for CircuitBuilder
+impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D> {
+    pub fn sha(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
+        let input_bool: Vec<BoolTarget> = input
+            .iter()
+            .flat_map(|byte| byte.as_bool_targets().to_vec())
+            .collect();
+        let hash_bool = sha256::<F, D>(&mut self.api, &input_bool);
+        let hash_bytes_vec = hash_bool
+            .chunks(8)
+            .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8]))
+            .collect::<Vec<_>>();
+        let mut hash_bytes_array = [ByteVariable::init(self); 32];
+        hash_bytes_array.copy_from_slice(&hash_bytes_vec);
+        Bytes32Variable(BytesVariable(hash_bytes_array))
+    }
 }
 
 #[cfg(test)]
@@ -497,18 +523,10 @@ mod tests {
 
         let msg_hash = sha256_variable_length_single_chunk(&mut builder, &targets, length);
 
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(msg_hash[i].target);
-            } else {
-                builder.assert_zero(msg_hash[i].target);
-            }
-        }
-
         let mut pw = PartialWitness::new();
 
-        for i in 0..msg_bits.len() {
-            pw.set_bool_target(targets[i], msg_bits[i]);
+        for i in 0..msg_hash.len() {
+            pw.set_bool_target(msg_hash[i], digest_bits[i]);
         }
 
         dbg!(builder.num_gates());
