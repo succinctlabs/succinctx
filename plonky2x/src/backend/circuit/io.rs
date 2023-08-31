@@ -67,6 +67,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
         self.io.field.as_ref().expect("field io is not enabled");
         let elements: Vec<F> = self
             .buffer
+            .clone()
             .into_iter()
             .take(V::nb_elements::<F, D>())
             .collect();
@@ -76,14 +77,14 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
     /// Reads the entire stream of field elements from the public circuit output.
     pub fn read_all(&self) -> Vec<F> {
         self.io.field.as_ref().expect("field io is not enabled");
-        self.buffer
+        self.buffer.clone()
     }
 
     /// Reads a value from the public circuit output using byte-based serialization.
     pub fn evm_read<V: EvmVariable>(&self) -> V::ValueType<F> {
         self.io.evm.as_ref().expect("evm io is not enabled");
         let nb_bytes = V::nb_bytes::<F, D>();
-        let bits: Vec<F> = self.buffer.into_iter().take(nb_bytes * 8).collect();
+        let bits: Vec<F> = self.buffer.clone().into_iter().take(nb_bytes * 8).collect();
         let mut bytes = Vec::new();
         for i in 0..bits.len() / 8 {
             let mut byte = 0u8;
@@ -98,7 +99,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
     /// Reads the entire stream of bytes from the public circuit output.
     pub fn evm_read_all(&self) -> Vec<u8> {
         self.io.evm.as_ref().expect("evm io is not enabled");
-        let bits: Vec<F> = self.buffer.into_iter().collect();
+        let bits: Vec<F> = self.buffer.clone().into_iter().collect();
         let mut bytes = Vec::new();
         for i in 0..bits.len() / 8 {
             let mut byte = 0u8;
