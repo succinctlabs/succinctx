@@ -7,9 +7,8 @@ use super::vars::{BeaconValidatorVariable, BeaconValidatorsVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
 use crate::frontend::uint::uint256::U256Variable;
-use crate::frontend::vars::{ByteVariable, Bytes32Variable, Bytes32Variable, CircuitVariable};
+use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable};
 use crate::prelude::Variable;
-
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     /// Get the validators for a given block root.
     pub fn get_beacon_validators(
