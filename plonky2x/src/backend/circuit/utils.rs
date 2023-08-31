@@ -28,6 +28,9 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, IoResult, WitnessGeneratorSerializer};
 
+use crate::frontend::eth::beacon::generators::balance::BeaconValidatorBalanceGenerator;
+use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
+use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
 use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
@@ -147,6 +150,9 @@ where
         EthLogGenerator<F, D>, "EthLogGenerator",
         EthBlockGenerator<F, D>, "EthBlockGenerator",
         EthStorageKeyGenerator<F, D>, "EthStorageKeyGenerator",
-        Keccack256Generator<F, D>, "Keccak256Generator"
+        Keccack256Generator<F, D>, "Keccak256Generator",
+        BeaconValidatorBalanceGenerator<F, D>, "BeaconValidatorBalanceGenerator",
+        BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
+        BeaconValidatorsRootGenerator<F, D>, "BeaconValidatorsRootGenerator",
     }
 }
