@@ -7,28 +7,28 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::beacon::vars::BeaconValidatorVariable;
+use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::prelude::Variable;
 use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::hex;
 
 #[derive(Debug, Clone)]
-pub struct BeaconValidatorGenerator<F: RichField + Extendable<D>, const D: usize> {
+pub struct BeaconValidatorBalanceGenerator<F: RichField + Extendable<D>, const D: usize> {
     client: BeaconClient,
     block_root: Bytes32Variable,
     validators_root: Bytes32Variable,
     deterministic_idx: Option<u64>,
     dynamic_idx: Option<Variable>,
-    pub validator: BeaconValidatorVariable,
+    pub balance: U256Variable,
     _phantom: PhantomData<F>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorGenerator<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorBalanceGenerator<F, D> {
     pub fn new(
         builder: &mut CircuitBuilder<F, D>,
         block_root: Bytes32Variable,
@@ -42,17 +42,17 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorGenerator<F, D
             validators_root,
             deterministic_idx,
             dynamic_idx,
-            validator: builder.init::<BeaconValidatorVariable>(),
+            balance: builder.init::<U256Variable>(),
             _phantom: PhantomData,
         }
     }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for BeaconValidatorGenerator<F, D>
+    for BeaconValidatorBalanceGenerator<F, D>
 {
     fn id(&self) -> String {
-        "BeaconValidatorGenerator".to_string()
+        "BeaconValidatorBalanceGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -71,28 +71,59 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let result = rt.block_on(async {
             if self.deterministic_idx.is_some() {
                 self.client
-                    .get_validator(hex!(block_root), self.deterministic_idx.unwrap())
+                    .get_validator_balance(hex!(block_root), self.deterministic_idx.unwrap())
                     .await
                     .expect("failed to get validator")
             } else {
                 let idx = self.dynamic_idx.unwrap().get(witness).as_canonical_u64();
                 self.client
-                    .get_validator(hex!(block_root), idx)
+                    .get_validator_balance(hex!(block_root), idx)
                     .await
                     .expect("failed to get validator")
             }
         });
-        self.validator.set(out_buffer, result.validator);
+        self.balance.set(out_buffer, result);
     }
 
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        panic!("not implemented")
+        dst.write_target_vec(&self.block_root.targets())?;
+        dst.write_target_vec(&self.validators_root.targets())?;
+        dst.write_bool(self.deterministic_idx.is_some())?;
+        if self.deterministic_idx.is_some() {
+            dst.write_usize(self.deterministic_idx.unwrap() as usize)?;
+        } else {
+            dst.write_target_vec(&self.dynamic_idx.unwrap().targets())?;
+        }
+        dst.write_target_vec(&self.balance.targets())?;
+        Ok(())
     }
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        panic!("not implemented")
+        let block_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
+        let validators_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
+        let is_deterministic = src.read_bool()?;
+        let deterministic_idx = if is_deterministic {
+            Some(src.read_usize()? as u64)
+        } else {
+            None
+        };
+        let dynamic_idx = if is_deterministic {
+            None
+        } else {
+            Some(Variable::from_targets(&src.read_target_vec()?))
+        };
+        let balance = U256Variable::from_targets(&src.read_target_vec()?);
+        Ok(Self {
+            client: BeaconClient::new("https://beaconapi.succinct.xyz".to_string()),
+            block_root,
+            validators_root,
+            deterministic_idx,
+            dynamic_idx,
+            balance,
+            _phantom: PhantomData,
+        })
     }
 }
 

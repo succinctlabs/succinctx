@@ -6,7 +6,7 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
@@ -65,12 +65,21 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
+        dst.write_target_vec(&self.block_root.targets())?;
+        dst.write_target_vec(&self.validators_root.targets())?;
+        Ok(())
     }
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        todo!()
+        let block_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
+        let validators_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
+        Ok(Self {
+            client: BeaconClient::new("https://beaconapi.succinct.xyz".to_string()),
+            block_root,
+            validators_root,
+            _phantom: Default::default(),
+        })
     }
 }
 

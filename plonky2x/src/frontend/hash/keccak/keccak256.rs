@@ -13,7 +13,7 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, Variable};
 
 #[derive(Debug, Clone)]
-pub struct Keccack256Generator<F: RichField + Extendable<D>, const D: usize> {
+pub struct Keccak256Generator<F: RichField + Extendable<D>, const D: usize> {
     pub input: Vec<ByteVariable>,
     pub output: Bytes32Variable,
     pub length: Option<Variable>,
@@ -21,10 +21,10 @@ pub struct Keccack256Generator<F: RichField + Extendable<D>, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for Keccack256Generator<F, D>
+    for Keccak256Generator<F, D>
 {
     fn id(&self) -> String {
-        "Keccack256Generator".to_string()
+        "Keccak256Generator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -42,7 +42,6 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        println!("Running keccak256 generator");
         let mut length = self.input.len();
         if let Some(length_variable) = self.length {
             length = length_variable.get(witness).to_canonical_u64() as usize;

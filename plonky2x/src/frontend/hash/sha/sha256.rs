@@ -1,5 +1,4 @@
 use array_macro::array;
-
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
@@ -10,7 +9,9 @@ use crate::frontend::hash::bit_operations::util::{_right_rotate, _shr, uint32_to
 use crate::frontend::hash::bit_operations::{
     add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add,
 };
-use crate::frontend::vars::{BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable};
+use crate::frontend::vars::{
+    BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable,
+};
 pub struct Sha256Target {
     pub message: Vec<BoolTarget>,
     pub digest: Vec<BoolTarget>,
@@ -279,16 +280,22 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
     process_sha256(builder, &msg_input)
 }
 
-/// Implements SHA256 implementation for CircuitBuilder 
-impl<F:RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F,D>{
-pub fn sha(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
-    let input_bool: Vec<BoolTarget> = input.iter().flat_map(|byte| byte.as_bool_targets().to_vec()).collect();
-    let hash_bool = sha256::<F,D>(&mut self.api, &input_bool);
-    let hash_bytes_vec = hash_bool.chunks(8).map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8])).collect::<Vec<_>>();
-    let mut hash_bytes_array = [ByteVariable::init(self); 32];
-    hash_bytes_array.copy_from_slice(&hash_bytes_vec);
-    Bytes32Variable(BytesVariable(hash_bytes_array))
-}
+/// Implements SHA256 implementation for CircuitBuilder
+impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D> {
+    pub fn sha(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
+        let input_bool: Vec<BoolTarget> = input
+            .iter()
+            .flat_map(|byte| byte.as_bool_targets().to_vec())
+            .collect();
+        let hash_bool = sha256::<F, D>(&mut self.api, &input_bool);
+        let hash_bytes_vec = hash_bool
+            .chunks(8)
+            .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8]))
+            .collect::<Vec<_>>();
+        let mut hash_bytes_array = [ByteVariable::init(self); 32];
+        hash_bytes_array.copy_from_slice(&hash_bytes_vec);
+        Bytes32Variable(BytesVariable(hash_bytes_array))
+    }
 }
 
 #[cfg(test)]
