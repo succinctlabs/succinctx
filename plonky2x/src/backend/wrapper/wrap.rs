@@ -59,8 +59,7 @@ where
         let mut hash_builder = CircuitBuilder::<F, D>::new();
         let circuit_proof_target = hash_builder.add_virtual_proof_with_pis(&circuit.data.common);
         let circuit_verifier_target = hash_builder
-            .api
-            .add_virtual_verifier_data(circuit.data.common.config.fri_config.cap_height);
+            .constant_verifier_data(&circuit.data); //circuit.data.common.config.fri_config.cap_height);
         hash_builder.verify_proof::<InnerConfig>(
             &circuit_proof_target,
             &circuit_verifier_target,
@@ -153,8 +152,7 @@ where
         let hash_proof_target =
             recursive_builder.add_virtual_proof_with_pis(&hash_circuit.data.common);
         let hash_verifier_target = recursive_builder
-            .api
-            .add_virtual_verifier_data(hash_circuit.data.common.config.fri_config.cap_height);
+            .constant_verifier_data(&hash_circuit.data);//hash_circuit.data.common.config.fri_config.cap_height);
         recursive_builder.verify_proof::<InnerConfig>(
             &hash_proof_target,
             &hash_verifier_target,
