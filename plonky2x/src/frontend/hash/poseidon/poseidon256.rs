@@ -37,7 +37,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
                 let hash_byte_vec = bit_list
                     .chunks(8)
-                    .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8])).collect::<Vec<_>>();
+                    .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8]))
+                    .collect::<Vec<_>>();
 
                 hash_byte_vec
             })
