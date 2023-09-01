@@ -1,43 +1,32 @@
 
 use array_macro::array;
-use plonky2::{hash::{hash_types::RichField, poseidon::{SPONGE_RATE}}, field::extension::Extendable, iop::target::{Target}, plonk::config::{AlgebraicHasher}};
-use plonky2::hash::hashing::PlonkyPermutation;
-use crate::{frontend::{builder::CircuitBuilder as Plonky2xCircuitBuilder}, prelude::{ByteVariable, BytesVariable, CircuitVariable, BoolVariable, Variable}};
+use plonky2::{hash::hash_types::RichField, field::extension::Extendable, iop::target::BoolTarget, plonk::config::AlgebraicHasher};
+use crate::{frontend::{builder::CircuitBuilder as Plonky2xCircuitBuilder, vars::Bytes32Variable}, prelude::{ByteVariable, BytesVariable, CircuitVariable, BoolVariable}};
 
-/// Implements SHA256 implementation for CircuitBuilder
+/// Implements Poseidon implementation for CircuitBuilder
 impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D> 
 {
-    pub fn poseidon<H: AlgebraicHasher<F>>(&mut self, input: &[ByteVariable]) -> BytesVariable<64> {
-
-        let zero = self.api.zero();
-        let mut sponge_state = H::AlgebraicPermutation::new(std::iter::repeat(zero));
-        
-        let input_targets: Vec<Target> = input
+    /// Note: This Poseidon implementation operates on bytes, not field elements.
+    /// Each field element for the Poseidon hash is formed from u32's as field elements.
+    /// Specifically, for inputs into hash_n_to_hash_no_pad, we convert the [ByteVariable; N] into a 
+    /// [u32; N/4] and then into a [F; N/4] where F is the field element type.
+    /// We use u32's instead of u64's because of the Goldilocks field size.
+    pub fn poseidon<H: AlgebraicHasher<F>>(&mut self, input: &[ByteVariable]) -> Bytes32Variable {        
+        let input_targets: Vec<BoolTarget> = input
             .iter()
-            .flat_map(|byte| byte.targets().to_vec())
+            .flat_map(|byte| byte.as_bool_targets().to_vec())
             .collect();
+        
+        // Call le_sum on chunks of 32 bits (4 byte targets) from input_targets
+        let inputs = input_targets.chunks(32).map(|chunk| {
+            self.api.le_sum(chunk.iter())
+        }).collect::<Vec<_>>();
 
+        let hash = self.api.hash_n_to_hash_no_pad::<H>(inputs);
 
-        for input_chunk in input_targets.chunks(SPONGE_RATE) {
-            // Overwrite the first r elements with the inputs. This differs from a standard sponge,
-            // where we would xor or add in the inputs. This is a well-known variant, though,
-            // sometimes called "overwrite mode".
-            sponge_state.set_from_slice(input_chunk, 0);
-            sponge_state = self.api.permute::<H>(sponge_state);
-        }
-
-        // Each target is the size of a field element
-
-        // We need to decompose each field element into 8 bytes
-
-        // Each byte decomposes into 8 bits (BoolVariables)
-
-        let output_buffer = sponge_state.squeeze().to_vec();
-
-
-        println!("Output buffer: {:?}", output_buffer[0]);
-
-        let hash_bytes_vec = output_buffer
+        // Convert each field element (~64 bits) into 8 bytes
+        let hash_bytes_vec = hash
+            .elements
             .iter()
             .flat_map(|chunk| {
                 let bit_list = self.api.split_le(*chunk, 64);
@@ -50,19 +39,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D>
                 hash_byte_vec
             })
             .collect::<Vec<_>>();
-        
-        // hash_bytes_vec.iter().for_each(|variable| {
-        //     self.watch(&variable, "c");
 
-        // });
-
-        // // Convert targets into ByteVariable vec
-        // let output_buffer = BytesVariable::from_targets(&output_buffer);
-
-        let mut hash_bytes_array = [ByteVariable::init(self); 64];
+        let mut hash_bytes_array = [ByteVariable::init(self); 32];
         hash_bytes_array.copy_from_slice(&hash_bytes_vec);
 
-        BytesVariable(hash_bytes_array)
+        Bytes32Variable(BytesVariable(hash_bytes_array))
     }
 }
 
@@ -72,10 +53,8 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use crate::frontend::vars::Bytes32Variable;
     use crate::utils::{bytes32, setup_logger};
-    use crate::{frontend::{builder::CircuitBuilder as Plonky2xCircuitBuilder}};
+    use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
 
-
-    use super::*;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -111,12 +90,6 @@ mod tests {
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
-
-        // Read output.
-        let sum = output.read::<Variable>();
-        println!("{}", sum.0);
-
-        // println!("Hash: {:?}", hash);
 
         Ok(())
     }
