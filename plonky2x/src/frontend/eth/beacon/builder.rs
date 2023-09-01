@@ -156,7 +156,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_ssz_restore_merkle_root() {
+    fn test_ssz_restore_merkle_root_equal() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -177,9 +177,50 @@ pub(crate) mod tests {
             )),
         ];
 
+        let expected_root = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xac0757982d17231f28ac33c08f1dd7f420a60cec25bf517ac9e9b35d8543082f"
+        ));
+
         let computed_root = builder.ssz_restore_merkle_root(leaf, branch, index);
 
-        println!("Computed root: {:?}", computed_root);
+        builder.assert_is_equal(expected_root, computed_root);
+
+        let circuit = builder.build::<C>();
+        let pw = PartialWitness::new();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_ssz_restore_merkle_root_unequal() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        // Example values
+        let leaf = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xa1b2c3d4e5f60718291a2b3c4d5e6f708192a2b3c4d5e6f7a1b2c3d4e5f60718"
+        ));
+        let index = 2;
+        let branch = vec![
+            builder.constant::<Bytes32Variable>(bytes32!(
+                "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+            )),
+            builder.constant::<Bytes32Variable>(bytes32!(
+                "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321"
+            )),
+        ];
+
+        let expected_root = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xbd0757982d17231f28ac33c08f1dd7f420a60cec25bf517ac9e9b35d8543082f"
+        ));
+
+        let computed_root = builder.ssz_restore_merkle_root(leaf, branch, index);
+
+        builder.assert_is_equal(expected_root, computed_root);
 
         let circuit = builder.build::<C>();
         let pw = PartialWitness::new();
