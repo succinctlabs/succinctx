@@ -10,10 +10,10 @@ use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable}
 
 /// Implements the Poseidon hash for CircuitBuilder.
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    /// Note: This Poseidon implementation operates on bytes, not field elements.
-    /// The input bytes to the Poseidon hash are converted into field elements internally.
-    /// Specifically, we convert the [ByteVariable; N] into a [u32; N/4] and then represent the u32 as a [F; N/4].
-    /// We use u32's instead of u64's to represent the bytes because of the Goldilocks field size.
+    /// Note: This Poseidon implementation operates on bytes, not field elements. The input bytes to
+    /// the Poseidon hash are converted into field elements internally. Specifically, we convert the
+    /// [ByteVariable; N] into a [u32; N/4] and then represent the u32 as a [F; N/4]. We use u32's
+    /// instead of u64's to represent the bytes because of the Goldilocks field size.
     pub fn poseidon<H: AlgebraicHasher<F>>(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
         let input_targets: Vec<BoolTarget> = input
             .iter()
@@ -37,8 +37,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
                 let hash_byte_vec = bit_list
                     .chunks(8)
-                    .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8]))
-                    .collect::<Vec<_>>();
+                    .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8])).collect::<Vec<_>>();
 
                 hash_byte_vec
             })
