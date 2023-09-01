@@ -74,14 +74,18 @@ mod tests {
             "d68d62c262c2ec08961c1104188cde86f51695878759666ad61490c8ec66745c"
         ));
 
+        let expected_hash = builder.constant::<Bytes32Variable>(bytes32!(
+            "faa1095f1959da5713d6ad8b21b54936f167dc8e3f205b129b8eb8740aa10c0b"
+        ));
+
         // Convert Bytes32Variable to array of ByteVariable
         let leaf_bytes = leaf.as_bytes();
 
-        let hash = builder.poseidon::<H>(&leaf_bytes);
+        let computed_hash = builder.poseidon::<H>(&leaf_bytes);
 
-        builder.watch(&hash, "hash");
+        builder.assert_is_equal(computed_hash, expected_hash);
 
-        builder.write(hash);
+        builder.watch(&computed_hash, "computed_hash");
 
         // Build your circuit.
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
