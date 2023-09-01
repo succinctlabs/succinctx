@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use array_macro::array;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
@@ -192,6 +193,17 @@ impl<F: RichField + Extendable<D>, const D: usize> RotateRight<F, D, usize> for 
 impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for ByteVariable {
     fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
         ByteVariable(array![_ => builder.constant(false); 8])
+    }
+}
+
+impl ByteVariable {
+    pub fn as_bool_targets(&self) -> [BoolTarget; 8] {
+        self.0
+            .iter()
+            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.0 .0))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
     }
 }
 

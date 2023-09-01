@@ -11,12 +11,10 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
-use plonky2::util::serialization::{
-    Buffer, DefaultGateSerializer, IoResult, Read, Remaining, Write,
-};
+use plonky2::util::serialization::{Buffer, IoResult, Read, Remaining, Write};
 
 use self::io::{CircuitInput, CircuitOutput};
-use self::utils::CustomGeneratorSerializer;
+use self::utils::{CustomGateSerializer, CustomGeneratorSerializer};
 use crate::frontend::builder::io::{EvmIO, FieldIO, RecursiveProofIO};
 use crate::frontend::builder::CircuitIO;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
@@ -117,8 +115,8 @@ where
         self.data.verify(proof.clone()).unwrap();
     }
 
-    fn serializers() -> (DefaultGateSerializer, CustomGeneratorSerializer<C, D>) {
-        let gate_serializer = DefaultGateSerializer;
+    fn serializers() -> (CustomGateSerializer, CustomGeneratorSerializer<C, D>) {
+        let gate_serializer = CustomGateSerializer;
         let generator_serializer = CustomGeneratorSerializer::<C, D> {
             _phantom: PhantomData,
         };
@@ -273,6 +271,8 @@ where
 
     pub fn save(&self, path: &String) {
         let bytes = self.serialize().unwrap();
+        let dir = path.split('/').take(path.split('/').count() - 1).join("/");
+        fs::create_dir_all(dir).unwrap_or(());
         fs::write(path, bytes).unwrap();
     }
 

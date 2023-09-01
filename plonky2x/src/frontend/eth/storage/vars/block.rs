@@ -1,12 +1,13 @@
 use std::fmt::Debug;
 
-use ethers::types::{Address, H256, U256};
+use ethers::types::{Address, H256, U256, U64};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
+use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable};
 use crate::prelude::Variable;
 
@@ -23,12 +24,12 @@ pub struct EthHeader {
     pub root: H256,
     pub tx_hash: H256,
     pub receipt_hash: H256,
-    // pub bloom: H256,
+    // pub bloom: Bytes,
     pub difficulty: U256,
-    pub number: U256,
-    // pub gas_limit: u64,
-    // pub gas_used: u64,
-    // pub time: u64,
+    pub number: U64,
+    pub gas_limit: U256,
+    pub gas_used: U256,
+    pub time: U256,
     // pub extra: Bytes,
 }
 
@@ -40,12 +41,12 @@ pub struct EthHeaderVariable {
     pub root: Bytes32Variable,
     pub tx_hash: Bytes32Variable,
     pub receipt_hash: Bytes32Variable,
-    // pub bloom: Bytes32Variable, // TODO: add back once we have arbitrary bytes variables
+    // pub bloom: BytesVariable, // TODO: add back once we have arbitrary bytes variables
     pub difficulty: U256Variable,
-    pub number: U256Variable,
-    // pub gas_limit: U64Variable, // TODO: add back once we have U64 variables
-    // pub gas_used: U64Variable,
-    // pub time: U64Variable,
+    pub number: U64Variable,
+    pub gas_limit: U256Variable,
+    pub gas_used: U256Variable,
+    pub time: U256Variable,
     // pub extra: Bytes32Variable, // TODO: add back once we have arbitrary bytes variables
 }
 
@@ -64,10 +65,10 @@ impl CircuitVariable for EthHeaderVariable {
             receipt_hash: Bytes32Variable::init(builder),
             // bloom: Bytes32Variable::init(builder),
             difficulty: U256Variable::init(builder),
-            number: U256Variable::init(builder),
-            // gas_limit: U64Variable::init(builder),
-            // gas_used: U64Variable::init(builder),
-            // time: U64Variable::init(builder),
+            number: U64Variable::init(builder),
+            gas_limit: U256Variable::init(builder),
+            gas_used: U256Variable::init(builder),
+            time: U256Variable::init(builder),
             // extra: Bytes32Variable::init(builder),
         }
     }
@@ -91,9 +92,9 @@ impl CircuitVariable for EthHeaderVariable {
         // vars.extend(self.bloom.variables());
         vars.extend(self.difficulty.variables());
         vars.extend(self.number.variables());
-        // vars.extend(self.gas_limit.variables());
-        // vars.extend(self.gas_used.variables());
-        // vars.extend(self.time.variables());
+        vars.extend(self.gas_limit.variables());
+        vars.extend(self.gas_used.variables());
+        vars.extend(self.time.variables());
         // vars.extend(self.extra.variables());
         vars
     }
@@ -101,9 +102,11 @@ impl CircuitVariable for EthHeaderVariable {
     #[allow(unused_variables)]
     fn from_variables(variables: &[Variable]) -> Self {
         let parent_hash = Bytes32Variable::from_variables(&variables[0..32 * 8]);
-        let uncle_hash = Bytes32Variable::from_variables(&variables[32 * 8..64 * 8]);
-        let coinbase = AddressVariable::from_variables(&variables[64 * 8..64 * 8 + 8 * 20]);
-        let mut offset = 64 * 8 + 8 * 20;
+        let mut offset = 32 * 8;
+        let uncle_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        offset += 32 * 8;
+        let coinbase = AddressVariable::from_variables(&variables[offset..offset + 8 * 20]);
+        offset += 8 * 20;
         let root = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
         offset += 32 * 8;
 
@@ -119,11 +122,16 @@ impl CircuitVariable for EthHeaderVariable {
         let difficulty = U256Variable::from_variables(&variables[offset..offset + 4]);
         offset += 4;
 
-        let number = U256Variable::from_variables(&variables[offset..offset + 4]);
+        let number = U64Variable::from_variables(&variables[offset..offset + 1]);
+        offset += 1;
 
-        // let gas_limit = U64Variable::from_variables(&variables[offset+8..offset+9]);
-        // let gas_used = U64Variable::from_variables(&variables[offset+9..offset+10]);
-        // let time = U64Variable::from_variables(&variables[offset+10..offset+11]);
+        let gas_limit = U256Variable::from_variables(&variables[offset..offset + 4]);
+        offset += 4;
+
+        let gas_used = U256Variable::from_variables(&variables[offset..offset + 4]);
+        offset += 4;
+
+        let time = U256Variable::from_variables(&variables[offset..offset + 4]);
 
         // let extra = Bytes32Variable::from_variables(&variables[offset+8..offset+8+32*8]);
 
@@ -137,6 +145,9 @@ impl CircuitVariable for EthHeaderVariable {
             // bloom,
             difficulty,
             number,
+            gas_limit,
+            gas_used,
+            time,
             // extra
         }
     }
@@ -153,9 +164,9 @@ impl CircuitVariable for EthHeaderVariable {
             // bloom: self.bloom.get(witness),
             difficulty: self.difficulty.get(witness),
             number: self.number.get(witness),
-            // gas_limit: self.gas_limit.get(witness),
-            // gas_used: self.gas_used.get(witness),
-            // time: self.time.get(witness),
+            gas_limit: self.gas_limit.get(witness),
+            gas_used: self.gas_used.get(witness),
+            time: self.time.get(witness),
             // extra: self.extra.get(witness).as_bytes().to_vec().into(),
         }
     }
@@ -171,9 +182,9 @@ impl CircuitVariable for EthHeaderVariable {
         // self.bloom.set(witness, value.bloom);
         self.difficulty.set(witness, value.difficulty);
         self.number.set(witness, value.number);
-        // self.gas_limit.set(witness, value.gas_limit);
-        // self.gas_used.set(witness, value.gas_used);
-        // self.time.set(witness, value.time);
+        self.gas_limit.set(witness, value.gas_limit);
+        self.gas_used.set(witness, value.gas_used);
+        self.time.set(witness, value.time);
         // self.extra.set(witness, H256::from_slice(value.extra.0.as_ref()));
     }
 }

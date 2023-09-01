@@ -6,19 +6,24 @@ use plonky2::gadgets::arithmetic_extension::QuotientGeneratorExtension;
 use plonky2::gadgets::range_check::LowHighGenerator;
 use plonky2::gadgets::split_base::BaseSumGenerator;
 use plonky2::gadgets::split_join::{SplitGenerator, WireSplitGenerator};
-use plonky2::gates::arithmetic_base::ArithmeticBaseGenerator;
-use plonky2::gates::arithmetic_extension::ArithmeticExtensionGenerator;
-use plonky2::gates::base_sum::BaseSplitGenerator;
-use plonky2::gates::coset_interpolation::InterpolationGenerator;
-use plonky2::gates::exponentiation::ExponentiationGenerator;
-use plonky2::gates::lookup::LookupGenerator;
-use plonky2::gates::lookup_table::LookupTableGenerator;
-use plonky2::gates::multiplication_extension::MulExtensionGenerator;
-use plonky2::gates::poseidon::PoseidonGenerator;
-use plonky2::gates::poseidon_mds::PoseidonMdsGenerator;
-use plonky2::gates::random_access::RandomAccessGenerator;
-use plonky2::gates::reducing::ReducingGenerator;
-use plonky2::gates::reducing_extension::ReducingGenerator as ReducingExtensionGenerator;
+use plonky2::gates::arithmetic_base::{ArithmeticBaseGenerator, ArithmeticGate};
+use plonky2::gates::arithmetic_extension::{ArithmeticExtensionGate, ArithmeticExtensionGenerator};
+use plonky2::gates::base_sum::{BaseSplitGenerator, BaseSumGate};
+use plonky2::gates::constant::ConstantGate;
+use plonky2::gates::coset_interpolation::{CosetInterpolationGate, InterpolationGenerator};
+use plonky2::gates::exponentiation::{ExponentiationGate, ExponentiationGenerator};
+use plonky2::gates::lookup::{LookupGate, LookupGenerator};
+use plonky2::gates::lookup_table::{LookupTableGate, LookupTableGenerator};
+use plonky2::gates::multiplication_extension::{MulExtensionGate, MulExtensionGenerator};
+use plonky2::gates::noop::NoopGate;
+use plonky2::gates::poseidon::{PoseidonGate, PoseidonGenerator};
+use plonky2::gates::poseidon_mds::{PoseidonMdsGate, PoseidonMdsGenerator};
+use plonky2::gates::public_input::PublicInputGate;
+use plonky2::gates::random_access::{RandomAccessGate, RandomAccessGenerator};
+use plonky2::gates::reducing::{ReducingGate, ReducingGenerator};
+use plonky2::gates::reducing_extension::{
+    ReducingExtensionGate, ReducingGenerator as ReducingExtensionGenerator,
+};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{
     ConstantGenerator, CopyGenerator, NonzeroTestGenerator, RandomValueGenerator,
@@ -26,16 +31,19 @@ use plonky2::iop::generator::{
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::recursion::dummy_circuit::DummyProofGenerator;
-use plonky2::util::serialization::{Buffer, IoResult, WitnessGeneratorSerializer};
+use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
+use plonky2::{get_gate_tag_impl, impl_gate_serializer, read_gate_impl};
 
+use crate::frontend::eth::beacon::generators::balance::BeaconValidatorBalanceGenerator;
 use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
 use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
-    EthStorageKeyGenerator, EthStorageProofGenerator,
+    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
-use crate::frontend::hash::keccak::keccak256::Keccack256Generator;
+use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::mapreduce::MapReduceRecursiveProofGenerator;
+use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 use crate::prelude::Variable;
 
 #[macro_export]
@@ -80,8 +88,7 @@ macro_rules! get_generator_tag_impl {
             Ok(tag)
         } else)*
         {
-            log::log!(log::Level::Error, "attempted to serialize generator with id {} which is unsupported by this generator serializer", $generator.0.id());
-            Err(plonky2::util::serialization::IoError)
+            panic!("attempted to serialize generator with id {} which is unsupported by this generator serializer", $generator.0.id());
         }
     }};
 }
@@ -149,10 +156,41 @@ where
         WireSplitGenerator, "WireSplitGenerator",
         MapReduceRecursiveProofGenerator<F, C, Variable, Variable, D>, "MapReduceRecursiveProofGenerator",
         EthStorageProofGenerator<F, D>, "EthStorageProofGenerator",
-        EthStorageKeyGenerator<F, D>, "EthStorageKeyGenerator",
+        EthLogGenerator<F, D>, "EthLogGenerator",
         EthBlockGenerator<F, D>, "EthBlockGenerator",
-        Keccack256Generator<F, D>, "Keccak256Generator",
+        Keccak256Generator<F, D>, "Keccak256Generator",
         BeaconValidatorsRootGenerator<F, D>, "BeaconValidatorsGenerator",
         BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
+        EthStorageKeyGenerator<F, D>, "EthStorageKeyGenerator",
+        Keccak256Generator<F, D>, "Keccak256Generator",
+        BeaconValidatorBalanceGenerator<F, D>, "BeaconValidatorBalanceGenerator",
+        BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
+        BeaconValidatorsRootGenerator<F, D>, "BeaconValidatorsGenerator",
+        U32AddManyGenerator<F, D>, "U32AddManyGenerator",
+    }
+}
+
+pub struct CustomGateSerializer;
+
+impl<F: RichField + Extendable<D>, const D: usize> GateSerializer<F, D> for CustomGateSerializer {
+    impl_gate_serializer! {
+        CustomGateSerializer,
+        ArithmeticGate,
+        ArithmeticExtensionGate<D>,
+        BaseSumGate<2>,
+        ConstantGate,
+        CosetInterpolationGate<F, D>,
+        ExponentiationGate<F, D>,
+        LookupGate,
+        LookupTableGate,
+        MulExtensionGate<D>,
+        NoopGate,
+        PoseidonMdsGate<F, D>,
+        PoseidonGate<F, D>,
+        PublicInputGate,
+        RandomAccessGate<F, D>,
+        ReducingExtensionGate<D>,
+        ReducingGate<D>,
+        U32AddManyGate<F, D>
     }
 }

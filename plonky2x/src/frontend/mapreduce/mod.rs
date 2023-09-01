@@ -300,8 +300,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_simple_mapreduce_circuit() {
-        env_logger::init();
-
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
