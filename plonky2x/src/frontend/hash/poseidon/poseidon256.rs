@@ -8,7 +8,7 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable};
 
-/// Implements Poseidon for CircuitBuilder
+/// Implements the Poseidon hash for CircuitBuilder.
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     /// Note: This Poseidon implementation operates on bytes, not field elements.
     /// The input bytes to the Poseidon hash are converted into field elements internally.
@@ -20,7 +20,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             .flat_map(|byte| byte.as_bool_targets().to_vec())
             .collect();
 
-        // Call le_sum on chunks of 32 bits (4 byte targets) from input_targets
+        // Call le_sum on chunks of 32 bits (4 byte targets) from input_targets.
         let inputs = input_targets
             .chunks(32)
             .map(|chunk| self.api.le_sum(chunk.iter()))
@@ -28,7 +28,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
         let hash = self.api.hash_n_to_hash_no_pad::<H>(inputs);
 
-        // Convert each field element (~64 bits) into 8 bytes
+        // Convert each field element (~64 bits) into 8 bytes.
         let hash_bytes_vec = hash
             .elements
             .iter()
