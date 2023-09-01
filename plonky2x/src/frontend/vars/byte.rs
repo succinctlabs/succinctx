@@ -313,18 +313,15 @@ mod tests {
         let byte = builder.constant::<ByteVariable>(value);
         let nibbles = byte.to_nibbles(&mut builder);
 
-        // TODO: test that the nibbles are correct
-        let first_4_bits = (value >>4) & 0xF;
-        let second_4_bits = value & 0xF;
-        for i in 0..8 {
-            assert!(nibbles[0].0[i].0 == builder.constant::<ByteVariable>(first_4_bits).0[i].0);
-            assert!(nibbles[1].0[i].0 == builder.constant::<ByteVariable>(second_4_bits).0[i].0);
-        } 
-
-        let circuit = builder.build::<C>();
-
         let mut pw = PartialWitness::new();
         byte.set(&mut pw, value);
+        
+        let expected_left_nibble = (value >> 4) & 0x0F;
+        let expected_right_nibble = value & 0x0F;
+        nibbles[0].set(&mut pw, expected_left_nibble);
+        nibbles[1].set(&mut pw, expected_right_nibble);  
+
+        let circuit = builder.build::<C>();
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
     }
