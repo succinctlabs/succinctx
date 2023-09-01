@@ -4,12 +4,12 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::config::AlgebraicHasher;
 
-use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
+use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable};
 
 /// Implements Poseidon for CircuitBuilder
-impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     /// Note: This Poseidon implementation operates on bytes, not field elements.
     /// The input bytes to the Poseidon hash are converted into field elements internally.
     /// Specifically, we convert the [ByteVariable; N] into a [u32; N/4] and then represent the u32 as a [F; N/4].
@@ -61,13 +61,13 @@ mod tests {
     use crate::utils::{bytes32, setup_logger};
 
     #[test]
-    #[cfg_attr(feature = "ci", ignore)]
     fn test_poseidon() -> Result<()> {
         setup_logger();
 
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
+        type H = <C as GenericConfig<D>>::InnerHasher;
         let mut builder = Plonky2xCircuitBuilder::<F, D>::new();
 
         let leaf = builder.constant::<Bytes32Variable>(bytes32!(
@@ -77,7 +77,7 @@ mod tests {
         // Convert Bytes32Variable to array of ByteVariable
         let leaf_bytes = leaf.as_bytes();
 
-        let hash = builder.poseidon::<<plonky2::plonk::config::PoseidonGoldilocksConfig as plonky2::plonk::config::GenericConfig<D>>::InnerHasher>(&leaf_bytes);
+        let hash = builder.poseidon::<H>(&leaf_bytes);
 
         builder.watch(&hash, "hash");
 
