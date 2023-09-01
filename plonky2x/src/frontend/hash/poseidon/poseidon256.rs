@@ -10,7 +10,6 @@ use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable}
 
 /// Implements Poseidon for CircuitBuilder
 impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D> {
-
     /// Note: This Poseidon implementation operates on bytes, not field elements.
     /// The input bytes to the Poseidon hash are converted into field elements internally.
     /// Specifically, we convert the [ByteVariable; N] into a [u32; N/4] and then represent the u32 as a [F; N/4].
