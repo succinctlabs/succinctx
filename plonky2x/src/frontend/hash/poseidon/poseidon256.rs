@@ -1,26 +1,31 @@
-
 use array_macro::array;
-use plonky2::{hash::hash_types::RichField, field::extension::Extendable, iop::target::BoolTarget, plonk::config::AlgebraicHasher};
-use crate::{frontend::{builder::CircuitBuilder as Plonky2xCircuitBuilder, vars::Bytes32Variable}, prelude::{ByteVariable, BytesVariable, CircuitVariable, BoolVariable}};
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::target::BoolTarget;
+use plonky2::plonk::config::AlgebraicHasher;
+
+use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
+use crate::frontend::vars::Bytes32Variable;
+use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable};
 
 /// Implements Poseidon implementation for CircuitBuilder
-impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D> 
-{
+impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D> {
     /// Note: This Poseidon implementation operates on bytes, not field elements.
     /// Each field element for the Poseidon hash is formed from u32's as field elements.
-    /// Specifically, for inputs into hash_n_to_hash_no_pad, we convert the [ByteVariable; N] into a 
+    /// Specifically, for inputs into hash_n_to_hash_no_pad, we convert the [ByteVariable; N] into a
     /// [u32; N/4] and then into a [F; N/4] where F is the field element type.
     /// We use u32's instead of u64's because of the Goldilocks field size.
-    pub fn poseidon<H: AlgebraicHasher<F>>(&mut self, input: &[ByteVariable]) -> Bytes32Variable {        
+    pub fn poseidon<H: AlgebraicHasher<F>>(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
         let input_targets: Vec<BoolTarget> = input
             .iter()
             .flat_map(|byte| byte.as_bool_targets().to_vec())
             .collect();
-        
+
         // Call le_sum on chunks of 32 bits (4 byte targets) from input_targets
-        let inputs = input_targets.chunks(32).map(|chunk| {
-            self.api.le_sum(chunk.iter())
-        }).collect::<Vec<_>>();
+        let inputs = input_targets
+            .chunks(32)
+            .map(|chunk| self.api.le_sum(chunk.iter()))
+            .collect::<Vec<_>>();
 
         let hash = self.api.hash_n_to_hash_no_pad::<H>(inputs);
 
@@ -51,10 +56,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D>
 mod tests {
     use anyhow::Result;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+
+    use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
     use crate::frontend::vars::Bytes32Variable;
     use crate::utils::{bytes32, setup_logger};
-    use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
-
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
