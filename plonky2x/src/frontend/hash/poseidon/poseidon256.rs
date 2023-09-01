@@ -8,7 +8,7 @@ use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable};
 
-/// Implements Poseidon implementation for CircuitBuilder
+/// Implements Poseidon for CircuitBuilder
 impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D> {
     /// Note: This Poseidon implementation operates on bytes, not field elements.
     /// Each field element for the Poseidon hash is formed from u32's as field elements.
