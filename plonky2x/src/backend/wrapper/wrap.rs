@@ -170,8 +170,7 @@ where
         let proof_target =
             wrapper_builder.add_virtual_proof_with_pis(&recursive_circuit.data.common);
         let verifier_target = wrapper_builder
-            .api
-            .add_virtual_verifier_data(recursive_circuit.data.common.config.fri_config.cap_height);
+            .constant_verifier_data(&recursive_circuit.data);
         wrapper_builder.verify_proof::<InnerConfig>(
             &proof_target,
             &verifier_target,
