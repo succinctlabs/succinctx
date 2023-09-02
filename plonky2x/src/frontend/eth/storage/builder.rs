@@ -3,7 +3,9 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
 use super::generators::block::EthBlockGenerator;
-use super::generators::storage::{EthStorageKeyGenerator, EthStorageProofGenerator};
+use super::generators::storage::{
+    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+};
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
@@ -24,11 +26,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     #[allow(non_snake_case)]
     pub fn eth_get_storage_at(
         &mut self,
+        block_hash: Bytes32Variable,
         address: AddressVariable,
         storage_key: Bytes32Variable,
-        block_hash: Bytes32Variable,
     ) -> Bytes32Variable {
-        let generator = EthStorageProofGenerator::new(self, address, storage_key, block_hash);
+        let generator = EthStorageProofGenerator::new(self, block_hash, address, storage_key);
         self.add_simple_generator(&generator);
         generator.value
     }
@@ -50,13 +52,15 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     #[allow(non_snake_case)]
-    pub fn eth_get_transaction_receipt(
+    pub fn eth_get_transaction_log(
         &mut self,
-        _transaction_hash: Bytes32Variable,
-        _block_hash: Bytes32Variable,
-        _log_index: usize,
+        transaction_hash: Bytes32Variable,
+        block_hash: Bytes32Variable,
+        log_index: u64,
     ) -> EthLogVariable {
-        todo!()
+        let generator = EthLogGenerator::new(self, transaction_hash, block_hash, log_index);
+        self.add_simple_generator(&generator);
+        generator.value
     }
 }
 
@@ -65,12 +69,12 @@ mod tests {
     use std::env;
 
     use ethers::providers::{Http, Provider};
-    use ethers::types::U256;
+    use ethers::types::{U256, U64};
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::*;
     use crate::frontend::eth::storage::utils::get_map_storage_location;
-    use crate::frontend::eth::storage::vars::EthHeader;
+    use crate::frontend::eth::storage::vars::{EthHeader, EthLog};
     use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
 
@@ -88,7 +92,7 @@ mod tests {
         let block_hash = builder.evm_read::<Bytes32Variable>();
         let address = builder.evm_read::<AddressVariable>();
         let location = builder.evm_read::<Bytes32Variable>();
-        let value = builder.eth_get_storage_at(address, location, block_hash);
+        let value = builder.eth_get_storage_at(block_hash, address, location);
         builder.evm_write(value);
 
         // Build your circuit.
@@ -97,10 +101,13 @@ mod tests {
         // Write to the circuit input.
         // These values are taken from Ethereum block https://etherscan.io/block/17880427
         let mut input = circuit.input();
+        // block hash
         input.evm_write::<Bytes32Variable>(bytes32!(
             "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
         ));
+        // address
         input.evm_write::<AddressVariable>(address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"));
+        // location
         input.evm_write::<Bytes32Variable>(bytes32!(
             "0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"
         ));
@@ -227,7 +234,70 @@ mod tests {
                     "0x8fa46ad6b448faefbfc010736a3d39595ca68eb8bdd4e6b4ab30513bab688068"
                 ),
                 difficulty: U256::from("0x0"),
-                number: U256::from("0x110d56b"),
+                number: U64::from("0x110d56b"),
+                gas_limit: U256::from("0x1c9c380"),
+                gas_used: U256::from("0x16041f6"),
+                time: U256::from("0x64d41817"),
+            }
+        );
+
+        let _ = circuit.serialize().unwrap();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    #[allow(non_snake_case)]
+    fn test_eth_get_transaction_log() {
+        dotenv::dotenv().ok();
+        let rpc_url = env::var("RPC_1").unwrap();
+        let provider = Provider::<Http>::try_from(rpc_url).unwrap();
+
+        // This is the circuit definition
+        let mut builder = CircuitBuilderX::new();
+        builder.set_execution_client(provider);
+        let transaction_hash = builder.read::<Bytes32Variable>();
+        let block_hash = builder.read::<Bytes32Variable>();
+        let log_index = 0u64;
+
+        let value = builder.eth_get_transaction_log(transaction_hash, block_hash, log_index);
+        builder.write(value);
+
+        // Build your circuit.
+        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+
+        // Write to the circuit input.
+        // These values are taken from Ethereum block https://etherscan.io/block/17880427
+        let mut input = circuit.input();
+        // transaction hash
+        input.write::<Bytes32Variable>(bytes32!(
+            "0xead2251970404128e6f9bdff0133badb7338c5fa7ea4eec24e88af85a6d03cf2"
+        ));
+        // block hash
+        input.write::<Bytes32Variable>(bytes32!(
+            "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
+        ));
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
+
+        // Read output.
+        let circuit_value = output.read::<EthLogVariable>();
+        println!("{:?}", circuit_value);
+        assert_eq!(
+            circuit_value,
+            EthLog {
+                address: address!("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+                topics: [
+                    bytes32!("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+                    bytes32!("0x00000000000000000000000059b4bb1f5d943cf71a10df63f6b743ee4a4489ee"),
+                    bytes32!("0x000000000000000000000000def1c0ded9bec7f1a1670819833240f027b25eff")
+                ],
+                data_hash: bytes32!(
+                    "0x5cdda96947975d4afbc971c9aa8bb2cc684e158d10a0d878b3a5b8b0f895262c"
+                )
             }
         );
 
