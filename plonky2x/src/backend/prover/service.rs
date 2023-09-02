@@ -1,25 +1,22 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::backend::function::FunctionOutput;
+use crate::backend::function::request::FunctionRequest;
+use crate::backend::function::result::FunctionResult;
 
-#[derive(Debug, Serialize)]
-pub struct CreateProofPayload {
-    release_id: String,
-    input: String,
-    context: String,
-}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateProofRequest(pub FunctionRequest);
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateProofResponse {
     pub proof_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetProofResponse {
     pub id: String,
     pub status: String,
-    pub result: Option<FunctionOutput>,
+    pub result: Option<FunctionResult>,
 }
 
 #[derive(Default)]
@@ -37,12 +34,8 @@ impl ProvingService {
     }
 
     /// Submits a request for the service to create a proof. The function returns the proof id.
-    pub async fn create_proof(&self, release_id: String, input: String, context: String) -> String {
-        let payload = CreateProofPayload {
-            release_id,
-            input,
-            context,
-        };
+    pub async fn create_proof(&self, request: FunctionRequest) -> String {
+        let payload = CreateProofRequest(request);
         let create_response: CreateProofResponse = self
             .client
             .post(format!("{}/api/proof/new", self.base_url))

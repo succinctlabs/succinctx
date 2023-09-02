@@ -80,6 +80,6 @@ mod tests {
             "{}/examples/circuit_function_field_input.json",
             root.display()
         );
-        Function::test::<F, C, D>(path);
+        Function::test_request_fixture::<F, C, D>(path);
     }
 }

@@ -15,7 +15,7 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Remaining, Write};
 
 use self::io::{CircuitInput, CircuitOutput};
 use self::utils::{CustomGateSerializer, CustomGeneratorSerializer};
-use crate::frontend::builder::io::{EvmIO, FieldIO, RecursiveProofIO};
+use crate::frontend::builder::io::{EvmIO, FieldIO, RecursiveProofsIO};
 use crate::frontend::builder::CircuitIO;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
 use crate::utils::hex;
@@ -260,7 +260,7 @@ where
                 buffer.read_exact(&mut circuit_id_bytes)?;
                 child_circuit_ids.push(String::from_utf8(circuit_id_bytes).unwrap());
             }
-            circuit.io.recursive_proof = Some(RecursiveProofIO {
+            circuit.io.recursive_proof = Some(RecursiveProofsIO {
                 proofs: input_proofs,
                 child_circuit_ids,
             });

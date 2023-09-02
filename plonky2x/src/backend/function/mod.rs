@@ -1,26 +1,27 @@
 mod cli;
 mod io;
+pub mod request;
+pub mod result;
 
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{BufReader, Write};
 
 use clap::Parser;
-use curta::math::prelude::PrimeField64;
-pub use io::{FunctionInput, FunctionOutput};
 use itertools::Itertools;
 use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use self::cli::{BuildArgs, ProveArgs};
+use self::io::FunctionRequest;
 use crate::backend::circuit::Circuit;
 use crate::backend::function::cli::{Args, Commands};
-use crate::backend::function::io::FunctionOutputGroth16;
-use crate::backend::prover::remote::ContextData;
+use crate::backend::function::result::{
+    BytesResult, ElementsResult, FunctionResult, RecursiveProofsResult,
+};
 
 pub trait CircuitFunction {
     /// Builds the circuit.
@@ -50,24 +51,25 @@ pub trait CircuitFunction {
         info!("Building verifier contract...");
         let contract_path = format!("{}/FunctionVerifier.sol", args.build_dir);
         let mut contract_file = File::create(&contract_path).unwrap();
-        let contract = "pragma solidity ^0.8.16;
+        let contract = r#"
+        pragma solidity ^0.8.16;
 
-interface IFunctionVerifier {
-    function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool);
+        interface IFunctionVerifier {
+            function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool);
 
-    function verificationKeyHash() external pure returns (bytes32);
-}
+            function verificationKeyHash() external pure returns (bytes32);
+        }
 
-contract FunctionVerifier is IFunctionVerifier {
-    function verify(bytes32, bytes32, bytes memory) external pure returns (bool) {
-        return true;
-    }
+        contract FunctionVerifier is IFunctionVerifier {
+            function verify(bytes32, bytes32, bytes memory) external pure returns (bool) {
+                return true;
+            }
 
-    function verificationKeyHash() external pure returns (bytes32) {
-        return keccak256(\"\");
-    }
-}
-";
+            function verificationKeyHash() external pure returns (bytes32) {
+                return keccak256(\"\");
+            }
+        }
+        "#;
         contract_file.write_all(contract.as_bytes()).unwrap();
         info!(
             "Successfully saved verifier contract to disk at {}.",
@@ -75,119 +77,108 @@ contract FunctionVerifier is IFunctionVerifier {
         );
     }
 
-    /// Generates a proof with evm-based inputs and outputs.
-    /// type Groth16Proof struct {
-    //     A      [2]*big.Int    `json:"a"`
-    //     B      [2][2]*big.Int `json:"b"`
-    //     C      [2]*big.Int    `json:"c"`
-    //     Input  hexutil.Bytes  `json:"input"`
-    //     Output hexutil.Bytes  `json:"output"`
-    // }
-
-    fn prove_with_evm_io<F, C, const D: usize>(args: ProveArgs, bytes: Vec<u8>)
+    fn prove<F, C, const D: usize>(args: ProveArgs) -> FunctionResult
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
     {
-        let path = format!("{}/main.circuit", args.build_dir);
-        info!("Loading circuit from {}...", path);
-        let circuit = Circuit::<F, C, D>::load(&path).unwrap();
-        info!("Successfully loaded circuit.");
+        let file = File::open(args.request_json_path).unwrap();
+        let reader = BufReader::new(file);
+        let request: FunctionRequest = serde_json::from_reader(reader).unwrap();
 
-        let mut input = circuit.input();
-        input.evm_write_all(&bytes);
-
-        info!("Generating proof...");
-        let (proof, output) = circuit.prove(&input);
-        info!("Proof generated.");
-        circuit.verify(&proof, &input, &output);
-        info!("Proof verified.");
-        let output_bytes = output.evm_read_all();
-
-        let function_output = FunctionOutput {
-            bytes: Some(hex::encode(output_bytes.clone())),
-            elements: None,
-            proof: hex::encode(proof.to_bytes()),
-        };
-        println!("{:?}", function_output.clone().proof);
-        let json = serde_json::to_string_pretty(&function_output).unwrap();
-        let mut file = File::create("plonky2_output.json").unwrap();
-        file.write_all(json.as_bytes()).unwrap();
-        info!(
-            "Succesfully wrote output of {} bytes and proof to plonky2_output.json.",
-            output_bytes.len()
-        );
-
-        let input_hex_string = format!("0x{}", hex::encode(bytes.clone()));
-        let output_hex_string = format!("0x{}", hex::encode(output_bytes.clone()));
-        let dummy_groth16_proof = FunctionOutputGroth16 {
-            a: [0, 0],
-            b: [[0, 0], [0, 0]],
-            c: [0, 0],
-            input: input_hex_string,
-            output: output_hex_string,
-        };
-        let json = serde_json::to_string_pretty(&dummy_groth16_proof).unwrap();
-        let mut file = File::create("output.json").unwrap();
-        file.write_all(json.as_bytes()).unwrap();
-        info!("Succesfully wrote dummy proof to output.json.");
-    }
-
-    /// Generates a proof with field-based inputs and outputs.
-    fn prove_with_field_io<F, C, const D: usize>(args: ProveArgs, elements: Vec<F>)
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-    {
-        let path = format!("{}/main.circuit", args.build_dir);
-        info!("Loading circuit from {}...", path);
-        let circuit = Circuit::<F, C, D>::load(&path).unwrap();
-        info!("Successfully loaded circuit.");
-
-        let mut input = circuit.input();
-        input.write_all(&elements);
-
-        info!("Generating proof...");
-        let (proof, output) = circuit.prove(&input);
-        info!("Proof generated.");
-        circuit.verify(&proof, &input, &output);
-        info!("Proof verified.");
-        let output_elements = output.read_all();
-
-        let function_output = FunctionOutput {
-            bytes: None,
-            elements: Some(
-                output_elements
+        let (circuit, input) = match request {
+            FunctionRequest::Bytes(ref request) => {
+                let path = format!("{}/main.circuit", args.build_dir);
+                info!("Loading circuit from {}...", path);
+                let circuit = Circuit::<F, C, D>::load(&path).unwrap();
+                info!("Successfully loaded circuit.");
+                let bytes = hex::decode(request.data.input.clone()).unwrap();
+                let mut input = circuit.input();
+                input.evm_write_all(&bytes);
+                (circuit, input)
+            }
+            FunctionRequest::Elements(ref request) => {
+                let path = format!("{}/main.circuit", args.build_dir);
+                info!("Loading circuit from {}...", path);
+                let circuit = Circuit::<F, C, D>::load(&path).unwrap();
+                info!("Successfully loaded circuit.");
+                let elements = request
+                    .data
+                    .input
                     .iter()
-                    .map(|e| e.as_canonical_u64())
-                    .collect(),
-            ),
-            proof: hex::encode(proof.to_bytes()),
-        };
-        println!("{:?}", function_output.clone().proof);
-        println!("{:?}", circuit.data.common);
-        ProofWithPublicInputs::<F, C, D>::from_bytes(
-            hex::decode(function_output.clone().proof).unwrap(),
-            &circuit.data.common,
-        )
-        .unwrap();
-        let json = serde_json::to_string_pretty(&function_output).unwrap();
-        let mut file = File::create("output.json").unwrap();
-        file.write_all(json.as_bytes()).unwrap();
-        info!(
-            "Succesfully wrote output of {} elements and proof to output.json.",
-            output_elements.len()
-        );
-    }
+                    .map(|s| F::from_canonical_u64(s.parse::<u64>().unwrap()))
+                    .collect_vec();
+                let mut input = circuit.input();
+                input.write_all(&elements);
+                (circuit, input)
+            }
+            FunctionRequest::RecursiveProofs(ref request) => {
+                let path = if request.data.subfunction.is_some() {
+                    format!(
+                        "{}/{}.circuit",
+                        args.build_dir,
+                        request.data.subfunction.clone().unwrap()
+                    )
+                } else {
+                    format!("{}/main.circuit", args.build_dir)
+                };
+                info!("Loading circuit from {}...", path);
+                let circuit = Circuit::<F, C, D>::load(&path).unwrap();
+                info!("Successfully loaded circuit.");
 
-    /// Reads the function input from a JSON file path.
-    fn read_function_input(input_json: String) -> FunctionInput {
-        let mut file = File::open(input_json).unwrap();
-        let mut data = String::new();
-        file.read_to_string(&mut data).unwrap();
-        serde_json::from_str(&data).unwrap()
+                let mut input = circuit.input();
+                let io = circuit.io.recursive_proof.as_ref().unwrap();
+                for i in 0..io.child_circuit_ids.len() {
+                    let path = format!("./build/{}.circuit", io.child_circuit_ids[i]);
+                    let child_circuit = Circuit::<F, C, D>::load(&path).unwrap();
+                    let child_proof = ProofWithPublicInputs::<F, C, D>::from_bytes(
+                        hex::decode(request.data.proofs[i].as_str()).unwrap(),
+                        &child_circuit.data.common,
+                    )
+                    .unwrap();
+                    input.proof_write(child_proof);
+                }
+                let input_elements = request
+                    .data
+                    .input
+                    .iter()
+                    .map(|s| F::from_canonical_u64(s.parse::<u64>().unwrap()))
+                    .collect_vec();
+                input.write_all(&input_elements);
+                (circuit, input)
+            }
+        };
+
+        info!("Generating proof...");
+        let (proof, output) = circuit.prove(&input);
+        info!("Proof generated.");
+        circuit.verify(&proof, &input, &output);
+
+        let proof = hex::encode(proof.to_bytes());
+        let result: FunctionResult = match request {
+            FunctionRequest::Bytes(_) => BytesResult {
+                proof,
+                output: hex::encode(output.evm_read_all()),
+            }
+            .into(),
+            FunctionRequest::Elements(_) => ElementsResult {
+                proof,
+                output: output.read_all().iter().map(|e| e.to_string()).collect(),
+            }
+            .into(),
+            FunctionRequest::RecursiveProofs(_) => RecursiveProofsResult {
+                proof,
+                output: output.read_all().iter().map(|e| e.to_string()).collect(),
+            }
+            .into(),
+        };
+        let json = serde_json::to_string_pretty(&result).unwrap();
+        let mut file = File::create("result.json").unwrap();
+        file.write_all(json.as_bytes()).unwrap();
+        info!("Successfully saved result to disk at result.json.");
+
+        result
     }
 
     /// The entry point for the function when using CLI-based tools.
@@ -202,148 +193,13 @@ contract FunctionVerifier is IFunctionVerifier {
                 Self::compile::<F, C, D>(args);
             }
             Commands::Prove(args) => {
-                let mut file = File::open("context").unwrap();
-                let mut context = String::new();
-                file.read_to_string(&mut context).unwrap();
-                let context: ContextData = serde_json::from_str(context.as_str()).unwrap();
-                let circuit_path = format!("./build/{}.circuit", context.circuit_id);
-                if context.tag == "map" {
-                    println!("MAPPING");
-                    let circuit = Circuit::<F, C, D>::load(circuit_path.as_str()).unwrap();
-                    let input_values = context
-                        .input
-                        .iter()
-                        .map(|s| F::from_canonical_u64(s.parse::<u64>().unwrap()))
-                        .collect_vec();
-                    let mut input = circuit.input();
-                    input.write_all(&input_values);
-                    let (proof, output) = circuit.prove(&input);
-                    circuit.verify(&proof, &input, &output);
-
-                    let output_elements = output.read_all();
-                    let function_output = FunctionOutput {
-                        bytes: None,
-                        elements: Some(
-                            output_elements
-                                .iter()
-                                .map(|e| e.as_canonical_u64())
-                                .collect(),
-                        ),
-                        proof: hex::encode(proof.to_bytes()),
-                    };
-                    let json = serde_json::to_string_pretty(&function_output).unwrap();
-                    let mut file = File::create("output.json").unwrap();
-                    file.write_all(json.as_bytes()).unwrap();
-                    println!("Successfully generated proof.");
-                } else if context.tag == "reduce" {
-                    println!("REDUCING");
-                    let circuit = Circuit::<F, C, D>::load(circuit_path.as_str()).unwrap();
-                    let io = circuit.io.recursive_proof.as_ref().unwrap();
-                    let mut input = circuit.input();
-                    for i in 0..io.child_circuit_ids.len() {
-                        let path = format!("./build/{}.circuit", io.child_circuit_ids[i]);
-                        let child_circuit = Circuit::<F, C, D>::load(&path).unwrap();
-                        println!("{}", context.input[i].as_str());
-                        let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(
-                            hex::decode(context.proofs[i].as_str()).unwrap(),
-                            &child_circuit.data.common,
-                        )
-                        .unwrap();
-                        input.proof_write(proof);
-                    }
-
-                    let input_values = context
-                        .input
-                        .iter()
-                        .map(|s| F::from_canonical_u64(s.parse::<u64>().unwrap()))
-                        .collect_vec();
-                    input.write_all(&input_values);
-
-                    let (proof, output) = circuit.prove(&input);
-                    circuit.verify(&proof, &input, &output);
-
-                    let output_elements = output.read_all();
-                    let function_output = FunctionOutput {
-                        bytes: None,
-                        elements: Some(
-                            output_elements
-                                .iter()
-                                .map(|e| e.as_canonical_u64())
-                                .collect(),
-                        ),
-                        proof: hex::encode(proof.to_bytes()),
-                    };
-                    let json = serde_json::to_string_pretty(&function_output).unwrap();
-                    let mut file = File::create("output.json").unwrap();
-                    file.write_all(json.as_bytes()).unwrap();
-                    println!("Successfully generated proof.");
-                } else {
-                    let input = Self::read_function_input(args.clone().input_json);
-                    if input.bytes.is_some() {
-                        Self::prove_with_evm_io::<F, C, D>(args, input.bytes());
-                    } else if input.elements.is_some() {
-                        Self::prove_with_field_io::<F, C, D>(args, input.elements());
-                    } else {
-                        panic!("No input bytes or elements found in input.json.");
-                    }
-                }
-            }
-            Commands::ProveChild(_) => {
-                let mut file = File::open("context").unwrap();
-                let mut context = String::new();
-                file.read_to_string(&mut context).unwrap();
-                let context: ContextData = serde_json::from_str(context.as_str()).unwrap();
-                let circuit_path = format!("./build/{}.circuit", context.circuit_id);
-
-                if context.tag == "map" {
-                    let circuit = Circuit::<F, C, D>::load(circuit_path.as_str()).unwrap();
-                    let input_values = context
-                        .input
-                        .iter()
-                        .map(|s| F::from_canonical_u64(s.parse::<u64>().unwrap()))
-                        .collect_vec();
-                    let mut input = circuit.input();
-                    input.write_all(&input_values);
-                    let (proof, output) = circuit.prove(&input);
-                    circuit.verify(&proof, &input, &output);
-                    let file_path = "./proof.json";
-                    let json = serde_json::to_string_pretty(&proof).unwrap();
-                    std::fs::write(file_path, json).unwrap();
-                    println!("Successfully generated proof.");
-                } else if context.tag == "reduce" {
-                    let circuit = Circuit::<F, C, D>::load(circuit_path.as_str()).unwrap();
-                    let io = circuit.io.recursive_proof.as_ref().unwrap();
-                    let mut input = circuit.input();
-                    for i in 0..io.child_circuit_ids.len() {
-                        let path = format!("./build/{}.circuit", io.child_circuit_ids[i]);
-                        let child_circuit = Circuit::<F, C, D>::load(&path).unwrap();
-                        let proof = ProofWithPublicInputs::<F, C, D>::from_bytes(
-                            hex::decode(context.input[i].as_str()).unwrap(),
-                            &child_circuit.data.common,
-                        )
-                        .unwrap();
-                        input.proof_write(proof);
-                    }
-
-                    let input_values = context
-                        .input
-                        .iter()
-                        .map(|s| F::from_canonical_u64(s.parse::<u64>().unwrap()))
-                        .collect_vec();
-                    input.write_all(&input_values);
-
-                    let (proof, output) = circuit.prove(&input);
-                    circuit.verify(&proof, &input, &output);
-                    let file_path = "./proof.json";
-                    let json = serde_json::to_string_pretty(&proof).unwrap();
-                    std::fs::write(file_path, json).unwrap();
-                    println!("Successfully generated proof.");
-                }
+                Self::prove::<F, C, D>(args);
             }
         }
     }
 
-    fn test<F, C, const D: usize>(input_json: String)
+    /// Compiles the circuit and generates a proof for the given request.
+    fn test_request_fixture<F, C, const D: usize>(request_json_path: String) -> FunctionResult
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,
@@ -355,15 +211,8 @@ contract FunctionVerifier is IFunctionVerifier {
         Self::compile::<F, C, D>(build_args);
         let prove_args = ProveArgs {
             build_dir: "./build".to_string(),
-            input_json: input_json.clone(),
+            request_json_path,
         };
-        let input = Self::read_function_input(input_json);
-        if input.bytes.is_some() {
-            Self::prove_with_evm_io::<F, C, D>(prove_args, input.bytes());
-        } else if input.elements.is_some() {
-            Self::prove_with_field_io::<F, C, D>(prove_args, input.elements());
-        } else {
-            panic!("No input bytes or field elements found in input.json.")
-        }
+        Self::prove::<F, C, D>(prove_args)
     }
 }

@@ -24,7 +24,7 @@ pub struct FieldIO {
 
 /// Stores circuit variables used for recursive proof verification.
 #[derive(Debug, Clone)]
-pub struct RecursiveProofIO<const D: usize> {
+pub struct RecursiveProofsIO<const D: usize> {
     pub proofs: Vec<ProofWithPublicInputsTarget<D>>,
     pub child_circuit_ids: Vec<String>,
 }
@@ -33,7 +33,7 @@ pub struct RecursiveProofIO<const D: usize> {
 pub struct CircuitIO<const D: usize> {
     pub evm: Option<EvmIO>,
     pub field: Option<FieldIO>,
-    pub recursive_proof: Option<RecursiveProofIO<D>>,
+    pub recursive_proof: Option<RecursiveProofsIO<D>>,
 }
 
 impl<const D: usize> CircuitIO<D> {
@@ -72,7 +72,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     fn init_proof_io(&mut self) {
         if self.io.recursive_proof.is_none() {
-            self.io.recursive_proof = Some(RecursiveProofIO {
+            self.io.recursive_proof = Some(RecursiveProofsIO {
                 proofs: Vec::new(),
                 child_circuit_ids: Vec::new(),
             })
