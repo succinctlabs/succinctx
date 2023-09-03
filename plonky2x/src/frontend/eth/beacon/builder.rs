@@ -6,12 +6,14 @@ use super::generators::validator::BeaconValidatorGenerator;
 use super::vars::{BeaconValidatorVariable, BeaconValidatorsVariable};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
+use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable};
 use crate::prelude::Variable;
+
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     /// Get the validators for a given block root.
-    pub fn get_beacon_validators(
+    pub fn beacon_get_validators(
         &mut self,
         block_root: Bytes32Variable,
     ) -> BeaconValidatorsVariable {
@@ -28,77 +30,102 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Get a beacon validator from a given dynamic index.
-    pub fn get_beacon_validator(
+    pub fn beacon_get_validator(
         &mut self,
         validators: BeaconValidatorsVariable,
         index: Variable,
     ) -> BeaconValidatorVariable {
-        let generator = BeaconValidatorGenerator::new(
-            self,
-            validators.block_root,
-            validators.validators_root,
-            None,
-            Some(index),
-        );
+        let generator =
+            BeaconValidatorGenerator::new_with_index_variable(self, validators.block_root, index);
         self.add_simple_generator(&generator);
-        generator.validator
+        generator.out()
     }
 
     /// Get a validator from a given deterministic index.
-    pub fn get_beacon_validator_from_u64(
+    pub fn beacon_get_validator_const(
         &mut self,
         validators: BeaconValidatorsVariable,
         index: u64,
     ) -> BeaconValidatorVariable {
-        let generator = BeaconValidatorGenerator::new(
+        let generator =
+            BeaconValidatorGenerator::new_with_index_const(self, validators.block_root, index);
+        self.add_simple_generator(&generator);
+        generator.out()
+    }
+
+    /// Gets a validator from a given pubkey.
+    pub fn beacon_get_validator_by_pubkey(
+        &mut self,
+        validators: BeaconValidatorsVariable,
+        pubkey: BLSPubkeyVariable,
+    ) -> BeaconValidatorVariable {
+        let generator =
+            BeaconValidatorGenerator::new_with_pubkey_variable(self, validators.block_root, pubkey);
+        self.add_simple_generator(&generator);
+        generator.out()
+    }
+
+    /// Get a validator balance from a given deterministic index.
+    pub fn beacon_get_validator_balance(
+        &mut self,
+        validators: BeaconValidatorsVariable,
+        index: Variable,
+    ) -> U256Variable {
+        let generator = BeaconValidatorBalanceGenerator::new_with_index_variable(
             self,
             validators.block_root,
-            validators.validators_root,
-            Some(index),
-            None,
+            index,
         );
         self.add_simple_generator(&generator);
-        generator.validator
+        generator.out()
+    }
+
+    /// Get a validator balance from a pubkey.
+    pub fn beacon_get_validator_balance_by_pubkey(
+        &mut self,
+        validators: BeaconValidatorsVariable,
+        pubkey: BLSPubkeyVariable,
+    ) -> U256Variable {
+        let generator = BeaconValidatorBalanceGenerator::new_with_pubkey_variable(
+            self,
+            validators.block_root,
+            pubkey,
+        );
+        self.add_simple_generator(&generator);
+        generator.out()
+    }
+
+    /// Computes the expected merkle root given a leaf, branch, and dynamic index.
+    pub fn ssz_restore_merkle_root(
+        &mut self,
+        _: Bytes32Variable,
+        _: Vec<Bytes32Variable>,
+        _: Variable,
+    ) -> Bytes32Variable {
+        todo!()
     }
 
     /// Computes the expected merkle root given a leaf, branch, and deterministic index.
-    pub fn ssz_restore_merkle_root(
+    pub fn ssz_restore_merkle_root_const(
         &mut self,
         leaf: Bytes32Variable,
         branch: Vec<Bytes32Variable>,
         index: u64,
     ) -> Bytes32Variable {
         assert!(2u64.pow(branch.len() as u32 + 1) > index);
-        let mut hasher = leaf;
+        let mut hash = leaf;
         for i in 0..branch.len() {
             let (first, second) = if (index >> i) & 1 == 1 {
-                (branch[i].as_bytes(), hasher.as_bytes())
+                (branch[i].as_bytes(), hash.as_bytes())
             } else {
-                (hasher.as_bytes(), branch[i].as_bytes())
+                (hash.as_bytes(), branch[i].as_bytes())
             };
             let mut data = [ByteVariable::init(self); 64];
             data[..32].copy_from_slice(&first);
             data[32..].copy_from_slice(&second);
-            hasher = self.sha(&data);
+            hash = self.sha(&data);
         }
-        hasher
-    }
-
-    /// Get a validator balance from a given deterministic index.
-    pub fn get_beacon_validator_balance(
-        &mut self,
-        validators: BeaconValidatorsVariable,
-        index: Variable,
-    ) -> U256Variable {
-        let generator = BeaconValidatorBalanceGenerator::new(
-            self,
-            validators.block_root,
-            validators.validators_root,
-            None,
-            Some(index),
-        );
-        self.add_simple_generator(&generator);
-        generator.balance
+        hash
     }
 }
 
@@ -106,64 +133,194 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 pub(crate) mod tests {
     use std::env;
 
-    use curta::math::prelude::Field;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::iop::witness::PartialWitness;
+    use plonky2::field::types::Field;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use crate::frontend::builder::CircuitBuilder;
+    use crate::frontend::eth::vars::BLSPubkeyVariable;
     use crate::frontend::vars::Bytes32Variable;
     use crate::prelude::Variable;
-    use crate::utils::bytes32;
     use crate::utils::eth::beacon::BeaconClient;
+    use crate::utils::{bytes, bytes32};
+
+    type F = GoldilocksField;
+    type C = PoseidonGoldilocksConfig;
+    const D: usize = 2;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_validator_generator() {
+    fn test_get_validators() {
         env_logger::init();
         dotenv::dotenv().ok();
 
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
-        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
 
         let mut builder = CircuitBuilder::<F, D>::new();
-
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(
             "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
         ));
-        let validators = builder.get_beacon_validators(block_root);
-
-        (0..1).for_each(|i| {
-            builder.get_beacon_validator_from_u64(validators, i);
-        });
-
-        (0..1).for_each(|i| {
-            let idx = builder.constant::<Variable>(F::from_canonical_u64(i));
-            builder.get_beacon_validator(validators, idx);
-            builder.get_beacon_validator_balance(validators, idx);
-        });
+        let validators = builder.beacon_get_validators(block_root);
+        let expected_validators_root = builder.constant::<Bytes32Variable>(bytes32!(
+            "0x117c8ce619123b5ded4bc150731335cacd41d5b291770cb35812e56db76f408c"
+        ));
+        builder.assert_is_equal(validators.validators_root, expected_validators_root);
 
         let circuit = builder.build::<C>();
-        let pw = PartialWitness::new();
-        let proof = circuit.data.prove(pw).unwrap();
-        circuit.data.verify(proof).unwrap();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
     }
 
     #[test]
-    fn test_ssz_restore_merkle_root_equal() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_validator() {
+        env_logger::init();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
+        ));
+        let validators = builder.beacon_get_validators(block_root);
+        let index = builder.constant::<Variable>(F::ZERO);
+        let validator = builder.beacon_get_validator(validators, index);
+        let expected_validator_pubkey = builder.constant::<BLSPubkeyVariable>(bytes!(
+            "0x933ad9491b62059dd065b560d256d8957a8c402cc6e8d8ee7290ae11e8f7329267a8811c397529dac52ae1342ba58c95"
+        ));
+        builder.assert_is_equal(validator.pubkey, expected_validator_pubkey);
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_validator_const() {
+        env_logger::init();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
+        ));
+        let validators = builder.beacon_get_validators(block_root);
+        let validator = builder.beacon_get_validator_const(validators, 0);
+        let expected_validator_pubkey = builder.constant::<BLSPubkeyVariable>(bytes!(
+            "0x933ad9491b62059dd065b560d256d8957a8c402cc6e8d8ee7290ae11e8f7329267a8811c397529dac52ae1342ba58c95"
+        ));
+        builder.assert_is_equal(validator.pubkey, expected_validator_pubkey);
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_validator_by_pubkey() {
+        env_logger::init();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
+        ));
+        let pubkey = builder.constant::<BLSPubkeyVariable>(bytes!(
+            "0x933ad9491b62059dd065b560d256d8957a8c402cc6e8d8ee7290ae11e8f7329267a8811c397529dac52ae1342ba58c95"
+        ));
+        let validators = builder.beacon_get_validators(block_root);
+        let validator = builder.beacon_get_validator_by_pubkey(validators, pubkey);
+        builder.assert_is_equal(validator.pubkey, pubkey);
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_validator_balance() {
+        env_logger::init();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
+        ));
+        let validators = builder.beacon_get_validators(block_root);
+        let index = builder.constant::<Variable>(F::ZERO);
+        let balance = builder.beacon_get_validator_balance(validators, index);
+        builder.watch(&balance, "balance");
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_validator_balance_by_pubkey() {
+        env_logger::init();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
+        ));
+        let pubkey = builder.constant::<BLSPubkeyVariable>(bytes!(
+            "0x933ad9491b62059dd065b560d256d8957a8c402cc6e8d8ee7290ae11e8f7329267a8811c397529dac52ae1342ba58c95"
+        ));
+        let validators = builder.beacon_get_validators(block_root);
+        let balance = builder.beacon_get_validator_balance_by_pubkey(validators, pubkey);
+        builder.watch(&balance, "balance");
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    fn test_ssz_restore_merkle_root_const_equal() {
+        env_logger::init();
+        dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();
 
-        // Example values
         let leaf = builder.constant::<Bytes32Variable>(bytes32!(
             "0xa1b2c3d4e5f60718291a2b3c4d5e6f708192a2b3c4d5e6f7a1b2c3d4e5f60718"
         ));
@@ -181,26 +338,24 @@ pub(crate) mod tests {
             "0xac0757982d17231f28ac33c08f1dd7f420a60cec25bf517ac9e9b35d8543082f"
         ));
 
-        let computed_root = builder.ssz_restore_merkle_root(leaf, branch, index);
+        let computed_root = builder.ssz_restore_merkle_root_const(leaf, branch, index);
 
         builder.assert_is_equal(expected_root, computed_root);
 
         let circuit = builder.build::<C>();
-        let pw = PartialWitness::new();
-        let proof = circuit.data.prove(pw).unwrap();
-        circuit.data.verify(proof).unwrap();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
     }
 
     #[test]
     #[should_panic]
-    fn test_ssz_restore_merkle_root_unequal() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
+    fn test_ssz_restore_merkle_root_const_unequal() {
+        env_logger::init();
+        dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();
 
-        // Example values
         let leaf = builder.constant::<Bytes32Variable>(bytes32!(
             "0xa1b2c3d4e5f60718291a2b3c4d5e6f708192a2b3c4d5e6f7a1b2c3d4e5f60718"
         ));
@@ -213,18 +368,15 @@ pub(crate) mod tests {
                 "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321"
             )),
         ];
-
         let expected_root = builder.constant::<Bytes32Variable>(bytes32!(
             "0xbd0757982d17231f28ac33c08f1dd7f420a60cec25bf517ac9e9b35d8543082f"
         ));
-
-        let computed_root = builder.ssz_restore_merkle_root(leaf, branch, index);
-
+        let computed_root = builder.ssz_restore_merkle_root_const(leaf, branch, index);
         builder.assert_is_equal(expected_root, computed_root);
 
         let circuit = builder.build::<C>();
-        let pw = PartialWitness::new();
-        let proof = circuit.data.prove(pw).unwrap();
-        circuit.data.verify(proof).unwrap();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
     }
 }

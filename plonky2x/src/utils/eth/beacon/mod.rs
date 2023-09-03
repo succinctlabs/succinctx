@@ -6,13 +6,13 @@ use serde::Deserialize;
 
 use super::deserialize_bigint::deserialize_bigint;
 
-/// A client used for connecting and querying a beacon node as well as Succinct's Beacon APIs.
+/// A client used for connecting and querying a beacon node.
 #[derive(Debug, Clone)]
 pub struct BeaconClient {
     rpc_url: String,
 }
 
-/// All Succinct Beacon APIs return a response with this format.
+/// All custom endpoints return a response with this format.
 #[derive(Debug, Deserialize)]
 struct Response<T> {
     success: bool,
@@ -58,15 +58,18 @@ pub struct GetBeaconValidatorsRoot {
 
 #[derive(Debug, Deserialize)]
 struct InnerData {
-    _index: String,
+    #[allow(unused)]
+    index: String,
     pub balance: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct Data {
     pub data: Vec<InnerData>,
-    _execution_optimistic: bool,
-    _finalized: bool,
+    #[allow(unused)]
+    execution_optimistic: bool,
+    #[allow(unused)]
+    finalized: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,18 +81,6 @@ impl BeaconClient {
     /// Creates a new BeaconClient based on a rpc url.
     pub fn new(rpc_url: String) -> Self {
         Self { rpc_url }
-    }
-
-    pub async fn get_validator_balance(&self, _: String, validator_idx: u64) -> Result<U256> {
-        let endpoint = format!(
-            "{}/eth/v1/beacon/states/head/validator_balances?id={}",
-            self.rpc_url, validator_idx
-        );
-        let client = Client::new();
-        let response = client.get(endpoint).send().await?;
-        let response: Wrapper = response.json().await?;
-        let balance = response.data.data[0].balance.parse::<u64>()?;
-        Ok(U256::from(balance))
     }
 
     /// Gets the validators root based on a beacon_id and the SSZ proof from
@@ -119,6 +110,47 @@ impl BeaconClient {
         let response: Response<GetBeaconValidator> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
+    }
+
+    /// Gets the state of a validator based on a beacon_id and index, including the SSZ proof from
+    /// `validatorsRoot -> validator[validator_idx]`.
+    pub async fn get_validator_by_pubkey(
+        &self,
+        _: String,
+        pubkey: String,
+    ) -> Result<GetBeaconValidator> {
+        let endpoint = format!("{}/api/beacon/validator/head/{}", self.rpc_url, pubkey);
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let response: Response<GetBeaconValidator> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets the balance of a validator based on a beacon_id and validator index.
+    pub async fn get_validator_balance(&self, _: String, validator_idx: u64) -> Result<U256> {
+        let endpoint = format!(
+            "{}/eth/v1/beacon/states/head/validator_balances?id={}",
+            self.rpc_url, validator_idx
+        );
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let response: Wrapper = response.json().await?;
+        let balance = response.data.data[0].balance.parse::<u64>()?;
+        Ok(U256::from(balance))
+    }
+
+    /// Gets the balance of a validator based on a beacon_id and validator pubkey.
+    pub async fn get_validator_balance_by_pubkey(&self, _: String, pubkey: String) -> Result<U256> {
+        let endpoint = format!(
+            "{}/eth/v1/beacon/states/head/validator_balances?id={}",
+            self.rpc_url, pubkey
+        );
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let response: Wrapper = response.json().await?;
+        let balance = response.data.data[0].balance.parse::<u64>()?;
+        Ok(U256::from(balance))
     }
 }
 
