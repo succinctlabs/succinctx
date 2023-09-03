@@ -9,7 +9,22 @@ trait MuxBuilder {
 
 impl<F: RichField + Extendable<D>, const D: usize> MuxBuilder for CircuitBuilder<F, D> {
     fn select_index<T: CircuitVariable>(&mut self, selector: Variable, inputs: &[T]) -> T {
-        todo!()
+        let num_var_in_t = inputs[0].variables().len();
+        let input_len = inputs.len();
+        let mut res = (0..num_var_in_t).map(|_| self.init::<Variable>()).collect::<Vec<_>>();
+        let api = &mut self.api;
+
+        for i in 0..input_len {
+            let target_i = api.constant(F::from_canonical_usize(i));
+            let whether_select = api.is_equal(target_i, selector.0);
+
+            let vars = inputs[i].variables();
+            for j in 0..num_var_in_t {
+                res[j] = Variable(api.select(whether_select, vars[j].0, res[j].0));
+            }
+        }
+
+        T::from_variables(&res)
     }
 }
 
