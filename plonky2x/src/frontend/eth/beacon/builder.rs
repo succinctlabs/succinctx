@@ -9,7 +9,7 @@ use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGe
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable};
+use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, SSZVariable};
 use crate::prelude::Variable;
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
@@ -43,12 +43,21 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn beacon_get_validator(
         &mut self,
         validators: BeaconValidatorsVariable,
-        index: Variable,
+        index: U64Variable,
     ) -> BeaconValidatorVariable {
         let generator =
             BeaconValidatorGenerator::new_with_index_variable(self, validators.block_root, index);
         self.add_simple_generator(&generator);
-        generator.out()
+        let validator_root = generator.validator.hash_tree_root(self);
+        let mut gindex = self.constant::<U64Variable>((1099511627776u64 * 2).into());
+        self.ssz_verify_proof(
+            validators.validators_root,
+            validator_root,
+            &generator.proof,
+            gindex,
+        );
+        gindex = self.add(gindex, index);
+        generator.validator
     }
 
     /// Get a validator from a given deterministic index.
@@ -60,7 +69,15 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let generator =
             BeaconValidatorGenerator::new_with_index_const(self, validators.block_root, index);
         self.add_simple_generator(&generator);
-        generator.out()
+        let validator_root = generator.validator.hash_tree_root(self);
+        let gindex = 1099511627776 * 2 + index;
+        self.ssz_verify_proof_const(
+            validators.validators_root,
+            validator_root,
+            &generator.proof,
+            gindex,
+        );
+        generator.validator
     }
 
     /// Gets a validator from a given pubkey.
@@ -72,7 +89,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let generator =
             BeaconValidatorGenerator::new_with_pubkey_variable(self, validators.block_root, pubkey);
         self.add_simple_generator(&generator);
-        generator.out()
+        generator.validator
     }
 
     /// Get a validator balance from a given deterministic index.
@@ -163,7 +180,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         branch: &[Bytes32Variable],
         gindex: u64,
     ) -> Bytes32Variable {
-        assert!(2u64.pow(branch.len() as u32 + 1) > gindex);
         let mut hash = leaf;
         for i in 0..branch.len() {
             let (first, second) = if (gindex >> i) & 1 == 1 {
@@ -243,7 +259,7 @@ pub(crate) mod tests {
             "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
         ));
         let validators = builder.beacon_get_validators(block_root);
-        let index = builder.constant::<Variable>(F::ZERO);
+        let index = builder.constant::<U64Variable>(0.into());
         let validator = builder.beacon_get_validator(validators, index);
         let expected_validator_pubkey = builder.constant::<BLSPubkeyVariable>(bytes!(
             "0x933ad9491b62059dd065b560d256d8957a8c402cc6e8d8ee7290ae11e8f7329267a8811c397529dac52ae1342ba58c95"

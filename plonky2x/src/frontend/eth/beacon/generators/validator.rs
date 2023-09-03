@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use curta::math::prelude::PrimeField64;
+use array_macro::array;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -13,16 +13,18 @@ use tokio::runtime::Runtime;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::vars::BeaconValidatorVariable;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
+use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
-use crate::prelude::Variable;
 use crate::utils::eth::beacon::BeaconClient;
-use crate::utils::hex;
+use crate::utils::{bytes32, hex};
+
+const DEPTH: usize = 41;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum BeaconValidatorGeneratorInput {
     IndexConst(u64),
-    IndexVariable(Variable),
+    IndexVariable(U64Variable),
     PubkeyVariable(BLSPubkeyVariable),
 }
 
@@ -31,7 +33,8 @@ pub struct BeaconValidatorGenerator<F: RichField + Extendable<D>, const D: usize
     client: BeaconClient,
     block_root: Bytes32Variable,
     input: BeaconValidatorGeneratorInput,
-    validator: BeaconValidatorVariable,
+    pub validator: BeaconValidatorVariable,
+    pub proof: [Bytes32Variable; DEPTH],
     _phantom: PhantomData<F>,
 }
 
@@ -46,6 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorGenerator<F, D
             block_root,
             input: BeaconValidatorGeneratorInput::IndexConst(validator_idx),
             validator: builder.init::<BeaconValidatorVariable>(),
+            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
             _phantom: PhantomData,
         }
     }
@@ -53,13 +57,14 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorGenerator<F, D
     pub fn new_with_index_variable(
         builder: &mut CircuitBuilder<F, D>,
         block_root: Bytes32Variable,
-        validator_idx: Variable,
+        validator_idx: U64Variable,
     ) -> Self {
         Self {
             client: builder.beacon_client.clone().unwrap(),
             block_root,
             input: BeaconValidatorGeneratorInput::IndexVariable(validator_idx),
             validator: builder.init::<BeaconValidatorVariable>(),
+            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
             _phantom: PhantomData,
         }
     }
@@ -74,12 +79,9 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorGenerator<F, D
             block_root,
             input: BeaconValidatorGeneratorInput::PubkeyVariable(pubkey),
             validator: builder.init::<BeaconValidatorVariable>(),
+            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
             _phantom: PhantomData,
         }
-    }
-
-    pub fn out(&self) -> BeaconValidatorVariable {
-        self.validator
     }
 }
 
@@ -116,7 +118,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
                     .await
                     .expect("failed to get validator"),
                 BeaconValidatorGeneratorInput::IndexVariable(idx) => {
-                    let idx = idx.get(witness).as_canonical_u64();
+                    let idx = idx.get(witness).as_u64();
                     self.client
                         .get_validator(hex!(block_root), idx)
                         .await
@@ -131,7 +133,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
                 }
             }
         });
+        println!("{:#?}", result);
         self.validator.set(out_buffer, result.validator);
+        for i in 0..DEPTH {
+            self.proof[i].set(out_buffer, bytes32!(result.proof[i]));
+        }
     }
 
     #[allow(unused_variables)]

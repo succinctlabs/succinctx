@@ -3,6 +3,7 @@ use ethers::types::U256;
 use num::BigInt;
 use reqwest::Client;
 use serde::Deserialize;
+use serde_with::serde_as;
 
 use super::deserialize_bigint::deserialize_bigint;
 
@@ -23,6 +24,7 @@ struct Response<T> {
 /// Reference: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde_as]
 pub struct BeaconValidator {
     pub pubkey: String,
     pub withdrawal_credentials: String,
@@ -30,19 +32,21 @@ pub struct BeaconValidator {
     pub slashed: bool,
     pub activation_eligibility_epoch: u64,
     pub activation_epoch: u64,
-    pub exit_epoch: Option<u64>,
-    pub withdrawable_epoch: Option<u64>,
+    pub exit_epoch: String,
+    pub withdrawable_epoch: String,
 }
 
 /// The result returned from `/api/beacon/validator/[beacon_id]/[validator_idx]`.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetBeaconValidator {
+    pub validator_root: String,
+    pub validators_root: String,
     pub validator: BeaconValidator,
-    pub proof: Vec<String>,
     #[serde(deserialize_with = "deserialize_bigint")]
     pub gindex: BigInt,
-    pub description: String,
+    pub depth: u64,
+    pub proof: Vec<String>,
 }
 
 /// The result returned from `/api/beacon/validator/[beacon_id]`.

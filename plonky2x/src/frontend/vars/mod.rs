@@ -149,3 +149,10 @@ pub trait EvmVariable: CircuitVariable {
         bits
     }
 }
+
+pub trait SSZVariable: CircuitVariable {
+    fn hash_tree_root<F: RichField + Extendable<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Bytes32Variable;
+}
