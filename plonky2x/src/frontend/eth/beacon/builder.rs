@@ -24,7 +24,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             block_root,
         );
         self.add_simple_generator(&generator);
-
         let gindex = 363u64;
         self.ssz_verify_proof_const(
             block_root,
@@ -32,7 +31,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             &generator.proof,
             gindex,
         );
-
         BeaconValidatorsVariable {
             block_root,
             validators_root: generator.validators_root,
@@ -50,13 +48,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         self.add_simple_generator(&generator);
         let validator_root = generator.validator.hash_tree_root(self);
         let mut gindex = self.constant::<U64Variable>((1099511627776u64 * 2).into());
+        gindex = self.add(gindex, index);
         self.ssz_verify_proof(
             validators.validators_root,
             validator_root,
             &generator.proof,
             gindex,
         );
-        gindex = self.add(gindex, index);
         generator.validator
     }
 
