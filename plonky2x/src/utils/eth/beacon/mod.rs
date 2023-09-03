@@ -50,10 +50,10 @@ pub struct GetBeaconValidator {
 #[serde(rename_all = "camelCase")]
 pub struct GetBeaconValidatorsRoot {
     pub validators_root: String,
-    pub proof: Vec<String>,
     #[serde(deserialize_with = "deserialize_bigint")]
     pub gindex: BigInt,
-    pub description: String,
+    pub depth: u64,
+    pub proof: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

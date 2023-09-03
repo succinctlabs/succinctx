@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
@@ -56,21 +57,14 @@ impl EvmVariable for U32Variable {
         &self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> Vec<ByteVariable> {
-        let mut bytes = vec![];
-        let bits = builder.api.split_le(self.0 .0, 32);
-        for i in (0..4).rev() {
-            let mut arr: [BoolVariable; 8] = [builder._false(); 8];
-            let byte = bits[i * 8..(i + 1) * 8].to_vec();
-            byte.iter()
-                .rev()
-                .enumerate()
-                .try_fold(&mut arr, |arr, (j, &bit)| {
-                    arr[j] = BoolVariable(Variable(bit.target));
-                    Some(arr)
-                });
-            bytes.push(ByteVariable(arr));
-        }
-        bytes
+        let mut bits = builder.api.split_le(self.0 .0, 32);
+        bits.reverse();
+        bits.chunks(8)
+            .map(|chunk| {
+                let targets = chunk.iter().map(|b| b.target).collect_vec();
+                ByteVariable::from_targets(&targets)
+            })
+            .collect()
     }
 
     fn decode<F: RichField + Extendable<D>, const D: usize>(
@@ -78,15 +72,13 @@ impl EvmVariable for U32Variable {
         bytes: &[ByteVariable],
     ) -> Self {
         assert_eq!(bytes.len(), 4);
-        let mut bits = vec![];
-        for byte in bytes.iter() {
-            bits.extend_from_slice(&byte.0);
-        }
-        let target = builder.api.le_sum(
-            bits.iter()
-                .rev()
-                .map(|bit| BoolTarget::new_unsafe(bit.0 .0)),
-        );
+
+        let mut bits = bytes.iter().flat_map(|byte| byte.targets()).collect_vec();
+        bits.reverse();
+
+        let target = builder
+            .api
+            .le_sum(bits.into_iter().rev().map(BoolTarget::new_unsafe));
         Self(Variable(target))
     }
 
