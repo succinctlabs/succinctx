@@ -1,4 +1,5 @@
 pub mod io;
+pub mod serialization;
 pub mod utils;
 
 use core::marker::PhantomData;
