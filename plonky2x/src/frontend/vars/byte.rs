@@ -100,7 +100,7 @@ impl ByteVariable {
         builder: &mut CircuitBuilder<F, D>,
     ) -> [ByteVariable; 2] {
         let bits = self.to_be_bits();
-       
+
         let mut left_nibble = array![_ => builder.constant(false); 8];
         left_nibble[4..].copy_from_slice(&bits[0..4]);
 
@@ -312,11 +312,11 @@ mod tests {
 
         let mut pw = PartialWitness::new();
         byte.set(&mut pw, value);
-        
+
         let expected_left_nibble = (value >> 4) & 0x0F;
         let expected_right_nibble = value & 0x0F;
         nibbles[0].set(&mut pw, expected_left_nibble);
-        nibbles[1].set(&mut pw, expected_right_nibble);  
+        nibbles[1].set(&mut pw, expected_right_nibble);
 
         let circuit = builder.build::<C>();
         let proof = circuit.data.prove(pw).unwrap();
