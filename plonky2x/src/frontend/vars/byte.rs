@@ -99,9 +99,6 @@ impl ByteVariable {
         self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> [ByteVariable; 2] {
-        // this function split the bytevariables [abcdefgh] to [0000abcd] and [0000efgh], please implement it 
-        // let bits = self.to_be_bits();
-        
         let bits = self.to_be_bits();
        
         let mut left_nibble = array![_ => builder.constant(false); 8];
