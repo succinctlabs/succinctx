@@ -40,7 +40,7 @@ use plonky2::util::serialization::{
 use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGate;
 
 /// A registry to store serializers for witness generators.
-/// 
+///
 /// New witness generators can be added to the registry by calling the `register` method,
 /// specifying the type and the generator's id.
 #[derive(Debug)]
@@ -49,14 +49,14 @@ pub struct WitnessGeneratorRegistry<F: RichField + Extendable<D>, const D: usize
 );
 
 /// A registry to store serializers for gates.
-/// 
-/// New gates can be added to the registry by calling the `register` method. 
+///
+/// New gates can be added to the registry by calling the `register` method.
 #[derive(Debug)]
 pub struct GateRegistry<F: RichField + Extendable<D>, const D: usize>(
     SerializationRegistry<TypeId, F, GateRef<F, D>, D>,
 );
 
-/// A trait for serializing and deserializing objects compatible with plonky2 traits. 
+/// A trait for serializing and deserializing objects compatible with plonky2 traits.
 pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize> {
     fn read(&self, buf: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<T>;
     fn write(
@@ -152,7 +152,6 @@ impl<F: RichField + Extendable<D>, G: AnyGate<F, D>, const D: usize> Serializer<
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D> {
-
     /// Registers a new witness generator with the given id.
     pub fn register<W: WitnessGenerator<F, D>>(&mut self, id: String) {
         let exists = self.0.registry.insert(
@@ -176,7 +175,6 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
-
     /// Registers a new gate.
     pub fn register<G: AnyGate<F, D>>(&mut self) {
         let type_id = TypeId::of::<G>();
