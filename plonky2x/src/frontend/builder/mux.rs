@@ -58,7 +58,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use ethers::types::U256;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::PartialWitness;
@@ -71,11 +71,6 @@ mod test {
 
     #[test]
     fn test_mux_rand() {
-        let mut builder_logger = env_logger::Builder::from_default_env();
-        builder_logger.format_timestamp(None);
-        builder_logger.filter_level(log::LevelFilter::Trace);
-        builder_logger.try_init().unwrap();
-
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;

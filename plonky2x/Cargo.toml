@@ -40,3 +40,8 @@ dotenv = "0.15.0"
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = ["gate_testing"]}
 env_logger = "0.10.0"
 proptest = "1.2.0"
+criterion = "0.3"
+
+[[bench]]
+name = "mux_bench"
+harness = false
