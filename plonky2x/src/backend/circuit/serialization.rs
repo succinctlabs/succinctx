@@ -56,7 +56,7 @@ use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
-use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
+use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32ArithmeticGenerator};
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 
 /// A registry to store serializers for witness generators.
@@ -473,6 +473,7 @@ impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
         r.register::<XOR3Gate>();
         r.register::<ComparisonGate<F, D>>();
         r.register::<U32AddManyGate<F, D>>();
+        r.register::<U32ArithmeticGate<F, D>>();
 
         r
     }
