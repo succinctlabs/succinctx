@@ -101,10 +101,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         }
 
         let data = self.api.build();
-        let mut circuit = Circuit { data, io: self.io };
-        circuit.save(&format!("/tmp/{}.circuit", circuit.id()));
-        circuit = Circuit::<F, C, D>::load(&format!("/tmp/{}.circuit", circuit.id())).unwrap();
-        circuit
+        Circuit { data, io: self.io }
     }
 
     /// Add simple generator.
