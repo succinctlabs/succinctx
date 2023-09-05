@@ -411,7 +411,7 @@ impl<F: PrimeField> GeneratedValuesBigUint<F> for GeneratedValues<F> {
 }
 
 #[derive(Debug)]
-struct BigUintDivRemGenerator<F: RichField + Extendable<D>, const D: usize> {
+pub struct BigUintDivRemGenerator<F: RichField + Extendable<D>, const D: usize> {
     a: BigUintTarget,
     b: BigUintTarget,
     div: BigUintTarget,
@@ -441,7 +441,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn id(&self) -> String {
-        unimplemented!("BigUintDivRemGenerator::id()")
+        "BigUintDivRemGenerator".to_string()
     }
 
     fn serialize(

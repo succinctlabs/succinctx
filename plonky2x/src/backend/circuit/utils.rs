@@ -47,6 +47,7 @@ use crate::frontend::eth::storage::generators::storage::{
 };
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
+use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGate;
 use crate::frontend::num::u32::gates::comparison::ComparisonGate;
@@ -176,6 +177,7 @@ where
         BeaconWithdrawalGenerator<F, D>, "BeaconWithdrawalGenerator",
         BeaconWithdrawalsGenerator<F, D>, "BeaconWithdrawalsGenerator",
         BeaconHistoricalBlockGenerator<F, D>, "BeaconHistoricalBlockGenerator",
+        BigUintDivRemGenerator<F, D>, "BigUintDivRemGenerator",
     }
 }
 
