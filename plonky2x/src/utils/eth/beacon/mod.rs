@@ -111,7 +111,7 @@ pub struct GetBeaconBalancesRoot {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GetBeaconValidatorBalance {
+pub struct GetBeaconBalance {
     pub balance: u64,
     pub balance_leaf: String,
     pub balances_root: String,
@@ -119,6 +119,47 @@ pub struct GetBeaconValidatorBalance {
     pub depth: u64,
     #[serde(deserialize_with = "deserialize_bigint")]
     pub gindex: BigInt,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconWithdrawalsRoot {
+    pub withdrawals_root: String,
+    pub proof: Vec<String>,
+    #[serde(deserialize_with = "deserialize_bigint")]
+    pub gindex: BigInt,
+    pub depth: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Withdrawal {
+    pub index: u64,
+    pub validator_index: u64,
+    pub address: String,
+    #[serde(deserialize_with = "deserialize_bigint")]
+    pub amount: BigInt,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconWithdrawal {
+    pub withdrawal: Withdrawal,
+    pub withdrawal_root: String,
+    pub proof: Vec<String>,
+    #[serde(deserialize_with = "deserialize_bigint")]
+    pub gindex: BigInt,
+    pub depth: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconHistoricalBlock {
+    pub historical_block_root: String,
+    pub proof: Vec<String>,
+    #[serde(deserialize_with = "deserialize_bigint")]
+    pub gindex: BigInt,
+    pub depth: u64,
 }
 
 impl BeaconClient {
@@ -213,14 +254,14 @@ impl BeaconClient {
         &self,
         beacon_id: String,
         validator_idx: u64,
-    ) -> Result<GetBeaconValidatorBalance> {
+    ) -> Result<GetBeaconBalance> {
         let endpoint = format!(
             "{}/api/beacon/balance/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
-        let response: CustomResponse<GetBeaconValidatorBalance> = response.json().await?;
+        let response: CustomResponse<GetBeaconBalance> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
@@ -230,20 +271,21 @@ impl BeaconClient {
         &self,
         beacon_id: String,
         pubkey: String,
-    ) -> Result<GetBeaconValidatorBalance> {
+    ) -> Result<GetBeaconBalance> {
         let endpoint = format!(
             "{}/api/beacon/balance/{}/{}",
             self.rpc_url, beacon_id, pubkey
         );
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
-        let response: CustomResponse<GetBeaconValidatorBalance> = response.json().await?;
+        let response: CustomResponse<GetBeaconBalance> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
 
     /// Gets the balance of a validator based on a beacon_id and validator index.
-    pub async fn get_validator_balance(
+    #[allow(unused)]
+    async fn get_validator_balance_deprecated(
         &self,
         beacon_id: String,
         validator_idx: u64,
@@ -260,7 +302,8 @@ impl BeaconClient {
     }
 
     /// Gets the balance of a validator based on a beacon_id and validator pubkey.
-    pub async fn get_validator_balance_by_pubkey(
+    #[allow(unused)]
+    async fn get_validator_balance_by_pubkey_deprecated(
         &self,
         beacon_id: String,
         pubkey: String,
@@ -274,6 +317,46 @@ impl BeaconClient {
         let response: BeaconResponse<BeaconValidatorBalance> = response.json().await?;
         let balance = response.data.data[0].balance.parse::<u64>()?;
         Ok(U256::from(balance))
+    }
+
+    pub async fn get_withdrawals_root(
+        &self,
+        beacon_id: String,
+    ) -> Result<GetBeaconWithdrawalsRoot> {
+        let endpoint = format!("{}/api/beacon/withdrawal/{}", self.rpc_url, beacon_id);
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let response: CustomResponse<GetBeaconWithdrawalsRoot> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    pub async fn get_withdrawal(&self, beacon_id: String, idx: u64) -> Result<GetBeaconWithdrawal> {
+        let endpoint = format!(
+            "{}/api/beacon/withdrawal/{}/{}",
+            self.rpc_url, beacon_id, idx
+        );
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let response: CustomResponse<GetBeaconWithdrawal> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    pub async fn get_historical_block(
+        &self,
+        beacon_id: String,
+        offset: u64,
+    ) -> Result<GetBeaconHistoricalBlock> {
+        let endpoint = format!(
+            "{}/api/beacon/historical/{}/{}",
+            self.rpc_url, beacon_id, offset
+        );
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let response: CustomResponse<GetBeaconHistoricalBlock> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
     }
 }
 

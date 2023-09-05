@@ -4,8 +4,14 @@ use plonky2::hash::hash_types::RichField;
 use super::generators::balance::BeaconBalanceGenerator;
 use super::generators::balances::BeaconBalancesGenerator;
 use super::generators::validator::BeaconValidatorGenerator;
-use super::vars::{BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable};
+use super::generators::withdrawal::BeaconWithdrawalGenerator;
+use super::generators::withdrawals::BeaconWithdrawalsGenerator;
+use super::vars::{
+    BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
+    BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
+};
 use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::eth::beacon::generators::historical::BeaconHistoricalBlockGenerator;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint64::U64Variable;
@@ -160,6 +166,71 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         generator.balance
     }
 
+    /// Get the withdrawals for a given block root.
+    pub fn beacon_get_withdrawals(
+        &mut self,
+        block_root: Bytes32Variable,
+    ) -> BeaconWithdrawalsVariable {
+        let generator =
+            BeaconWithdrawalsGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
+        self.add_simple_generator(&generator);
+        let gindex = 3230;
+        self.ssz_verify_proof_const(
+            block_root,
+            generator.withdrawals_root,
+            &generator.proof,
+            gindex,
+        );
+        BeaconWithdrawalsVariable {
+            block_root,
+            withdrawals_root: generator.withdrawals_root,
+        }
+    }
+
+    /// Get a validator withdrawal from a given index.
+    pub fn beacon_get_withdrawal(
+        &mut self,
+        withdrawals: BeaconWithdrawalsVariable,
+        idx: U64Variable,
+    ) -> BeaconWithdrawalVariable {
+        let generator = BeaconWithdrawalGenerator::new(
+            self,
+            self.beacon_client.clone().unwrap(),
+            withdrawals,
+            idx,
+        );
+        self.add_simple_generator(&generator);
+        let mut gindex = self.constant::<U64Variable>(32.into());
+        gindex = self.add(gindex, idx);
+        let leaf = self.ssz_hash_tree_root(generator.withdrawal.clone());
+        self.ssz_verify_proof(withdrawals.withdrawals_root, leaf, &generator.proof, gindex);
+        generator.withdrawal
+    }
+
+    /// Get a historical block root within 8192 blocks of the current block.
+    pub fn beacon_get_historical_block(
+        &mut self,
+        block_root: Bytes32Variable,
+        offset: U64Variable,
+    ) -> Bytes32Variable {
+        let generator = BeaconHistoricalBlockGenerator::new(
+            self,
+            self.beacon_client.clone().unwrap(),
+            block_root,
+            offset,
+        );
+        self.add_simple_generator(&generator);
+        let mut gindex = self.constant::<U64Variable>(25434259456u64.into());
+        gindex = self.add(gindex, offset);
+        self.ssz_verify_proof(
+            block_root,
+            generator.historical_block_root,
+            &generator.proof,
+            gindex,
+        );
+        generator.historical_block_root
+    }
+
     /// Verify a simple serialize (ssz) merkle proof with a dynamic index.
     pub fn ssz_verify_proof(
         &mut self,
@@ -271,10 +342,7 @@ pub(crate) mod tests {
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let validators = builder.beacon_get_validators(block_root);
-        let expected_validators_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0x117c8ce619123b5ded4bc150731335cacd41d5b291770cb35812e56db76f408c"
-        ));
-        builder.assert_is_equal(validators.validators_root, expected_validators_root);
+        builder.watch(&validators, "validators");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -405,6 +473,78 @@ pub(crate) mod tests {
         let index = builder.constant::<U64Variable>(0.into());
         let balance = builder.beacon_get_balance(balances, index);
         builder.watch(&balance, "balance");
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_withdrawals() {
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let withdrawals = builder.beacon_get_withdrawals(block_root);
+        builder.watch(&withdrawals.withdrawals_root, "withdrawals_root");
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_withdrawal() {
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let withdrawals = builder.beacon_get_withdrawals(block_root);
+        let idx = builder.constant::<U64Variable>(0.into());
+        let withdrawal = builder.beacon_get_withdrawal(withdrawals, idx);
+        builder.watch(&withdrawal, "withdrawal");
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_historical_block() {
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let idx = builder.constant::<U64Variable>(0.into());
+        let historical_block = builder.beacon_get_historical_block(block_root, idx);
+        builder.watch(&historical_block, "historical_block");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
