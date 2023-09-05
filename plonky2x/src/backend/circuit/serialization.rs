@@ -55,7 +55,7 @@ use crate::frontend::eth::storage::generators::storage::{
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
-use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGate;
+use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 
@@ -434,6 +434,9 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
 
         let u32_arithmetic_generator_id = U32ArithmeticGenerator::<F, D>::id();
         r.register_simple::<U32ArithmeticGenerator<F, D>>(u32_arithmetic_generator_id);
+
+        let u32_add_many_generator_id = U32AddManyGenerator::<F, D>::id();
+        r.register_simple::<U32AddManyGenerator<F, D>>(u32_add_many_generator_id);
 
         let comparison_generator_id = ComparisonGenerator::<F, D>::id();
         r.register_simple::<ComparisonGenerator<F, D>>(comparison_generator_id);
