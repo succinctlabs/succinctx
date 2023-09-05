@@ -37,9 +37,9 @@ pub fn rlp_decode_bytes(input: &[u8]) -> (Vec<u8>, usize) {
 
 pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
     let prefix = input[0];
-    // println!("input {:?}", Bytes::from(input.to_vec()).to_string());
+
+    // Short list (0-55 bytes total payload)
     if prefix <= 0xF7 {
-        // Short list (0-55 bytes total payload)
         let list_length = (prefix - 0xC0) as usize;
         // We assert that the input is simply [list_length, list_content...] and not suffixed by anything else
         assert!(input.len() == 1 + list_length);
@@ -47,7 +47,7 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
         let (ele_2, _) = rlp_decode_bytes(&input[1 + increment..]);
         vec![ele_1, ele_2]
     } else {
-        // TODO check that prefix is bounded within a certain range
+        // TODO: check that prefix is bounded within a certain range
         let len_of_list_length = prefix - 0xF7;
         // println!("len_of_list_length {:?}", len_of_list_length);
         // TODO: figure out what to do with len_of_list_length
@@ -61,24 +61,28 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
                 break;
             }
         }
-        assert!(pos == input.len()); // Check that we have iterated through all the input
+        assert!(pos == input.len()); // Checks that we have iterated through all the input
         assert!(res.len() == 17 || res.len() == 2);
         res
     }
 }
 
 /// Given `encoded` which is a RLP-encoded list, passed in as a byte array of length `M`, with "true length" `len`
-pub fn decode_element_as_list<const M: usize, const L: usize, const MAX_ELE_SIZE: usize>(
+pub fn decode_element_as_list<
+    const ENCODING_LEN: usize,
+    const LIST_LEN: usize,
+    const ELEMENT_LEN: usize,
+>(
     encoded: &[u8],
     len: usize,
     finish: bool,
 ) -> (Vec<Vec<u8>>, Vec<usize>, usize) {
-    assert_eq!(encoded.len(), M);
-    assert!(len <= M);
-    assert!(L == 2 || L == 17); // Right now we only support decoding lists of length 2 or 17
+    assert_eq!(encoded.len(), ENCODING_LEN);
+    assert!(len <= ENCODING_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
+    assert!(LIST_LEN == 2 || LIST_LEN == 17); // Right now we only support decoding lists of length 2 or 17
 
-    let mut decoded_list_as_fixed = vec![vec![0u8; MAX_ELE_SIZE]; L];
-    let mut decoded_list_lens = vec![0usize; L];
+    let mut decoded_list_as_fixed = vec![vec![0u8; ELEMENT_LEN]; LIST_LEN];
+    let mut decoded_list_lens = vec![0usize; LIST_LEN];
     let decoded_list_len = 0;
     if finish {
         // terminate early
@@ -88,8 +92,8 @@ pub fn decode_element_as_list<const M: usize, const L: usize, const MAX_ELE_SIZE
     for (i, element) in decoded_element.iter().enumerate() {
         let len: usize = element.len();
         assert!(
-            len <= MAX_ELE_SIZE,
-            "The decoded element should have length <= {MAX_ELE_SIZE}!"
+            len <= ELEMENT_LEN,
+            "The decoded element should have length <= {ELEMENT_LEN}!"
         );
         decoded_list_as_fixed[i][..len].copy_from_slice(element);
         decoded_list_lens[i] = len;
@@ -273,7 +277,14 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
 #[cfg(test)]
 mod tests {
+
+    use curta::math::field::Field;
+    use plonky2::iop::generator::generate_partial_witness;
+
     use super::*;
+    use crate::prelude::{
+        CircuitBuilderX, GoldilocksField, PartialWitness, PoseidonGoldilocksConfig,
+    };
     use crate::utils::bytes;
 
     #[test]
@@ -308,5 +319,54 @@ mod tests {
     }
 
     #[test]
-    fn test_rlp_decode_generator() {}
+    fn test_rlp_decode_list_generator() {
+        type F = GoldilocksField;
+        let mut builder = CircuitBuilderX::new();
+        const ENCODED_LEN: usize = 600;
+        const LIST_LEN: usize = 17;
+        const ELEMENT_LEN: usize = 34;
+        let encoding = builder.init::<ArrayVariable<ByteVariable, ENCODED_LEN>>();
+        let len = builder.init::<Variable>();
+        let finish = builder.init::<BoolVariable>();
+
+        let (decoded_list, decoded_element_lens, len_decoded_list) = builder
+            .decode_element_as_list::<ENCODED_LEN, LIST_LEN, ELEMENT_LEN>(
+                encoding.clone(),
+                len,
+                finish,
+            );
+
+        builder.watch(&len_decoded_list, "len_decoded_list");
+        builder.watch(&decoded_element_lens, "decoded_element_lens");
+        builder.watch(&decoded_list, "decoded_list");
+
+        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+
+        let mut partial_witness = PartialWitness::new();
+        let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0215ead887d4da139eba306f76d765f5c4bfb03f6118ac1eb05eec3a92e1b0076a03eb28e7b61c689fae945b279f873cfdddf4e66db0be0efead563ea08bc4a269fa03025e2cce6f9c1ff09c8da516d938199c809a7f94dcd61211974aebdb85a4e56a0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6a0b281bb20061318a515afbdd02954740f069ebc75e700fde24dfbdf8c76d57119a0d8d77d917f5b7577e7e644bbc7a933632271a8daadd06a8e7e322f12dd828217a00f301190681b368db4308d1d1aa1794f85df08d4f4f646ecc4967c58fd9bd77ba0206598a4356dd50c70cfb1f0285bdb1402b7d65b61c851c095a7535bec230d5aa000959956c2148c82c207272af1ae129403d42e8173aedf44a190e85ee5fef8c3a0c88307e92c80a76e057e82755d9d67934ae040a6ec402bc156ad58dbcd2bcbc4a0e40a8e323d0b0b19d37ab6a3d110de577307c6f8efed15097dfb5551955fc770a02da2c6b12eedab6030b55d4f7df2fb52dab0ef4db292cb9b9789fa170256a11fa0d00e11cde7531fb79a315b4d81ea656b3b452fe3fe7e50af48a1ac7bf4aa6343a066625c0eb2f6609471f20857b97598ae4dfc197666ff72fe47b94e4124900683a0ace3aa5d35ba3ebbdc0abde8add5896876b25261717c0a415c92642c7889ec66a03a4931a67ae8ebc1eca9ffa711c16599b86d5286504182618d9c2da7b83f5ef780");
+        let mut encoding_fixed_size = [0u8; ENCODED_LEN];
+        encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
+
+        encoding.set(&mut partial_witness, encoding_fixed_size.to_vec());
+        len.set(
+            &mut partial_witness,
+            F::from_canonical_usize(rlp_encoding.len()),
+        );
+        finish.set(&mut partial_witness, false);
+        let prover_data = circuit.data.prover_only;
+        let common_data = circuit.data.common;
+        let witness = generate_partial_witness(partial_witness, &prover_data, &common_data);
+
+        let len = len_decoded_list.get(&witness);
+        let decoded_element_lens = decoded_element_lens.get(&witness);
+        // let decoded_list = decoded_list.get(&witness);
+        assert!(len == F::from_canonical_usize(17));
+        for i in 0..17 {
+            if i == 16 {
+                assert!(decoded_element_lens[i] == F::from_canonical_usize(0));
+            } else {
+                assert!(decoded_element_lens[i] == F::from_canonical_usize(32));
+            }
+        }
+    }
 }
