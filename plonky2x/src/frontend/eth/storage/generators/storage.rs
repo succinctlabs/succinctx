@@ -15,11 +15,7 @@ use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::storage::utils::get_map_storage_location;
-<<<<<<< HEAD
 use crate::frontend::eth::storage::vars::{EthAccount, EthAccountVariable, EthLog, EthLogVariable};
-=======
-use crate::frontend::eth::storage::vars::{EthAccount, EthAccountVariable};
->>>>>>> 7bbb677 (chore: cargo fmt)
 use crate::frontend::eth::utils::u256_to_h256_be;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint256::U256Variable;
