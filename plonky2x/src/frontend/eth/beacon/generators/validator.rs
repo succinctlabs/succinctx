@@ -34,6 +34,7 @@ pub struct BeaconValidatorGenerator<F: RichField + Extendable<D>, const D: usize
     block_root: Bytes32Variable,
     input: BeaconValidatorGeneratorInput,
     pub validator: BeaconValidatorVariable,
+    pub validator_idx: U64Variable,
     pub proof: [Bytes32Variable; DEPTH],
     _phantom: PhantomData<F>,
 }
@@ -49,6 +50,7 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorGenerator<F, D
             block_root,
             input: BeaconValidatorGeneratorInput::IndexConst(validator_idx),
             validator: builder.init::<BeaconValidatorVariable>(),
+            validator_idx: builder.init::<U64Variable>(),
             proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
             _phantom: PhantomData,
         }
@@ -64,6 +66,7 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorGenerator<F, D
             block_root,
             input: BeaconValidatorGeneratorInput::IndexVariable(validator_idx),
             validator: builder.init::<BeaconValidatorVariable>(),
+            validator_idx: builder.init::<U64Variable>(),
             proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
             _phantom: PhantomData,
         }
@@ -79,6 +82,7 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorGenerator<F, D
             block_root,
             input: BeaconValidatorGeneratorInput::PubkeyVariable(pubkey),
             validator: builder.init::<BeaconValidatorVariable>(),
+            validator_idx: builder.init::<U64Variable>(),
             proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
             _phantom: PhantomData,
         }
@@ -133,8 +137,9 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
                 }
             }
         });
-        println!("{:#?}", result);
         self.validator.set(out_buffer, result.validator);
+        self.validator_idx
+            .set(out_buffer, result.validator_idx.into());
         for i in 0..DEPTH {
             self.proof[i].set(out_buffer, bytes32!(result.proof[i]));
         }

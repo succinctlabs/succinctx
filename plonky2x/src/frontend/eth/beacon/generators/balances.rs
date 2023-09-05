@@ -18,15 +18,15 @@ use crate::utils::{bytes32, hex};
 const DEPTH: usize = 8;
 
 #[derive(Debug, Clone)]
-pub struct BeaconValidatorsGenerator<F: RichField + Extendable<D>, const D: usize> {
+pub struct BeaconBalancesGenerator<F: RichField + Extendable<D>, const D: usize> {
     client: BeaconClient,
     block_root: Bytes32Variable,
-    pub validators_root: Bytes32Variable,
+    pub balances_root: Bytes32Variable,
     pub proof: [Bytes32Variable; DEPTH],
     _phantom: PhantomData<F>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorsGenerator<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> BeaconBalancesGenerator<F, D> {
     pub fn new(
         builder: &mut CircuitBuilder<F, D>,
         client: BeaconClient,
@@ -35,7 +35,7 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorsGenerator<F, 
         Self {
             client,
             block_root,
-            validators_root: builder.init::<Bytes32Variable>(),
+            balances_root: builder.init::<Bytes32Variable>(),
             proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
             _phantom: Default::default(),
         }
@@ -43,10 +43,10 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorsGenerator<F, 
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for BeaconValidatorsGenerator<F, D>
+    for BeaconBalancesGenerator<F, D>
 {
     fn id(&self) -> String {
-        "BeaconValidatorsGenerator".to_string()
+        "BeaconBalancesGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -59,13 +59,13 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let rt = Runtime::new().expect("failed to create tokio runtime");
         let result = rt.block_on(async {
             self.client
-                .get_validators_root(hex!(block_root.as_bytes()).to_string())
+                .get_balances_root(hex!(block_root.as_bytes()).to_string())
                 .await
                 .expect("failed to get validators root")
         });
 
-        self.validators_root
-            .set(out_buffer, bytes32!(result.validators_root));
+        self.balances_root
+            .set(out_buffer, bytes32!(result.balances_root));
         for i in 0..DEPTH {
             self.proof[i].set(out_buffer, bytes32!(result.proof[i]));
         }
@@ -74,7 +74,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
         dst.write_target_vec(&self.block_root.targets())?;
-        dst.write_target_vec(&self.validators_root.targets())?;
+        dst.write_target_vec(&self.balances_root.targets())?;
         for i in 0..DEPTH {
             dst.write_target_vec(&self.proof[i].targets())?;
         }
@@ -84,7 +84,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
         let block_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
-        let validators_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
+        let balances_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
         let mut proof = Vec::new();
         for i in 0..DEPTH {
             proof.push(Bytes32Variable::from_targets(&src.read_target_vec()?));
@@ -92,7 +92,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         Ok(Self {
             client: BeaconClient::new("https://beaconapi.succinct.xyz".to_string()),
             block_root,
-            validators_root,
+            balances_root,
             proof: proof.try_into().unwrap(),
             _phantom: Default::default(),
         })

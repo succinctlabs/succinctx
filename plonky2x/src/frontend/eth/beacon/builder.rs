@@ -1,16 +1,16 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
-use super::generators::balance::BeaconValidatorBalanceGenerator;
+use super::generators::balance::BeaconBalanceGenerator;
+use super::generators::balances::BeaconBalancesGenerator;
 use super::generators::validator::BeaconValidatorGenerator;
-use super::vars::{BeaconValidatorVariable, BeaconValidatorsVariable};
+use super::vars::{BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable};
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
+use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
-use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, SSZVariable};
-use crate::prelude::Variable;
+use crate::prelude::BytesVariable;
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     /// Get the validators for a given block root.
@@ -18,11 +18,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         &mut self,
         block_root: Bytes32Variable,
     ) -> BeaconValidatorsVariable {
-        let generator = BeaconValidatorsRootGenerator::new(
-            self,
-            self.beacon_client.clone().unwrap(),
-            block_root,
-        );
+        let generator =
+            BeaconValidatorsGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
         self.add_simple_generator(&generator);
         let gindex = 363u64;
         self.ssz_verify_proof_const(
@@ -46,7 +43,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let generator =
             BeaconValidatorGenerator::new_with_index_variable(self, validators.block_root, index);
         self.add_simple_generator(&generator);
-        let validator_root = generator.validator.hash_tree_root(self);
+        let validator_root = self.ssz_hash_tree_root(generator.validator);
         let mut gindex = self.constant::<U64Variable>((1099511627776u64 * 2).into());
         gindex = self.add(gindex, index);
         self.ssz_verify_proof(
@@ -67,7 +64,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let generator =
             BeaconValidatorGenerator::new_with_index_const(self, validators.block_root, index);
         self.add_simple_generator(&generator);
-        let validator_root = generator.validator.hash_tree_root(self);
+        let validator_root = self.ssz_hash_tree_root(generator.validator);
         let gindex = 1099511627776 * 2 + index;
         self.ssz_verify_proof_const(
             validators.validators_root,
@@ -78,46 +75,104 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         generator.validator
     }
 
-    /// Gets a validator from a given pubkey.
+    /// Gets a validator from a given pubkey. Returns the validator index along with the validator
+    /// data.
     pub fn beacon_get_validator_by_pubkey(
         &mut self,
         validators: BeaconValidatorsVariable,
         pubkey: BLSPubkeyVariable,
-    ) -> BeaconValidatorVariable {
+    ) -> (U64Variable, BeaconValidatorVariable) {
         let generator =
             BeaconValidatorGenerator::new_with_pubkey_variable(self, validators.block_root, pubkey);
         self.add_simple_generator(&generator);
-        generator.validator
+        let validator_root = self.ssz_hash_tree_root(generator.validator);
+        let mut gindex = self.constant::<U64Variable>((1099511627776u64 * 2).into());
+        gindex = self.add(gindex, generator.validator_idx);
+        self.ssz_verify_proof(
+            validators.validators_root,
+            validator_root,
+            &generator.proof,
+            gindex,
+        );
+        self.assert_is_equal(generator.validator.pubkey, pubkey);
+        (generator.validator_idx, generator.validator)
+    }
+
+    /// Get the balances for a given block root.
+    pub fn beacon_get_balances(&mut self, block_root: Bytes32Variable) -> BeaconBalancesVariable {
+        let generator =
+            BeaconBalancesGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
+        self.add_simple_generator(&generator);
+        let gindex = 364u64;
+        self.ssz_verify_proof_const(
+            block_root,
+            generator.balances_root,
+            &generator.proof,
+            gindex,
+        );
+        BeaconBalancesVariable {
+            block_root,
+            balances_root: generator.balances_root,
+        }
     }
 
     /// Get a validator balance from a given deterministic index.
-    pub fn beacon_get_validator_balance(
+    pub fn beacon_get_balance(
         &mut self,
-        validators: BeaconValidatorsVariable,
-        index: Variable,
-    ) -> U256Variable {
-        let generator = BeaconValidatorBalanceGenerator::new_with_index_variable(
-            self,
-            validators.block_root,
-            index,
-        );
+        balances: BeaconBalancesVariable,
+        index: U64Variable,
+    ) -> U64Variable {
+        let generator =
+            BeaconBalanceGenerator::new_with_index_variable(self, balances.block_root, index);
         self.add_simple_generator(&generator);
-        generator.out()
+        let mut gindex = self.constant::<U64Variable>((549755813888u64).into());
+        let four = self.constant::<U64Variable>(4.into());
+
+        let offset = self.div(index, four);
+        gindex = self.add(gindex, offset);
+
+        self.ssz_verify_proof(
+            balances.balances_root,
+            generator.balance_leaf,
+            &generator.proof,
+            gindex,
+        );
+
+        let index = self.rem(index, four);
+        let bits = self.to_be_bits(index);
+        let first_half: BytesVariable<16> =
+            BytesVariable::<16>(generator.balance_leaf.0 .0[..16].try_into().unwrap());
+        let second_half: BytesVariable<16> =
+            BytesVariable::<16>(generator.balance_leaf.0 .0[16..].try_into().unwrap());
+        let half = self.select(bits[0], first_half, second_half);
+        let first_quarter: BytesVariable<8> = BytesVariable::<8>(half.0[..8].try_into().unwrap());
+        let second_quarter: BytesVariable<8> = BytesVariable::<8>(half.0[8..].try_into().unwrap());
+        let quarter = self.select(bits[1], first_quarter, second_quarter);
+
+        self.watch(&quarter, "quarter");
+        self.watch(&generator.balance, "balance");
+
+        let balance_bits_le = self.to_le_bits(generator.balance);
+        let quarter_bits_le = self.to_le_bits(quarter);
+        for i in 0..64 {
+            self.watch(&balance_bits_le[i], &format!("balance_bits_le_{}", i));
+            self.watch(&quarter_bits_le[i], &format!("quarter_bits_le_{}", i));
+            self.assert_is_equal(balance_bits_le[i], quarter_bits_le[i]);
+        }
+
+        generator.balance
     }
 
     /// Get a validator balance from a pubkey.
-    pub fn beacon_get_validator_balance_by_pubkey(
+    pub fn beacon_get_balance_by_pubkey(
         &mut self,
-        validators: BeaconValidatorsVariable,
+        balances: BeaconBalancesVariable,
         pubkey: BLSPubkeyVariable,
-    ) -> U256Variable {
-        let generator = BeaconValidatorBalanceGenerator::new_with_pubkey_variable(
-            self,
-            validators.block_root,
-            pubkey,
-        );
+    ) -> U64Variable {
+        let generator =
+            BeaconBalanceGenerator::new_with_pubkey_variable(self, balances.block_root, pubkey);
         self.add_simple_generator(&generator);
-        generator.out()
+        generator.balance
     }
 
     /// Verify a simple serialize (ssz) merkle proof with a dynamic index.
@@ -192,6 +247,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         }
         hash
     }
+
+    pub fn ssz_hash_tree_root<V: SSZVariable>(&mut self, variable: V) -> Bytes32Variable {
+        variable.hash_tree_root(self)
+    }
 }
 
 #[cfg(test)]
@@ -199,14 +258,12 @@ pub(crate) mod tests {
     use std::env;
 
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::Field;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::vars::BLSPubkeyVariable;
     use crate::frontend::uint::uint64::U64Variable;
     use crate::frontend::vars::Bytes32Variable;
-    use crate::prelude::Variable;
     use crate::utils::eth::beacon::BeaconClient;
     use crate::utils::{bytes, bytes32};
 
@@ -217,18 +274,17 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validators() {
-        env_logger::init();
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
         let mut builder = CircuitBuilder::<F, D>::new();
         builder.set_beacon_client(client);
 
-        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
-        ));
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let validators = builder.beacon_get_validators(block_root);
         let expected_validators_root = builder.constant::<Bytes32Variable>(bytes32!(
             "0x117c8ce619123b5ded4bc150731335cacd41d5b291770cb35812e56db76f408c"
@@ -244,18 +300,17 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validator() {
-        env_logger::init();
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
         let mut builder = CircuitBuilder::<F, D>::new();
         builder.set_beacon_client(client);
 
-        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
-        ));
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let validators = builder.beacon_get_validators(block_root);
         let index = builder.constant::<U64Variable>(0.into());
         let validator = builder.beacon_get_validator(validators, index);
@@ -273,18 +328,17 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validator_const() {
-        env_logger::init();
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
         let mut builder = CircuitBuilder::<F, D>::new();
         builder.set_beacon_client(client);
 
-        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
-        ));
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let validators = builder.beacon_get_validators(block_root);
         let validator = builder.beacon_get_validator_const(validators, 0);
         let expected_validator_pubkey = builder.constant::<BLSPubkeyVariable>(bytes!(
@@ -301,23 +355,22 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validator_by_pubkey() {
-        env_logger::init();
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
         let mut builder = CircuitBuilder::<F, D>::new();
         builder.set_beacon_client(client);
 
-        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
-        ));
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let pubkey = builder.constant::<BLSPubkeyVariable>(bytes!(
             "0x933ad9491b62059dd065b560d256d8957a8c402cc6e8d8ee7290ae11e8f7329267a8811c397529dac52ae1342ba58c95"
         ));
         let validators = builder.beacon_get_validators(block_root);
-        let validator = builder.beacon_get_validator_by_pubkey(validators, pubkey);
+        let (_, validator) = builder.beacon_get_validator_by_pubkey(validators, pubkey);
         builder.assert_is_equal(validator.pubkey, pubkey);
 
         let circuit = builder.build::<C>();
@@ -328,22 +381,44 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_validator_balance() {
-        env_logger::init();
+    fn test_get_balances_root() {
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
         let mut builder = CircuitBuilder::<F, D>::new();
         builder.set_beacon_client(client);
 
-        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
-        ));
-        let validators = builder.beacon_get_validators(block_root);
-        let index = builder.constant::<Variable>(F::ZERO);
-        let balance = builder.beacon_get_validator_balance(validators, index);
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let balances = builder.beacon_get_balances(block_root);
+        builder.watch(&balances, "balances");
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_balance() {
+        env_logger::try_init().unwrap();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let balances = builder.beacon_get_balances(block_root);
+        let index = builder.constant::<U64Variable>(0.into());
+        let balance = builder.beacon_get_balance(balances, index);
         builder.watch(&balance, "balance");
 
         let circuit = builder.build::<C>();
@@ -354,24 +429,23 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_validator_balance_by_pubkey() {
-        env_logger::init();
+    fn test_get_balance_by_pubkey() {
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
         let mut builder = CircuitBuilder::<F, D>::new();
         builder.set_beacon_client(client);
 
-        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
-        ));
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let pubkey = builder.constant::<BLSPubkeyVariable>(bytes!(
             "0x933ad9491b62059dd065b560d256d8957a8c402cc6e8d8ee7290ae11e8f7329267a8811c397529dac52ae1342ba58c95"
         ));
-        let validators = builder.beacon_get_validators(block_root);
-        let balance = builder.beacon_get_validator_balance_by_pubkey(validators, pubkey);
+        let balances = builder.beacon_get_balances(block_root);
+        let balance = builder.beacon_get_balance_by_pubkey(balances, pubkey);
         builder.watch(&balance, "balance");
 
         let circuit = builder.build::<C>();
@@ -382,7 +456,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_ssz_restore_merkle_root_equal() {
-        env_logger::init();
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();
@@ -415,7 +489,7 @@ pub(crate) mod tests {
     #[test]
     #[should_panic]
     fn test_ssz_restore_merkle_root_unequal() {
-        env_logger::init();
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();
@@ -446,7 +520,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_ssz_restore_merkle_root_const_equal() {
-        env_logger::init();
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();
@@ -478,7 +552,7 @@ pub(crate) mod tests {
     #[test]
     #[should_panic]
     fn test_ssz_restore_merkle_root_const_unequal() {
-        env_logger::init();
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();

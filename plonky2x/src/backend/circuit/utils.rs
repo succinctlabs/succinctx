@@ -34,9 +34,9 @@ use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
 use plonky2::{get_gate_tag_impl, impl_gate_serializer, read_gate_impl};
 
-use crate::frontend::eth::beacon::generators::balance::BeaconValidatorBalanceGenerator;
+use crate::frontend::eth::beacon::generators::balance::BeaconBalanceGenerator;
 use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
-use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
+use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
 use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
@@ -157,9 +157,9 @@ where
         EthBlockGenerator<F, D>, "EthBlockGenerator",
         EthStorageKeyGenerator<F, D>, "EthStorageKeyGenerator",
         Keccak256Generator<F, D>, "Keccak256Generator",
-        BeaconValidatorBalanceGenerator<F, D>, "BeaconValidatorBalanceGenerator",
+        BeaconBalanceGenerator<F, D>, "BeaconValidatorBalanceGenerator",
         BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
-        BeaconValidatorsRootGenerator<F, D>, "BeaconValidatorsGenerator",
+        BeaconValidatorsGenerator<F, D>, "BeaconValidatorsGenerator",
         U32AddManyGenerator<F, D>, "U32AddManyGenerator",
     }
 }

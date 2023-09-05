@@ -3,7 +3,9 @@ use ethers::types::U256;
 use num::BigInt;
 use reqwest::Client;
 use serde::Deserialize;
+use serde_json::Value;
 use serde_with::serde_as;
+use tokio::runtime::Runtime;
 
 use super::deserialize_bigint::deserialize_bigint;
 
@@ -13,11 +15,38 @@ pub struct BeaconClient {
     rpc_url: String,
 }
 
+/// The data format returned by official Eth Beacon Node APIs.
+#[derive(Debug, Deserialize)]
+struct BeaconData<T> {
+    #[allow(unused)]
+    pub execution_optimistic: bool,
+    #[allow(unused)]
+    pub finalized: bool,
+    pub data: Vec<T>,
+}
+
+/// The format returned by official Eth Beacon Node APIs.
+#[derive(Debug, Deserialize)]
+struct BeaconResponse<T> {
+    data: BeaconData<T>,
+}
+
 /// All custom endpoints return a response with this format.
 #[derive(Debug, Deserialize)]
-struct Response<T> {
+struct CustomResponse<T> {
     success: bool,
     result: T,
+}
+
+/// The beacon header according to the consensus spec.
+/// Reference: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconblockheader
+#[derive(Debug, Deserialize)]
+pub struct BeaconHeader {
+    pub slot: String,
+    pub proposer_index: String,
+    pub parent_root: String,
+    pub state_root: String,
+    pub body_root: String,
 }
 
 /// The beacon validator struct according to the consensus spec.
@@ -36,17 +65,13 @@ pub struct BeaconValidator {
     pub withdrawable_epoch: String,
 }
 
-/// The result returned from `/api/beacon/validator/[beacon_id]/[validator_idx]`.
+/// The beacon validator balance returned by the official Beacon Node API.
+/// https://ethereum.github.io/beacon-APIs/#/Beacon/getStateValidatorBalances
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GetBeaconValidator {
-    pub validator_root: String,
-    pub validators_root: String,
-    pub validator: BeaconValidator,
-    #[serde(deserialize_with = "deserialize_bigint")]
-    pub gindex: BigInt,
-    pub depth: u64,
-    pub proof: Vec<String>,
+struct BeaconValidatorBalance {
+    #[allow(unused)]
+    pub index: String,
+    pub balance: String,
 }
 
 /// The result returned from `/api/beacon/validator/[beacon_id]`.
@@ -60,25 +85,40 @@ pub struct GetBeaconValidatorsRoot {
     pub proof: Vec<String>,
 }
 
+/// The result returned from `/api/beacon/validator/[beacon_id]/[validator_idx]`.
 #[derive(Debug, Deserialize)]
-struct InnerData {
-    #[allow(unused)]
-    index: String,
-    pub balance: String,
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconValidator {
+    pub validator_root: String,
+    pub validators_root: String,
+    pub validator_idx: u64,
+    pub validator: BeaconValidator,
+    #[serde(deserialize_with = "deserialize_bigint")]
+    pub gindex: BigInt,
+    pub depth: u64,
+    pub proof: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
-struct Data {
-    pub data: Vec<InnerData>,
-    #[allow(unused)]
-    execution_optimistic: bool,
-    #[allow(unused)]
-    finalized: bool,
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconBalancesRoot {
+    pub balances_root: String,
+    #[serde(deserialize_with = "deserialize_bigint")]
+    pub gindex: BigInt,
+    pub depth: u64,
+    pub proof: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
-struct Wrapper {
-    data: Data,
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconValidatorBalance {
+    pub balance: u64,
+    pub balance_leaf: String,
+    pub balances_root: String,
+    pub proof: Vec<String>,
+    pub depth: u64,
+    #[serde(deserialize_with = "deserialize_bigint")]
+    pub gindex: BigInt,
 }
 
 impl BeaconClient {
@@ -87,13 +127,35 @@ impl BeaconClient {
         Self { rpc_url }
     }
 
+    /// Gets the block root at `head`.
+    pub fn get_finalized_block_root_sync(&self) -> Result<String> {
+        let rt = Runtime::new().expect("failed to create tokio runtime");
+        rt.block_on(async { self.get_finalized_block_root().await })
+    }
+
+    /// Gets the latest block root at `head` asynchronously.
+    pub async fn get_finalized_block_root(&self) -> Result<String> {
+        let endpoint = format!("{}/eth/v1/beacon/headers/finalized", self.rpc_url);
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let parsed: Value = response.json().await?;
+
+        if let Value::Object(data) = &parsed["data"] {
+            if let Value::Object(data2) = &data["data"] {
+                return Ok(data2["root"].as_str().unwrap().to_string());
+            }
+        }
+
+        Err(anyhow::anyhow!("failed to parse response"))
+    }
+
     /// Gets the validators root based on a beacon_id and the SSZ proof from
     /// `stateRoot -> validatorsRoot`.
     pub async fn get_validators_root(&self, beacon_id: String) -> Result<GetBeaconValidatorsRoot> {
         let endpoint = format!("{}/api/beacon/validator/{}", self.rpc_url, beacon_id);
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
-        let response: Response<GetBeaconValidatorsRoot> = response.json().await?;
+        let response: CustomResponse<GetBeaconValidatorsRoot> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
@@ -111,7 +173,7 @@ impl BeaconClient {
         );
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
-        let response: Response<GetBeaconValidator> = response.json().await?;
+        let response: CustomResponse<GetBeaconValidator> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
@@ -120,39 +182,96 @@ impl BeaconClient {
     /// `validatorsRoot -> validator[validator_idx]`.
     pub async fn get_validator_by_pubkey(
         &self,
-        _: String,
+        beacon_id: String,
         pubkey: String,
     ) -> Result<GetBeaconValidator> {
-        let endpoint = format!("{}/api/beacon/validator/head/{}", self.rpc_url, pubkey);
+        let endpoint = format!(
+            "{}/api/beacon/validator/{}/{}",
+            self.rpc_url, beacon_id, pubkey
+        );
+        println!("{}", endpoint);
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
-        let response: Response<GetBeaconValidator> = response.json().await?;
+        let response: CustomResponse<GetBeaconValidator> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets the balances root based on a beacon_id.
+    pub async fn get_balances_root(&self, beacon_id: String) -> Result<GetBeaconBalancesRoot> {
+        let endpoint = format!("{}/api/beacon/balance/{}", self.rpc_url, beacon_id);
+        println!("{}", endpoint);
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let response: CustomResponse<GetBeaconBalancesRoot> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
 
     /// Gets the balance of a validator based on a beacon_id and validator index.
-    pub async fn get_validator_balance(&self, _: String, validator_idx: u64) -> Result<U256> {
+    pub async fn get_validator_balance_v2(
+        &self,
+        beacon_id: String,
+        validator_idx: u64,
+    ) -> Result<GetBeaconValidatorBalance> {
         let endpoint = format!(
-            "{}/eth/v1/beacon/states/head/validator_balances?id={}",
-            self.rpc_url, validator_idx
+            "{}/api/beacon/balance/{}/{}",
+            self.rpc_url, beacon_id, validator_idx
         );
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
-        let response: Wrapper = response.json().await?;
+        let response: CustomResponse<GetBeaconValidatorBalance> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets the balance of a validator based on a beacon_id and validator pubkey.
+    pub async fn get_validator_balance_by_pubkey_v2(
+        &self,
+        beacon_id: String,
+        pubkey: String,
+    ) -> Result<GetBeaconValidatorBalance> {
+        let endpoint = format!(
+            "{}/api/beacon/balance/{}/{}",
+            self.rpc_url, beacon_id, pubkey
+        );
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let response: CustomResponse<GetBeaconValidatorBalance> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets the balance of a validator based on a beacon_id and validator index.
+    pub async fn get_validator_balance(
+        &self,
+        beacon_id: String,
+        validator_idx: u64,
+    ) -> Result<U256> {
+        let endpoint = format!(
+            "{}/eth/v1/beacon/states/{}/validator_balances?id={}",
+            self.rpc_url, beacon_id, validator_idx
+        );
+        let client = Client::new();
+        let response = client.get(endpoint).send().await?;
+        let response: BeaconResponse<BeaconValidatorBalance> = response.json().await?;
         let balance = response.data.data[0].balance.parse::<u64>()?;
         Ok(U256::from(balance))
     }
 
     /// Gets the balance of a validator based on a beacon_id and validator pubkey.
-    pub async fn get_validator_balance_by_pubkey(&self, _: String, pubkey: String) -> Result<U256> {
+    pub async fn get_validator_balance_by_pubkey(
+        &self,
+        beacon_id: String,
+        pubkey: String,
+    ) -> Result<U256> {
         let endpoint = format!(
-            "{}/eth/v1/beacon/states/head/validator_balances?id={}",
-            self.rpc_url, pubkey
+            "{}/eth/v1/beacon/states/{}/validator_balances?id={}",
+            self.rpc_url, beacon_id, pubkey
         );
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
-        let response: Wrapper = response.json().await?;
+        let response: BeaconResponse<BeaconValidatorBalance> = response.json().await?;
         let balance = response.data.data[0].balance.parse::<u64>()?;
         Ok(U256::from(balance))
     }
@@ -172,7 +291,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validators_root_by_slot() -> Result<()> {
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_validators_root(slot.to_string()).await?;
@@ -184,7 +303,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validators_root_by_block_root() -> Result<()> {
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
         let result = client.get_validators_root(block_root.to_string()).await?;
@@ -196,7 +315,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validator_by_slot() -> Result<()> {
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_validator(slot.to_string(), 0).await?;
@@ -208,7 +327,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validator_by_block_root() -> Result<()> {
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
         let result = client.get_validator(block_root.to_string(), 0).await?;
