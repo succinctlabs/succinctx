@@ -41,13 +41,17 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorsGenerator<F, 
             _phantom: Default::default(),
         }
     }
+
+    pub fn id() -> String {
+        "BeaconValidatorsGenerator".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for BeaconValidatorsGenerator<F, D>
 {
     fn id(&self) -> String {
-        "BeaconValidatorsGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {

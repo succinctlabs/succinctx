@@ -45,13 +45,17 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconHistoricalBlockGenerato
             _phantom: Default::default(),
         }
     }
+
+    pub fn id() -> String {
+        "BeaconHistoricalBlockGenerator".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for BeaconHistoricalBlockGenerator<F, D>
 {
     fn id(&self) -> String {
-        "BeaconHistoricalBlockGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {

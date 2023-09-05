@@ -420,9 +420,19 @@ pub struct BigUintDivRemGenerator<F: RichField + Extendable<D>, const D: usize> 
     _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> BigUintDivRemGenerator<F, D> {
+    pub fn id() -> String {
+        "BigUintDivRemGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for BigUintDivRemGenerator<F, D>
 {
+    fn id(&self) -> String {
+        Self::id()
+    }
+
     fn dependencies(&self) -> Vec<Target> {
         self.a
             .limbs
@@ -439,10 +449,6 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
         out_buffer.set_biguint_target(&self.div, &div);
         out_buffer.set_biguint_target(&self.rem, &rem);
-    }
-
-    fn id(&self) -> String {
-        "BigUintDivRemGenerator".to_string()
     }
 
     fn serialize(&self, dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {

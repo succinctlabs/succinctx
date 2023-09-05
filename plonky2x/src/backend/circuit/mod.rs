@@ -15,6 +15,7 @@ use plonky2::util::serialization::{
 };
 
 use self::io::{CircuitInput, CircuitOutput};
+use self::serialization::{GateRegistry, WitnessGeneratorRegistry};
 use crate::frontend::builder::io::{EvmIO, FieldIO};
 use crate::frontend::builder::CircuitIO;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
@@ -248,6 +249,29 @@ where
     ) -> IoResult<Self> {
         let path = format!("./build/{}.circuit", circuit_id);
         Self::load(&path, gate_serializer, generator_serializer)
+    }
+
+    pub fn test_default_serializers(&self) {
+        let gate_serializer = GateRegistry::<F, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<F, D>::new::<C>();
+        self.test_serializers(&gate_serializer, &generator_serializer);
+    }
+
+    pub fn test_serializers(
+        &self,
+        gate_serializer: &impl GateSerializer<F, D>,
+        generator_serializer: &impl WitnessGeneratorSerializer<F, D>,
+    ) {
+        let serialized_bytes = self
+            .serialize(gate_serializer, generator_serializer)
+            .unwrap();
+        let deserialized_circuit = Self::deserialize(
+            serialized_bytes.as_slice(),
+            gate_serializer,
+            generator_serializer,
+        )
+        .unwrap();
+        assert_eq!(self.data, deserialized_circuit.data);
     }
 }
 

@@ -26,11 +26,17 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
+impl<V: CircuitVariable> WatchGenerator<V> {
+    fn id() -> String {
+        "WatchGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGenerator<F, D>
     for WatchGenerator<V>
 {
     fn id(&self) -> String {
-        "WatchGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {

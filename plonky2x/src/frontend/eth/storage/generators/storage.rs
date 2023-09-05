@@ -145,13 +145,17 @@ impl<F: RichField + Extendable<D>, const D: usize> EthStorageKeyGenerator<F, D> 
             _phantom: PhantomData::<F>,
         }
     }
+
+    pub fn id() -> String {
+        "EthStorageKeyGenerator".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for EthStorageKeyGenerator<F, D>
 {
     fn id(&self) -> String {
-        "EthStorageKeyGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -224,11 +228,15 @@ impl<F: RichField + Extendable<D>, const D: usize> EthLogGenerator<F, D> {
             _phantom: PhantomData::<F>,
         }
     }
+
+    pub fn id() -> String {
+        "EthLogGenerator".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D> for EthLogGenerator<F, D> {
     fn id(&self) -> String {
-        "EthLogGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {

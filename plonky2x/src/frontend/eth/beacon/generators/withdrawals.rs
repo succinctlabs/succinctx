@@ -41,13 +41,17 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconWithdrawalsGenerator<F,
             _phantom: Default::default(),
         }
     }
+
+    pub fn id() -> String {
+        "BeaconWithdrawalsGenerator".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for BeaconWithdrawalsGenerator<F, D>
 {
     fn id(&self) -> String {
-        "BeaconWithdrawalsGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {
