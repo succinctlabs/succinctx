@@ -1,19 +1,21 @@
+mod array;
 mod boolean;
+mod buffer;
 mod byte;
 mod bytes;
 mod bytes32;
-
 mod variable;
-
 use std::fmt::Debug;
 
 pub use array::*;
 pub use boolean::*;
+pub use buffer::*;
 pub use byte::*;
 pub use bytes::*;
 pub use bytes32::*;
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
+use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
@@ -61,7 +63,9 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>);
 
     /// The number of field elements it takes to represent this variable.
-    fn nb_elements<F: RichField + Extendable<D>, const D: usize>() -> usize {
+    fn nb_elements() -> usize {
+        type F = GoldilocksField;
+        const D: usize = 2;
         let mut builder = CircuitBuilder::<F, D>::new();
         let variable = builder.init::<Self>();
         variable.variables().len()

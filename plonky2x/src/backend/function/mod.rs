@@ -13,6 +13,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig};
 
 use self::cli::{BuildArgs, ProveArgs};
+use super::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
 use crate::backend::circuit::Circuit;
 use crate::backend::function::cli::{Args, Commands};
 use crate::backend::function::io::{FunctionInput, FunctionOutput, FunctionOutputGroth16};
@@ -24,6 +25,19 @@ pub trait CircuitFunction {
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F> + 'static,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>;
+
+    fn generators<F, C, const D: usize>() -> WitnessGeneratorRegistry<F, D>
+    where
+        F: RichField + Extendable<D>,
+        C: GenericConfig<D, F = F> + 'static,
+        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+    {
+        WitnessGeneratorRegistry::new::<C>()
+    }
+
+    fn gates<F: RichField + Extendable<D>, const D: usize>() -> GateRegistry<F, D> {
+        GateRegistry::new()
+    }
 
     /// Builds the circuit and saves it to disk.
     fn compile<F, C, const D: usize>(args: BuildArgs)
@@ -39,7 +53,7 @@ pub trait CircuitFunction {
         info!("> Degree: {}", circuit.data.common.degree());
         info!("> Number of Gates: {}", circuit.data.common.gates.len());
         let path = format!("{}/main.circuit", args.build_dir);
-        circuit.save(&path);
+        circuit.save(&path, &Self::gates(), &Self::generators::<F, C, D>());
         info!("Successfully saved circuit to disk at {}.", path);
 
         info!("Building verifier contract...");
@@ -87,7 +101,9 @@ contract FunctionVerifier is IFunctionVerifier {
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let circuit = Circuit::<F, C, D>::load(&path).unwrap();
+        let circuit =
+            Circuit::<F, C, D>::load(&path, &Self::gates(), &Self::generators::<F, C, D>())
+                .unwrap();
         info!("Successfully loaded circuit.");
 
         let mut input = circuit.input();
@@ -137,7 +153,9 @@ contract FunctionVerifier is IFunctionVerifier {
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let circuit = Circuit::<F, C, D>::load(&path).unwrap();
+        let circuit =
+            Circuit::<F, C, D>::load(&path, &Self::gates(), &Self::generators::<F, C, D>())
+                .unwrap();
         info!("Successfully loaded circuit.");
 
         let mut input = circuit.input();
