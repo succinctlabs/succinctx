@@ -34,9 +34,13 @@ use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
 use plonky2::{get_gate_tag_impl, impl_gate_serializer, read_gate_impl};
 
+use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::eth::beacon::generators::balance::BeaconBalanceGenerator;
+use crate::frontend::eth::beacon::generators::balances::BeaconBalancesGenerator;
 use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
+use crate::frontend::eth::beacon::generators::withdrawal::BeaconWithdrawalGenerator;
+use crate::frontend::eth::beacon::generators::withdrawals::BeaconWithdrawalsGenerator;
 use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
@@ -162,7 +166,13 @@ where
         BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
         BeaconValidatorsGenerator<F, D>, "BeaconValidatorsGenerator",
         U32AddManyGenerator<F, D>, "U32AddManyGenerator",
-        XOR3Generator<F, D>, "XOR3Generator"
+        XOR3Generator<F, D>, "XOR3Generator",
+        BeaconBalanceGenerator<F, D>, "BeaconBalanceGenerator",
+        BeaconBalancesGenerator<F, D>, "BeaconBalancesGenerator",
+        BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
+        BeaconValidatorsGenerator<F, D>, "BeaconValidatorsGenerator",
+        BeaconWithdrawalGenerator<F, D>, "BeaconWithdrawalGenerator",
+        BeaconWithdrawalsGenerator<F, D>, "BeaconWithdrawalsGenerator",
     }
 }
 
