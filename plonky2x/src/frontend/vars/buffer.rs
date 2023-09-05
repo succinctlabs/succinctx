@@ -1,5 +1,5 @@
 use super::Variable;
-struct VariableBuffer {
+pub struct VariableBuffer {
     variables: Vec<Variable>,
     position: usize,
 }

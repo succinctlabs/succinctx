@@ -66,11 +66,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitOutput<F, D> {
     /// Reads a value from the public circuit output using field-based serialization.
     pub fn read<V: CircuitVariable>(&self) -> V::ValueType<F> {
         self.io.field.as_ref().expect("field io is not enabled");
-        let elements = self
-            .buffer
-            .iter()
-            .take(V::nb_elements::<F, D>())
-            .collect_vec();
+        let elements = self.buffer.iter().take(V::nb_elements()).collect_vec();
         V::from_elements(elements.into_iter().copied().collect_vec().as_slice())
     }
 

@@ -55,12 +55,16 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        assert_eq!(variables.len(), N * V::nb_elements::<F, D>());
-        let res = Vec::new();
-
-        Self {
-            elements: variables.chunks(N).map(|x| V::from_variables(x)).collect(),
+        assert_eq!(variables.len(), N * V::nb_elements());
+        let mut res = Vec::new();
+        for i in 0..N {
+            let start = i * V::nb_elements();
+            let end = (i + 1) * V::nb_elements();
+            let slice = &variables[start..end];
+            res.push(V::from_variables(slice));
         }
+
+        Self { elements: res }
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
