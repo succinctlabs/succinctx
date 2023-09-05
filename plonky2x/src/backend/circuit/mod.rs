@@ -164,8 +164,6 @@ where
                     .collect_vec()
                     .as_slice(),
             )?;
-        } else {
-            todo!()
         }
 
         Ok(buffer)
