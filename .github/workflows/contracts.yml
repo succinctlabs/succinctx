@@ -15,7 +15,7 @@ on:
 jobs:
   format:
     name: Format
-    runs-on: ubuntu-latest
+    runs-on: chad 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3

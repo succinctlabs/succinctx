@@ -1,4 +1,6 @@
 use std::sync::Once;
+pub mod eth;
+pub mod lido;
 
 use log::LevelFilter;
 
@@ -6,12 +8,10 @@ pub macro bytes32($hex_literal:expr) {
     $hex_literal.parse::<ethers::types::H256>().unwrap()
 }
 
-#[macro_export]
 pub macro address($hex_literal:expr) {
     $hex_literal.parse::<ethers::types::Address>().unwrap()
 }
 
-#[macro_export]
 pub macro bytes($hex_literal:expr) {{
     let hex_string = $hex_literal;
     let stripped = if let Some(stripped) = hex_string.strip_prefix("0x") {
@@ -29,7 +29,6 @@ pub macro bytes($hex_literal:expr) {{
         ))
 }}
 
-#[macro_export]
 pub macro hex($bytes:expr) {{
     let bytes = $bytes;
     let mut hex_string = String::from("0x");

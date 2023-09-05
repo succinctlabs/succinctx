@@ -1,4 +1,6 @@
-# sdk
+# succinctx
+
+The schelling point for ZK applications.
 
 ## Installing
 
