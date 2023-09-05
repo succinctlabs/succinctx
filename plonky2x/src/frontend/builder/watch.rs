@@ -18,11 +18,11 @@ pub struct WatchGenerator<V: CircuitVariable> {
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn watch<V: CircuitVariable>(&mut self, variable: &V, log: &str) {
-        let variable = variable.clone();
-        let log = String::from(log);
+        // let variable = variable.clone();
+        // let log = String::from(log);
 
-        let generator = WatchGenerator { variable, log };
-        self.add_simple_generator(&generator);
+        // let generator = WatchGenerator { variable, log };
+        // self.add_simple_generator(&generator);
     }
 }
 

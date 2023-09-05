@@ -172,16 +172,13 @@ where
     }
 
     pub fn deserialize(buffer: &[u8]) -> IoResult<Self> {
-        println!("1");
         // Setup serializers.
         let (gate_serializer, generator_serializer) = Self::serializers();
 
         // Setup buffer.
-        println!("2");
         let mut buffer = Buffer::new(buffer);
 
         // Read circuit data from bytes.
-        println!("3");
         let circuit_bytes_len = buffer.read_usize()?;
         let mut circuit_bytes = vec![0u8; circuit_bytes_len];
         buffer.read_exact(circuit_bytes.as_mut_slice())?;
@@ -191,13 +188,11 @@ where
             &generator_serializer,
         )?;
 
-        println!("4");
         let mut circuit = Circuit {
             data,
             io: CircuitIO::new(),
         };
 
-        println!("5");
         let io_type = buffer.read_usize()?;
         if io_type == 0 {
             let input_targets = buffer.read_target_vec()?;
