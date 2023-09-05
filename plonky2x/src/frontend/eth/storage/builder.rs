@@ -3,15 +3,7 @@ use plonky2::hash::hash_types::RichField;
 
 use super::generators::block::EthBlockGenerator;
 use super::generators::storage::{
-<<<<<<< HEAD
-<<<<<<< HEAD
     EthAccountProofGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
-=======
-    EthAccountProofGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
->>>>>>> 7bbb677 (chore: cargo fmt)
-=======
-    EthAccountProofGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
->>>>>>> a4c5c7e (chore: cargo fmt)
 };
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::frontend::builder::CircuitBuilder;
@@ -83,11 +75,7 @@ mod tests {
 
     use super::*;
     use crate::frontend::eth::storage::utils::get_map_storage_location;
-<<<<<<< HEAD
     use crate::frontend::eth::storage::vars::{EthAccount, EthHeader, EthLog};
-=======
-    use crate::frontend::eth::storage::vars::{EthAccount, EthHeader};
->>>>>>> 7bbb677 (chore: cargo fmt)
     use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
 
