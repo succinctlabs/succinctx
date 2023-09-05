@@ -327,9 +327,6 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
             SimpleGenerator::<F, D>::id(&RandomValueGenerator::default());
         r.register_simple::<RandomValueGenerator>(random_value_generator_id);
 
-        let arithmetic_base_generator_id = ArithmeticBaseGenerator::<F, D>::default().id();
-        r.register_simple::<ArithmeticBaseGenerator<F, D>>(arithmetic_base_generator_id);
-
         let arithmetic_extension_generator_id =
             SimpleGenerator::<F, D>::id(&ArithmeticExtensionGenerator::<F, D>::default());
         r.register_simple::<ArithmeticExtensionGenerator<F, D>>(arithmetic_extension_generator_id);
