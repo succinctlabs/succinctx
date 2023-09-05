@@ -1,11 +1,10 @@
-use log::{log, Level};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{IoResult, Read, Write};
+use plonky2::util::serialization::IoResult;
 
 use super::CircuitBuilder;
 use crate::prelude::CircuitVariable;
@@ -51,6 +50,7 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
             .collect::<Vec<Target>>()
     }
 
+    #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
         todo!();
         // let log_bytes = self.log.as_bytes();
@@ -64,6 +64,7 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
         // dst.write_usize(0) // This is just to get the return type right
     }
 
+    #[allow(unused_variables)]
     fn deserialize(
         src: &mut plonky2::util::serialization::Buffer,
         _common_data: &CommonCircuitData<F, D>,
