@@ -20,6 +20,27 @@ use crate::frontend::vars::{
 };
 use crate::prelude::BytesVariable;
 
+/// The gindex for blockRoot -> validatorsRoot.
+const VALIDATORS_ROOT_GINDEX: u64 = 363;
+
+/// The gindex for blockRoot -> balancesRoot.
+const BALANCES_ROOT_GINDEX: u64 = 364;
+
+/// The gindex for blockRoot -> withdrawalsRoot.
+const WITHDRAWALS_ROOT_GINDEX: u64 = 3230;
+
+/// The gindex for validatorsRoot -> validators[i].
+const VALIDATOR_BASE_GINDEX: u64 = 1099511627776 * 2;
+
+/// The gindex for balancesRoot -> balances[i].
+const BALANCE_BASE_GINDEX: u64 = 549755813888;
+
+/// The gindex for withdrawalsRoot -> withdrawals[i].
+const WITHDRAWAL_BASE_GINDEX: u64 = 32;
+
+/// The gindex for blockRoot -> historicalBlockSummaries[i].
+const HISTORICAL_BLOCK_SUMMARIES_BASE_GINDEX: u64 = 25434259456;
+
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     /// Get the validators for a given block root.
     pub fn beacon_get_validators(
@@ -29,12 +50,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let generator =
             BeaconValidatorsGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
         self.add_simple_generator(&generator);
-        let gindex = 363u64;
         self.ssz_verify_proof_const(
             block_root,
             generator.validators_root,
             &generator.proof,
-            gindex,
+            VALIDATORS_ROOT_GINDEX,
         );
         BeaconValidatorsVariable {
             block_root,
@@ -52,7 +72,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             BeaconValidatorGenerator::new_with_index_variable(self, validators.block_root, index);
         self.add_simple_generator(&generator);
         let validator_root = self.ssz_hash_tree_root(generator.validator);
-        let mut gindex = self.constant::<U64Variable>((1099511627776u64 * 2).into());
+        let mut gindex = self.constant::<U64Variable>(VALIDATOR_BASE_GINDEX.into());
         gindex = self.add(gindex, index);
         self.ssz_verify_proof(
             validators.validators_root,
@@ -73,7 +93,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             BeaconValidatorGenerator::new_with_index_const(self, validators.block_root, index);
         self.add_simple_generator(&generator);
         let validator_root = self.ssz_hash_tree_root(generator.validator);
-        let gindex = 1099511627776 * 2 + index;
+        let gindex = VALIDATOR_BASE_GINDEX + index;
         self.ssz_verify_proof_const(
             validators.validators_root,
             validator_root,
@@ -94,7 +114,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             BeaconValidatorGenerator::new_with_pubkey_variable(self, validators.block_root, pubkey);
         self.add_simple_generator(&generator);
         let validator_root = self.ssz_hash_tree_root(generator.validator);
-        let mut gindex = self.constant::<U64Variable>((1099511627776u64 * 2).into());
+        let mut gindex = self.constant::<U64Variable>(VALIDATOR_BASE_GINDEX.into());
         gindex = self.add(gindex, generator.validator_idx);
         self.ssz_verify_proof(
             validators.validators_root,
@@ -111,12 +131,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let generator =
             BeaconBalancesGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
         self.add_simple_generator(&generator);
-        let gindex = 364u64;
         self.ssz_verify_proof_const(
             block_root,
             generator.balances_root,
             &generator.proof,
-            gindex,
+            BALANCES_ROOT_GINDEX,
         );
         BeaconBalancesVariable {
             block_root,
@@ -133,7 +152,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let generator =
             BeaconBalanceGenerator::new_with_index_variable(self, balances.block_root, index);
         self.add_simple_generator(&generator);
-        let mut gindex = self.constant::<U64Variable>((549755813888u64).into());
+        let mut gindex = self.constant::<U64Variable>(BALANCE_BASE_GINDEX.into());
         let four = self.constant::<U64Variable>(4.into());
 
         let offset = self.div(index, four);
@@ -174,12 +193,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let generator =
             BeaconWithdrawalsGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
         self.add_simple_generator(&generator);
-        let gindex = 3230;
         self.ssz_verify_proof_const(
             block_root,
             generator.withdrawals_root,
             &generator.proof,
-            gindex,
+            WITHDRAWALS_ROOT_GINDEX,
         );
         BeaconWithdrawalsVariable {
             block_root,
@@ -200,7 +218,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             idx,
         );
         self.add_simple_generator(&generator);
-        let mut gindex = self.constant::<U64Variable>(32.into());
+        let mut gindex = self.constant::<U64Variable>(WITHDRAWAL_BASE_GINDEX.into());
         gindex = self.add(gindex, idx);
         let leaf = self.ssz_hash_tree_root(generator.withdrawal.clone());
         self.ssz_verify_proof(withdrawals.withdrawals_root, leaf, &generator.proof, gindex);
@@ -220,7 +238,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             offset,
         );
         self.add_simple_generator(&generator);
-        let mut gindex = self.constant::<U64Variable>(25434259456u64.into());
+        let mut gindex =
+            self.constant::<U64Variable>(HISTORICAL_BLOCK_SUMMARIES_BASE_GINDEX.into());
         gindex = self.add(gindex, offset);
         self.ssz_verify_proof(
             block_root,
@@ -239,8 +258,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         branch: &[Bytes32Variable],
         gindex: U64Variable,
     ) {
-        // let expected_root = self.ssz_restore_merkle_root(leaf, branch, gindex);
-        // self.assert_is_equal(root, expected_root);
+        let expected_root = self.ssz_restore_merkle_root(leaf, branch, gindex);
+        self.assert_is_equal(root, expected_root);
     }
 
     /// Verify a simple serialize (ssz) merkle proof with a constant index.
@@ -251,8 +270,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         branch: &[Bytes32Variable],
         gindex: u64,
     ) {
-        // let expected_root = self.ssz_restore_merkle_root_const(leaf, branch, gindex);
-        // self.assert_is_equal(root, expected_root);
+        let expected_root = self.ssz_restore_merkle_root_const(leaf, branch, gindex);
+        self.assert_is_equal(root, expected_root);
     }
 
     /// Computes the expected merkle root given a leaf, branch, and dynamic index.
