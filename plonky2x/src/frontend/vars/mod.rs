@@ -1,12 +1,12 @@
+mod array;
 mod boolean;
 mod byte;
 mod bytes;
 mod bytes32;
-
 mod variable;
-
 use std::fmt::Debug;
 
+pub use array::*;
 pub use boolean::*;
 pub use byte::*;
 pub use bytes::*;
