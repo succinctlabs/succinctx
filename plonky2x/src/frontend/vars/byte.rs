@@ -100,34 +100,18 @@ impl ByteVariable {
         bits.reverse();
         bits
     }
-}
 
-impl<F: RichField + Extendable<D>, const D: usize> PartialEq<F, D> for ByteVariable {
-    fn eq(self, rhs: ByteVariable, builder: &mut CircuitBuilder<F, D>) -> BoolVariable {
-        let mut result = builder.constant::<BoolVariable>(true);
-        for i in 0..8 {
-            let lhs_byte = self.0[i];
-            let rhs_byte = rhs.0[i];
-            let byte_eq = builder.eq(lhs_byte, rhs_byte);
-            result = builder.and(result, byte_eq);
-        }
-        result
+    pub fn as_bool_targets(&self) -> [BoolTarget; 8] {
+        self.0
+            .iter()
+            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.0 .0))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
     }
-}
 
-impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for ByteVariable {
-    type Output = Self;
-
-    fn sub(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        let output = builder.init::<ByteVariable>();
-        let generator = ByteSubGenerator {
-            lhs: self,
-            rhs,
-            output,
-            _phantom: std::marker::PhantomData::<F>,
-        };
-        builder.add_simple_generator(&generator);
-        output
+    pub fn to_variable(&self) -> Variable {
+        todo!();
     }
 }
 
@@ -227,17 +211,6 @@ impl<F: RichField + Extendable<D>, const D: usize> RotateRight<F, D, usize> for 
 impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for ByteVariable {
     fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
         ByteVariable(array![_ => builder.constant(false); 8])
-    }
-}
-
-impl ByteVariable {
-    pub fn as_bool_targets(&self) -> [BoolTarget; 8] {
-        self.0
-            .iter()
-            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.0 .0))
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap()
     }
 }
 
