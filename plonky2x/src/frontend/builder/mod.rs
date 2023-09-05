@@ -14,7 +14,7 @@ use plonky2::iop::generator::SimpleGenerator;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as _CircuitBuilder;
 use plonky2::plonk::circuit_data::CircuitConfig;
-use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
@@ -81,7 +81,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Build the circuit.
-    pub fn build<C: GenericConfig<D, F = F>>(mut self) -> Circuit<F, C, D> {
+    pub fn build<C>(mut self) -> Circuit<F, C, D>
+    where
+        C: GenericConfig<D, F = F> + 'static,
+        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+    {
         if self.io.evm.is_some() {
             let io = self.io.evm.as_ref().unwrap();
             let inputs: Vec<Target> = io.input_bytes.iter().flat_map(|b| b.targets()).collect();
@@ -97,7 +101,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         }
 
         let data = self.api.build();
-        Circuit { data, io: self.io }
+        let mut circuit = Circuit { data, io: self.io };
+        circuit.save(&format!("/tmp/{}.circuit", circuit.id()));
+        circuit = Circuit::<F, C, D>::load(&format!("/tmp/{}.circuit", circuit.id())).unwrap();
+        circuit
     }
 
     /// Add simple generator.
