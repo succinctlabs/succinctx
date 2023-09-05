@@ -1,4 +1,5 @@
 use core::any::{Any, TypeId};
+use core::fmt::Debug;
 use core::hash::Hash;
 use core::marker::PhantomData;
 use std::collections::HashMap;
@@ -10,13 +11,20 @@ use plonky2::gadgets::split_base::BaseSumGenerator;
 use plonky2::gates::arithmetic_base::{ArithmeticBaseGenerator, ArithmeticGate};
 use plonky2::gates::arithmetic_extension::{ArithmeticExtensionGate, ArithmeticExtensionGenerator};
 use plonky2::gates::base_sum::{BaseSplitGenerator, BaseSumGate};
-use plonky2::gates::coset_interpolation::InterpolationGenerator;
-use plonky2::gates::exponentiation::ExponentiationGenerator;
+use plonky2::gates::constant::ConstantGate;
+use plonky2::gates::coset_interpolation::{CosetInterpolationGate, InterpolationGenerator};
+use plonky2::gates::exponentiation::{ExponentiationGate, ExponentiationGenerator};
 use plonky2::gates::gate::{AnyGate, Gate, GateRef};
-use plonky2::gates::lookup::LookupGenerator;
-use plonky2::gates::lookup_table::LookupTableGenerator;
-use plonky2::gates::poseidon::PoseidonGenerator;
-use plonky2::gates::poseidon_mds::PoseidonMdsGenerator;
+use plonky2::gates::lookup::{LookupGate, LookupGenerator};
+use plonky2::gates::lookup_table::{LookupTableGate, LookupTableGenerator};
+use plonky2::gates::multiplication_extension::MulExtensionGate;
+use plonky2::gates::noop::NoopGate;
+use plonky2::gates::poseidon::{PoseidonGate, PoseidonGenerator};
+use plonky2::gates::poseidon_mds::{PoseidonMdsGate, PoseidonMdsGenerator};
+use plonky2::gates::public_input::PublicInputGate;
+use plonky2::gates::random_access::RandomAccessGate;
+use plonky2::gates::reducing::ReducingGate;
+use plonky2::gates::reducing_extension::ReducingExtensionGate;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{
     ConstantGenerator, CopyGenerator, RandomValueGenerator, SimpleGenerator,
@@ -29,14 +37,26 @@ use plonky2::util::serialization::{
     Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
 };
 
+use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGate;
+
+/// A registry to store serializers for witness generators.
+/// 
+/// New witness generators can be added to the registry by calling the `register` method,
+/// specifying the type and the generator's id.
+#[derive(Debug)]
 pub struct WitnessGeneratorRegistry<F: RichField + Extendable<D>, const D: usize>(
     SerializationRegistry<String, F, WitnessGeneratorRef<F, D>, D>,
 );
 
+/// A registry to store serializers for gates.
+/// 
+/// New gates can be added to the registry by calling the `register` method. 
+#[derive(Debug)]
 pub struct GateRegistry<F: RichField + Extendable<D>, const D: usize>(
     SerializationRegistry<TypeId, F, GateRef<F, D>, D>,
 );
 
+/// A trait for serializing and deserializing objects compatible with plonky2 traits. 
 pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize> {
     fn read(&self, buf: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<T>;
     fn write(
@@ -47,11 +67,25 @@ pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize> {
     ) -> IoResult<()>;
 }
 
+/// A registry for storing serializers for objects.
 pub(crate) struct SerializationRegistry<K: Hash, F: RichField + Extendable<D>, T, const D: usize> {
     registry: HashMap<K, Box<dyn Serializer<F, T, D>>>,
     index: HashMap<K, usize>,
     type_ids: Vec<K>,
     current_index: usize,
+}
+
+impl<K: Hash + Debug, F: RichField + Extendable<D>, T: Debug, const D: usize> Debug
+    for SerializationRegistry<K, F, T, D>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SerializationRegistry")
+            .field("ids of registered objects", &self.registry.keys())
+            .field("index", &self.index)
+            .field("type_ids", &self.type_ids)
+            .field("current_index", &self.current_index)
+            .finish()
+    }
 }
 
 impl<F: RichField + Extendable<D>, K: Hash, T: Any, const D: usize>
@@ -70,14 +104,8 @@ impl<F: RichField + Extendable<D>, K: Hash, T: Any, const D: usize>
 #[derive(Debug, Clone)]
 pub struct WitnessGeneratorSerializerFn<W>(PhantomData<W>);
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GateSerializerFn<G>(PhantomData<G>);
-
-pub trait AnyWitnessGenerator<F: RichField + Extendable<D>, const D: usize>:
-    WitnessGenerator<F, D>
-{
-    fn as_any_generator(&self) -> &dyn Any;
-}
 
 impl<F: RichField + Extendable<D>, W: WitnessGenerator<F, D>, const D: usize>
     Serializer<F, WitnessGeneratorRef<F, D>, D> for WitnessGeneratorSerializerFn<W>
@@ -124,6 +152,8 @@ impl<F: RichField + Extendable<D>, G: AnyGate<F, D>, const D: usize> Serializer<
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D> {
+
+    /// Registers a new witness generator with the given id.
     pub fn register<W: WitnessGenerator<F, D>>(&mut self, id: String) {
         let exists = self.0.registry.insert(
             id.clone(),
@@ -139,12 +169,15 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
         self.0.current_index += 1;
     }
 
+    /// Registers a new simple witness generator with the given id.
     pub fn register_simple_generator<SG: SimpleGenerator<F, D>>(&mut self, id: String) {
         self.register::<SimpleGeneratorAdapter<F, SG, D>>(id)
     }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
+
+    /// Registers a new gate.
     pub fn register<G: AnyGate<F, D>>(&mut self) {
         let type_id = TypeId::of::<G>();
         let exists = self
@@ -187,11 +220,6 @@ where
         generator: &WitnessGeneratorRef<F, D>,
         common_data: &CommonCircuitData<F, D>,
     ) -> IoResult<()> {
-        // let type_id = TypeId::of::<SimpleGeneratorAdapter<F, ConstantGenerator<F>, D>>();//Any::type_id(&(*generator.0));
-        // assert_eq!(type_id, TypeId::of::<Box<ConstantGenerator<F>>>());
-        // for type_id in self.0.index.keys() {
-        //     Any::downcast_ref::<SimpleGeneratorAdapter<F, ConstantGenerator<F>, D>>(&generator.0);
-        // }
         let type_id = generator.0.id();
         let idx = self
             .0
@@ -320,6 +348,20 @@ impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
         registry.register::<ArithmeticGate>();
         registry.register::<ArithmeticExtensionGate<D>>();
         registry.register::<BaseSumGate<2>>();
+        registry.register::<ConstantGate>();
+        registry.register::<CosetInterpolationGate<F, D>>();
+        registry.register::<ExponentiationGate<F, D>>();
+        registry.register::<LookupGate>();
+        registry.register::<LookupTableGate>();
+        registry.register::<MulExtensionGate<D>>();
+        registry.register::<NoopGate>();
+        registry.register::<PoseidonMdsGate<F, D>>();
+        registry.register::<PoseidonGate<F, D>>();
+        registry.register::<PublicInputGate>();
+        registry.register::<RandomAccessGate<F, D>>();
+        registry.register::<ReducingExtensionGate<D>>();
+        registry.register::<ReducingGate<D>>();
+        registry.register::<U32AddManyGate<F, D>>();
 
         registry
     }
@@ -350,7 +392,7 @@ mod tests {
             .write_generator(&mut bytes, &raw_generator, &common_data)
             .unwrap();
 
-        let mut buffer = Buffer::new(& bytes);
+        let mut buffer = Buffer::new(&bytes);
 
         let read_generator = registry.read_generator(&mut buffer, &common_data).unwrap();
         assert_eq!(raw_generator, read_generator);

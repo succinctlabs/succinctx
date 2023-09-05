@@ -1,6 +1,4 @@
 mod boolean;
-mod gates;
-mod generators;
 pub mod io;
 mod proof;
 pub mod watch;
