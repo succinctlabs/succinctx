@@ -72,6 +72,7 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+        assert_eq!(value.len(), N);
         for (element, value) in self.elements.iter().zip(value) {
             element.set(witness, value);
         }

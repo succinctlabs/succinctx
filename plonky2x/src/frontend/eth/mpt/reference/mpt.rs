@@ -184,17 +184,19 @@ pub fn verified_get<const L: usize, const M: usize, const P: usize>(
         }
         println!("Round {} current_node {:?}", i, current_node);
         println!("Round {} len_nodes[i] {:?}", i, len_nodes[i]);
+
+        let finish_bool = finish == 1;
         let (decoded, decoded_lens, witness_list_len) = decode_element_as_list::<M, L, MAX_NODE_SIZE>(
             &current_node,
             len_nodes[i] as usize,
-            finish,
+            finish_bool,
         );
         // TODO: verify_decoded_list(witness_decoded_list, witness_decoded_lens, current_node, witness_list_len, len_nodes[i]);
         println!("Round {} decoded_list_len {:?}", i, witness_list_len);
         println!("Round {} decoded_element_lens {:?}", i, decoded_lens);
 
-        let is_branch = is_eq(witness_list_len, BRANCH_NODE_LENGTH);
-        let is_leaf = is_eq(witness_list_len, LEAF_OR_EXTENSION_NODE_LENGTH);
+        let is_branch = is_eq(witness_list_len as u8, BRANCH_NODE_LENGTH);
+        let is_leaf = is_eq(witness_list_len as u8, LEAF_OR_EXTENSION_NODE_LENGTH);
         let key_terminated = is_eq(current_key_idx as u8, 64);
         let path = to_nibbles(&decoded[0]);
         let prefix = path[0];
@@ -272,6 +274,9 @@ pub fn verified_get<const L: usize, const M: usize, const P: usize>(
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+    use std::io::Read;
+
     use ethers::providers::{Http, Middleware, Provider};
     use ethers::types::{Bytes, EIP1186ProofResponse};
     use ethers::utils::keccak256;
