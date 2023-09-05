@@ -78,7 +78,7 @@ impl EvmVariable for U32Variable {
 
         let target = builder
             .api
-            .le_sum(bits.into_iter().rev().map(BoolTarget::new_unsafe));
+            .le_sum(bits.into_iter().map(BoolTarget::new_unsafe));
         Self(Variable(target))
     }
 
@@ -184,12 +184,12 @@ mod tests {
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
+    type F = GoldilocksField;
+    type C = PoseidonGoldilocksConfig;
+    const D: usize = 2;
+
     #[test]
     fn test_u32_evm() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
         let mut builder = CircuitBuilder::<F, D>::new();
 
         let var = U32Variable::constant(&mut builder, 0x12345678);
@@ -210,15 +210,12 @@ mod tests {
 
         let circuit = builder.build::<C>();
         let pw = PartialWitness::new();
-
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
     }
 
     #[test]
     fn test_u32_evm_value() {
-        type F = GoldilocksField;
-
         let val = 0x12345678_u32;
         let encoded = U32Variable::encode_value::<F>(val);
         let decoded = U32Variable::decode_value::<F>(&encoded);
@@ -231,10 +228,6 @@ mod tests {
 
     #[test]
     fn test_u32_add() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
         let mut builder = CircuitBuilder::<F, D>::new();
 
         let mut rng = rand::thread_rng();
@@ -259,10 +252,6 @@ mod tests {
 
     #[test]
     fn test_u32_sub() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
         let mut builder = CircuitBuilder::<F, D>::new();
 
         let mut rng = rand::thread_rng();
@@ -286,10 +275,6 @@ mod tests {
 
     #[test]
     fn test_u32_mul() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
         let mut builder = CircuitBuilder::<F, D>::new();
 
         let mut rng = rand::thread_rng();

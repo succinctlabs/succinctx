@@ -9,7 +9,9 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, SSZVariable};
+use crate::frontend::vars::{
+    ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable,
+};
 use crate::prelude::BytesVariable;
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
@@ -144,34 +146,20 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             BytesVariable::<16>(generator.balance_leaf.0 .0[..16].try_into().unwrap());
         let second_half: BytesVariable<16> =
             BytesVariable::<16>(generator.balance_leaf.0 .0[16..].try_into().unwrap());
-        let half = self.select(bits[0], first_half, second_half);
+        let half = self.select(bits[0], second_half, first_half);
         let first_quarter: BytesVariable<8> = BytesVariable::<8>(half.0[..8].try_into().unwrap());
         let second_quarter: BytesVariable<8> = BytesVariable::<8>(half.0[8..].try_into().unwrap());
-        let quarter = self.select(bits[1], first_quarter, second_quarter);
+        let quarter = self.select(bits[1], second_quarter, first_quarter);
 
         self.watch(&quarter, "quarter");
         self.watch(&generator.balance, "balance");
 
-        let balance_bits_le = self.to_le_bits(generator.balance);
-        let quarter_bits_le = self.to_le_bits(quarter);
-        for i in 0..64 {
-            self.watch(&balance_bits_le[i], &format!("balance_bits_le_{}", i));
-            self.watch(&quarter_bits_le[i], &format!("quarter_bits_le_{}", i));
-            self.assert_is_equal(balance_bits_le[i], quarter_bits_le[i]);
+        let balance_bytes = generator.balance.encode(self);
+        let quarter_bytes = quarter.0;
+        for i in 0..8 {
+            self.assert_is_equal(balance_bytes[7 - i], quarter_bytes[i]);
         }
 
-        generator.balance
-    }
-
-    /// Get a validator balance from a pubkey.
-    pub fn beacon_get_balance_by_pubkey(
-        &mut self,
-        balances: BeaconBalancesVariable,
-        pubkey: BLSPubkeyVariable,
-    ) -> U64Variable {
-        let generator =
-            BeaconBalanceGenerator::new_with_pubkey_variable(self, balances.block_root, pubkey);
-        self.add_simple_generator(&generator);
         generator.balance
     }
 
@@ -419,33 +407,6 @@ pub(crate) mod tests {
         let balances = builder.beacon_get_balances(block_root);
         let index = builder.constant::<U64Variable>(0.into());
         let balance = builder.beacon_get_balance(balances, index);
-        builder.watch(&balance, "balance");
-
-        let circuit = builder.build::<C>();
-        let input = circuit.input();
-        let (proof, output) = circuit.prove(&input);
-        circuit.verify(&proof, &input, &output);
-    }
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_balance_by_pubkey() {
-        env_logger::try_init().unwrap();
-        dotenv::dotenv().ok();
-
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
-        let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
-
-        let mut builder = CircuitBuilder::<F, D>::new();
-        builder.set_beacon_client(client);
-
-        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
-        let pubkey = builder.constant::<BLSPubkeyVariable>(bytes!(
-            "0x933ad9491b62059dd065b560d256d8957a8c402cc6e8d8ee7290ae11e8f7329267a8811c397529dac52ae1342ba58c95"
-        ));
-        let balances = builder.beacon_get_balances(block_root);
-        let balance = builder.beacon_get_balance_by_pubkey(balances, pubkey);
         builder.watch(&balance, "balance");
 
         let circuit = builder.build::<C>();

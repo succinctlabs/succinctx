@@ -189,7 +189,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_validator_hash_tree_root_1() {
-        env_logger::init();
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();
@@ -218,7 +218,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_validator_hash_tree_root_2() {
-        env_logger::init();
+        env_logger::try_init().unwrap();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();
