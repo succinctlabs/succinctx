@@ -19,7 +19,7 @@
         100
     ],
     "[rust]": {
-        "editor.defaultFormatter": "rust-lang.rust-analyzer", // Makes the magic
+        "editor.defaultFormatter": "rust-lang.rust-analyzer",
         "editor.formatOnSave": true,
         "editor.inlayHints.enabled": "offUnlessPressed"
     },
