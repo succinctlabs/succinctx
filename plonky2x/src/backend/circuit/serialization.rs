@@ -287,13 +287,13 @@ where
             .0
             .index
             .get(&type_id)
-            .expect("Gate type not registered");
+            .unwrap_or_else(|| panic!("Gate type not registered {:?}", type_id));
         buf.write_usize(*idx)?;
 
         self.0
             .registry
             .get(&type_id)
-            .expect("Gate type not registered")
+            .unwrap_or_else(|| panic!("Gate type not registered {:?}", type_id))
             .write(buf, gate, common_data)?;
         Ok(())
     }
