@@ -41,7 +41,7 @@ use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
-use crate::frontend::hash::bit_operations::XOR3Gate;
+use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 
@@ -162,6 +162,7 @@ where
         BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
         BeaconValidatorsGenerator<F, D>, "BeaconValidatorsGenerator",
         U32AddManyGenerator<F, D>, "U32AddManyGenerator",
+        XOR3Generator<F, D>, "XOR3Generator"
     }
 }
 
