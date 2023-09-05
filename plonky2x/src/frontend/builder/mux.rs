@@ -1,27 +1,24 @@
-use plonky2::field::extension::Extendable;
+use plonky2::{field::extension::Extendable, iop::target::BoolTarget};
 use plonky2::hash::hash_types::RichField;
 
 use crate::prelude::{CircuitBuilder, CircuitVariable, Variable};
 
-trait MuxBuilder {
-    fn select_index<T: CircuitVariable>(&mut self, selector: Variable, inputs: &[T]) -> T;
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> MuxBuilder for CircuitBuilder<F, D> {
-    fn select_index<T: CircuitVariable>(&mut self, selector: Variable, inputs: &[T]) -> T {
+impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+    pub fn select_index<T: CircuitVariable>(&mut self, selector: Variable, inputs: &[T]) -> T {
+        // Serialized variables for the circuit variable.
         let num_var_in_t = inputs[0].variables().len();
         let input_len = inputs.len();
 
         let mut res = inputs[0].variables();
-        let api = &mut self.api;
 
         for i in 0..input_len {
-            let target_i = api.constant(F::from_canonical_usize(i));
-            let whether_select = api.is_equal(target_i, selector.0);
+            let target_i = self.constant::<Variable>(F::from_canonical_usize(i));
+            let diff = self.sub(target_i, selector);
+            let whether_select = self.is_zero(diff);
 
             let vars = inputs[i].variables();
             for j in 0..num_var_in_t {
-                res[j] = Variable(api.select(whether_select, vars[j].0, res[j].0));
+                res[j] = Variable(self.api.select(BoolTarget::new_unsafe(whether_select.0.0), vars[j].0, res[j].0));
             }
         }
 
@@ -38,7 +35,6 @@ mod test {
     use rand::rngs::OsRng;
     use rand::Rng;
 
-    use crate::frontend::builder::mux::MuxBuilder;
     use crate::frontend::vars::U256Variable;
     use crate::prelude::{CircuitBuilder, CircuitVariable, GoldilocksField, Variable};
 
