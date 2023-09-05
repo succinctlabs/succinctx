@@ -34,9 +34,9 @@ use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
 use plonky2::{get_gate_tag_impl, impl_gate_serializer, read_gate_impl};
 
-use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::eth::beacon::generators::balance::BeaconBalanceGenerator;
 use crate::frontend::eth::beacon::generators::balances::BeaconBalancesGenerator;
+use crate::frontend::eth::beacon::generators::historical::BeaconHistoricalBlockGenerator;
 use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
 use crate::frontend::eth::beacon::generators::withdrawal::BeaconWithdrawalGenerator;
@@ -173,6 +173,7 @@ where
         BeaconValidatorsGenerator<F, D>, "BeaconValidatorsGenerator",
         BeaconWithdrawalGenerator<F, D>, "BeaconWithdrawalGenerator",
         BeaconWithdrawalsGenerator<F, D>, "BeaconWithdrawalsGenerator",
+        BeaconHistoricalBlockGenerator<F, D>, "BeaconHistoricalBlockGenerator",
     }
 }
 
