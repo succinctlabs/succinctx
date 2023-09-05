@@ -50,13 +50,17 @@ impl<F: RichField + Extendable<D>, const D: usize> EthStorageProofGenerator<F, D
             _phantom: PhantomData::<F>,
         }
     }
+
+    pub fn id() -> String {
+        "EthStorageProofGenerator".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for EthStorageProofGenerator<F, D>
 {
     fn id(&self) -> String {
-        "EthStorageProofGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {

@@ -348,6 +348,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -376,6 +377,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -403,6 +405,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -430,6 +433,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -453,6 +457,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -478,6 +483,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -501,6 +507,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -526,6 +533,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -550,6 +558,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -582,6 +591,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -614,6 +624,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -645,6 +656,7 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -677,5 +689,6 @@ pub(crate) mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 }

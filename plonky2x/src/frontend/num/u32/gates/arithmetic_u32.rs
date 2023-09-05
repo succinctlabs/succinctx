@@ -360,7 +360,7 @@ pub struct U32ArithmeticGenerator<F: RichField + Extendable<D>, const D: usize> 
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> U32ArithmeticGenerator<F, D> {
-    fn id() -> String {
+    pub fn id() -> String {
         "U32ArithmeticGenerator".to_string()
     }
 }
