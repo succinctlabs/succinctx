@@ -64,10 +64,10 @@ impl CircuitVariable for BeaconWithdrawalVariable {
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        let index = U64Variable::from_variables(&variables[0..64]);
-        let validator_index = U64Variable::from_variables(&variables[64..128]);
-        let address = AddressVariable::from_variables(&variables[128..288]);
-        let amount = U256Variable::from_variables(&variables[288..296]);
+        let index = U64Variable::from_variables(&variables[0..2]);
+        let validator_index = U64Variable::from_variables(&variables[2..4]);
+        let address = AddressVariable::from_variables(&variables[4..164]);
+        let amount = U256Variable::from_variables(&variables[164..172]);
         Self {
             index,
             validator_index,
