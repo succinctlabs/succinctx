@@ -228,7 +228,7 @@ where
         self.0
             .registry
             .get(type_id)
-            .expect("Generator type not registered")
+            .unwrap_or_else(|| panic!("Generator type not registered {}", type_id))
             .read(buf, common_data)
     }
 
@@ -243,14 +243,14 @@ where
             .0
             .index
             .get(&type_id)
-            .expect("Generator type not registered");
+            .unwrap_or_else(|| panic!("Generator type not registered {}", type_id));
         buf.write_usize(*idx)?;
 
         // generator.0.serialize(buf, common_data)?;
         self.0
             .registry
             .get(&type_id)
-            .expect("Generator type not registered")
+            .unwrap_or_else(|| panic!("Generator type not registered {}", type_id))
             .write(buf, generator, common_data)?;
         Ok(())
     }
@@ -271,7 +271,7 @@ where
         self.0
             .registry
             .get(&type_id)
-            .expect("Gate type not registered")
+            .unwrap_or_else(|| panic!("Gate type not registered {:?}", type_id))
             .read(buf, common_data)
     }
 
