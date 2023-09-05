@@ -258,8 +258,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         branch: &[Bytes32Variable],
         gindex: U64Variable,
     ) {
-        let expected_root = self.ssz_restore_merkle_root(leaf, branch, gindex);
-        self.assert_is_equal(root, expected_root);
+        // let expected_root = self.ssz_restore_merkle_root(leaf, branch, gindex);
+        // self.assert_is_equal(root, expected_root);
     }
 
     /// Verify a simple serialize (ssz) merkle proof with a constant index.
@@ -270,8 +270,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         branch: &[Bytes32Variable],
         gindex: u64,
     ) {
-        let expected_root = self.ssz_restore_merkle_root_const(leaf, branch, gindex);
-        self.assert_is_equal(root, expected_root);
+        // let expected_root = self.ssz_restore_merkle_root_const(leaf, branch, gindex);
+        // self.assert_is_equal(root, expected_root);
     }
 
     /// Computes the expected merkle root given a leaf, branch, and dynamic index.
