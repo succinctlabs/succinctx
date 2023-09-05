@@ -169,7 +169,7 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
     }
 
     /// Registers a new simple witness generator with the given id.
-    pub fn register_simple_generator<SG: SimpleGenerator<F, D>>(&mut self, id: String) {
+    pub fn register_simple<SG: SimpleGenerator<F, D>>(&mut self, id: String) {
         self.register::<SimpleGeneratorAdapter<F, SG, D>>(id)
     }
 }
@@ -285,55 +285,64 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
     where
         C::Hasher: AlgebraicHasher<F>,
     {
-        let mut registry = Self(SerializationRegistry::new());
+        let mut r = Self(SerializationRegistry::new());
 
         let dummy_proof_id = DummyProofGenerator::<F, C, D>::default().id();
-        registry.register_simple_generator::<DummyProofGenerator<F, C, D>>(dummy_proof_id);
+        r.register_simple::<DummyProofGenerator<F, C, D>>(dummy_proof_id);
+
         let arithmetic_generator_id = ArithmeticBaseGenerator::<F, D>::default().id();
-        registry
-            .register_simple_generator::<ArithmeticBaseGenerator<F, D>>(arithmetic_generator_id);
+        r.register_simple::<ArithmeticBaseGenerator<F, D>>(arithmetic_generator_id);
+
         let constant_generator_id = ConstantGenerator::<F>::default().id();
-        registry.register_simple_generator::<ConstantGenerator<F>>(constant_generator_id);
+        r.register_simple::<ConstantGenerator<F>>(constant_generator_id);
+
         let poseidon_generator_id = PoseidonGenerator::<F, D>::default().id();
-        registry.register_simple_generator::<PoseidonGenerator<F, D>>(poseidon_generator_id);
+        r.register_simple::<PoseidonGenerator<F, D>>(poseidon_generator_id);
+
         let poseidon_mds_generator_id =
             SimpleGenerator::<F, D>::id(&PoseidonMdsGenerator::<D>::default());
-        registry.register_simple_generator::<PoseidonMdsGenerator<D>>(poseidon_mds_generator_id);
+        r.register_simple::<PoseidonMdsGenerator<D>>(poseidon_mds_generator_id);
+
         let random_value_generator_id =
             SimpleGenerator::<F, D>::id(&RandomValueGenerator::default());
-        registry.register_simple_generator::<RandomValueGenerator>(random_value_generator_id);
+        r.register_simple::<RandomValueGenerator>(random_value_generator_id);
+
         let arithmetic_extension_generator_id =
             SimpleGenerator::<F, D>::id(&ArithmeticExtensionGenerator::<F, D>::default());
-        registry.register_simple_generator::<ArithmeticExtensionGenerator<F, D>>(
-            arithmetic_extension_generator_id,
-        );
+        r.register_simple::<ArithmeticExtensionGenerator<F, D>>(arithmetic_extension_generator_id);
+
         let base_split_generator_id =
             SimpleGenerator::<F, D>::id(&BaseSplitGenerator::<2>::default());
-        registry.register_simple_generator::<BaseSplitGenerator<2>>(base_split_generator_id);
+        r.register_simple::<BaseSplitGenerator<2>>(base_split_generator_id);
+
         let base_sum_generator_id = SimpleGenerator::<F, D>::id(&BaseSumGenerator::<2>::default());
-        registry.register_simple_generator::<BaseSumGenerator<2>>(base_sum_generator_id);
+        r.register_simple::<BaseSumGenerator<2>>(base_sum_generator_id);
+
         let copy_generator_id = SimpleGenerator::<F, D>::id(&CopyGenerator::default());
-        registry.register_simple_generator::<CopyGenerator>(copy_generator_id);
+        r.register_simple::<CopyGenerator>(copy_generator_id);
+
         let equality_generator_id = SimpleGenerator::<F, D>::id(&EqualityGenerator::default());
-        registry.register_simple_generator::<EqualityGenerator>(equality_generator_id);
+        r.register_simple::<EqualityGenerator>(equality_generator_id);
+
         let exponentiation_generator_id =
             SimpleGenerator::<F, D>::id(&ExponentiationGenerator::<F, D>::default());
-        registry.register_simple_generator::<ExponentiationGenerator<F, D>>(
-            exponentiation_generator_id,
-        );
+        r.register_simple::<ExponentiationGenerator<F, D>>(exponentiation_generator_id);
+
         let interpolation_generator_id =
             SimpleGenerator::<F, D>::id(&InterpolationGenerator::<F, D>::default());
-        registry
-            .register_simple_generator::<InterpolationGenerator<F, D>>(interpolation_generator_id);
+        r.register_simple::<InterpolationGenerator<F, D>>(interpolation_generator_id);
+
         let lookup_generator_id = SimpleGenerator::<F, D>::id(&LookupGenerator::default());
-        registry.register_simple_generator::<LookupGenerator>(lookup_generator_id);
+        r.register_simple::<LookupGenerator>(lookup_generator_id);
+
         let lookup_table_generator_id =
             SimpleGenerator::<F, D>::id(&LookupTableGenerator::default());
-        registry.register_simple_generator::<LookupTableGenerator>(lookup_table_generator_id);
-        let low_high_generator_id = SimpleGenerator::<F, D>::id(&LowHighGenerator::default());
-        registry.register_simple_generator::<LowHighGenerator>(low_high_generator_id);
+        r.register_simple::<LookupTableGenerator>(lookup_table_generator_id);
 
-        registry
+        let low_high_generator_id = SimpleGenerator::<F, D>::id(&LowHighGenerator::default());
+        r.register_simple::<LowHighGenerator>(low_high_generator_id);
+
+        r
     }
 }
 
@@ -341,27 +350,27 @@ impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
     #[allow(clippy::new_without_default)]
     /// Creates a new registry with all the default gates that are used in a Plonky2x circuit.
     pub fn new() -> Self {
-        let mut registry = Self(SerializationRegistry::new());
+        let mut r = Self(SerializationRegistry::new());
 
-        registry.register::<ArithmeticGate>();
-        registry.register::<ArithmeticExtensionGate<D>>();
-        registry.register::<BaseSumGate<2>>();
-        registry.register::<ConstantGate>();
-        registry.register::<CosetInterpolationGate<F, D>>();
-        registry.register::<ExponentiationGate<F, D>>();
-        registry.register::<LookupGate>();
-        registry.register::<LookupTableGate>();
-        registry.register::<MulExtensionGate<D>>();
-        registry.register::<NoopGate>();
-        registry.register::<PoseidonMdsGate<F, D>>();
-        registry.register::<PoseidonGate<F, D>>();
-        registry.register::<PublicInputGate>();
-        registry.register::<RandomAccessGate<F, D>>();
-        registry.register::<ReducingExtensionGate<D>>();
-        registry.register::<ReducingGate<D>>();
-        registry.register::<U32AddManyGate<F, D>>();
+        r.register::<ArithmeticGate>();
+        r.register::<ArithmeticExtensionGate<D>>();
+        r.register::<BaseSumGate<2>>();
+        r.register::<ConstantGate>();
+        r.register::<CosetInterpolationGate<F, D>>();
+        r.register::<ExponentiationGate<F, D>>();
+        r.register::<LookupGate>();
+        r.register::<LookupTableGate>();
+        r.register::<MulExtensionGate<D>>();
+        r.register::<NoopGate>();
+        r.register::<PoseidonMdsGate<F, D>>();
+        r.register::<PoseidonGate<F, D>>();
+        r.register::<PublicInputGate>();
+        r.register::<RandomAccessGate<F, D>>();
+        r.register::<ReducingExtensionGate<D>>();
+        r.register::<ReducingGate<D>>();
+        r.register::<U32AddManyGate<F, D>>();
 
-        registry
+        r
     }
 }
 
