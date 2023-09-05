@@ -67,7 +67,7 @@ impl CircuitVariable for BeaconWithdrawalVariable {
         let index = U64Variable::from_variables(&variables[0..64]);
         let validator_index = U64Variable::from_variables(&variables[64..128]);
         let address = AddressVariable::from_variables(&variables[128..288]);
-        let amount = U256Variable::from_variables(&variables[288..352]);
+        let amount = U256Variable::from_variables(&variables[288..296]);
         Self {
             index,
             validator_index,
