@@ -99,7 +99,15 @@ impl ByteVariable {
         self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> [ByteVariable; 2] {
-        todo!()
+        let bits = self.to_be_bits();
+
+        let mut left_nibble = array![_ => builder.constant(false); 8];
+        left_nibble[4..].copy_from_slice(&bits[0..4]);
+
+        let mut right_nibble = array![_ => builder.constant(false); 8];
+        right_nibble[4..].copy_from_slice(&bits[4..8]);
+
+        [ByteVariable(left_nibble), ByteVariable(right_nibble)]
     }
 }
 
@@ -299,15 +307,18 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new();
 
         let value = rand::random::<u8>();
-        let byte = builder.constant(value);
+        let byte = builder.constant::<ByteVariable>(value);
         let nibbles = byte.to_nibbles(&mut builder);
-
-        // TODO: test that the nibbles are correct
-
-        let circuit = builder.build::<C>();
 
         let mut pw = PartialWitness::new();
         byte.set(&mut pw, value);
+
+        let expected_left_nibble = (value >> 4) & 0x0F;
+        let expected_right_nibble = value & 0x0F;
+        nibbles[0].set(&mut pw, expected_left_nibble);
+        nibbles[1].set(&mut pw, expected_right_nibble);
+
+        let circuit = builder.build::<C>();
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
     }
