@@ -152,6 +152,7 @@ where
         ReducingExtensionGenerator<D>, "ReducingExtensionGenerator",
         SplitGenerator, "SplitGenerator",
         WireSplitGenerator, "WireSplitGenerator",
+        EthAccountProofGenerator<F, D>, "EthAccountProofGenerator",
         EthStorageProofGenerator<F, D>, "EthStorageProofGenerator",
         EthLogGenerator<F, D>, "EthLogGenerator",
         EthBlockGenerator<F, D>, "EthBlockGenerator",

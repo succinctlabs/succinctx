@@ -53,7 +53,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for EthAccountProofGenerator<F, D>
 {
     fn id(&self) -> String {
-        "EthStorageProofGenerator".to_string()
+        "EthAccountProofGenerator".to_string()
     }
 
     fn dependencies(&self) -> Vec<Target> {
