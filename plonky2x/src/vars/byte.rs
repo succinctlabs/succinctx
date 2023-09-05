@@ -7,8 +7,10 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
 use crate::builder::CircuitBuilder;
-use crate::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero, PartialEq, Sub};
 use crate::eth::mpt::generators::math::ByteSubGenerator;
+use crate::ops::{
+    BitAnd, BitOr, BitXor, Not, PartialEq, RotateLeft, RotateRight, Shl, Shr, Sub, Zero,
+};
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.
 #[derive(Debug, Clone, Copy)]
@@ -96,11 +98,9 @@ impl ByteVariable {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> PartialEq<F, D>
-    for ByteVariable
-{
+impl<F: RichField + Extendable<D>, const D: usize> PartialEq<F, D> for ByteVariable {
     fn eq(self, rhs: ByteVariable, builder: &mut CircuitBuilder<F, D>) -> BoolVariable {
-        let mut result = builder.init::<BoolVariable>();
+        let mut result = builder.constant::<BoolVariable>(true);
         for i in 0..8 {
             let lhs_byte = self.0[i];
             let rhs_byte = rhs.0[i];
@@ -109,7 +109,6 @@ impl<F: RichField + Extendable<D>, const D: usize> PartialEq<F, D>
         }
         result
     }
-
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for ByteVariable {
@@ -117,7 +116,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for ByteVariable {
 
     fn sub(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
         let output = builder.init::<ByteVariable>();
-        let generator = ByteSubGenerator{lhs: self, rhs, output, _phantom: std::marker::PhantomData::<F>,};
+        let generator = ByteSubGenerator {
+            lhs: self,
+            rhs,
+            output,
+            _phantom: std::marker::PhantomData::<F>,
+        };
         builder.add_simple_generator(&generator);
         output
     }

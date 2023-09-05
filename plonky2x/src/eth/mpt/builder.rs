@@ -1,30 +1,29 @@
-use std::convert::TryInto;
 use core::str::Bytes;
+use std::convert::TryInto;
+use std::fs::File;
+use std::io::Read;
 
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
 // use super::generators::validator::BeaconValidatorGenerator;
 // use super::vars::{BeaconValidatorVariable, BeaconValidatorsVariable};
 use array_macro::array;
-
-
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::generate_partial_witness;
-use crate::builder::CircuitBuilder;
-use crate::vars::{Bytes32Variable, ByteVariable, Variable, BoolVariable, CircuitVariable};
-use super::generators::rlp::RLPDecodeListGenerator;
-use super::generators::keccack::Keccack256Generator;
-use super::generators::nibbles::NibbleGenerator;
+use plonky2::iop::target::Target;
+
 use super::generators::array::{MuxGenerator, NestedMuxGenerator};
-use super::generators::math::{LeGenerator, ByteToVariableGenerator};
+use super::generators::keccack::Keccack256Generator;
+use super::generators::math::{ByteToVariableGenerator, LeGenerator};
+use super::generators::nibbles::NibbleGenerator;
+use super::generators::rlp::RLPDecodeListGenerator;
 use super::template::get_proof_witnesses;
-
-
+use crate::builder::CircuitBuilder;
+use crate::vars::{BoolVariable, ByteVariable, Bytes32Variable, CircuitVariable, Variable};
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn keccack256(&mut self, input: Bytes32Variable) -> Bytes32Variable {
         let output = self.init::<Bytes32Variable>();
-        let generator: Keccack256Generator<F, D> = Keccack256Generator{
+        let generator: Keccack256Generator<F, D> = Keccack256Generator {
             input: input.as_slice().to_vec(),
             output,
             length: None,
@@ -34,9 +33,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         output
     }
 
-    pub fn keccack256_variable<const N: usize>(&mut self, input: [ByteVariable; N], len: Variable) -> Bytes32Variable {
+    pub fn keccack256_variable<const N: usize>(
+        &mut self,
+        input: [ByteVariable; N],
+        len: Variable,
+    ) -> Bytes32Variable {
         let output = self.init::<Bytes32Variable>();
-        let generator: Keccack256Generator<F, D> = Keccack256Generator{
+        let generator: Keccack256Generator<F, D> = Keccack256Generator {
             input: input.to_vec(),
             output,
             length: Some(len),
@@ -48,13 +51,16 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn to_nibbles<const N: usize, const M: usize>(&mut self, input: [ByteVariable; N]) -> [ByteVariable; M] {
+    pub fn to_nibbles<const N: usize, const M: usize>(
+        &mut self,
+        input: [ByteVariable; N],
+    ) -> [ByteVariable; M] {
         let mut output_vec = vec![];
         for i in 0..N {
             output_vec.push(self.init::<ByteVariable>());
             output_vec.push(self.init::<ByteVariable>());
         }
-        let generator = NibbleGenerator{
+        let generator = NibbleGenerator {
             input: input.to_vec(),
             output: output_vec.clone(),
             _phantom: std::marker::PhantomData::<F>,
@@ -69,7 +75,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             output_vec.push(self.init::<ByteVariable>());
             output_vec.push(self.init::<ByteVariable>());
         }
-        let generator = NibbleGenerator{
+        let generator = NibbleGenerator {
             input: input.to_vec(),
             output: output_vec.clone(),
             _phantom: std::marker::PhantomData::<F>,
@@ -78,11 +84,14 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         output_vec
     }
 
-
     // TODO: maybe implement this for the trait CircuitVariable
-    pub fn mux<const N: usize>(&mut self, input: [ByteVariable; N], selector: Variable) -> ByteVariable {
+    pub fn mux<const N: usize>(
+        &mut self,
+        input: [ByteVariable; N],
+        selector: Variable,
+    ) -> ByteVariable {
         let output = self.init::<ByteVariable>();
-        let generator = MuxGenerator{
+        let generator = MuxGenerator {
             input: input.to_vec(),
             output,
             selector,
@@ -93,9 +102,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     // TODO: maybe implement this for the trait CircuitVariable
-    pub fn mux_nested<const N: usize>(&mut self, input: Vec<[ByteVariable; N]>, selector: Variable) -> [ByteVariable; N] {
+    pub fn mux_nested<const N: usize>(
+        &mut self,
+        input: Vec<[ByteVariable; N]>,
+        selector: Variable,
+    ) -> [ByteVariable; N] {
         let output = array![_ => self.init::<ByteVariable>(); N];
-        let generator = NestedMuxGenerator{
+        let generator = NestedMuxGenerator {
             input: input.to_vec(),
             output,
             selector,
@@ -107,7 +120,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     pub fn le(&mut self, lhs: Variable, rhs: Variable) -> BoolVariable {
         let output = self.init::<BoolVariable>();
-        let generator = LeGenerator{
+        let generator = LeGenerator {
             lhs,
             rhs,
             output,
@@ -118,7 +131,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     pub fn byte_to_variable(&mut self, byte: ByteVariable) -> Variable {
         let output = self.init::<Variable>();
-        let generator = ByteToVariableGenerator{
+        let generator = ByteToVariableGenerator {
             byte,
             output,
             _phantom: std::marker::PhantomData::<F>,
@@ -127,20 +140,25 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         output
     }
 
-    pub fn assert_subarray_eq(&mut self, lhs: &[ByteVariable], lhs_offset: Variable, rhs: &[ByteVariable], rhs_offset: Variable, len: Variable) {
+    pub fn assert_subarray_eq(
+        &mut self,
+        lhs: &[ByteVariable],
+        lhs_offset: Variable,
+        rhs: &[ByteVariable],
+        rhs_offset: Variable,
+        len: Variable,
+    ) {
         // todo!();
     }
 }
 
-
-
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-
     const PREFIX_EXTENSION_EVEN: u8 = 0;
     const PREFIX_EXTENSION_ODD: u8 = 1;
     const PREFIX_LEAF_EVEN: u8 = 2;
     const PREFIX_LEAF_ODD: u8 = 3;
     /// Get the validators for a given block root.
+    /// P is the number of proof elements to be considered
     pub fn verify_mpt_proof<const L: usize, const M: usize, const P: usize>(
         &mut self,
         key: Bytes32Variable,
@@ -148,12 +166,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         len_nodes: [Variable; P],
         root: Bytes32Variable,
         value: Bytes32Variable,
-    ) {  
+    ) {
         const MAX_ELE_SIZE: usize = 34; // Maximum size of list element
         let TREE_RADIX = self.constant::<Variable>(F::from_canonical_u8(16u8));
         let BRANCH_NODE_LENGTH = self.constant::<Variable>(F::from_canonical_u8(17u8));
         let LEAF_OR_EXTENSION_NODE_LENGTH = self.constant::<Variable>(F::from_canonical_u8(2u8));
-        let PREFIX_LEAF_EVEN =  self.constant::<ByteVariable>(Self::PREFIX_LEAF_EVEN);
+        let PREFIX_LEAF_EVEN = self.constant::<ByteVariable>(Self::PREFIX_LEAF_EVEN);
         let PREFIX_LEAF_ODD = self.constant::<ByteVariable>(Self::PREFIX_LEAF_ODD);
         let PREFIX_EXTENSION_EVEN = self.constant::<ByteVariable>(Self::PREFIX_EXTENSION_EVEN);
         let PREFIX_EXTENSION_ODD = self.constant::<ByteVariable>(Self::PREFIX_EXTENSION_ODD);
@@ -169,28 +187,33 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
         let mut current_node_id = array![_ => self.init::<ByteVariable>(); MAX_ELE_SIZE];
         for i in 0..32 {
-            current_node_id[i] = root.0.0[i]; // TODO is there a way to fix this
+            current_node_id[i] = root.0 .0[i]; // TODO is there a way to fix this
         }
         let hash_key = self.keccack256(key);
         let key_path = self.to_nibbles::<32, 64>(hash_key.as_slice());
-        // self.print(key_path[0].0[0].0, "key_path[0]");
-        // self.print(key_path[0].0[1].0, "key_path[1]");
-        self.watch(&hash_key, format!("hash_key{}", 0).as_str());
-
+        self.watch(&hash_key, format!("hash_key").as_str());
+        self.watch(&root, format!("root").as_str());
 
         let mut current_node = proof[0];
         for i in 0..P {
             current_node = proof[i];
             let current_node_hash = self.keccack256_variable(current_node, len_nodes[i]);
-            self.watch(&current_node_hash, format!("round {}: current_node_hash", i).as_str());
+            // self.watch(
+            //     &current_node_hash,
+            //     format!("round {}: current_node_hash", i).as_str(),
+            // );
 
             if i == 0 {
-                self.watch(&root, format!("root{}", i).as_str());
                 self.assert_eq(current_node_hash, root);
-                self.watch(&current_node_hash, format!("AFTER 189{}", i).as_str());
             } else {
-                let first_32_bytes_eq = self.eq::<Bytes32Variable, Bytes32Variable>(current_node[0..32].into(), current_node_id[0..32].into());
-                let hash_eq = self.eq::<Bytes32Variable, Bytes32Variable>(current_node_hash, current_node_id[0..32].into());
+                let first_32_bytes_eq = self.eq::<Bytes32Variable, Bytes32Variable>(
+                    current_node[0..32].into(),
+                    current_node_id[0..32].into(),
+                );
+                let hash_eq = self.eq::<Bytes32Variable, Bytes32Variable>(
+                    current_node_hash,
+                    current_node_id[0..32].into(),
+                );
                 let a = self.constant::<Variable>(F::from_canonical_u8(32u8));
                 let node_len_le_32 = self.le(len_nodes[i], a);
                 let case_len_le_32 = self.and(node_len_le_32, first_32_bytes_eq);
@@ -202,27 +225,30 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
                 self.assert_eq(checked_equality, t);
             }
 
-            let mut decoded_list_vec = Vec::new();
-            for i in 0..L {
-                let mut inner: Vec<ByteVariable> = Vec::new();
-                for j in 0..MAX_ELE_SIZE {
-                    inner.push(self.init::<ByteVariable>());
-                }
-                decoded_list_vec.push(inner);
-            }
-
-            // let decoded_list = Box::new(TryInto::<[Box<[ByteVariable; MAX_ELE_SIZE]>; L]>::try_into(decoded_list_vec).unwrap());
-            let decoded_element_lens = Box::new(array![_ => self.init::<Variable>(); L]);
-            let decoded_list_len = self.init::<Variable>();
+            self.watch_array(&current_node, format!("Round {} current_node", i).as_str());
+            self.watch(&len_nodes[i], format!("Round {} len_nodes[i]", i).as_str());
 
             // Create the generators for witnessing the decoding of the node
-            // TODO: should this generator be added to the circuit every time?
-            let rlp_decode_list_generator: RLPDecodeListGenerator<F, D, M, L, MAX_ELE_SIZE> = RLPDecodeListGenerator::new(
-                current_node, len_nodes[i], finished, decoded_list_vec.clone(), decoded_element_lens.clone(), decoded_list_len
-            );
+            let rlp_decode_list_generator: RLPDecodeListGenerator<F, D, M, L, MAX_ELE_SIZE> =
+                RLPDecodeListGenerator::new(self, current_node, len_nodes[i], finished);
             self.add_simple_generator(&rlp_decode_list_generator);
-            self.watch(&decoded_list_len, format!("decoded_list_len{}", i).as_str());
 
+            let decoded_list_len = rlp_decode_list_generator.decoded_list_len;
+            let decoded_element_lens = rlp_decode_list_generator.decoded_element_lens;
+            let decoded_list_vec = rlp_decode_list_generator.decoded_list;
+
+            self.watch(
+                &decoded_list_len,
+                format!("Round {} decoded_list_len", i).as_str(),
+            );
+            self.watch_array(
+                &decoded_element_lens,
+                format!("Round {} decoded_element_lens", i).as_str(),
+            );
+            // self.watch(
+            //     &rlp_decode_list_generator.decoded_list[0][0],
+            //     "decoded_list from generator",
+            // );
 
             let is_branch = self.eq(decoded_list_len, BRANCH_NODE_LENGTH);
             let is_leaf = self.eq(decoded_list_len, LEAF_OR_EXTENSION_NODE_LENGTH);
@@ -237,7 +263,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             let offset_even = self.mul(prefix_extension_even.0, TWO);
             let offset_odd = self.mul(prefix_extension_odd.0, ONE);
             let offset = self.add(offset_even, offset_odd);
-            
+
             let branch_key = self.mux(key_path, current_key_idx);
             let branch_key_variable: Variable = self.byte_to_variable(branch_key); // can be unsafe since nibbles are checked
 
@@ -251,14 +277,22 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
             let c = self.add(case_1_value, case_2_value);
             let updated_current_node_id_idx = self.add(c, case_3_value); // TODO: make this more concise
+            self.watch(
+                &updated_current_node_id_idx,
+                format!("Round {} updated_current_node_id_idx", i).as_str(),
+            );
 
             let updated_current_node_id = self.mux_nested(
-                decoded_list_vec.into_iter().map(|v| {v.try_into().unwrap()}).collect::<Vec<[ByteVariable; MAX_ELE_SIZE]>>(),
-                updated_current_node_id_idx
+                decoded_list_vec
+                    .into_iter()
+                    .map(|v| v.try_into().unwrap())
+                    .collect::<Vec<[ByteVariable; MAX_ELE_SIZE]>>(),
+                updated_current_node_id_idx,
             );
-            
+
             // If finished == 1, then we should not update the current_node_id
-            current_node_id = self.mux_nested(vec![updated_current_node_id, current_node_id], finished.0);
+            current_node_id =
+                self.mux_nested(vec![updated_current_node_id, current_node_id], finished.0);
 
             let mut do_path_remainder_check = self.not(finished);
             do_path_remainder_check = self.and(do_path_remainder_check, is_leaf);
@@ -274,81 +308,103 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
             current_key_idx = self.add(current_key_idx, is_branch_and_key_not_terminated.0);
             let j = self.mul(is_leaf.0, check_length);
-            current_key_idx = self.add(current_key_idx, j); 
+            current_key_idx = self.add(current_key_idx, j);
 
             let l = self.or(is_branch_and_key_terminated, prefix_leaf_even);
             let m = self.or(l, prefix_leaf_odd);
-            let z = self.not(finished);
-            finished = self.and(z, m);
+            finished = self.or(finished, m);
+            self.watch(&finished, format!("Round {} finished", i).as_str());
 
             for l in 0..34 {
-                self.watch(&current_node_id[l], format!("in loop {}: current_node_id[i]", i).as_str());
+                self.watch(
+                    &current_node_id[l],
+                    format!("in loop {}: current_node_id[i]", i).as_str(),
+                );
             }
         }
 
         let current_node_len = self.sub(current_node_id[0], _128);
         let current_node_len_as_var = self.byte_to_variable(current_node_len);
         let lhs_offset = self.sub(_32, current_node_len_as_var);
-        self.assert_subarray_eq(&value.as_slice(), lhs_offset, &current_node_id, ONE, current_node_len_as_var);
-        self.watch(&value, "AT END: value[0]");
-        self.watch(&current_node_len_as_var, "AT END: current_node_len_as_var");
+        self.assert_subarray_eq(
+            &value.as_slice(),
+            lhs_offset,
+            &current_node_id,
+            ONE,
+            current_node_len_as_var,
+        );
+        self.watch(&value, "value");
+        self.watch(&current_node_len_as_var, "At end: current_node_len_as_var");
         for i in 0..34 {
-            self.watch(&current_node_id[i], format!("AT END {}: current_node_id[i]", i).as_str());
+            self.watch(
+                &current_node_id[i],
+                format!("AT END {}: current_node_id[i]", i).as_str(),
+            );
         }
-
     }
-
 }
 
 mod test {
     use std::collections::HashMap;
 
-    use super::*;
-    use crate::eth::utils::{u256_to_h256_be, h256_to_u256_be};
-    use crate::eth::vars::AddressVariable;
-    use ethers::types::{Address, H256, U256, EIP1186ProofResponse};
     use ethers::providers::{Http, Middleware, Provider};
+    use ethers::types::{Address, EIP1186ProofResponse, H256, U256};
     use plonky2::field::types::Field;
     use plonky2::iop::generator::generate_partial_witness;
     use plonky2::iop::witness::PartialWitness;
-    use crate::utils::{bytes32, address, bytes, hex};
     use tokio::runtime::Runtime;
+
+    use super::*;
     use crate::builder::CircuitBuilderX;
-    use crate::prelude::{PoseidonGoldilocksConfig, GoldilocksField};
-    use crate::utils::setup_logger;
+    use crate::eth::utils::{h256_to_u256_be, u256_to_h256_be};
+    use crate::eth::vars::AddressVariable;
+    use crate::prelude::{GoldilocksField, PoseidonGoldilocksConfig};
+    use crate::utils::{address, bytes, bytes32, hex, setup_logger};
 
     #[test]
     fn test_mpt_verification() {
         setup_logger();
 
-        let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
+        let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/V3UkTYUt0iEtxdvWVRNiqEwBsQH4tuMb";
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
         let block_number = 17880427u64;
-        let state_root = bytes32!("0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e");
+        let state_root =
+            bytes32!("0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e");
         let address = address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5");
-        let location = bytes32!("0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5");
+        let location =
+            bytes32!("0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5");
 
         // Nouns contract
         // let address = address!("0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03");
         // let location = bytes32!("0x0000000000000000000000000000000000000000000000000000000000000003");
 
-        let get_proof_closure = || -> EIP1186ProofResponse {
-            let rt = Runtime::new().unwrap();
-            rt.block_on(async {
-                provider
-                    .get_proof(address, vec![location], Some(block_number.into()))
-                    .await
-                    .unwrap()
-            })
-        };
-        let storage_result: EIP1186ProofResponse = get_proof_closure();
+        // let get_proof_closure = || -> EIP1186ProofResponse {
+        //     let rt = Runtime::new().unwrap();
+        //     rt.block_on(async {
+        //         provider
+        //             .get_proof(address, vec![location], Some(block_number.into()))
+        //             .await
+        //             .unwrap()
+        //     })
+        // };
+        // let storage_result: EIP1186ProofResponse = get_proof_closure();
+        // let serialized = serde_json::to_string(&storage_result).unwrap();
+        // println!("{}", serialized);
 
-        let storage_proof = storage_result.storage_proof[0].proof.iter().map(|b| b.to_vec()).collect::<Vec<Vec<u8>>>();
+        let mut file = File::open("./src/eth/mpt/example.json").unwrap();
+        let mut context = String::new();
+        file.read_to_string(&mut context).unwrap();
+        let storage_result: EIP1186ProofResponse = serde_json::from_str(context.as_str()).unwrap();
+
+        let storage_proof = storage_result.storage_proof[0]
+            .proof
+            .iter()
+            .map(|b| b.to_vec())
+            .collect::<Vec<Vec<u8>>>();
         let root = storage_result.storage_hash;
         let key = storage_result.storage_proof[0].key;
         let value = storage_result.storage_proof[0].value;
-
         println!("root {:?} key {:?} value {:?}", root, key, value);
 
         let value_as_h256 = u256_to_h256_be(value);
@@ -372,12 +428,17 @@ mod test {
         }
         let storage_proof: Box<[[ByteVariable; 600]; 16]> = storage_proof_vec.try_into().unwrap();
         let lengths = array![_ => builder.read::<Variable>(); 16];
-        builder.verify_mpt_proof::<34, 600, 16>(storage_key, storage_proof.clone(), lengths, storage_hash, storage_value);
+        builder.verify_mpt_proof::<17, 600, 16>(
+            storage_key,
+            storage_proof.clone(),
+            lengths,
+            storage_hash,
+            storage_value,
+        );
 
         println!("Building the circuit");
 
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
-
 
         let mut partial_witness = PartialWitness::new();
         storage_key.set(&mut partial_witness, key);
@@ -387,7 +448,10 @@ mod test {
             for j in 0..600 {
                 storage_proof[i][j].set(&mut partial_witness, proof_as_fixed[i][j]);
             }
-            lengths[i].set(&mut partial_witness, GoldilocksField::from_canonical_u32(lengths_as_fixed[i]));
+            lengths[i].set(
+                &mut partial_witness,
+                GoldilocksField::from_canonical_u32(lengths_as_fixed[i]),
+            );
         }
 
         // let watch_hash_map = HashMap::new();
@@ -398,12 +462,10 @@ mod test {
         //         watch_hash_map[index] = "storage_hash";
         //     }
         // }
-        
 
         let prover_data = circuit.data.prover_only;
         let common_data = circuit.data.common;
         let witness = generate_partial_witness(partial_witness, &prover_data, &common_data);
-        
 
         // let mut inputs = circuit.input();
         // inputs.write::<Bytes32Variable>(key);
@@ -427,7 +489,6 @@ mod test {
         // Read output.
         // let sum = output.read::<Variable>();
         // println!("{}", sum.0);
-
 
         // verified_get::<17, 600, 16>(key.to_fixed_bytes(), proof_as_fixed, root.to_fixed_bytes(), value_as_h256.to_fixed_bytes(), lengths_as_fixed);
     }

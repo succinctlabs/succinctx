@@ -1,26 +1,24 @@
 use core::marker::PhantomData;
 
 use curta::math::field::PrimeField64;
+use ethers::types::H256;
+use ethers::utils::keccak256;
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{RichField};
+use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 use tokio::runtime::Runtime;
-use ethers::utils::keccak256;
-use ethers::types::H256;
-
 
 use crate::builder::CircuitBuilder;
 use crate::eth::beacon::vars::BeaconValidatorVariable;
+use crate::eth::mpt::utils::rlp_decode_list_2_or_17;
 use crate::ethutils::beacon::BeaconClient;
 use crate::prelude::BoolVariable;
 use crate::utils::hex;
-use crate::vars::{Variable, ByteVariable, Bytes32Variable, CircuitVariable};
-
-use crate::eth::mpt::utils::rlp_decode_list_2_or_17;
+use crate::vars::{ByteVariable, Bytes32Variable, CircuitVariable, Variable};
 
 #[derive(Debug, Clone)]
 pub struct Keccack256Generator<F: RichField + Extendable<D>, const D: usize> {
@@ -39,7 +37,13 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
     fn dependencies(&self) -> Vec<Target> {
         let mut targets: Vec<Target> = Vec::new();
-        targets.extend(self.input.iter().map(|x| x.targets()).flatten().collect::<Vec<Target>>());
+        targets.extend(
+            self.input
+                .iter()
+                .map(|x| x.targets())
+                .flatten()
+                .collect::<Vec<Target>>(),
+        );
         if let Some(length) = self.length {
             targets.extend(length.targets());
         }
@@ -47,7 +51,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        println!("Running keccak256 generator");
+        // println!("Running keccak256 generator");
         let mut length = self.input.len();
         if let Some(length_variable) = self.length {
             length = length_variable.get(witness).to_canonical_u64() as usize;
