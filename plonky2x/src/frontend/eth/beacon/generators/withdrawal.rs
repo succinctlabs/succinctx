@@ -1,4 +1,5 @@
 use core::marker::PhantomData;
+use std::env;
 
 use array_macro::array;
 use ethers::types::{Address, U256};
@@ -116,8 +117,10 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         for i in 0..DEPTH {
             proof.push(Bytes32Variable::from_targets(&src.read_target_vec()?));
         }
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
         Ok(Self {
-            client: BeaconClient::new("https://beaconapi.succinct.xyz".to_string()),
+            client,
             withdrawals,
             idx,
             withdrawal_root,

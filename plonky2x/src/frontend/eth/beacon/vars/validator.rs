@@ -85,9 +85,25 @@ impl CircuitVariable for BeaconValidatorVariable {
         vars
     }
 
-    #[allow(unused_variables)]
     fn from_variables(variables: &[Variable]) -> Self {
-        todo!()
+        let pubkey = BLSPubkeyVariable::from_variables(&variables[0..384]);
+        let withdrawal_credentials = Bytes32Variable::from_variables(&variables[384..640]);
+        let effective_balance = U256Variable::from_variables(&variables[640..648]);
+        let slashed = BoolVariable::from_variables(&variables[648..649]);
+        let activation_eligibility_epoch = U256Variable::from_variables(&variables[649..657]);
+        let activation_epoch = U256Variable::from_variables(&variables[657..665]);
+        let exit_epoch = U256Variable::from_variables(&variables[665..673]);
+        let withdrawable_epoch = U256Variable::from_variables(&variables[673..681]);
+        Self {
+            pubkey,
+            withdrawal_credentials,
+            effective_balance,
+            slashed,
+            activation_eligibility_epoch,
+            activation_epoch,
+            exit_epoch,
+            withdrawable_epoch,
+        }
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

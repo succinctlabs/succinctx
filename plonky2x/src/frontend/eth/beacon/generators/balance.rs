@@ -1,4 +1,5 @@
 use core::marker::PhantomData;
+use std::env;
 
 use array_macro::array;
 use plonky2::field::extension::Extendable;
@@ -7,7 +8,7 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
@@ -180,11 +181,72 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
+        dst.write_target_vec(&self.block_root.targets())?;
+        match &self.input {
+            BeaconBalanceInput::IndexConst(idx) => {
+                dst.write_usize(0)?;
+                dst.write_usize(*idx as usize)?;
+            }
+            BeaconBalanceInput::IndexVariable(idx) => {
+                dst.write_usize(1)?;
+                dst.write_target_vec(&idx.targets())?;
+            }
+            BeaconBalanceInput::PubkeyConst(pubkey) => {
+                dst.write_usize(2)?;
+                dst.write_all(&pubkey.0)?;
+            }
+            BeaconBalanceInput::PubkeyVariable(ref pubkey) => {
+                dst.write_usize(3)?;
+                dst.write_target_vec(&pubkey.targets())?;
+            }
+        }
+        dst.write_target_vec(&self.balance.targets())?;
+        dst.write_target_vec(&self.balance_leaf.targets())?;
+        for i in 0..DEPTH {
+            dst.write_target_vec(&self.proof[i].targets())?;
+        }
+        dst.write_target_vec(&self.gindex.targets())?;
+        Ok(())
     }
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        todo!()
+        let block_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
+        let input_type = src.read_usize()?;
+        let input = if input_type == 0 {
+            let idx = src.read_usize()?;
+            BeaconBalanceInput::IndexConst(idx as u64)
+        } else if input_type == 1 {
+            let idx = U64Variable::from_targets(&src.read_target_vec()?);
+            BeaconBalanceInput::IndexVariable(idx)
+        } else if input_type == 2 {
+            let mut pubkey = [0u8; 48];
+            src.read_exact(&mut pubkey)?;
+            BeaconBalanceInput::PubkeyConst(BLSPubkey(pubkey))
+        } else if input_type == 3 {
+            let pubkey = BLSPubkeyVariable::from_targets(&src.read_target_vec()?);
+            BeaconBalanceInput::PubkeyVariable(pubkey)
+        } else {
+            panic!("invalid input type")
+        };
+        let balance = U64Variable::from_targets(&src.read_target_vec()?);
+        let balance_leaf = Bytes32Variable::from_targets(&src.read_target_vec()?);
+        let mut proof = Vec::new();
+        for i in 0..DEPTH {
+            proof.push(Bytes32Variable::from_targets(&src.read_target_vec()?));
+        }
+        let gindex = U64Variable::from_targets(&src.read_target_vec()?);
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        Ok(Self {
+            client,
+            block_root,
+            input,
+            balance,
+            balance_leaf,
+            proof: proof.try_into().unwrap(),
+            gindex,
+            _phantom: PhantomData,
+        })
     }
 }

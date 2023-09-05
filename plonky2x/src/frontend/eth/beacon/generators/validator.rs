@@ -1,4 +1,5 @@
 use core::marker::PhantomData;
+use std::env;
 
 use array_macro::array;
 use plonky2::field::extension::Extendable;
@@ -7,7 +8,7 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
@@ -147,11 +148,58 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
+        dst.write_target_vec(&self.block_root.targets())?;
+        match self.input {
+            BeaconValidatorGeneratorInput::IndexConst(idx) => {
+                dst.write_usize(0)?;
+                dst.write_usize(idx as usize)?;
+            }
+            BeaconValidatorGeneratorInput::IndexVariable(idx) => {
+                dst.write_usize(1)?;
+                dst.write_target_vec(&idx.targets())?;
+            }
+            BeaconValidatorGeneratorInput::PubkeyVariable(pubkey) => {
+                dst.write_usize(2)?;
+                dst.write_target_vec(&pubkey.targets())?;
+            }
+        }
+        dst.write_target_vec(&self.validator.targets())?;
+        dst.write_target_vec(&self.validator_idx.targets())?;
+        for i in 0..DEPTH {
+            dst.write_target_vec(&self.proof[i].targets())?;
+        }
+        Ok(())
     }
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        todo!()
+        let block_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
+        let input_type = src.read_usize()?;
+        let input = if input_type == 0 {
+            let idx = src.read_usize()?;
+            BeaconValidatorGeneratorInput::IndexConst(idx as u64)
+        } else if input_type == 1 {
+            let idx = U64Variable::from_targets(&src.read_target_vec()?);
+            BeaconValidatorGeneratorInput::IndexVariable(idx)
+        } else if input_type == 2 {
+            let pubkey = BLSPubkeyVariable::from_targets(&src.read_target_vec()?);
+            BeaconValidatorGeneratorInput::PubkeyVariable(pubkey)
+        } else {
+            panic!("invalid input type")
+        };
+        let validator = BeaconValidatorVariable::from_targets(&src.read_target_vec()?);
+        let validator_idx = U64Variable::from_targets(&src.read_target_vec()?);
+        let proof = array![_ => Bytes32Variable::from_targets(&src.read_target_vec()?); DEPTH];
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        Ok(Self {
+            client,
+            block_root,
+            input,
+            validator,
+            validator_idx,
+            proof,
+            _phantom: PhantomData,
+        })
     }
 }
