@@ -151,9 +151,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let second_quarter: BytesVariable<8> = BytesVariable::<8>(half.0[8..].try_into().unwrap());
         let quarter = self.select(bits[1], second_quarter, first_quarter);
 
-        self.watch(&quarter, "quarter");
-        self.watch(&generator.balance, "balance");
-
         let balance_bytes = generator.balance.encode(self);
         let quarter_bytes = quarter.0;
         for i in 0..8 {
@@ -262,7 +259,7 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validators() {
-        env_logger::try_init().unwrap();
+        env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
@@ -288,7 +285,7 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validator() {
-        env_logger::try_init().unwrap();
+        env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
@@ -316,7 +313,7 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validator_const() {
-        env_logger::try_init().unwrap();
+        env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
@@ -343,7 +340,7 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validator_by_pubkey() {
-        env_logger::try_init().unwrap();
+        env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
@@ -370,7 +367,7 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_balances_root() {
-        env_logger::try_init().unwrap();
+        env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
@@ -393,7 +390,7 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_balance() {
-        env_logger::try_init().unwrap();
+        env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
@@ -417,7 +414,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_ssz_restore_merkle_root_equal() {
-        env_logger::try_init().unwrap();
+        env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();
@@ -450,7 +447,7 @@ pub(crate) mod tests {
     #[test]
     #[should_panic]
     fn test_ssz_restore_merkle_root_unequal() {
-        env_logger::try_init().unwrap();
+        env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();
@@ -481,7 +478,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_ssz_restore_merkle_root_const_equal() {
-        env_logger::try_init().unwrap();
+        env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();
@@ -513,7 +510,7 @@ pub(crate) mod tests {
     #[test]
     #[should_panic]
     fn test_ssz_restore_merkle_root_const_unequal() {
-        env_logger::try_init().unwrap();
+        env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<F, D>::new();

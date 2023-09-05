@@ -122,7 +122,7 @@ pub(crate) mod tests {
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
 
         let mut builder = CircuitBuilder::<F, D>::new();
