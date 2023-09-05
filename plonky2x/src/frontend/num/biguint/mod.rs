@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 
+use itertools::Itertools;
 use num::{BigUint, Integer, Zero};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::{PrimeField, PrimeField64};
@@ -444,22 +445,56 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         "BigUintDivRemGenerator".to_string()
     }
 
-    fn serialize(
-        &self,
-        _dst: &mut Vec<u8>,
-        _common_data: &CommonCircuitData<F, D>,
-    ) -> plonky2::util::serialization::IoResult<()> {
-        unimplemented!("BigUintDivRemGenerator::serialize()")
+    fn serialize(&self, dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
+        dst.write_target_vec(&self.a.limbs.iter().map(|x| x.0).collect_vec())?;
+        dst.write_target_vec(&self.b.limbs.iter().map(|x| x.0).collect_vec())?;
+        dst.write_target_vec(&self.div.limbs.iter().map(|x| x.0).collect_vec())?;
+        dst.write_target_vec(&self.rem.limbs.iter().map(|x| x.0).collect_vec())?;
+        Ok(())
     }
 
     fn deserialize(
-        _src: &mut plonky2::util::serialization::Buffer,
-        _common_data: &CommonCircuitData<F, D>,
-    ) -> plonky2::util::serialization::IoResult<Self>
+        src: &mut plonky2::util::serialization::Buffer,
+        _: &CommonCircuitData<F, D>,
+    ) -> IoResult<Self>
     where
         Self: Sized,
     {
-        unimplemented!("BigUintDivRemGenerator::deserialize()")
+        let a = BigUintTarget {
+            limbs: src
+                .read_target_vec()?
+                .into_iter()
+                .map(U32Target)
+                .collect_vec(),
+        };
+        let b = BigUintTarget {
+            limbs: src
+                .read_target_vec()?
+                .into_iter()
+                .map(U32Target)
+                .collect_vec(),
+        };
+        let div = BigUintTarget {
+            limbs: src
+                .read_target_vec()?
+                .into_iter()
+                .map(U32Target)
+                .collect_vec(),
+        };
+        let rem = BigUintTarget {
+            limbs: src
+                .read_target_vec()?
+                .into_iter()
+                .map(U32Target)
+                .collect_vec(),
+        };
+        Ok(Self {
+            a,
+            b,
+            div,
+            rem,
+            _phantom: PhantomData,
+        })
     }
 }
 
