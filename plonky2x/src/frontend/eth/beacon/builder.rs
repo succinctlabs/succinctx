@@ -239,8 +239,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         branch: &[Bytes32Variable],
         gindex: U64Variable,
     ) {
-        // let expected_root = self.ssz_restore_merkle_root(leaf, branch, gindex);
-        // self.assert_is_equal(root, expected_root);
+        let expected_root = self.ssz_restore_merkle_root(leaf, branch, gindex);
+        self.assert_is_equal(root, expected_root);
     }
 
     /// Verify a simple serialize (ssz) merkle proof with a constant index.
@@ -251,8 +251,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         branch: &[Bytes32Variable],
         gindex: u64,
     ) {
-        // let expected_root = self.ssz_restore_merkle_root_const(leaf, branch, gindex);
-        // self.assert_is_equal(root, expected_root);
+        let expected_root = self.ssz_restore_merkle_root_const(leaf, branch, gindex);
+        self.assert_is_equal(root, expected_root);
     }
 
     /// Computes the expected merkle root given a leaf, branch, and dynamic index.
@@ -341,8 +341,8 @@ pub(crate) mod tests {
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
-        let validators = builder.beacon_get_validators(block_root);
-        builder.watch(&validators, "validators");
+        let _validators = builder.beacon_get_validators(block_root);
+        // builder.watch(&validators, "validators");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -446,8 +446,8 @@ pub(crate) mod tests {
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
-        let balances = builder.beacon_get_balances(block_root);
-        builder.watch(&balances, "balances");
+        let _balances = builder.beacon_get_balances(block_root);
+        // builder.watch(&balances, "balances");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -471,8 +471,8 @@ pub(crate) mod tests {
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let balances = builder.beacon_get_balances(block_root);
         let index = builder.constant::<U64Variable>(0.into());
-        let balance = builder.beacon_get_balance(balances, index);
-        builder.watch(&balance, "balance");
+        let _balance = builder.beacon_get_balance(balances, index);
+        // builder.watch(&balance, "balance");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -494,8 +494,8 @@ pub(crate) mod tests {
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
-        let withdrawals = builder.beacon_get_withdrawals(block_root);
-        builder.watch(&withdrawals.withdrawals_root, "withdrawals_root");
+        let _withdrawals = builder.beacon_get_withdrawals(block_root);
+        // builder.watch(&withdrawals.withdrawals_root, "withdrawals_root");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -519,8 +519,8 @@ pub(crate) mod tests {
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let withdrawals = builder.beacon_get_withdrawals(block_root);
         let idx = builder.constant::<U64Variable>(0.into());
-        let withdrawal = builder.beacon_get_withdrawal(withdrawals, idx);
-        builder.watch(&withdrawal, "withdrawal");
+        let _withdrawal = builder.beacon_get_withdrawal(withdrawals, idx);
+        // builder.watch(&withdrawal, "withdrawal");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -543,8 +543,8 @@ pub(crate) mod tests {
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let idx = builder.constant::<U64Variable>(0.into());
-        let historical_block = builder.beacon_get_historical_block(block_root, idx);
-        builder.watch(&historical_block, "historical_block");
+        let _historical_block = builder.beacon_get_historical_block(block_root, idx);
+        // builder.watch(&historical_block, "historical_block");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
