@@ -41,6 +41,7 @@ use plonky2::util::serialization::{
     Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
 };
 
+use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::eth::beacon::generators::balance::BeaconBalanceGenerator;
 use crate::frontend::eth::beacon::generators::balances::BeaconBalancesGenerator;
 use crate::frontend::eth::beacon::generators::historical::BeaconHistoricalBlockGenerator;
@@ -48,6 +49,10 @@ use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerato
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
 use crate::frontend::eth::beacon::generators::withdrawal::BeaconWithdrawalGenerator;
 use crate::frontend::eth::beacon::generators::withdrawals::BeaconWithdrawalsGenerator;
+use crate::frontend::eth::beacon::vars::{
+    BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
+    BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
+};
 use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
@@ -58,6 +63,9 @@ use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32ArithmeticGenerator};
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
+use crate::frontend::uint::uint256::U256Variable;
+use crate::frontend::uint::uint64::U64Variable;
+use crate::frontend::vars::Bytes32Variable;
 
 /// A registry to store serializers for witness generators.
 ///
@@ -299,6 +307,15 @@ where
     }
 }
 
+macro_rules! register_watch_generator {
+    ($registry:ident, $($type:ty),*) => {
+        $(
+            let generator_id = WatchGenerator::<$type>::id();
+            $registry.register_simple::<WatchGenerator<$type>>(generator_id);
+        )*
+    };
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D> {
     /// Creates a new registry with all the default generators that are used in a Plonky2x circuit.
     pub fn new<C: GenericConfig<D, F = F> + 'static>() -> Self
@@ -443,6 +460,18 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
 
         let xor3_generator_id = XOR3Generator::<F, D>::id();
         r.register_simple::<XOR3Generator<F, D>>(xor3_generator_id);
+
+        register_watch_generator!(
+            r,
+            U64Variable,
+            U256Variable,
+            Bytes32Variable,
+            BeaconValidatorsVariable,
+            BeaconBalancesVariable,
+            BeaconWithdrawalsVariable,
+            BeaconWithdrawalVariable,
+            BeaconValidatorVariable
+        );
 
         r
     }

@@ -360,8 +360,8 @@ pub(crate) mod tests {
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
-        let _validators = builder.beacon_get_validators(block_root);
-        // builder.watch(&validators, "validators");
+        let validators = builder.beacon_get_validators(block_root);
+        builder.watch(&validators, "validators");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -469,8 +469,8 @@ pub(crate) mod tests {
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
-        let _balances = builder.beacon_get_balances(block_root);
-        // builder.watch(&balances, "balances");
+        let balances = builder.beacon_get_balances(block_root);
+        builder.watch(&balances, "balances");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -495,8 +495,8 @@ pub(crate) mod tests {
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let balances = builder.beacon_get_balances(block_root);
         let index = builder.constant::<U64Variable>(0.into());
-        let _balance = builder.beacon_get_balance(balances, index);
-        // builder.watch(&balance, "balance");
+        let balance = builder.beacon_get_balance(balances, index);
+        builder.watch(&balance, "balance");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -519,8 +519,8 @@ pub(crate) mod tests {
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
-        let _withdrawals = builder.beacon_get_withdrawals(block_root);
-        // builder.watch(&withdrawals.withdrawals_root, "withdrawals_root");
+        let withdrawals = builder.beacon_get_withdrawals(block_root);
+        builder.watch(&withdrawals.withdrawals_root, "withdrawals_root");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -545,8 +545,8 @@ pub(crate) mod tests {
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let withdrawals = builder.beacon_get_withdrawals(block_root);
         let idx = builder.constant::<U64Variable>(0.into());
-        let _withdrawal = builder.beacon_get_withdrawal(withdrawals, idx);
-        // builder.watch(&withdrawal, "withdrawal");
+        let withdrawal = builder.beacon_get_withdrawal(withdrawals, idx);
+        builder.watch(&withdrawal, "withdrawal");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();
@@ -570,8 +570,8 @@ pub(crate) mod tests {
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let idx = builder.constant::<U64Variable>(0.into());
-        let _historical_block = builder.beacon_get_historical_block(block_root, idx);
-        // builder.watch(&historical_block, "historical_block");
+        let historical_block = builder.beacon_get_historical_block(block_root, idx);
+        builder.watch(&historical_block, "historical_block");
 
         let circuit = builder.build::<C>();
         let input = circuit.input();

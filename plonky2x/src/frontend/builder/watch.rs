@@ -27,8 +27,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 }
 
 impl<V: CircuitVariable> WatchGenerator<V> {
-    fn id() -> String {
-        "WatchGenerator".to_string()
+    pub fn id() -> String {
+        format!("WatchGenerator{}", std::any::type_name::<V>())
     }
 }
 
