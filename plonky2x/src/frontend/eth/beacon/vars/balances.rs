@@ -52,8 +52,8 @@ impl CircuitVariable for BeaconBalancesVariable {
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        let block_root = Bytes32Variable::from_variables(&variables[0..32]);
-        let validators_root = Bytes32Variable::from_variables(&variables[32..64]);
+        let block_root = Bytes32Variable::from_variables(&variables[0..256]);
+        let validators_root = Bytes32Variable::from_variables(&variables[256..512]);
         Self {
             block_root,
             balances_root: validators_root,
