@@ -10,24 +10,22 @@ trait MuxBuilder {
 impl<F: RichField + Extendable<D>, const D: usize> MuxBuilder for CircuitBuilder<F, D> {
     fn select_index<T: CircuitVariable>(&mut self, selector: Variable, inputs: &[T]) -> T {
         let num_var_in_t = inputs[0].variables().len();
+        let input_len = inputs.len();
+
+        let mut res = inputs[0].variables();
         let api = &mut self.api;
-        let mut final_vars = Vec::new();
 
-        for i in 0..num_var_in_t {
-            // All the variables in the `i`-th position for each element of input
-            let mut pos_vars = Vec::new(); 
-            
-            for j in 0..inputs.len() {
-                pos_vars.push(inputs[j].variables()[i].0);
+        for i in 0..input_len {
+            let target_i = api.constant(F::from_canonical_usize(i));
+            let whether_select = api.is_equal(target_i, selector.0);
+
+            let vars = inputs[i].variables();
+            for j in 0..num_var_in_t {
+                res[j] = Variable(api.select(whether_select, vars[j].0, res[j].0));
             }
-            // Pad the length of pos_vars to the nearest power of 2, random_access constrain len of selected vec to be power of 2
-            let padded_len = pos_vars.len().next_power_of_two();
-            pos_vars.resize_with(padded_len, Default::default);
-
-            final_vars.push(Variable(api.random_access(selector.0, pos_vars)));
         }
-        
-        T::from_variables(&final_vars)
+
+        T::from_variables(&res)
     }
 }
 
