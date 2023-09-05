@@ -50,7 +50,7 @@ use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32ArithmeticGenerator};
-use crate::frontend::num::u32::gates::comparison::ComparisonGate;
+use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 
 #[macro_export]
 macro_rules! impl_generator_serializer {
@@ -179,6 +179,7 @@ where
         BeaconHistoricalBlockGenerator<F, D>, "BeaconHistoricalBlockGenerator",
         BigUintDivRemGenerator<F, D>, "BigUintDivRemGenerator",
         U32ArithmeticGenerator<F, D>, "U32ArithmeticGenerator",
+        ComparisonGenerator<F, D>, "ComparisonGenerator"
     }
 }
 
