@@ -48,6 +48,7 @@ use crate::frontend::eth::storage::generators::storage::{
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
+use crate::frontend::num::u32::gates::comparison::ComparisonGate;
 
 #[macro_export]
 macro_rules! impl_generator_serializer {
@@ -199,6 +200,7 @@ impl<F: RichField + Extendable<D>, const D: usize> GateSerializer<F, D> for Cust
         ReducingExtensionGate<D>,
         ReducingGate<D>,
         U32AddManyGate<F, D>,
-        XOR3Gate
+        XOR3Gate,
+        ComparisonGate<F, D>
     }
 }
