@@ -44,6 +44,7 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
         builder: &mut CircuitBuilder<F, D>,
         value: Vec<V::ValueType<F>>,
     ) -> Self {
+        assert_eq!(value.len(), N);
         Self {
             elements: value.into_iter().map(|x| V::constant(builder, x)).collect(),
         }
@@ -54,7 +55,9 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        assert_eq!(variables.len(), N);
+        assert_eq!(variables.len(), N * V::nb_elements::<F, D>());
+        let res = Vec::new();
+
         Self {
             elements: variables.chunks(N).map(|x| V::from_variables(x)).collect(),
         }
