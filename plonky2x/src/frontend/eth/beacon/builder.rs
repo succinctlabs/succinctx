@@ -329,7 +329,7 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_validators() {
+    fn test_beacon_get_validators() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
@@ -352,7 +352,7 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_validator() {
+    fn test_beacon_get_validator() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
@@ -380,7 +380,7 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_validator_const() {
+    fn test_beacon_get_validator_const() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
@@ -407,7 +407,7 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_validator_by_pubkey() {
+    fn test_beacon_get_validator_by_pubkey() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
@@ -434,7 +434,7 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_balances_root() {
+    fn test_beacon_get_balances_root() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
@@ -457,7 +457,7 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_balance() {
+    fn test_beacon_get_balance() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
@@ -482,7 +482,7 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_withdrawals() {
+    fn test_beacon_get_withdrawals() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
