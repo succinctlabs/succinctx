@@ -7,13 +7,8 @@ use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
-use crate::builder::CircuitBuilder;
-use crate::eth::mpt::generators::math::ByteSubGenerator;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
-use crate::ops::{
-    BitAnd, BitOr, BitXor, Not, PartialEq, RotateLeft, RotateRight, Shl, Shr, Sub, Zero,
-};
 
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.

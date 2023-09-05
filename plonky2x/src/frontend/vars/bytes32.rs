@@ -6,13 +6,9 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{
-    BoolVariable, ByteVariable, ByteVariable, BytesVariable, CircuitVariable, CircuitVariable,
-    EvmVariable, EvmVariable, U256Variable, Variable, Variable,
+    BoolVariable, ByteVariable, BytesVariable, CircuitVariable, EvmVariable, U256Variable, Variable,
 };
-use crate::builder::CircuitBuilder;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::BytesVariable;
-use crate::ops::PartialEq;
 
 /// A variable in the circuit representing a byte32 value.
 #[derive(Debug, Clone, Copy)]

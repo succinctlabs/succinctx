@@ -7,6 +7,7 @@ mod variable;
 
 use std::fmt::Debug;
 
+pub use array::*;
 pub use boolean::*;
 pub use byte::*;
 pub use bytes::*;
