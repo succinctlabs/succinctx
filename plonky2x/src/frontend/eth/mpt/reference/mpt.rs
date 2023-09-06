@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
+use array_macro::array;
 use ethers::types::{Bytes, H256};
 use ethers::utils::keccak256;
+use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
@@ -318,9 +320,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     #[allow(dead_code, unused_variables)]
     pub fn to_nibbles(&mut self, bytes: &[ByteVariable]) -> Vec<ByteVariable> {
+        let len = bytes.len() * 2;
         let generator = NibbleGenerator {
             input: bytes.to_vec(),
-            output: vec![self.init::<ByteVariable>(); 2 * bytes.len()],
+            output: (0..len).map(|_| self.init::<ByteVariable>()).collect_vec(),
             _phantom: PhantomData,
         };
         self.add_simple_generator(&generator);
@@ -362,15 +365,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
         let mut padded_root = root.as_slice().to_vec();
         while padded_root.len() < ELEMENT_LEN {
-            padded_root.push(self.init::<ByteVariable>());
+            padded_root.push(self.constant::<ByteVariable>(0));
         }
         let mut current_node_id = ArrayVariable::<ByteVariable, ELEMENT_LEN>::new(padded_root);
-
         let hash_key = self.keccak256(&key.as_slice());
         let key_path: ArrayVariable<ByteVariable, 64> =
             self.to_nibbles(&hash_key.as_slice()).try_into().unwrap();
-        self.watch(&hash_key, format!("hash_key").as_str());
-        self.watch(&root, format!("root").as_str());
 
         for i in 0..PROOF_LEN {
             let current_node = proof[i].clone();
@@ -398,28 +398,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
                 self.assert_is_equal(checked_equality, t);
             }
 
-            self.watch(&current_node, format!("Round {} current_node", i).as_str());
-            self.watch(&len_nodes[i], format!("Round {} len_nodes[i]", i).as_str());
-
             let (decoded_list, decoded_element_lens, len_decoded_list) = self
                 .decode_element_as_list::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
                     current_node,
                     len_nodes[i],
                     finished,
                 );
-
-            self.watch(
-                &len_decoded_list,
-                format!("Round {} len_decoded_list", i).as_str(),
-            );
-            self.watch(
-                &decoded_element_lens,
-                format!("Round {} decoded_element_lens", i).as_str(),
-            );
-            // self.watch(
-            //     &rlp_decode_list_generator.decoded_list[0][0],
-            //     "decoded_list from generator",
-            // );
 
             let is_branch = self.is_equal(len_decoded_list, branch_node_length);
             let is_leaf = self.is_equal(len_decoded_list, leaf_or_extension_node_length);
@@ -434,7 +418,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             let offset_even = self.mul(prefix_extension_even.0, two);
             let offset_odd = self.mul(prefix_extension_odd.0, one);
             let offset = self.add(offset_even, offset_odd);
-
             let branch_key = self.mux(key_path.clone(), current_key_idx);
             let branch_key_variable: Variable = self.byte_to_variable(branch_key); // can be unsafe since nibbles are checked
 
@@ -448,13 +431,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
             let c = self.add(case_1_value, case_2_value);
             let updated_current_node_id_idx = self.add(c, case_3_value); // TODO: make this more concise
-            self.watch(
-                &updated_current_node_id_idx,
-                format!("Round {} updated_current_node_id_idx", i).as_str(),
-            );
 
             let updated_current_node_id = self.mux(decoded_list, updated_current_node_id_idx);
-
             // If finished == 1, then we should not update the current_node_id
             current_node_id = self.mux::<_, 2>(
                 vec![updated_current_node_id, current_node_id].into(),
@@ -483,17 +461,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             let j = self.mul(is_leaf.0, check_length);
             current_key_idx = self.add(current_key_idx, j);
 
-            let l = self.or(is_branch_and_key_terminated, prefix_leaf_even);
-            let m = self.or(l, prefix_leaf_odd);
+            let prefix_leaf_even_and_leaf = self.and(prefix_leaf_even, is_leaf);
+            let prefix_leaf_odd_and_leaf = self.and(prefix_leaf_odd, is_leaf);
+            let l = self.or(is_branch_and_key_terminated, prefix_leaf_even_and_leaf);
+            let m = self.or(l, prefix_leaf_odd_and_leaf);
             finished = self.or(finished, m);
-            self.watch(&finished, format!("Round {} finished", i).as_str());
-
-            for l in 0..34 {
-                self.watch(
-                    &current_node_id[l],
-                    format!("in loop {}: current_node_id[i]", i).as_str(),
-                );
-            }
         }
 
         let current_node_len = self.sub_byte(current_node_id[0], _128);
@@ -503,19 +475,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         self.assert_subarray_equal(
             &value.as_slice(),
             lhs_offset,
-            &current_node_id.as_slice(),
+            current_node_id.as_slice(),
             one,
             current_node_len_as_var,
         );
-
-        self.watch(&value, "value");
-        self.watch(&current_node_len_as_var, "At end: current_node_len_as_var");
-        for i in 0..34 {
-            self.watch(
-                &current_node_id[i],
-                format!("AT END {}: current_node_id[i]", i).as_str(),
-            );
-        }
     }
 }
 
@@ -636,6 +599,7 @@ mod tests {
         println!("root {:?} key {:?} value {:?}", root, key, value);
 
         let value_as_h256 = u256_to_h256_be(value);
+        println!("value_as_h256 {:?}", value_as_h256);
 
         const ENCODING_LEN: usize = 600;
         const PROOF_LEN: usize = 16;
@@ -653,6 +617,7 @@ mod tests {
 
         type F = GoldilocksField;
         let mut builder: CircuitBuilder<GoldilocksField, 2> = CircuitBuilderX::new();
+        // builder.debug(77867);
         let key_variable = builder.init::<Bytes32Variable>();
         let proof_variable =
             builder.init::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>();

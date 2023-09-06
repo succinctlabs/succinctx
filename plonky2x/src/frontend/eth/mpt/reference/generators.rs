@@ -116,8 +116,60 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D> for Nib
             let value = input.get(witness);
             let low = value & 0xf;
             let high = (value >> 4) & 0xf;
-            self.output[2 * i].set(out_buffer, low);
-            self.output[2 * i + 1].set(out_buffer, high);
+            self.output[2 * i].set(out_buffer, high);
+            self.output[2 * i + 1].set(out_buffer, low);
+        }
+    }
+
+    #[allow(unused_variables)]
+    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
+        todo!()
+    }
+
+    #[allow(unused_variables)]
+    fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SubarrayEqualGenerator<F: RichField + Extendable<D>, const D: usize> {
+    pub a: Vec<ByteVariable>,
+    pub a_offset: Variable,
+    pub b: Vec<ByteVariable>,
+    pub b_offset: Variable,
+    pub len: Variable,
+    pub _phantom: PhantomData<F>,
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
+    for SubarrayEqualGenerator<F, D>
+{
+    fn id(&self) -> String {
+        "SubarrayEqualGenerator".to_string()
+    }
+
+    fn dependencies(&self) -> Vec<Target> {
+        let mut targets: Vec<Target> = Vec::new();
+        targets.extend(self.a.iter().flat_map(|x| x.targets()));
+        targets.extend(self.b.iter().flat_map(|x| x.targets()));
+        targets.extend(self.a_offset.targets());
+        targets.extend(self.b_offset.targets());
+        targets.extend(self.len.targets());
+        targets
+    }
+
+    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+        println!("Running SubarrayEqualGenerator");
+        let a_offset = self.a_offset.get(witness).to_canonical_u64() as usize;
+        let b_offset = self.b_offset.get(witness).to_canonical_u64() as usize;
+        let len = self.len.get(witness).to_canonical_u64() as usize;
+        for i in 0..len {
+            let a = self.a[a_offset + i].get(witness);
+            let b = self.b[b_offset + i].get(witness);
+            if a != b {
+                panic!("SubarrayEqualGenerator failed at index {}", i);
+            }
         }
     }
 

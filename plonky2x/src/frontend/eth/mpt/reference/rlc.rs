@@ -1,6 +1,9 @@
+use std::marker::PhantomData;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
+use super::generators::SubarrayEqualGenerator;
 use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, Variable};
 
 // Checks that a[a_offset:a_offset+len] = b[b_offset:b_offset+len]
@@ -35,7 +38,17 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         b_offset: Variable,
         len: Variable,
     ) {
-        todo!();
+        let generator = SubarrayEqualGenerator {
+            a: a.to_vec(),
+            a_offset,
+            b: b.to_vec(),
+            b_offset,
+            len,
+            _phantom: PhantomData,
+        };
+        self.add_simple_generator(&generator);
+        // TODO: implement
+        // Pass for now so that circuit builder doesn't complaint
     }
 }
 
