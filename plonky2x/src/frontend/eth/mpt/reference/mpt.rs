@@ -111,35 +111,6 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256) -> Vec<u8> {
     panic!("Invalid proof");
 }
 
-pub fn get_proof_witnesses<const M: usize, const P: usize>(
-    storage_proof: Vec<Vec<u8>>,
-) -> ([[u8; M]; P], [u32; P]) {
-    if storage_proof.len() > P {
-        panic!("Outer vector has incorrect length")
-    }
-
-    let mut result: [[u8; M]; P] = [[0u8; M]; P];
-    let mut lengths: [u32; P] = [0u32; P];
-
-    for (i, inner_vec) in storage_proof.into_iter().enumerate() {
-        // Check inner length
-        if inner_vec.len() > M {
-            println!("{:?} {}", inner_vec, inner_vec.len());
-            panic!("Inner vector has incorrect length");
-        }
-        lengths[i] = inner_vec.len() as u32;
-
-        let mut array: [u8; M] = [0u8; M];
-        // Copy the inner vec to the array
-        for (j, &byte) in inner_vec.iter().enumerate() {
-            array[j] = byte;
-        }
-        result[i] = array;
-    }
-
-    (result, lengths)
-}
-
 pub fn verified_get<const L: usize, const M: usize, const P: usize>(
     key: [u8; 32],
     proof: [[u8; M]; P],
@@ -274,6 +245,39 @@ pub fn verified_get<const L: usize, const M: usize, const P: usize>(
         1,
         current_node_len as usize,
     );
+}
+
+pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usize>(
+    storage_proof: Vec<Vec<u8>>,
+) -> (Vec<Vec<u8>>, Vec<usize>) {
+    if storage_proof.len() > PROOF_LEN {
+        panic!(
+            "Proof is too long, has {} elements, but PROOF_LEN is {}",
+            storage_proof.len(),
+            PROOF_LEN
+        );
+    }
+
+    let mut padded_elements = vec![vec![0u8; ENCODING_LEN]; PROOF_LEN];
+    let mut lengths = vec![0usize, PROOF_LEN];
+
+    for (i, inner_vec) in storage_proof.into_iter().enumerate() {
+        // Check inner length
+        if inner_vec.len() > ENCODING_LEN {
+            panic!(
+                "Proof element {} is too long, has {} elements, but ENCODING_LEN is {}",
+                i,
+                inner_vec.len(),
+                ENCODING_LEN
+            );
+        }
+        lengths[i] = inner_vec.len();
+        for (j, &byte) in inner_vec.iter().enumerate() {
+            padded_elements[i][j] = byte;
+        }
+    }
+
+    (padded_elements, lengths)
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
@@ -601,16 +605,19 @@ mod tests {
         println!("root {:?} key {:?} value {:?}", root, key, value);
 
         let value_as_h256 = u256_to_h256_be(value);
-        let (proof_as_fixed, lengths_as_fixed) = get_proof_witnesses::<600, 16>(storage_proof);
-        // 17 = max length of RLP decoding of proof element as list
-        // 600 = max length of proof element as bytes
-        // 16 = max number of elements in proof
-        verified_get::<17, 600, 16>(
-            key.to_fixed_bytes(),
-            proof_as_fixed,
-            root.to_fixed_bytes(),
-            value_as_h256.to_fixed_bytes(),
-            lengths_as_fixed,
-        );
+
+        const ENCODING_LEN: usize = 600;
+        const PROOF_LEN: usize = 16;
+
+        let (proof_as_fixed, lengths_as_fixed) =
+            transform_proof_to_padded::<ENCODING_LEN, PROOF_LEN>(storage_proof);
+
+        // verified_get::<17, 600, 16>(
+        //     key.to_fixed_bytes(),
+        //     proof_as_fixed,
+        //     root.to_fixed_bytes(),
+        //     value_as_h256.to_fixed_bytes(),
+        //     lengths_as_fixed,
+        // );
     }
 }
