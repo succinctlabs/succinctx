@@ -57,6 +57,7 @@ use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
+use crate::frontend::generator::hint::HintSerializer;
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
@@ -65,7 +66,7 @@ use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32Ari
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::Bytes32Variable;
+use crate::frontend::vars::{Bytes32Variable, ElementBuffer};
 
 /// A registry to store serializers for witness generators.
 ///
@@ -99,7 +100,7 @@ pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize> {
 pub(crate) struct SerializationRegistry<K: Hash, F: RichField + Extendable<D>, T, const D: usize> {
     registry: HashMap<K, Box<dyn Serializer<F, T, D>>>,
     index: HashMap<K, usize>,
-    type_ids: Vec<K>,
+    identifiers: Vec<K>,
     current_index: usize,
 }
 
@@ -110,7 +111,7 @@ impl<K: Hash + Debug, F: RichField + Extendable<D>, T: Debug, const D: usize> De
         f.debug_struct("SerializationRegistry")
             .field("ids of registered objects", &self.registry.keys())
             .field("index", &self.index)
-            .field("type_ids", &self.type_ids)
+            .field("identifiers", &self.identifiers)
             .field("current_index", &self.current_index)
             .finish()
     }
@@ -123,7 +124,7 @@ impl<F: RichField + Extendable<D>, K: Hash, T: Any, const D: usize>
         Self {
             registry: HashMap::new(),
             index: HashMap::new(),
-            type_ids: Vec::new(),
+            identifiers: Vec::new(),
             current_index: 0,
         }
     }
@@ -191,7 +192,7 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
             panic!("Generator type {} already registered", id);
         }
 
-        self.0.type_ids.push(id.clone());
+        self.0.identifiers.push(id.clone());
         self.0.index.insert(id, self.0.current_index);
         self.0.current_index += 1;
     }
@@ -199,6 +200,24 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
     /// Registers a new simple witness generator with the given id.
     pub fn register_simple<SG: SimpleGenerator<F, D>>(&mut self, id: String) {
         self.register::<SimpleGeneratorAdapter<F, SG, D>>(id)
+    }
+
+    pub fn register_hint(&mut self, hint_fn: fn(&mut ElementBuffer<F, D>) -> Vec<F>) {
+        let hint_serializer = HintSerializer::new(hint_fn);
+        let id = hint_serializer.id();
+
+        let exists = self
+            .0
+            .registry
+            .insert(id.clone(), Box::new(hint_serializer));
+
+        if exists.is_some() {
+            panic!("Generator type {} already registered", id);
+        }
+
+        self.0.identifiers.push(id.clone());
+        self.0.index.insert(id, self.0.current_index);
+        self.0.current_index += 1;
     }
 }
 
@@ -215,7 +234,7 @@ impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
             panic!("Gate type already registered");
         }
 
-        self.0.type_ids.push(type_id);
+        self.0.identifiers.push(type_id);
         self.0.index.insert(type_id, self.0.current_index);
         self.0.current_index += 1;
     }
@@ -231,7 +250,7 @@ where
         common_data: &CommonCircuitData<F, D>,
     ) -> IoResult<WitnessGeneratorRef<F, D>> {
         let idx = buf.read_usize()?;
-        let type_id = &self.0.type_ids[idx];
+        let type_id = &self.0.identifiers[idx];
 
         self.0
             .registry
@@ -273,7 +292,7 @@ where
         common_data: &CommonCircuitData<F, D>,
     ) -> IoResult<GateRef<F, D>> {
         let idx = buf.read_usize()?;
-        let type_id = self.0.type_ids[idx];
+        let type_id = self.0.identifiers[idx];
 
         self.0
             .registry
