@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 
 use self::keccak256::Keccak256Generator;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{ByteVariable, CircuitBuilder};
+use crate::prelude::{ByteVariable, CircuitBuilder, Variable};
 
 pub mod keccak256;
 
@@ -15,6 +15,21 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             input: bytes.to_vec(),
             output: self.init(),
             length: None,
+            _phantom: Default::default(),
+        };
+        self.add_simple_generator(&generator);
+        generator.output
+    }
+
+    pub fn keccak256_variable(
+        &mut self,
+        bytes: &[ByteVariable],
+        length: Variable,
+    ) -> Bytes32Variable {
+        let generator = Keccak256Generator {
+            input: bytes.to_vec(),
+            output: self.init(),
+            length: Some(length),
             _phantom: Default::default(),
         };
         self.add_simple_generator(&generator);

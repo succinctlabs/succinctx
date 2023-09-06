@@ -1,10 +1,15 @@
 use ethers::types::{Bytes, H256};
 use ethers::utils::keccak256;
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
 
 use super::rlc::subarray_equal;
 use super::rlp::{decode_element_as_list, rlp_decode_bytes, rlp_decode_list_2_or_17};
 use super::utils::*;
-
+use crate::prelude::{
+    ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, CircuitVariable,
+    Variable,
+};
 // use crate::utils::{address, bytes, bytes, bytes32, bytes32, hex, hex};
 
 const TREE_RADIX: usize = 16;
@@ -270,6 +275,187 @@ pub fn verified_get<const L: usize, const M: usize, const P: usize>(
         1,
         current_node_len as usize,
     );
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+    const PREFIX_EXTENSION_EVEN: u8 = 0;
+    const PREFIX_EXTENSION_ODD: u8 = 1;
+    const PREFIX_LEAF_EVEN: u8 = 2;
+    const PREFIX_LEAF_ODD: u8 = 3;
+    /// Get the validators for a given block root.
+    /// P is the number of proof elements to be considered
+    pub fn verify_mpt_proof<const ENCODING_LEN: usize, const PROOF_LEN: usize>(
+        &mut self,
+        key: Bytes32Variable,
+        proof: ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>,
+        len_nodes: ArrayVariable<Variable, PROOF_LEN>,
+        root: Bytes32Variable,
+        value: Bytes32Variable,
+    ) {
+        const ELEMENT_LEN: usize = 34; // Maximum size of list element
+        let tree_radix = self.constant::<Variable>(F::from_canonical_u8(16u8));
+        let branch_node_length = self.constant::<Variable>(F::from_canonical_u8(17u8));
+        let leaf_or_extension_node_length = self.constant::<Variable>(F::from_canonical_u8(2u8));
+        let prefix_leaf_even = self.constant::<ByteVariable>(Self::PREFIX_LEAF_EVEN);
+        let prefix_leaf_odd = self.constant::<ByteVariable>(Self::PREFIX_LEAF_ODD);
+        let prefix_extension_even = self.constant::<ByteVariable>(Self::PREFIX_EXTENSION_EVEN);
+        let prefix_extension_odd = self.constant::<ByteVariable>(Self::PREFIX_EXTENSION_ODD);
+        let one: Variable = self.one::<Variable>();
+        let two = self.constant::<Variable>(F::from_canonical_u8(2));
+        let _64 = self.constant::<Variable>(F::from_canonical_u8(64));
+        let _32 = self.constant::<Variable>(F::from_canonical_u8(32));
+        let _128 = self.constant::<ByteVariable>(128);
+
+        let mut current_key_idx = self.zero::<Variable>();
+        let mut finished = self._false();
+
+        let mut current_node_id = self.init::<ArrayVariable<ByteVariable, ELEMENT_LEN>>();
+        for i in 0..32 {
+            current_node_id[i] = root.0 .0[i]; // TODO is there a way to fix this
+        }
+        let hash_key = self.keccak256(key);
+        let key_path = self.to_nibbles::<32, 64>(hash_key.as_slice());
+        self.watch(&hash_key, format!("hash_key").as_str());
+        self.watch(&root, format!("root").as_str());
+
+        let mut current_node = proof[0];
+        for i in 0..PROOF_LEN {
+            current_node = proof[i];
+            let current_node_hash = self.keccak256_variable(current_node, len_nodes[i]);
+
+            if i == 0 {
+                self.assert_is_equal(current_node_hash, root);
+            } else {
+                let first_32_bytes_eq = self.is_equal::<Bytes32Variable>(
+                    current_node[0..32].into(),
+                    current_node_id[0..32].into(),
+                );
+                let hash_eq = self.is_equal::<Bytes32Variable>(
+                    current_node_hash,
+                    current_node_id.as_slice()[0..32].into(),
+                );
+                let a = self.constant::<Variable>(F::from_canonical_u8(32u8));
+                let node_len_le_32 = self.le(len_nodes[i], a);
+                let case_len_le_32 = self.and(node_len_le_32, first_32_bytes_eq);
+                let inter = self.not(node_len_le_32);
+                let case_len_gt_32 = self.and(inter, hash_eq);
+                let equality_fulfilled = self.or(case_len_le_32, case_len_gt_32);
+                let checked_equality = self.or(equality_fulfilled, finished);
+                let t = self._true();
+                self.assert_eq(checked_equality, t);
+            }
+
+            self.watch(&current_node, format!("Round {} current_node", i).as_str());
+            self.watch(&len_nodes[i], format!("Round {} len_nodes[i]", i).as_str());
+
+            let (decoded_list, decoded_element_lens, len_decoded_list) =
+                self.decode_element_as_list(current_node, len_nodes[i], finished);
+
+            self.watch(
+                &len_decoded_list,
+                format!("Round {} len_decoded_list", i).as_str(),
+            );
+            self.watch(
+                &decoded_element_lens,
+                format!("Round {} decoded_element_lens", i).as_str(),
+            );
+            // self.watch(
+            //     &rlp_decode_list_generator.decoded_list[0][0],
+            //     "decoded_list from generator",
+            // );
+
+            let is_branch = self.eq(len_decoded_list, branch_node_length);
+            let is_leaf = self.eq(len_decoded_list, leaf_or_extension_node_length);
+            let key_terminated = self.eq(current_key_idx, _64);
+            let path = self.to_nibbles_unsized(&decoded_list[0]);
+            let prefix = path[0];
+            let prefix_leaf_even = self.is_equal(prefix, prefix_leaf_even);
+            let prefix_leaf_odd = self.is_equal(prefix, prefix_leaf_odd);
+            let prefix_extension_even = self.is_equal(prefix, prefix_extension_even);
+            let prefix_extension_odd = self.is_equal(prefix, prefix_extension_odd);
+
+            let offset_even = self.mul(prefix_extension_even.0, two);
+            let offset_odd = self.mul(prefix_extension_odd.0, one);
+            let offset = self.add(offset_even, offset_odd);
+
+            let branch_key = self.mux(key_path, current_key_idx);
+            let branch_key_variable: Variable = self.byte_to_variable(branch_key); // can be unsafe since nibbles are checked
+
+            // Case 1
+            let is_branch_and_key_terminated = self.and(is_branch, key_terminated);
+            let case_1_value = self.mul(is_branch_and_key_terminated.0, TREE_RADIX);
+            let b = self.not(key_terminated);
+            let is_branch_and_key_not_terminated = self.and(is_branch, b);
+            let case_2_value = self.mul(is_branch_and_key_not_terminated.0, branch_key_variable);
+            let case_3_value = self.mul(is_leaf.0, one);
+
+            let c = self.add(case_1_value, case_2_value);
+            let updated_current_node_id_idx = self.add(c, case_3_value); // TODO: make this more concise
+            self.watch(
+                &updated_current_node_id_idx,
+                format!("Round {} updated_current_node_id_idx", i).as_str(),
+            );
+
+            let updated_current_node_id = self.mux_nested(
+                decoded_list_vec
+                    .into_iter()
+                    .map(|v| v.try_into().unwrap())
+                    .collect::<Vec<[ByteVariable; MAX_ELE_SIZE]>>(),
+                updated_current_node_id_idx,
+            );
+
+            // If finished == 1, then we should not update the current_node_id
+            current_node_id =
+                self.mux_nested(vec![updated_current_node_id, current_node_id], finished.0);
+
+            let mut do_path_remainder_check = self.not(finished);
+            do_path_remainder_check = self.and(do_path_remainder_check, is_leaf);
+            let d = self.or(prefix_extension_even, prefix_extension_odd);
+            do_path_remainder_check = self.and(do_path_remainder_check, d);
+
+            let e = self.mul(decoded_element_lens[0], TWO);
+            let f = self.mul(offset, do_path_remainder_check.0);
+            let mut check_length = self.sub(e, f);
+            check_length = self.mul(check_length, do_path_remainder_check.0);
+
+            self.assert_subarray_eq(&path, offset, &key_path, current_key_idx, check_length);
+
+            current_key_idx = self.add(current_key_idx, is_branch_and_key_not_terminated.0);
+            let j = self.mul(is_leaf.0, check_length);
+            current_key_idx = self.add(current_key_idx, j);
+
+            let l = self.or(is_branch_and_key_terminated, prefix_leaf_even);
+            let m = self.or(l, prefix_leaf_odd);
+            finished = self.or(finished, m);
+            self.watch(&finished, format!("Round {} finished", i).as_str());
+
+            for l in 0..34 {
+                self.watch(
+                    &current_node_id[l],
+                    format!("in loop {}: current_node_id[i]", i).as_str(),
+                );
+            }
+        }
+
+        let current_node_len = self.sub(current_node_id[0], _128);
+        let current_node_len_as_var = self.byte_to_variable(current_node_len);
+        let lhs_offset = self.sub(_32, current_node_len_as_var);
+        self.assert_subarray_eq(
+            &value.as_slice(),
+            lhs_offset,
+            &current_node_id,
+            ONE,
+            current_node_len_as_var,
+        );
+        self.watch(&value, "value");
+        self.watch(&current_node_len_as_var, "At end: current_node_len_as_var");
+        for i in 0..34 {
+            self.watch(
+                &current_node_id[i],
+                format!("AT END {}: current_node_id[i]", i).as_str(),
+            );
+        }
+    }
 }
 
 #[cfg(test)]

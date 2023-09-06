@@ -253,8 +253,11 @@ impl<
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    #[allow(unused_variables, dead_code)]
-    fn decode_element_as_list<const ENCODED_LEN: usize, const LIST_LEN: usize, const M: usize>(
+    pub fn decode_element_as_list<
+        const ENCODED_LEN: usize,
+        const LIST_LEN: usize,
+        const M: usize,
+    >(
         &mut self,
         encoded: ArrayVariable<ByteVariable, ENCODED_LEN>,
         len: Variable,
