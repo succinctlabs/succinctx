@@ -607,14 +607,6 @@ mod tests {
         let (proof_as_fixed, lengths_as_fixed) =
             transform_proof_to_padded::<ENCODING_LEN, PROOF_LEN>(storage_proof);
 
-        // verified_get::<17, 600, 16>(
-        //     key.to_fixed_bytes(),
-        //     proof_as_fixed,
-        //     root.to_fixed_bytes(),
-        //     value_as_h256.to_fixed_bytes(),
-        //     lengths_as_fixed,
-        // );
-
         type F = GoldilocksField;
         let mut builder: CircuitBuilder<GoldilocksField, 2> = CircuitBuilderX::new();
         // builder.debug(77867);
@@ -638,6 +630,7 @@ mod tests {
         root_variable.set(&mut partial_witness, root);
         value_variable.set(&mut partial_witness, value_as_h256);
         proof_variable.set(&mut partial_witness, proof_as_fixed);
+
         // TODO: make this a macro instead of .map().iter()
         len_nodes.set(
             &mut partial_witness,
@@ -647,8 +640,13 @@ mod tests {
                 .collect::<Vec<F>>(),
         );
 
-        let prover_data = circuit.data.prover_only;
-        let common_data = circuit.data.common;
-        let witness = generate_partial_witness(partial_witness, &prover_data, &common_data);
+        // This is to generate the witness only without generating the proof
+        // TODO: turn this into a nice method on `Circuit`
+        // let prover_data = circuit.data.prover_only;
+        // let common_data = circuit.data.common;
+        // let witness = generate_partial_witness(partial_witness, &prover_data, &common_data);
+
+        let proof = circuit.data.prove(partial_witness).unwrap();
+        circuit.data.verify(proof.clone()).unwrap();
     }
 }
