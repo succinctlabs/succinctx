@@ -79,7 +79,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D> for Hin
     where
         Self: Sized,
     {
-        unimplemented!("Hint functions are not deserializable through the plonky2 crate, only directly throuth the witness registry")
+        unimplemented!("Hint functions are not deserializable through the plonky2 crate, only directly through the witness registry")
     }
 }
 
