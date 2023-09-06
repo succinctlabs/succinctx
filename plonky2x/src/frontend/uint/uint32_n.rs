@@ -178,45 +178,6 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> O
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Mul<F, D>
-    for U32NVariable<U, N>
-{
-    type Output = Self;
-
-    fn mul(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        let self_targets = self
-            .limbs
-            .iter()
-            .map(|x| U32Target(x.0 .0))
-            .collect::<Vec<_>>();
-        let rhs_targets = rhs
-            .limbs
-            .iter()
-            .map(|x| U32Target(x.0 .0))
-            .collect::<Vec<_>>();
-        assert_eq!(self_targets.len(), rhs_targets.len());
-        assert_eq!(self_targets.len(), N);
-
-        let self_biguint = BigUintTarget {
-            limbs: self_targets,
-        };
-        let rhs_biguint = BigUintTarget { limbs: rhs_targets };
-
-        let product_biguint = builder.api.mul_biguint(&self_biguint, &rhs_biguint);
-
-        // Get the least significant limb
-        let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
-        for i in 0..N {
-            limbs[i] = U32Variable(Variable(product_biguint.limbs[i].0));
-        }
-
-        Self {
-            limbs,
-            _marker: core::marker::PhantomData,
-        }
-    }
-}
-
 impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Add<F, D>
     for U32NVariable<U, N>
 {
@@ -285,6 +246,123 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> S
         let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
         for i in 0..N {
             limbs[i] = U32Variable(Variable(diff_biguint.limbs[i].0));
+        }
+
+        Self {
+            limbs,
+            _marker: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Mul<F, D>
+    for U32NVariable<U, N>
+{
+    type Output = Self;
+
+    fn mul(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        let self_targets = self
+            .limbs
+            .iter()
+            .map(|x| U32Target(x.0 .0))
+            .collect::<Vec<_>>();
+        let rhs_targets = rhs
+            .limbs
+            .iter()
+            .map(|x| U32Target(x.0 .0))
+            .collect::<Vec<_>>();
+        assert_eq!(self_targets.len(), rhs_targets.len());
+        assert_eq!(self_targets.len(), N);
+
+        let self_biguint = BigUintTarget {
+            limbs: self_targets,
+        };
+        let rhs_biguint = BigUintTarget { limbs: rhs_targets };
+
+        let product_biguint = builder.api.mul_biguint(&self_biguint, &rhs_biguint);
+
+        // Get the least significant limb
+        let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
+        for i in 0..N {
+            limbs[i] = U32Variable(Variable(product_biguint.limbs[i].0));
+        }
+
+        Self {
+            limbs,
+            _marker: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Div<F, D>
+    for U32NVariable<U, N>
+{
+    type Output = Self;
+
+    fn div(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        let self_targets = self
+            .limbs
+            .iter()
+            .map(|x| U32Target(x.0 .0))
+            .collect::<Vec<_>>();
+        let rhs_targets = rhs
+            .limbs
+            .iter()
+            .map(|x| U32Target(x.0 .0))
+            .collect::<Vec<_>>();
+        assert_eq!(self_targets.len(), rhs_targets.len());
+        assert_eq!(self_targets.len(), N);
+
+        let self_biguint = BigUintTarget {
+            limbs: self_targets,
+        };
+        let rhs_biguint = BigUintTarget { limbs: rhs_targets };
+
+        let product_biguint = builder.api.div_biguint(&self_biguint, &rhs_biguint);
+
+        // Get the least significant limb
+        let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
+        for i in 0..N {
+            limbs[i] = U32Variable(Variable(product_biguint.limbs[i].0));
+        }
+
+        Self {
+            limbs,
+            _marker: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Rem<F, D>
+    for U32NVariable<U, N>
+{
+    type Output = Self;
+
+    fn rem(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+        let self_targets = self
+            .limbs
+            .iter()
+            .map(|x| U32Target(x.0 .0))
+            .collect::<Vec<_>>();
+        let rhs_targets = rhs
+            .limbs
+            .iter()
+            .map(|x| U32Target(x.0 .0))
+            .collect::<Vec<_>>();
+        assert_eq!(self_targets.len(), rhs_targets.len());
+        assert_eq!(self_targets.len(), N);
+
+        let self_biguint = BigUintTarget {
+            limbs: self_targets,
+        };
+        let rhs_biguint = BigUintTarget { limbs: rhs_targets };
+
+        let product_biguint = builder.api.rem_biguint(&self_biguint, &rhs_biguint);
+
+        // Get the least significant limb
+        let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
+        for i in 0..N {
+            limbs[i] = U32Variable(Variable(product_biguint.limbs[i].0));
         }
 
         Self {

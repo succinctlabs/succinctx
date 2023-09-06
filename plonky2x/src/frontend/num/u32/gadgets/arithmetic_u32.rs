@@ -259,11 +259,17 @@ struct SplitToU32Generator<F: RichField + Extendable<D>, const D: usize> {
     _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> SplitToU32Generator<F, D> {
+    pub fn id() -> String {
+        "SplitToU32Generator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for SplitToU32Generator<F, D>
 {
     fn id(&self) -> String {
-        "SplitToU32Generator".to_string()
+        Self::id()
     }
 
     fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {

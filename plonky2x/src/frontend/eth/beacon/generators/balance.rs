@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
+use std::env;
 
-use curta::math::prelude::PrimeField64;
+use array_macro::array;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -11,56 +12,129 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::uint::uint256::U256Variable;
+use crate::frontend::eth::vars::BLSPubkeyVariable;
+use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
-use crate::prelude::Variable;
 use crate::utils::eth::beacon::BeaconClient;
-use crate::utils::hex;
+use crate::utils::eth::BLSPubkey;
+use crate::utils::{bytes32, hex};
+
+const DEPTH: usize = 39;
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone)]
+pub enum BeaconBalanceInput {
+    IndexConst(u64),
+    IndexVariable(U64Variable),
+    PubkeyConst(BLSPubkey),
+    PubkeyVariable(BLSPubkeyVariable),
+}
 
 #[derive(Debug, Clone)]
-pub struct BeaconValidatorBalanceGenerator<F: RichField + Extendable<D>, const D: usize> {
+pub struct BeaconBalanceGenerator<F: RichField + Extendable<D>, const D: usize> {
     client: BeaconClient,
     block_root: Bytes32Variable,
-    validators_root: Bytes32Variable,
-    deterministic_idx: Option<u64>,
-    dynamic_idx: Option<Variable>,
-    pub balance: U256Variable,
+    input: BeaconBalanceInput,
+    pub balance: U64Variable,
+    pub balance_leaf: Bytes32Variable,
+    pub proof: [Bytes32Variable; DEPTH],
+    pub gindex: U64Variable,
     _phantom: PhantomData<F>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorBalanceGenerator<F, D> {
-    pub fn new(
+impl<F: RichField + Extendable<D>, const D: usize> BeaconBalanceGenerator<F, D> {
+    pub fn new_with_index_const(
         builder: &mut CircuitBuilder<F, D>,
         block_root: Bytes32Variable,
-        validators_root: Bytes32Variable,
-        deterministic_idx: Option<u64>,
-        dynamic_idx: Option<Variable>,
+        validator_idx: u64,
     ) -> Self {
         Self {
             client: builder.beacon_client.clone().unwrap(),
             block_root,
-            validators_root,
-            deterministic_idx,
-            dynamic_idx,
-            balance: builder.init::<U256Variable>(),
+            input: BeaconBalanceInput::IndexConst(validator_idx),
+            balance: builder.init::<U64Variable>(),
+            balance_leaf: builder.init::<Bytes32Variable>(),
+            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            gindex: builder.init::<U64Variable>(),
             _phantom: PhantomData,
         }
+    }
+
+    pub fn new_with_index_variable(
+        builder: &mut CircuitBuilder<F, D>,
+        block_root: Bytes32Variable,
+        validator_idx: U64Variable,
+    ) -> Self {
+        Self {
+            client: builder.beacon_client.clone().unwrap(),
+            block_root,
+            input: BeaconBalanceInput::IndexVariable(validator_idx),
+            balance: builder.init::<U64Variable>(),
+            balance_leaf: builder.init::<Bytes32Variable>(),
+            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            gindex: builder.init::<U64Variable>(),
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn new_with_pubkey_const(
+        builder: &mut CircuitBuilder<F, D>,
+        block_root: Bytes32Variable,
+        pubkey: BLSPubkey,
+    ) -> Self {
+        Self {
+            client: builder.beacon_client.clone().unwrap(),
+            block_root,
+            input: BeaconBalanceInput::PubkeyConst(pubkey),
+            balance: builder.init::<U64Variable>(),
+            balance_leaf: builder.init::<Bytes32Variable>(),
+            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            gindex: builder.init::<U64Variable>(),
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn new_with_pubkey_variable(
+        builder: &mut CircuitBuilder<F, D>,
+        block_root: Bytes32Variable,
+        pubkey: BLSPubkeyVariable,
+    ) -> Self {
+        Self {
+            client: builder.beacon_client.clone().unwrap(),
+            block_root,
+            input: BeaconBalanceInput::PubkeyVariable(pubkey),
+            balance: builder.init::<U64Variable>(),
+            balance_leaf: builder.init::<Bytes32Variable>(),
+            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            gindex: builder.init::<U64Variable>(),
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn id() -> String {
+        "BeaconBalanceGenerator".to_string()
     }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for BeaconValidatorBalanceGenerator<F, D>
+    for BeaconBalanceGenerator<F, D>
 {
     fn id(&self) -> String {
-        "BeaconValidatorBalanceGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {
         let mut targets = Vec::new();
         targets.extend(self.block_root.targets());
-        targets.extend(self.validators_root.targets());
-        if self.dynamic_idx.is_some() {
-            targets.extend(self.dynamic_idx.unwrap().targets());
+        match self.input {
+            BeaconBalanceInput::IndexConst(_) => {}
+            BeaconBalanceInput::IndexVariable(ref idx) => {
+                targets.extend(idx.targets());
+            }
+            BeaconBalanceInput::PubkeyConst(_) => {}
+            BeaconBalanceInput::PubkeyVariable(ref pubkey) => {
+                targets.extend(pubkey.targets());
+            }
         }
         targets
     }
@@ -68,110 +142,115 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
         let block_root = self.block_root.get(witness);
         let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result = rt.block_on(async {
-            if self.deterministic_idx.is_some() {
-                self.client
-                    .get_validator_balance(hex!(block_root), self.deterministic_idx.unwrap())
-                    .await
-                    .expect("failed to get validator")
-            } else {
-                let idx = self.dynamic_idx.unwrap().get(witness).as_canonical_u64();
-                self.client
-                    .get_validator_balance(hex!(block_root), idx)
-                    .await
-                    .expect("failed to get validator")
-            }
-        });
-        self.balance.set(out_buffer, result);
+        let result = rt
+            .block_on(async {
+                match &self.input {
+                    BeaconBalanceInput::IndexConst(idx) => {
+                        self.client
+                            .get_validator_balance_v2(hex!(block_root), *idx)
+                            .await
+                    }
+                    BeaconBalanceInput::IndexVariable(idx) => {
+                        let idx = idx.get(witness);
+                        self.client
+                            .get_validator_balance_v2(hex!(block_root), idx.as_u64())
+                            .await
+                    }
+                    BeaconBalanceInput::PubkeyConst(pubkey) => {
+                        let pubkey = hex!(pubkey.0);
+                        self.client
+                            .get_validator_balance_by_pubkey_v2(hex!(block_root), pubkey)
+                            .await
+                    }
+                    BeaconBalanceInput::PubkeyVariable(pubkey) => {
+                        let pubkey = hex!(pubkey.get(witness));
+                        self.client
+                            .get_validator_balance_by_pubkey_v2(hex!(block_root), pubkey)
+                            .await
+                    }
+                }
+            })
+            .unwrap();
+        self.balance.set(out_buffer, result.balance.into());
+        self.balance_leaf
+            .set(out_buffer, bytes32!(result.balance_leaf));
+        for i in 0..DEPTH {
+            self.proof[i].set(out_buffer, bytes32!(result.proof[i]));
+        }
+        self.gindex.set(
+            out_buffer,
+            result.gindex.to_string().parse::<u64>().unwrap().into(),
+        );
     }
 
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
         dst.write_target_vec(&self.block_root.targets())?;
-        dst.write_target_vec(&self.validators_root.targets())?;
-        dst.write_bool(self.deterministic_idx.is_some())?;
-        if self.deterministic_idx.is_some() {
-            dst.write_usize(self.deterministic_idx.unwrap() as usize)?;
-        } else {
-            dst.write_target_vec(&self.dynamic_idx.unwrap().targets())?;
+        match &self.input {
+            BeaconBalanceInput::IndexConst(idx) => {
+                dst.write_usize(0)?;
+                dst.write_usize(*idx as usize)?;
+            }
+            BeaconBalanceInput::IndexVariable(idx) => {
+                dst.write_usize(1)?;
+                dst.write_target_vec(&idx.targets())?;
+            }
+            BeaconBalanceInput::PubkeyConst(pubkey) => {
+                dst.write_usize(2)?;
+                dst.write_all(&pubkey.0)?;
+            }
+            BeaconBalanceInput::PubkeyVariable(ref pubkey) => {
+                dst.write_usize(3)?;
+                dst.write_target_vec(&pubkey.targets())?;
+            }
         }
         dst.write_target_vec(&self.balance.targets())?;
+        dst.write_target_vec(&self.balance_leaf.targets())?;
+        for i in 0..DEPTH {
+            dst.write_target_vec(&self.proof[i].targets())?;
+        }
+        dst.write_target_vec(&self.gindex.targets())?;
         Ok(())
     }
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
         let block_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
-        let validators_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
-        let is_deterministic = src.read_bool()?;
-        let deterministic_idx = if is_deterministic {
-            Some(src.read_usize()? as u64)
+        let input_type = src.read_usize()?;
+        let input = if input_type == 0 {
+            let idx = src.read_usize()?;
+            BeaconBalanceInput::IndexConst(idx as u64)
+        } else if input_type == 1 {
+            let idx = U64Variable::from_targets(&src.read_target_vec()?);
+            BeaconBalanceInput::IndexVariable(idx)
+        } else if input_type == 2 {
+            let mut pubkey = [0u8; 48];
+            src.read_exact(&mut pubkey)?;
+            BeaconBalanceInput::PubkeyConst(BLSPubkey(pubkey))
+        } else if input_type == 3 {
+            let pubkey = BLSPubkeyVariable::from_targets(&src.read_target_vec()?);
+            BeaconBalanceInput::PubkeyVariable(pubkey)
         } else {
-            None
+            panic!("invalid input type")
         };
-        let dynamic_idx = if is_deterministic {
-            None
-        } else {
-            Some(Variable::from_targets(&src.read_target_vec()?))
-        };
-        let balance = U256Variable::from_targets(&src.read_target_vec()?);
+        let balance = U64Variable::from_targets(&src.read_target_vec()?);
+        let balance_leaf = Bytes32Variable::from_targets(&src.read_target_vec()?);
+        let mut proof = Vec::new();
+        for i in 0..DEPTH {
+            proof.push(Bytes32Variable::from_targets(&src.read_target_vec()?));
+        }
+        let gindex = U64Variable::from_targets(&src.read_target_vec()?);
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
         Ok(Self {
-            client: BeaconClient::new("https://beaconapi.succinct.xyz".to_string()),
+            client,
             block_root,
-            validators_root,
-            deterministic_idx,
-            dynamic_idx,
+            input,
             balance,
+            balance_leaf,
+            proof: proof.try_into().unwrap(),
+            gindex,
             _phantom: PhantomData,
         })
-    }
-}
-
-#[cfg(test)]
-pub(crate) mod tests {
-    use std::env;
-
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
-
-    use crate::frontend::builder::CircuitBuilder;
-    use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
-    use crate::frontend::vars::Bytes32Variable;
-    use crate::utils::bytes32;
-    use crate::utils::eth::beacon::BeaconClient;
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_validator_generator() {
-        dotenv::dotenv().ok();
-
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
-        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
-        let client = BeaconClient::new(consensus_rpc);
-
-        let mut builder = CircuitBuilder::<F, D>::new();
-        builder.set_beacon_client(client);
-
-        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
-        ));
-        let validators = builder.get_beacon_validators(block_root);
-        let generator = BeaconValidatorGenerator::new(
-            &mut builder,
-            validators.block_root,
-            validators.validators_root,
-            Some(0),
-            None,
-        );
-        builder.add_simple_generator(&generator);
-
-        let circuit = builder.build::<C>();
-        let pw = PartialWitness::new();
-        let proof = circuit.data.prove(pw).unwrap();
-        circuit.data.verify(proof).unwrap();
     }
 }

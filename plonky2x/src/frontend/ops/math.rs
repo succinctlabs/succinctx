@@ -96,6 +96,24 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
+/// The remainder operation.
+///
+/// Types implementing this trait can be used within the `builder.rem(lhs, rhs)` method.
+pub trait Rem<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
+    type Output;
+
+    fn rem(self, rhs: Rhs, builder: &mut CircuitBuilder<F, D>) -> Self::Output;
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+    pub fn rem<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Rem<F, D, Rhs>>::Output
+    where
+        Lhs: Rem<F, D, Rhs>,
+    {
+        lhs.rem(rhs, self)
+    }
+}
+
 /// A zero element
 ///
 /// Types implementing this trait can be used via the `builder.zero()` method.

@@ -359,11 +359,17 @@ pub struct U32ArithmeticGenerator<F: RichField + Extendable<D>, const D: usize> 
     _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> U32ArithmeticGenerator<F, D> {
+    pub fn id() -> String {
+        "U32ArithmeticGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for U32ArithmeticGenerator<F, D>
 {
     fn id(&self) -> String {
-        "U32ArithmeticGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {

@@ -39,13 +39,17 @@ impl<F: RichField + Extendable<D>, const D: usize> EthBlockGenerator<F, D> {
             _phantom: PhantomData::<F>,
         }
     }
+
+    pub fn id() -> String {
+        "EthBlockGenerator".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for EthBlockGenerator<F, D>
 {
     fn id(&self) -> String {
-        "EthBlockGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {

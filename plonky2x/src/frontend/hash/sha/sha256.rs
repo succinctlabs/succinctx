@@ -282,7 +282,7 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
 
 /// Implements SHA256 implementation for CircuitBuilder
 impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D> {
-    pub fn sha(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
+    pub fn sha256(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
         let input_bool: Vec<BoolTarget> = input
             .iter()
             .flat_map(|byte| byte.as_bool_targets().to_vec())
