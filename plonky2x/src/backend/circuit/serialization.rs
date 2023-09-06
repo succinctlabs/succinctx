@@ -55,7 +55,7 @@ use crate::frontend::eth::beacon::vars::{
 };
 use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
-    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+    EthAccountProofGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
@@ -409,6 +409,9 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
 
         let eth_storage_proof_generator_id = EthStorageProofGenerator::<F, D>::id();
         r.register_simple::<EthStorageProofGenerator<F, D>>(eth_storage_proof_generator_id);
+
+        let eth_account_proof_generator_id = EthAccountProofGenerator::<F, D>::id();
+        r.register_simple::<EthAccountProofGenerator<F, D>>(eth_account_proof_generator_id);
 
         let eth_log_generator_id = EthLogGenerator::<F, D>::id();
         r.register_simple::<EthLogGenerator<F, D>>(eth_log_generator_id);
