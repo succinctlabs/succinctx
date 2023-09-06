@@ -1,8 +1,11 @@
+use std::marker::PhantomData;
+
 use ethers::types::{Bytes, H256};
 use ethers::utils::keccak256;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
+use super::generators::*;
 use super::rlc::subarray_equal;
 use super::rlp::{decode_element_as_list, rlp_decode_bytes, rlp_decode_list_2_or_17};
 use super::utils::*;
@@ -281,19 +284,36 @@ pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usi
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    #[allow(dead_code, unused_variables)]
     pub fn le(&mut self, lhs: Variable, rhs: Variable) -> BoolVariable {
-        todo!();
+        let generator = LeGenerator {
+            lhs: lhs.clone(),
+            rhs: rhs.clone(),
+            output: self.init::<BoolVariable>(),
+            _phantom: PhantomData,
+        };
+        self.add_simple_generator(&generator);
+        generator.output
     }
 
-    #[allow(dead_code, unused_variables)]
     pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
-        todo!();
+        let generator = ByteToVariableGenerator {
+            lhs: lhs.clone(),
+            output: self.init::<Variable>(),
+            _phantom: PhantomData,
+        };
+        self.add_simple_generator(&generator);
+        generator.output
     }
 
-    #[allow(dead_code, unused_variables)]
     pub fn sub_byte(&mut self, lhs: ByteVariable, rhs: ByteVariable) -> ByteVariable {
-        todo!();
+        let generator = ByteSubGenerator {
+            lhs: lhs.clone(),
+            rhs: rhs.clone(),
+            output: self.init::<ByteVariable>(),
+            _phantom: PhantomData,
+        };
+        self.add_simple_generator(&generator);
+        generator.output
     }
 
     #[allow(dead_code, unused_variables)]

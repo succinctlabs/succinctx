@@ -16,6 +16,7 @@ pub mod utils;
 
 pub mod prelude {
     pub use plonky2::field::goldilocks_field::GoldilocksField;
+    pub use plonky2::iop::target::Target;
     pub use plonky2::iop::witness::PartialWitness;
     pub use plonky2::plonk::config::PoseidonGoldilocksConfig;
 

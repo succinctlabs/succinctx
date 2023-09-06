@@ -1,17 +1,26 @@
+use std::marker::PhantomData;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
 use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::eth::mpt::reference::generators::MuxGenerator;
 use crate::frontend::vars::{ArrayVariable, CircuitVariable, Variable};
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    #[allow(unused_variables, dead_code)]
     pub fn mux<V: CircuitVariable, const N: usize>(
         &mut self,
         array: ArrayVariable<V, N>,
         selector: Variable,
     ) -> V {
-        todo!();
+        let generator = MuxGenerator {
+            input: array,
+            select: selector,
+            output: self.init::<V>(),
+            _phantom: PhantomData,
+        };
+        self.add_simple_generator(&generator);
+        generator.output
     }
 }
 
