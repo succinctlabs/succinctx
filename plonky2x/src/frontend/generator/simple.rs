@@ -11,16 +11,24 @@ use plonky2::util::serialization::{Buffer, IoError, IoResult, Write};
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::vars::Variable;
+use crate::prelude::CircuitBuilder;
 
 pub trait Generator<F: RichField + Extendable<D>, const D: usize>:
-    'static + Send + Sync + Debug + Any + Serialize + for<'de> Deserialize<'de>
+    'static + Send + Clone + Sync + Debug + Any + Serialize + for<'de> Deserialize<'de>
 {
     fn inputs(&self) -> Vec<Variable>;
 
     fn run(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>);
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+    pub fn add_generator<G: Generator<F, D> + 'static>(&mut self, generator: G) {
+        let generator = GeneratorWrapper { generator };
+        self.add_simple_generator(generator);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneratorWrapper<G> {
     pub generator: G,
 }
