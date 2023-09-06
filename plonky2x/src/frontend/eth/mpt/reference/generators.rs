@@ -94,6 +94,45 @@ impl<F: RichField + Extendable<D>, const D: usize, V: CircuitVariable, const N: 
 }
 
 #[derive(Debug, Clone)]
+pub struct NibbleGenerator<F: RichField + Extendable<D>, const D: usize> {
+    pub input: Vec<ByteVariable>,
+    pub output: Vec<ByteVariable>,
+    pub _phantom: PhantomData<F>,
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D> for NibbleGenerator<F, D> {
+    fn id(&self) -> String {
+        "NibbleGenerator".to_string()
+    }
+
+    fn dependencies(&self) -> Vec<Target> {
+        let mut targets: Vec<Target> = Vec::new();
+        targets.extend(self.input.iter().flat_map(|x| x.targets()));
+        targets
+    }
+
+    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+        for (i, input) in self.input.iter().enumerate() {
+            let value = input.get(witness);
+            let low = value & 0xf;
+            let high = (value >> 4) & 0xf;
+            self.output[2 * i].set(out_buffer, low);
+            self.output[2 * i + 1].set(out_buffer, high);
+        }
+    }
+
+    #[allow(unused_variables)]
+    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
+        todo!()
+    }
+
+    #[allow(unused_variables)]
+    fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct ByteSubGenerator<F: RichField + Extendable<D>, const D: usize> {
     pub lhs: ByteVariable,
     pub rhs: ByteVariable,

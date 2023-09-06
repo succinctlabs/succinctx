@@ -318,7 +318,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     #[allow(dead_code, unused_variables)]
     pub fn to_nibbles(&mut self, bytes: &[ByteVariable]) -> Vec<ByteVariable> {
-        todo!();
+        let generator = NibbleGenerator {
+            input: bytes.to_vec(),
+            output: vec![self.init::<ByteVariable>(); 2 * bytes.len()],
+            _phantom: PhantomData,
+        };
+        self.add_simple_generator(&generator);
+        generator.output
     }
 
     const PREFIX_EXTENSION_EVEN: u8 = 0;
