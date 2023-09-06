@@ -19,8 +19,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         map_key: Bytes32Variable,
     ) -> Bytes32Variable {
         let generator = EthStorageKeyGenerator::new(self, mapping_location, map_key);
-        self.add_simple_generator(&generator);
-        generator.value
+        let value = generator.value;
+        self.add_simple_generator(generator);
+        value
     }
 
     #[allow(non_snake_case)]
@@ -31,15 +32,17 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         storage_key: Bytes32Variable,
     ) -> Bytes32Variable {
         let generator = EthStorageProofGenerator::new(self, block_hash, address, storage_key);
-        self.add_simple_generator(&generator);
-        generator.value
+        let value = generator.value;
+        self.add_simple_generator(generator);
+        value
     }
 
     #[allow(non_snake_case)]
     pub fn eth_get_block_by_hash(&mut self, block_hash: Bytes32Variable) -> EthHeaderVariable {
         let generator = EthBlockGenerator::new(self, block_hash);
-        self.add_simple_generator(&generator);
-        generator.value
+        let value = generator.value;
+        self.add_simple_generator(generator);
+        value
     }
 
     #[allow(non_snake_case)]
@@ -59,8 +62,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         log_index: u64,
     ) -> EthLogVariable {
         let generator = EthLogGenerator::new(self, transaction_hash, block_hash, log_index);
-        self.add_simple_generator(&generator);
-        generator.value
+        let value = generator.value;
+        self.add_simple_generator(generator);
+        value
     }
 }
 

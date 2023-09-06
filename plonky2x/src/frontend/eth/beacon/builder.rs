@@ -49,7 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     ) -> BeaconValidatorsVariable {
         let generator =
             BeaconValidatorsGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         self.ssz_verify_proof_const(
             block_root,
             generator.validators_root,
@@ -70,7 +70,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     ) -> BeaconValidatorVariable {
         let generator =
             BeaconValidatorGenerator::new_with_index_variable(self, validators.block_root, index);
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         let validator_root = self.ssz_hash_tree_root(generator.validator);
         let mut gindex = self.constant::<U64Variable>(VALIDATOR_BASE_GINDEX.into());
         gindex = self.add(gindex, index);
@@ -91,7 +91,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     ) -> BeaconValidatorVariable {
         let generator =
             BeaconValidatorGenerator::new_with_index_const(self, validators.block_root, index);
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         let validator_root = self.ssz_hash_tree_root(generator.validator);
         let gindex = VALIDATOR_BASE_GINDEX + index;
         self.ssz_verify_proof_const(
@@ -112,7 +112,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     ) -> (U64Variable, BeaconValidatorVariable) {
         let generator =
             BeaconValidatorGenerator::new_with_pubkey_variable(self, validators.block_root, pubkey);
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         let validator_root = self.ssz_hash_tree_root(generator.validator);
         let mut gindex = self.constant::<U64Variable>(VALIDATOR_BASE_GINDEX.into());
         gindex = self.add(gindex, generator.validator_idx);
@@ -130,7 +130,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn beacon_get_balances(&mut self, block_root: Bytes32Variable) -> BeaconBalancesVariable {
         let generator =
             BeaconBalancesGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         self.ssz_verify_proof_const(
             block_root,
             generator.balances_root,
@@ -151,7 +151,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     ) -> U64Variable {
         let generator =
             BeaconBalanceGenerator::new_with_index_variable(self, balances.block_root, index);
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         let mut gindex = self.constant::<U64Variable>(BALANCE_BASE_GINDEX.into());
         let four = self.constant::<U64Variable>(4.into());
 
@@ -192,7 +192,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     ) -> BeaconWithdrawalsVariable {
         let generator =
             BeaconWithdrawalsGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         self.ssz_verify_proof_const(
             block_root,
             generator.withdrawals_root,
@@ -217,7 +217,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             withdrawals,
             idx,
         );
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         let mut gindex = self.constant::<U64Variable>(WITHDRAWAL_BASE_GINDEX.into());
         gindex = self.add(gindex, idx);
         let leaf = self.ssz_hash_tree_root(generator.withdrawal.clone());
@@ -237,7 +237,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             block_root,
             offset,
         );
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         let mut gindex =
             self.constant::<U64Variable>(HISTORICAL_BLOCK_SUMMARIES_BASE_GINDEX.into());
         gindex = self.add(gindex, offset);

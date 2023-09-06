@@ -18,6 +18,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
+use super::generator::hint::Hint;
 use super::vars::EvmVariable;
 use crate::backend::circuit::Circuit;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
@@ -31,6 +32,7 @@ pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
+    hints: Vec<Hint<F, D>>,
 }
 
 /// The default suggested circuit builder using the Goldilocks field and the fast recursion config.
@@ -56,6 +58,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             beacon_client: None,
             execution_client: None,
             chain_id: None,
+            hints: Vec::new(),
         }
     }
 
@@ -86,6 +89,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         C: GenericConfig<D, F = F> + 'static,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
     {
+        for hint in self.hints.drain(..) {
+            self.api.add_simple_generator(hint);
+        }
         if self.io.evm.is_some() {
             let io = self.io.evm.as_ref().unwrap();
             let inputs: Vec<Target> = io.input_bytes.iter().flat_map(|b| b.targets()).collect();
@@ -105,8 +111,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Add simple generator.
-    pub fn add_simple_generator<G: SimpleGenerator<F, D> + Clone>(&mut self, generator: &G) {
-        self.api.add_simple_generator(generator.clone())
+    pub fn add_simple_generator<G: SimpleGenerator<F, D> + Clone>(&mut self, generator: G) {
+        self.api.add_simple_generator(generator)
     }
 
     /// Initializes a variable with no value in the circuit.

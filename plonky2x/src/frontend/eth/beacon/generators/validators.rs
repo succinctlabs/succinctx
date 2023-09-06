@@ -137,7 +137,7 @@ pub(crate) mod tests {
             "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
         ));
         let generator = BeaconValidatorsGenerator::<F, D>::new(&mut builder, client, block_root);
-        builder.add_simple_generator(&generator);
+        builder.add_simple_generator(generator);
 
         let circuit = builder.build::<C>();
         let pw = PartialWitness::new();

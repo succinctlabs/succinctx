@@ -22,7 +22,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let log = String::from(log);
 
         let generator = WatchGenerator { variable, log };
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator);
     }
 }
 

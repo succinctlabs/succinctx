@@ -35,7 +35,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             hint_fn,
         };
 
-        self.add_simple_generator(&hint);
+        self.add_simple_generator(hint);
     }
 }
 
