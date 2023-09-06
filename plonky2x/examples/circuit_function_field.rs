@@ -34,10 +34,10 @@ impl CircuitFunction for Function {
         <C as plonky2::plonk::config::GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
     {
         let mut builder = CircuitBuilder::<F, D>::new();
-        let a = builder.read::<Variable>();
-        let b = builder.read::<Variable>();
+        let a = builder.read_input::<Variable>();
+        let b = builder.read_input::<Variable>();
         let c = builder.add(a, b);
-        builder.write(c);
+        builder.write_output(c);
         builder.build::<C>()
     }
 }

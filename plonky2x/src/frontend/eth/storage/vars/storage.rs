@@ -8,7 +8,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable, VariableBuffer};
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, Stream, U256Variable};
 use crate::prelude::Variable;
 
 #[derive(Debug, Clone, Copy)]
@@ -198,7 +198,7 @@ impl CircuitVariable for EthLogVariable {
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        let mut var_buffer = VariableBuffer::new(variables);
+        let mut var_buffer = Stream::<Variable>::new(variables.to_vec());
         let address = var_buffer.read::<AddressVariable>();
         let topics = array![_ => var_buffer.read::<Bytes32Variable>(); 3];
         let data_hash = var_buffer.read::<Bytes32Variable>();

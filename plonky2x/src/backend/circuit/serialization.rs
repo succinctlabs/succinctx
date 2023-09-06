@@ -66,7 +66,7 @@ use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32Ari
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, ElementBuffer};
+use crate::frontend::vars::{Bytes32Variable, ValueStream};
 
 /// A registry to store serializers for witness generators.
 ///
@@ -202,7 +202,7 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
         self.register::<SimpleGeneratorAdapter<F, SG, D>>(id)
     }
 
-    pub fn register_hint(&mut self, hint_fn: fn(&mut ElementBuffer<F, D>) -> Vec<F>) {
+    pub fn register_hint(&mut self, hint_fn: fn(&mut ValueStream<F, D>, &mut ValueStream<F, D>)) {
         let hint_serializer = HintSerializer::new(hint_fn);
         let id = hint_serializer.id();
 

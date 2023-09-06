@@ -68,7 +68,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         }
     }
 
-    pub fn read<V: CircuitVariable>(&mut self) -> V {
+    pub fn read_input<V: CircuitVariable>(&mut self) -> V {
         self.init_field_io();
         let variable = self.init::<V>();
         match self.io.field {
@@ -93,7 +93,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         variable
     }
 
-    pub fn write<V: CircuitVariable>(&mut self, variable: V) {
+    pub fn write_output<V: CircuitVariable>(&mut self, variable: V) {
         self.init_field_io();
         match self.io.field {
             Some(ref mut io) => io.output_variables.extend(variable.variables()),

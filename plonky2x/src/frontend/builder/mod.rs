@@ -32,7 +32,7 @@ pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
-    hints: Vec<Hint<F, D>>,
+    pub(crate) hints: Vec<Hint<F, D>>,
 }
 
 /// The default suggested circuit builder using the Goldilocks field and the fast recursion config.
@@ -216,10 +216,10 @@ pub(crate) mod tests {
     fn test_simple_circuit_with_field_io() {
         // Define your circuit.
         let mut builder = CircuitBuilderX::new();
-        let a = builder.read::<Variable>();
-        let b = builder.read::<Variable>();
+        let a = builder.read_input::<Variable>();
+        let b = builder.read_input::<Variable>();
         let c = builder.add(a, b);
-        builder.write(c);
+        builder.write_output(c);
 
         // Build your circuit.
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
