@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use curta::math::prelude::PrimeField64;
+use ethers::types::{Bytes, H256};
 use num::bigint::ToBigInt;
 use num::BigInt;
 use plonky2::field::extension::Extendable;
@@ -35,13 +36,26 @@ pub fn rlp_decode_bytes(input: &[u8]) -> (Vec<u8>, usize) {
         let res = &input[1..1 + length];
         (res.into(), 1 + length)
     } else if prefix <= 0xBF {
-        panic!("Long string (56+ bytes length) not supported in rlp_decode_bytes")
+        // Long string (more than 55 bytes length)
+        let len_of_str_len = (prefix - 0xB7) as usize;
+        let mut str_len_bytes: Vec<u8> = input[1..1 + len_of_str_len].to_vec();
+        str_len_bytes.reverse();
+        let mut str_len = 0;
+        for i in 0..len_of_str_len {
+            str_len += str_len_bytes[i] as usize * 256_usize.pow(i as u32);
+        }
+        return (
+            input[1 + len_of_str_len..1 + len_of_str_len + str_len].into(),
+            1 + len_of_str_len + str_len,
+        );
     } else {
+        println!("input {:?}", input);
         panic!("Invalid prefix rlp_decode_bytes")
     }
 }
 
 pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
+    println!("input {:?}", Bytes::from(input.to_vec()).to_string());
     let prefix = input[0];
 
     // Short list (0-55 bytes total payload)
@@ -53,6 +67,7 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
         let (ele_2, _) = rlp_decode_bytes(&input[1 + increment..]);
         vec![ele_1, ele_2]
     } else {
+        println!("hi in this case");
         // TODO: check that prefix is bounded within a certain range
         let len_of_list_length = prefix - 0xF7;
         // println!("len_of_list_length {:?}", len_of_list_length);
@@ -61,6 +76,8 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
         let mut res = vec![];
         for _ in 0..17 {
             let (ele, increment) = rlp_decode_bytes(&input[pos..]);
+            println!("ele {:?}", Bytes::from(ele.clone()).to_string());
+            println!("increment {:?}", increment);
             res.push(ele);
             pos += increment;
             if pos == input.len() {
@@ -69,6 +86,7 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
         }
         assert!(pos == input.len()); // Checks that we have iterated through all the input
         assert!(res.len() == 17 || res.len() == 2);
+        println!("END");
         res
     }
 }

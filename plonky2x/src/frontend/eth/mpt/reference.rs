@@ -31,34 +31,27 @@ pub fn assert_bytes_equal(a: &[u8], b: &[u8]) {
 
 // Based off of the following Solidity implementation:
 // https://github.com/ethereum-optimism/optimism/blob/6e041bcd9d678a0ea2bb92cfddf9716f8ae2336c/packages/contracts-bedrock/src/libraries/trie/MerkleTrie.sol
-pub(crate) fn get(key: H256, proof: Vec<Vec<u8>>, root: H256) -> Vec<u8> {
+pub(crate) fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> Vec<u8> {
     let mut current_key_index = 0;
     let mut current_node_id = root.to_fixed_bytes().to_vec();
 
-    let hash_key = keccak256(key.to_fixed_bytes().as_slice());
+    let hash_key = key.to_fixed_bytes();
     let _ = key; // Move key so that we cannot mistakely use it again
     let key_path = to_nibbles(&hash_key[..]);
     let mut finish = false;
 
     for i in 0..proof.len() {
-        println!("i {}", i);
         let current_node = &proof[i];
 
         if current_key_index == 0 {
             let hash = keccak256(current_node);
             assert_bytes_equal(&hash[..], &current_node_id);
         } else if current_node.len() >= 32 {
-            println!("current node length {:?}", current_node.len());
             let hash = keccak256(current_node);
             assert_bytes_equal(&hash[..], &current_node_id);
         } else {
-            println!(
-                "current_node {:?}",
-                Bytes::from(current_node.to_vec()).to_string()
-            );
             assert_bytes_equal(current_node, &current_node_id);
         }
-
         let decoded = rlp_decode_list_2_or_17(current_node);
         match decoded.len() {
             BRANCH_NODE_LENGTH => {
@@ -88,7 +81,6 @@ pub(crate) fn get(key: H256, proof: Vec<Vec<u8>>, root: H256) -> Vec<u8> {
                             path_remainder,
                             &key_path[current_key_index..current_key_index + path_remainder.len()],
                         );
-                        println!("path_remainder {:?}", path_remainder.len());
                         current_key_index += path_remainder.len();
                     }
                     PREFIX_EXTENSION_ODD => {
@@ -108,13 +100,12 @@ pub(crate) fn get(key: H256, proof: Vec<Vec<u8>>, root: H256) -> Vec<u8> {
             }
         }
 
-        println!("decoded {:?}", decoded);
-        println!("current_key_idx {:?}", current_key_index);
-        println!("current node id at end of loop {:?}", current_node_id);
-
         if finish {
-            println!("Finished");
-            return rlp_decode_bytes(&current_node_id[..]).0;
+            if account_proof {
+                return current_node_id;
+            } else {
+                return rlp_decode_bytes(&current_node_id[..]).0;
+            }
         }
     }
 
@@ -126,45 +117,61 @@ mod tests {
     use super::super::utils::{read_fixture, EIP1186ProofResponse};
     use super::{get, *};
     use crate::frontend::eth::utils::u256_to_h256_be;
+    use crate::utils::bytes32;
 
     #[test]
-    fn test_mpt_vanilla() {
+    fn test_mpt_storage_proof() {
         let storage_result: EIP1186ProofResponse =
-            read_fixture("./src/eth/mpt/fixtures/example.json");
+            read_fixture("./src/frontend/eth/mpt/fixtures/example.json");
 
         let proof = storage_result.storage_proof[0]
             .proof
             .iter()
             .map(|b| b.to_vec())
             .collect::<Vec<Vec<u8>>>();
-        println!(
-            "Storage proof first element {:?}",
-            storage_result.storage_proof[0].proof[0].to_string()
-        );
-        let k = keccak256::<Vec<u8>>(storage_result.storage_proof[0].proof[0].to_vec()).to_vec();
-        println!(
-            "keccack256 of first element {:?}",
-            Bytes::from(k).to_string()
-        );
-        println!("storage hash {:?}", storage_result.storage_hash.to_string());
-        let value = get(
-            storage_result.storage_proof[0].key,
+        let storage_key = keccak256(storage_result.storage_proof[0].key.as_bytes());
+        let mut value = get(
+            storage_key.into(),
             proof,
             storage_result.storage_hash,
+            false,
         );
-        println!("recovered value {:?}", Bytes::from(value).to_string());
-        // TODO have to left pad the recovered value to 32 bytes
-        // println!("recovered value h256 {:?}", H256::from_slice(&value));
-        println!(
-            "true value {:?}",
-            u256_to_h256_be(storage_result.storage_proof[0].value)
-        );
-        // TODO: make this a real test with assert
+        // Left pad the recovered value to 32 bytes
+        value.splice(0..0, vec![0; 32 - value.len()]);
 
-        // TODO: for some reason this doesn't work...not sure why
-        // let account_key = keccak256(address.as_bytes());
-        // let account_proof = storage_result.account_proof.iter().map(|b| b.to_vec()).collect::<Vec<Vec<u8>>>();
-        // let account_value = get(account_key.into(), account_proof, state_root);
-        // println!("account value {:?}", Bytes::from(account_value).to_string());
+        let recovered_value_h256 = H256::from_slice(&value);
+        let true_value_h256 = u256_to_h256_be(storage_result.storage_proof[0].value);
+        assert_eq!(recovered_value_h256, true_value_h256);
+    }
+
+    #[test]
+    fn test_mpt_account_proof() {
+        let storage_result: EIP1186ProofResponse =
+            read_fixture("./src/frontend/eth/mpt/fixtures/example.json");
+
+        // TODO: put this state root in the fixture
+        let state_root =
+            bytes32!("0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e");
+        let address = storage_result.address;
+        let account_key = keccak256(address.as_bytes());
+
+        let account_proof = storage_result
+            .account_proof
+            .iter()
+            .map(|b| b.to_vec())
+            .collect::<Vec<Vec<u8>>>();
+
+        let account_value = get(account_key.into(), account_proof, state_root, true);
+
+        println!("account value {:?}", Bytes::from(account_value).to_string());
+        println!("account nonce {:?}", storage_result.nonce);
+        println!("account balance {:?}", storage_result.balance);
+        println!("account storage_hash {:?}", storage_result.storage_hash);
+        println!("account code_hash {:?}", storage_result.code_hash);
+
+        // TODO:
+        // assert that account_value =
+        //    0xAA 0xBB || rlp_encode_byte(nonce) || rlp_encode_byte(balance)
+        //         || 0xa0 || storage_hash || 0xa0 || code_hash
     }
 }
