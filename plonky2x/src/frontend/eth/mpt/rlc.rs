@@ -38,6 +38,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         b_offset: Variable,
         len: Variable,
     ) {
+        // TODO: implement
         let generator = SubarrayEqualGenerator {
             a: a.to_vec(),
             a_offset,
@@ -47,8 +48,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             _phantom: PhantomData,
         };
         self.add_simple_generator(&generator);
-        // TODO: implement
-        // Pass for now so that circuit builder doesn't complaint
     }
 }
 

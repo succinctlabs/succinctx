@@ -11,11 +11,17 @@ use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
-use super::utils::{is_le, is_leq};
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, Variable,
 };
 
+pub fn bool_to_u32(b: bool) -> u32 {
+    if b {
+        1
+    } else {
+        0
+    }
+}
 // Note this only decodes bytes and doesn't support long strings
 pub fn rlp_decode_bytes(input: &[u8]) -> (Vec<u8>, usize) {
     let prefix = input[0];
@@ -137,7 +143,7 @@ pub fn verify_decoded_list<const L: usize, const M: usize>(
         for j in 0..32 {
             poly += list[i][j] as u32
                 * (random.pow(1 + size_accumulator + j as u32))
-                * is_leq(j as u32, list_len);
+                * bool_to_u32(j as u32 <= list_len);
         }
         size_accumulator += 1 + list_len;
         claim_poly += poly;
@@ -147,8 +153,9 @@ pub fn verify_decoded_list<const L: usize, const M: usize>(
     for i in 3..M {
         // TODO: don't hardcode 3 here
         let idx = i - 3;
-        encoding_poly +=
-            encoding[i] as u32 * (random.pow(idx as u32)) * is_le(idx as u32, size_accumulator);
+        encoding_poly += encoding[i] as u32
+            * (random.pow(idx as u32))
+            * bool_to_u32(idx < size_accumulator as usize);
     }
 
     assert!(claim_poly == encoding_poly);

@@ -1,119 +1,13 @@
 use std::marker::PhantomData;
 
-use ethers::types::{Bytes, H256};
-use ethers::utils::keccak256;
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
 use super::generators::*;
-use super::rlc::subarray_equal;
-use super::rlp::{decode_element_as_list, rlp_decode_bytes, rlp_decode_list_2_or_17};
-use super::utils::*;
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, Variable,
 };
-// use crate::utils::{address, bytes, bytes, bytes32, bytes32, hex, hex};
-
-const TREE_RADIX: usize = 16;
-const BRANCH_NODE_LENGTH: usize = 17;
-const LEAF_OR_EXTENSION_NODE_LENGTH: usize = 2;
-const PREFIX_EXTENSION_EVEN: usize = 0;
-const PREFIX_EXTENSION_ODD: usize = 1;
-const PREFIX_LEAF_EVEN: usize = 2;
-const PREFIX_LEAF_ODD: usize = 3;
-
-// Based off of the following Solidity implementation:
-// https://github.com/ethereum-optimism/optimism/blob/6e041bcd9d678a0ea2bb92cfddf9716f8ae2336c/packages/contracts-bedrock/src/libraries/trie/MerkleTrie.sol
-pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256) -> Vec<u8> {
-    let mut current_key_index = 0;
-    let mut current_node_id = root.to_fixed_bytes().to_vec();
-
-    let hash_key = keccak256(key.to_fixed_bytes().as_slice());
-    let _ = key; // Move key so that we cannot mistakely use it again
-    let key_path = to_nibbles(&hash_key[..]);
-    let mut finish = false;
-
-    for i in 0..proof.len() {
-        println!("i {}", i);
-        let current_node = &proof[i];
-
-        if current_key_index == 0 {
-            let hash = keccak256(current_node);
-            assert_bytes_equal(&hash[..], &current_node_id);
-        } else if current_node.len() >= 32 {
-            println!("current node length {:?}", current_node.len());
-            let hash = keccak256(current_node);
-            assert_bytes_equal(&hash[..], &current_node_id);
-        } else {
-            println!(
-                "current_node {:?}",
-                Bytes::from(current_node.to_vec()).to_string()
-            );
-            assert_bytes_equal(current_node, &current_node_id);
-        }
-
-        let decoded = rlp_decode_list_2_or_17(current_node);
-        match decoded.len() {
-            BRANCH_NODE_LENGTH => {
-                if current_key_index == key_path.len() {
-                    // We have traversed all nibbles of the key, so we return the value in the branch node
-                    finish = true;
-                    current_node_id = decoded[TREE_RADIX].clone();
-                } else {
-                    let branch_key = key_path[current_key_index];
-                    current_node_id = decoded[usize::from(branch_key)].clone();
-                    current_key_index += 1;
-                }
-            }
-            LEAF_OR_EXTENSION_NODE_LENGTH => {
-                current_node_id = decoded[1].clone().clone();
-                let path = to_nibbles(&decoded[0]);
-                let prefix = path[0];
-                match usize::from(prefix) {
-                    PREFIX_LEAF_EVEN | PREFIX_LEAF_ODD => {
-                        // TODO there are some other checks here around length of the return value and also the path matching the key
-                        finish = true;
-                    }
-                    PREFIX_EXTENSION_EVEN => {
-                        // If prefix_extension_even, then the offset for the path is 2
-                        let path_remainder = &path[2..];
-                        assert_bytes_equal(
-                            path_remainder,
-                            &key_path[current_key_index..current_key_index + path_remainder.len()],
-                        );
-                        println!("path_remainder {:?}", path_remainder.len());
-                        current_key_index += path_remainder.len();
-                    }
-                    PREFIX_EXTENSION_ODD => {
-                        // If prefix_extension_odd, then the offset for the path is 1
-                        let path_remainder = &path[1..];
-                        assert_bytes_equal(
-                            path_remainder,
-                            &key_path[current_key_index..current_key_index + path_remainder.len()],
-                        );
-                        current_key_index += path_remainder.len();
-                    }
-                    _ => panic!("Invalid prefix for leaf or extension node"),
-                }
-            }
-            _ => {
-                panic!("Invalid decoded length");
-            }
-        }
-
-        println!("decoded {:?}", decoded);
-        println!("current_key_idx {:?}", current_key_index);
-        println!("current node id at end of loop {:?}", current_node_id);
-
-        if finish {
-            println!("Finished");
-            return rlp_decode_bytes(&current_node_id[..]).0;
-        }
-    }
-
-    panic!("Invalid proof");
-}
 
 pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usize>(
     storage_proof: Vec<Vec<u8>>,
@@ -347,103 +241,14 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-    use std::io::Read;
+    use curta::math::field::Field;
 
-    use ethers::providers::{Http, Middleware, Provider};
-    use ethers::types::{Bytes, EIP1186ProofResponse};
-    use ethers::utils::keccak256;
-    use plonky2::field::types::Field;
-    use plonky2::iop::generator::generate_partial_witness;
-    use tokio::runtime::Runtime;
-
+    use super::super::utils::{read_fixture, EIP1186ProofResponse};
     use super::*;
     use crate::frontend::eth::utils::u256_to_h256_be;
     use crate::prelude::{
         CircuitBuilderX, CircuitVariable, GoldilocksField, PartialWitness, PoseidonGoldilocksConfig,
     };
-    use crate::utils::{address, bytes32};
-
-    fn generate_fixtures() {
-        // TODO: don't have mainnet RPC url here, read from a .env
-        let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
-        let provider = Provider::<Http>::try_from(rpc_url).unwrap();
-
-        let block_number = 17880427u64;
-        let _state_root =
-            bytes32!("0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e");
-        let address = address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5");
-        let location =
-            bytes32!("0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5");
-
-        // Nouns contract
-        // let address = address!("0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03");
-        // let location = bytes32!("0x0000000000000000000000000000000000000000000000000000000000000003");
-
-        let get_proof_closure = || -> EIP1186ProofResponse {
-            let rt = Runtime::new().unwrap();
-            rt.block_on(async {
-                provider
-                    .get_proof(address, vec![location], Some(block_number.into()))
-                    .await
-                    .unwrap()
-            })
-        };
-        let storage_result: EIP1186ProofResponse = get_proof_closure();
-        let serialized = serde_json::to_string(&storage_result).unwrap();
-        println!("{}", serialized);
-        // TODO: save this to fixtures/example.json programatically instead of copy-paste
-    }
-
-    fn read_fixture(filename: &str) -> EIP1186ProofResponse {
-        let mut file = File::open(filename).unwrap();
-        let mut context = String::new();
-        file.read_to_string(&mut context).unwrap();
-
-        let context: EIP1186ProofResponse = serde_json::from_str(context.as_str()).unwrap();
-        context
-    }
-
-    #[test]
-    fn test_mpt_vanilla() {
-        let storage_result: EIP1186ProofResponse =
-            read_fixture("./src/eth/mpt/fixtures/example.json");
-
-        let proof = storage_result.storage_proof[0]
-            .proof
-            .iter()
-            .map(|b| b.to_vec())
-            .collect::<Vec<Vec<u8>>>();
-        println!(
-            "Storage proof first element {:?}",
-            storage_result.storage_proof[0].proof[0].to_string()
-        );
-        let k = keccak256::<Vec<u8>>(storage_result.storage_proof[0].proof[0].to_vec()).to_vec();
-        println!(
-            "keccack256 of first element {:?}",
-            Bytes::from(k).to_string()
-        );
-        println!("storage hash {:?}", storage_result.storage_hash.to_string());
-        let value = get(
-            storage_result.storage_proof[0].key,
-            proof,
-            storage_result.storage_hash,
-        );
-        println!("recovered value {:?}", Bytes::from(value).to_string());
-        // TODO have to left pad the recovered value to 32 bytes
-        // println!("recovered value h256 {:?}", H256::from_slice(&value));
-        println!(
-            "true value {:?}",
-            u256_to_h256_be(storage_result.storage_proof[0].value)
-        );
-        // TODO: make this a real test with assert
-
-        // TODO: for some reason this doesn't work...not sure why
-        // let account_key = keccak256(address.as_bytes());
-        // let account_proof = storage_result.account_proof.iter().map(|b| b.to_vec()).collect::<Vec<Vec<u8>>>();
-        // let account_value = get(account_key.into(), account_proof, state_root);
-        // println!("account value {:?}", Bytes::from(account_value).to_string());
-    }
 
     #[test]
     fn test_mpt_circuit() {
