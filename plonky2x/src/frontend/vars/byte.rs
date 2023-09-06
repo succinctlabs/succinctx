@@ -104,10 +104,6 @@ impl ByteVariable {
             .try_into()
             .unwrap()
     }
-
-    pub fn to_variable(&self) -> Variable {
-        todo!();
-    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Not<F, D> for ByteVariable {

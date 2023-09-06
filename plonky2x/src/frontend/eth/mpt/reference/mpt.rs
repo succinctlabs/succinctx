@@ -7,8 +7,7 @@ use super::rlc::subarray_equal;
 use super::rlp::{decode_element_as_list, rlp_decode_bytes, rlp_decode_list_2_or_17};
 use super::utils::*;
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, CircuitVariable,
-    Variable,
+    ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, Variable,
 };
 // use crate::utils::{address, bytes, bytes, bytes32, bytes32, hex, hex};
 
@@ -158,10 +157,10 @@ pub fn verified_get<const L: usize, const M: usize, const P: usize>(
     let hash_key = keccak256(key);
     let key_path = to_nibbles(&hash_key);
     let mut finish: u32 = 0;
-    let mut current_node = proof[0];
+
     for i in 0..P {
         println!("i: {}", i);
-        current_node = proof[i];
+        let current_node = proof[i];
         let current_node_hash = keccack_variable(current_node, len_nodes[i]);
         println!(
             "current_node_hash {:?}",
@@ -278,6 +277,26 @@ pub fn verified_get<const L: usize, const M: usize, const P: usize>(
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+    #[allow(dead_code, unused_variables)]
+    pub fn le(&mut self, lhs: Variable, rhs: Variable) -> BoolVariable {
+        todo!();
+    }
+
+    #[allow(dead_code, unused_variables)]
+    pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
+        todo!();
+    }
+
+    #[allow(dead_code, unused_variables)]
+    pub fn sub_byte(&mut self, lhs: ByteVariable, rhs: ByteVariable) -> ByteVariable {
+        todo!();
+    }
+
+    #[allow(dead_code, unused_variables)]
+    pub fn to_nibbles(&mut self, bytes: &[ByteVariable]) -> Vec<ByteVariable> {
+        todo!();
+    }
+
     const PREFIX_EXTENSION_EVEN: u8 = 0;
     const PREFIX_EXTENSION_ODD: u8 = 1;
     const PREFIX_LEAF_EVEN: u8 = 2;
@@ -293,6 +312,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         value: Bytes32Variable,
     ) {
         const ELEMENT_LEN: usize = 34; // Maximum size of list element
+        const LIST_LEN: usize = 17; // Maximum length of the list for each proof element
+
         let tree_radix = self.constant::<Variable>(F::from_canonical_u8(16u8));
         let branch_node_length = self.constant::<Variable>(F::from_canonical_u8(17u8));
         let leaf_or_extension_node_length = self.constant::<Variable>(F::from_canonical_u8(2u8));
@@ -309,19 +330,21 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let mut current_key_idx = self.zero::<Variable>();
         let mut finished = self._false();
 
-        let mut current_node_id = self.init::<ArrayVariable<ByteVariable, ELEMENT_LEN>>();
-        for i in 0..32 {
-            current_node_id[i] = root.0 .0[i]; // TODO is there a way to fix this
+        let mut padded_root = root.as_slice().to_vec();
+        while padded_root.len() < ELEMENT_LEN {
+            padded_root.push(self.init::<ByteVariable>());
         }
-        let hash_key = self.keccak256(key);
-        let key_path = self.to_nibbles::<32, 64>(hash_key.as_slice());
+        let mut current_node_id = ArrayVariable::<ByteVariable, ELEMENT_LEN>::new(padded_root);
+
+        let hash_key = self.keccak256(&key.as_slice());
+        let key_path: ArrayVariable<ByteVariable, 64> =
+            self.to_nibbles(&hash_key.as_slice()).try_into().unwrap();
         self.watch(&hash_key, format!("hash_key").as_str());
         self.watch(&root, format!("root").as_str());
 
-        let mut current_node = proof[0];
         for i in 0..PROOF_LEN {
-            current_node = proof[i];
-            let current_node_hash = self.keccak256_variable(current_node, len_nodes[i]);
+            let current_node = proof[i].clone();
+            let current_node_hash = self.keccak256_variable(&current_node.as_slice(), len_nodes[i]);
 
             if i == 0 {
                 self.assert_is_equal(current_node_hash, root);
@@ -342,14 +365,18 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
                 let equality_fulfilled = self.or(case_len_le_32, case_len_gt_32);
                 let checked_equality = self.or(equality_fulfilled, finished);
                 let t = self._true();
-                self.assert_eq(checked_equality, t);
+                self.assert_is_equal(checked_equality, t);
             }
 
             self.watch(&current_node, format!("Round {} current_node", i).as_str());
             self.watch(&len_nodes[i], format!("Round {} len_nodes[i]", i).as_str());
 
-            let (decoded_list, decoded_element_lens, len_decoded_list) =
-                self.decode_element_as_list(current_node, len_nodes[i], finished);
+            let (decoded_list, decoded_element_lens, len_decoded_list) = self
+                .decode_element_as_list::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
+                    current_node,
+                    len_nodes[i],
+                    finished,
+                );
 
             self.watch(
                 &len_decoded_list,
@@ -364,10 +391,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             //     "decoded_list from generator",
             // );
 
-            let is_branch = self.eq(len_decoded_list, branch_node_length);
-            let is_leaf = self.eq(len_decoded_list, leaf_or_extension_node_length);
-            let key_terminated = self.eq(current_key_idx, _64);
-            let path = self.to_nibbles_unsized(&decoded_list[0]);
+            let is_branch = self.is_equal(len_decoded_list, branch_node_length);
+            let is_leaf = self.is_equal(len_decoded_list, leaf_or_extension_node_length);
+            let key_terminated = self.is_equal(current_key_idx, _64);
+            let path = self.to_nibbles(&decoded_list[0].as_slice());
             let prefix = path[0];
             let prefix_leaf_even = self.is_equal(prefix, prefix_leaf_even);
             let prefix_leaf_odd = self.is_equal(prefix, prefix_leaf_odd);
@@ -378,12 +405,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             let offset_odd = self.mul(prefix_extension_odd.0, one);
             let offset = self.add(offset_even, offset_odd);
 
-            let branch_key = self.mux(key_path, current_key_idx);
+            let branch_key = self.mux(key_path.clone(), current_key_idx);
             let branch_key_variable: Variable = self.byte_to_variable(branch_key); // can be unsafe since nibbles are checked
 
             // Case 1
             let is_branch_and_key_terminated = self.and(is_branch, key_terminated);
-            let case_1_value = self.mul(is_branch_and_key_terminated.0, TREE_RADIX);
+            let case_1_value = self.mul(is_branch_and_key_terminated.0, tree_radix);
             let b = self.not(key_terminated);
             let is_branch_and_key_not_terminated = self.and(is_branch, b);
             let case_2_value = self.mul(is_branch_and_key_not_terminated.0, branch_key_variable);
@@ -396,29 +423,31 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
                 format!("Round {} updated_current_node_id_idx", i).as_str(),
             );
 
-            let updated_current_node_id = self.mux_nested(
-                decoded_list_vec
-                    .into_iter()
-                    .map(|v| v.try_into().unwrap())
-                    .collect::<Vec<[ByteVariable; MAX_ELE_SIZE]>>(),
-                updated_current_node_id_idx,
-            );
+            let updated_current_node_id = self.mux(decoded_list, updated_current_node_id_idx);
 
             // If finished == 1, then we should not update the current_node_id
-            current_node_id =
-                self.mux_nested(vec![updated_current_node_id, current_node_id], finished.0);
+            current_node_id = self.mux::<_, 2>(
+                vec![updated_current_node_id, current_node_id].into(),
+                finished.0,
+            );
 
             let mut do_path_remainder_check = self.not(finished);
             do_path_remainder_check = self.and(do_path_remainder_check, is_leaf);
             let d = self.or(prefix_extension_even, prefix_extension_odd);
             do_path_remainder_check = self.and(do_path_remainder_check, d);
 
-            let e = self.mul(decoded_element_lens[0], TWO);
+            let e = self.mul(decoded_element_lens[0], two);
             let f = self.mul(offset, do_path_remainder_check.0);
             let mut check_length = self.sub(e, f);
             check_length = self.mul(check_length, do_path_remainder_check.0);
 
-            self.assert_subarray_eq(&path, offset, &key_path, current_key_idx, check_length);
+            self.assert_subarray_equal(
+                &path,
+                offset,
+                &key_path.as_slice(),
+                current_key_idx,
+                check_length,
+            );
 
             current_key_idx = self.add(current_key_idx, is_branch_and_key_not_terminated.0);
             let j = self.mul(is_leaf.0, check_length);
@@ -437,16 +466,18 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             }
         }
 
-        let current_node_len = self.sub(current_node_id[0], _128);
+        let current_node_len = self.sub_byte(current_node_id[0], _128);
         let current_node_len_as_var = self.byte_to_variable(current_node_len);
         let lhs_offset = self.sub(_32, current_node_len_as_var);
-        self.assert_subarray_eq(
+
+        self.assert_subarray_equal(
             &value.as_slice(),
             lhs_offset,
-            &current_node_id,
-            ONE,
+            &current_node_id.as_slice(),
+            one,
             current_node_len_as_var,
         );
+
         self.watch(&value, "value");
         self.watch(&current_node_len_as_var, "At end: current_node_len_as_var");
         for i in 0..34 {

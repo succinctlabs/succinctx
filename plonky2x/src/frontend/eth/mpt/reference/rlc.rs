@@ -15,7 +15,7 @@ pub fn subarray_equal(a: &[u8], a_offset: usize, b: &[u8], b_offset: usize, len:
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     #[allow(unused_variables, dead_code)]
-    fn subarray_equal(
+    pub fn subarray_equal(
         &mut self,
         a: &[ByteVariable],
         a_offset: Variable,
@@ -23,6 +23,18 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         b_offset: Variable,
         len: Variable,
     ) -> BoolVariable {
+        todo!();
+    }
+
+    #[allow(unused_variables, dead_code)]
+    pub fn assert_subarray_equal(
+        &mut self,
+        a: &[ByteVariable],
+        a_offset: Variable,
+        b: &[ByteVariable],
+        b_offset: Variable,
+        len: Variable,
+    ) {
         todo!();
     }
 }

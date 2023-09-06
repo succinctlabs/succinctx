@@ -22,7 +22,8 @@ pub mod prelude {
     pub use crate::frontend::builder::{CircuitBuilder, CircuitBuilderX};
     pub use crate::frontend::ops::*;
     pub use crate::frontend::vars::{
-        ArrayVariable, BoolVariable, ByteVariable, BytesVariable, CircuitVariable, Variable,
+        ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable,
+        Variable,
     };
     pub use crate::utils::{address, bytes, bytes32, hex};
 }

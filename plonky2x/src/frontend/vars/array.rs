@@ -46,6 +46,12 @@ impl<V: CircuitVariable, const N: usize> Index<Range<usize>> for ArrayVariable<V
     }
 }
 
+impl<V: CircuitVariable, const N: usize> From<Vec<V>> for ArrayVariable<V, N> {
+    fn from(elements: Vec<V>) -> Self {
+        ArrayVariable::new(elements)
+    }
+}
+
 impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N> {
     type ValueType<F: RichField> = Vec<V::ValueType<F>>;
 
