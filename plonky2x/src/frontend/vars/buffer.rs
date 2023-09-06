@@ -1,6 +1,7 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::util::serialization::{IoResult, Read, Write};
+use serde::{Deserialize, Serialize};
 
 use super::{CircuitVariable, Variable};
 use crate::prelude::CircuitBuilder;
@@ -10,6 +11,41 @@ pub struct ValueStream<F, const D: usize>(Stream<F>);
 
 #[derive(Debug, Clone)]
 pub struct VariableStream(Stream<Variable>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutputStream {
+    hint_id: usize,
+}
+
+impl OutputStream {
+    pub(crate) fn new(hint_id: usize) -> Self {
+        Self { hint_id }
+    }
+    pub fn read_exact<F: RichField + Extendable<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+        len: usize,
+    ) -> Vec<Variable> {
+        let variables = (0..len)
+            .map(|_| builder.init::<Variable>())
+            .collect::<Vec<_>>();
+        let stream = &mut builder
+            .hints
+            .get_mut(self.hint_id)
+            .expect("Hint not found")
+            .output_stream;
+        stream.0.write_slice(&variables);
+
+        variables
+    }
+    pub fn read<F: RichField + Extendable<D>, const D: usize, V: CircuitVariable>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> V {
+        let variables = self.read_exact(builder, V::nb_elements());
+        V::from_variables(&variables)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Stream<T> {
@@ -77,36 +113,32 @@ impl VariableStream {
         Self(Stream::new(variables))
     }
 
-    pub fn read_exact<F: RichField + Extendable<D>, const D: usize>(
-        &mut self,
-        builder: &mut CircuitBuilder<F, D>,
-        len: usize,
-    ) -> &[Variable] {
-        let variables = (0..len)
-            .map(|_| builder.init::<Variable>())
-            .collect::<Vec<_>>();
-        self.0.write_slice(&variables);
+    // pub fn read_exact<F: RichField + Extendable<D>, const D: usize>(
+    //     &mut self,
+    //     builder: &mut CircuitBuilder<F, D>,
+    //     len: usize,
+    // ) -> &[Variable] {
+    //     let variables = (0..len)
+    //         .map(|_| builder.init::<Variable>())
+    //         .collect::<Vec<_>>();
+    //     self.0.write_slice(&variables);
 
-        self.0.read_exact(len)
-    }
+    //     self.0.read_exact(len)
+    // }
 
-    pub fn read<F: RichField + Extendable<D>, const D: usize, V: CircuitVariable>(
-        &mut self,
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> V {
-        let variables = self.read_exact(builder, V::nb_elements());
-        V::from_variables(variables)
-    }
+    // pub fn read<F: RichField + Extendable<D>, const D: usize, V: CircuitVariable>(
+    //     &mut self,
+    //     builder: &mut CircuitBuilder<F, D>,
+    // ) -> V {
+    //     let variables = self.read_exact(builder, V::nb_elements());
+    //     V::from_variables(variables)
+    // }
 
     pub(crate) fn all_variables(&self) -> &[Variable] {
         self.0.read_all()
     }
 
-    pub fn write<F: RichField + Extendable<D>, const D: usize, V: CircuitVariable>(
-        &mut self,
-        _builder: &mut CircuitBuilder<F, D>,
-        value: &V,
-    ) {
+    pub fn write<V: CircuitVariable>(&mut self, value: &V) {
         self.0.write_slice(&value.variables());
     }
 
@@ -157,16 +189,8 @@ impl<F: RichField + Extendable<D>, const D: usize> ValueStream<F, D> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn init_stream(&mut self, size: usize) -> VariableStream {
-        VariableStream::init(self, size)
-    }
-
-    pub fn read<V: CircuitVariable>(&mut self, stream: &mut VariableStream) -> V {
+    pub fn read<V: CircuitVariable>(&mut self, stream: &OutputStream) -> V {
         stream.read::<F, D, V>(self)
-    }
-
-    pub fn write<V: CircuitVariable>(&mut self, stream: &mut VariableStream, value: &V) {
-        stream.write::<F, D, V>(self, value)
     }
 }
 

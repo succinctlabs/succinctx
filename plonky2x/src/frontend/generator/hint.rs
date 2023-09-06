@@ -1,5 +1,4 @@
 use core::fmt::Debug;
-
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef};
@@ -9,25 +8,22 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
 use crate::backend::circuit::serialization::Serializer;
-use crate::frontend::vars::{ValueStream, VariableStream};
+use crate::frontend::vars::{ValueStream, VariableStream, OutputStream};
 use crate::prelude::{CircuitBuilder, CircuitVariable};
 
 #[derive(Debug, Clone)]
 pub struct Hint<F, const D: usize> {
-    input_stream: VariableStream,
-    output_stream: VariableStream,
+    pub(crate) input_stream: VariableStream,
+    pub(crate) output_stream: VariableStream,
     hint_fn: fn(&mut ValueStream<F, D>, &mut ValueStream<F, D>),
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn hint(
         &mut self,
-        input_stream: &VariableStream,
+        input_stream: VariableStream,
         hint_fn: fn(&mut ValueStream<F, D>, &mut ValueStream<F, D>),
-    ) -> &mut VariableStream {
-        let num_inputs = input_stream.all_variables().len();
-        let input_stream = VariableStream::init(self, num_inputs);
-
+    ) -> OutputStream {
         let output_stream = VariableStream::new();
 
         let hint = Hint::<F, D> {
@@ -35,9 +31,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             output_stream,
             hint_fn,
         };
+        let hint_id = self.hints.len();
         self.hints.push(hint);
 
-        &mut self.hints.last_mut().unwrap().output_stream
+        OutputStream::new(hint_id)
     }
 }
 
@@ -136,52 +133,52 @@ impl<F: RichField + Extendable<D>, const D: usize> Serializer<F, WitnessGenerato
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    // use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
-    // use crate::prelude::{ByteVariable, *};
+    use super::*;
+    use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
+    use crate::prelude::{ByteVariable, *};
 
-    // fn plus_one<F: RichField + Extendable<D>, const D: usize>(
-    //     input_stream: &mut ValueStream<F, D>,
-    //     output_stream: &mut ValueStream<F, D>,
-    // ) {
-    //     let byte: u8 = input_stream.read_value::<ByteVariable>();
+    fn plus_one<F: RichField + Extendable<D>, const D: usize>(
+        input_stream: &mut ValueStream<F, D>,
+        output_stream: &mut ValueStream<F, D>,
+    ) {
+        let byte: u8 = input_stream.read_value::<ByteVariable>();
 
-    //     output_stream.write_value::<ByteVariable>(byte + 1)
-    // }
+        output_stream.write_value::<ByteVariable>(byte + 1)
+    }
 
-    // #[test]
-    // fn test_hint_serialization() {
-    //     let mut builder = CircuitBuilderX::new();
+    #[test]
+    fn test_hint_serialization() {
+        let mut builder = CircuitBuilderX::new();
 
-    //     let a = builder.read_input::<ByteVariable>();
+        let a = builder.read_input::<ByteVariable>();
 
-    //     let mut input_stream = VariableStream::new();
-    //     builder.write(&mut input_stream, &a);
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&a);
 
-    //     let mut output_stream = builder.hint(&input_stream, plus_one);
-    //     let b = builder.read::<ByteVariable>(&mut output_stream);
-    //     builder.write_output(b);
+        let output_stream = builder.hint(input_stream, plus_one);
+        let b = builder.read::<ByteVariable>(&output_stream);
+        builder.write_output(b);
 
-    //     let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build::<PoseidonGoldilocksConfig>();
 
-    //     // Write to the circuit input.
-    //     let mut input = circuit.input();
-    //     input.write::<ByteVariable>(5u8);
+        // Write to the circuit input.
+        let mut input = circuit.input();
+        input.write::<ByteVariable>(5u8);
 
-    //     // Generate a proof.
-    //     let (proof, output) = circuit.prove(&input);
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
 
-    //     // Verify proof.
-    //     circuit.verify(&proof, &input, &output);
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
 
-    //     // Read output.
-    //     let byte_plus_one = output.read::<ByteVariable>();
-    //     assert_eq!(byte_plus_one, 6u8);
+        // Read output.
+        let byte_plus_one = output.read::<ByteVariable>();
+        assert_eq!(byte_plus_one, 6u8);
 
-    //     // Test the serialization
-    //     let gate_serializer = GateRegistry::new();
-    //     let mut generator_serializer = WitnessGeneratorRegistry::new::<PoseidonGoldilocksConfig>();
-    //     generator_serializer.register_hint(plus_one);
-    //     circuit.test_serializers(&gate_serializer, &generator_serializer);
-    // }
+        // Test the serialization
+        let gate_serializer = GateRegistry::new();
+        let mut generator_serializer = WitnessGeneratorRegistry::new::<PoseidonGoldilocksConfig>();
+        generator_serializer.register_hint(plus_one);
+        circuit.test_serializers(&gate_serializer, &generator_serializer);
+    }
 }
