@@ -479,11 +479,19 @@ pub struct NonNativeAdditionGenerator<F: RichField + Extendable<D>, const D: usi
     _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField>
+    NonNativeAdditionGenerator<F, D, FF>
+{
+    pub fn id() -> String {
+        "NonNativeAdditionGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerator<F, D>
     for NonNativeAdditionGenerator<F, D, FF>
 {
     fn id(&self) -> String {
-        "NonNativeAdditionGenerator".to_string()
+        Self::id()
     }
 
     fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
@@ -548,11 +556,19 @@ pub struct NonNativeMultipleAddsGenerator<
     _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField>
+    NonNativeMultipleAddsGenerator<F, D, FF>
+{
+    fn id() -> String {
+        "NonNativeMultipleAddsGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerator<F, D>
     for NonNativeMultipleAddsGenerator<F, D, FF>
 {
     fn id(&self) -> String {
-        "NonNativeMultipleAddsGenerator".to_string()
+        Self::id()
     }
 
     fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
@@ -621,11 +637,19 @@ pub struct NonNativeSubtractionGenerator<F: RichField + Extendable<D>, const D: 
     _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField>
+    NonNativeSubtractionGenerator<F, D, FF>
+{
+    pub fn id() -> String {
+        "NonNativeSubtractionGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerator<F, D>
     for NonNativeSubtractionGenerator<F, D, FF>
 {
     fn id(&self) -> String {
-        "NonNativeSubtractionGenerator".to_string()
+        Self::id()
     }
 
     fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
@@ -688,11 +712,19 @@ pub struct NonNativeMultiplicationGenerator<F: RichField + Extendable<D>, const 
     _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField>
+    NonNativeMultiplicationGenerator<F, D, FF>
+{
+    fn id() -> String {
+        "NonNativeMultiplicationGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerator<F, D>
     for NonNativeMultiplicationGenerator<F, D, FF>
 {
     fn id(&self) -> String {
-        "NonNativeMultiplicationGenerator".to_string()
+        Self::id()
     }
 
     fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
@@ -751,11 +783,19 @@ pub struct NonNativeInverseGenerator<F: RichField + Extendable<D>, const D: usiz
     _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField>
+    NonNativeInverseGenerator<F, D, FF>
+{
+    fn id() -> String {
+        "NonNativeInverseGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerator<F, D>
     for NonNativeInverseGenerator<F, D, FF>
 {
     fn id(&self) -> String {
-        "NonNativeInverseGenerator".to_string()
+        Self::id()
     }
 
     fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {

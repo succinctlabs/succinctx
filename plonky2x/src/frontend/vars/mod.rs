@@ -1,18 +1,21 @@
+mod array;
 mod boolean;
+mod buffer;
 mod byte;
 mod bytes;
 mod bytes32;
-
 mod variable;
-
 use std::fmt::Debug;
 
+pub use array::*;
 pub use boolean::*;
+pub use buffer::*;
 pub use byte::*;
 pub use bytes::*;
 pub use bytes32::*;
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
+use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
@@ -60,7 +63,9 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>);
 
     /// The number of field elements it takes to represent this variable.
-    fn nb_elements<F: RichField + Extendable<D>, const D: usize>() -> usize {
+    fn nb_elements() -> usize {
+        type F = GoldilocksField;
+        const D: usize = 2;
         let mut builder = CircuitBuilder::<F, D>::new();
         let variable = builder.init::<Self>();
         variable.variables().len()
@@ -94,11 +99,16 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
 }
 
 pub trait EvmVariable: CircuitVariable {
-    /// The number of field elements it takes to represent this variable.
+    /// The number of bytes it takes to represent this variable.
     fn nb_bytes<F: RichField + Extendable<D>, const D: usize>() -> usize {
         let mut builder = CircuitBuilder::<F, D>::new();
         let variable = builder.init::<Self>();
         variable.encode(&mut builder).len()
+    }
+
+    /// The number of bits it takes to represent this variable.
+    fn nb_bits<F: RichField + Extendable<D>, const D: usize>() -> usize {
+        Self::nb_bytes::<F, D>() * 8
     }
 
     /// Serializes the variable to a vector of byte variables with len `nb_bytes()`. This
@@ -122,4 +132,32 @@ pub trait EvmVariable: CircuitVariable {
     /// Deserializes a value from bytes. This implementation should match the implementation of
     /// `abi.decodePacked(...)`.
     fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F>;
+
+    /// Serializes the variable to little endian bits.
+    fn to_le_bits<F: RichField + Extendable<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Vec<BoolVariable> {
+        let bytes = self.encode(builder);
+        let mut bytes = bytes.into_iter().flat_map(|b| b.as_be_bits()).collect_vec();
+        bytes.reverse();
+        bytes
+    }
+
+    /// Serializes the variable to big endian bits.
+    fn to_be_bits<F: RichField + Extendable<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Vec<BoolVariable> {
+        let mut bits = self.to_le_bits(builder);
+        bits.reverse();
+        bits
+    }
+}
+
+pub trait SSZVariable: CircuitVariable {
+    fn hash_tree_root<F: RichField + Extendable<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Bytes32Variable;
 }

@@ -33,7 +33,7 @@ mod tests {
 
     #[test]
     fn test_keccak256() {
-        env_logger::init();
+        env_logger::try_init().unwrap_or_default();
 
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;

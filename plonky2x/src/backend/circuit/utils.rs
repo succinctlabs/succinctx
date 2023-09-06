@@ -34,15 +34,23 @@ use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
 use plonky2::{get_gate_tag_impl, impl_gate_serializer, read_gate_impl};
 
-use crate::frontend::eth::beacon::generators::balance::BeaconValidatorBalanceGenerator;
+use crate::frontend::eth::beacon::generators::balance::BeaconBalanceGenerator;
+use crate::frontend::eth::beacon::generators::balances::BeaconBalancesGenerator;
+use crate::frontend::eth::beacon::generators::historical::BeaconHistoricalBlockGenerator;
 use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
-use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsRootGenerator;
+use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
+use crate::frontend::eth::beacon::generators::withdrawal::BeaconWithdrawalGenerator;
+use crate::frontend::eth::beacon::generators::withdrawals::BeaconWithdrawalsGenerator;
 use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthAccountProofGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
+use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
+use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
+use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32ArithmeticGenerator};
+use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 
 #[macro_export]
 macro_rules! impl_generator_serializer {
@@ -158,10 +166,21 @@ where
         EthBlockGenerator<F, D>, "EthBlockGenerator",
         EthStorageKeyGenerator<F, D>, "EthStorageKeyGenerator",
         Keccak256Generator<F, D>, "Keccak256Generator",
-        BeaconValidatorBalanceGenerator<F, D>, "BeaconValidatorBalanceGenerator",
+        BeaconBalanceGenerator<F, D>, "BeaconValidatorBalanceGenerator",
         BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
-        BeaconValidatorsRootGenerator<F, D>, "BeaconValidatorsGenerator",
+        BeaconValidatorsGenerator<F, D>, "BeaconValidatorsGenerator",
         U32AddManyGenerator<F, D>, "U32AddManyGenerator",
+        XOR3Generator<F, D>, "XOR3Generator",
+        BeaconBalanceGenerator<F, D>, "BeaconBalanceGenerator",
+        BeaconBalancesGenerator<F, D>, "BeaconBalancesGenerator",
+        BeaconValidatorGenerator<F, D>, "BeaconValidatorGenerator",
+        BeaconValidatorsGenerator<F, D>, "BeaconValidatorsGenerator",
+        BeaconWithdrawalGenerator<F, D>, "BeaconWithdrawalGenerator",
+        BeaconWithdrawalsGenerator<F, D>, "BeaconWithdrawalsGenerator",
+        BeaconHistoricalBlockGenerator<F, D>, "BeaconHistoricalBlockGenerator",
+        BigUintDivRemGenerator<F, D>, "BigUintDivRemGenerator",
+        U32ArithmeticGenerator<F, D>, "U32ArithmeticGenerator",
+        ComparisonGenerator<F, D>, "ComparisonGenerator"
     }
 }
 
@@ -186,6 +205,9 @@ impl<F: RichField + Extendable<D>, const D: usize> GateSerializer<F, D> for Cust
         RandomAccessGate<F, D>,
         ReducingExtensionGate<D>,
         ReducingGate<D>,
-        U32AddManyGate<F, D>
+        U32AddManyGate<F, D>,
+        XOR3Gate,
+        ComparisonGate<F, D>,
+        U32ArithmeticGate<F, D>
     }
 }

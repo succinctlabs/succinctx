@@ -14,10 +14,11 @@ use plonky2::iop::generator::SimpleGenerator;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as _CircuitBuilder;
 use plonky2::plonk::circuit_data::CircuitConfig;
-use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
+use super::vars::EvmVariable;
 use crate::backend::circuit::Circuit;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
@@ -80,7 +81,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Build the circuit.
-    pub fn build<C: GenericConfig<D, F = F>>(mut self) -> Circuit<F, C, D> {
+    pub fn build<C>(mut self) -> Circuit<F, C, D>
+    where
+        C: GenericConfig<D, F = F> + 'static,
+        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+    {
         if self.io.evm.is_some() {
             let io = self.io.evm.as_ref().unwrap();
             let inputs: Vec<Target> = io.input_bytes.iter().flat_map(|b| b.targets()).collect();
@@ -151,11 +156,17 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         self.api.inverse(i1.0).into()
     }
 
-    /// Select if b is true, yields i1 else yields i2.
-    pub fn select(&mut self, selector: BoolVariable, i1: Variable, i2: Variable) -> Variable {
-        self.api
-            .select(BoolTarget::new_unsafe(selector.0 .0), i1.0, i2.0)
-            .into()
+    /// If selector is true, yields i1 else yields i2.
+    pub fn select<V: CircuitVariable>(&mut self, selector: BoolVariable, i1: V, i2: V) -> V {
+        assert_eq!(i1.targets().len(), i2.targets().len());
+        let mut targets = Vec::new();
+        for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
+            targets.push(
+                self.api
+                    .select(BoolTarget::new_unsafe(selector.targets()[0]), *t1, *t2),
+            );
+        }
+        V::from_targets(&targets)
     }
 
     /// Returns 1 if i1 is zero, 0 otherwise as a boolean.
@@ -170,6 +181,14 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
             self.api.connect(*t1, *t2);
         }
+    }
+
+    pub fn to_le_bits<V: EvmVariable>(&mut self, variable: V) -> Vec<BoolVariable> {
+        variable.to_le_bits(self)
+    }
+
+    pub fn to_be_bits<V: EvmVariable>(&mut self, variable: V) -> Vec<BoolVariable> {
+        variable.to_be_bits(self)
     }
 }
 
