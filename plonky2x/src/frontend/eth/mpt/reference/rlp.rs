@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn test_rlp_decode_list_generator() {
         type F = GoldilocksField;
-        let mut builder = CircuitBuilderX::new();
+        let mut builder: CircuitBuilder<GoldilocksField, 2> = CircuitBuilderX::new();
         const ENCODING_LEN: usize = 600;
         const LIST_LEN: usize = 17;
         const ELEMENT_LEN: usize = 34;

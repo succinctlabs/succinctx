@@ -259,7 +259,7 @@ pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usi
     }
 
     let mut padded_elements = vec![vec![0u8; ENCODING_LEN]; PROOF_LEN];
-    let mut lengths = vec![0usize, PROOF_LEN];
+    let mut lengths = vec![0usize; PROOF_LEN];
 
     for (i, inner_vec) in storage_proof.into_iter().enumerate() {
         // Check inner length
@@ -501,10 +501,15 @@ mod tests {
     use ethers::providers::{Http, Middleware, Provider};
     use ethers::types::{Bytes, EIP1186ProofResponse};
     use ethers::utils::keccak256;
+    use plonky2::field::types::Field;
+    use plonky2::iop::generator::generate_partial_witness;
     use tokio::runtime::Runtime;
 
     use super::*;
     use crate::frontend::eth::utils::u256_to_h256_be;
+    use crate::prelude::{
+        CircuitBuilderX, CircuitVariable, GoldilocksField, PartialWitness, PoseidonGoldilocksConfig,
+    };
     use crate::utils::{address, bytes32};
 
     fn generate_fixtures() {
@@ -589,9 +594,9 @@ mod tests {
     }
 
     #[test]
-    fn test_mpt_fixed() {
+    fn test_mpt_circuit() {
         let storage_result: EIP1186ProofResponse =
-            read_fixture("./src/eth/mpt/fixtures/example.json");
+            read_fixture("./src/frontend/eth/mpt/fixtures/example.json");
 
         let storage_proof = storage_result.storage_proof[0]
             .proof
@@ -619,5 +624,40 @@ mod tests {
         //     value_as_h256.to_fixed_bytes(),
         //     lengths_as_fixed,
         // );
+
+        type F = GoldilocksField;
+        let mut builder: CircuitBuilder<GoldilocksField, 2> = CircuitBuilderX::new();
+        let key_variable = builder.init::<Bytes32Variable>();
+        let proof_variable =
+            builder.init::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>();
+        let len_nodes = builder.init::<ArrayVariable<Variable, PROOF_LEN>>();
+        let root_variable = builder.init::<Bytes32Variable>();
+        let value_variable = builder.init::<Bytes32Variable>();
+        builder.verify_mpt_proof::<ENCODING_LEN, PROOF_LEN>(
+            key_variable,
+            proof_variable.clone(),
+            len_nodes.clone(),
+            root_variable,
+            value_variable,
+        );
+        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+
+        let mut partial_witness: PartialWitness<GoldilocksField> = PartialWitness::new();
+        key_variable.set(&mut partial_witness, key);
+        root_variable.set(&mut partial_witness, root);
+        value_variable.set(&mut partial_witness, value_as_h256);
+        proof_variable.set(&mut partial_witness, proof_as_fixed);
+        // TODO: make this a macro instead of .map().iter()
+        len_nodes.set(
+            &mut partial_witness,
+            lengths_as_fixed
+                .iter()
+                .map(|x| F::from_canonical_usize(*x))
+                .collect::<Vec<F>>(),
+        );
+
+        let prover_data = circuit.data.prover_only;
+        let common_data = circuit.data.common;
+        let witness = generate_partial_witness(partial_witness, &prover_data, &common_data);
     }
 }
