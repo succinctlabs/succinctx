@@ -26,27 +26,29 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
 #[cfg(test)]
 mod tests {
+    use curta::math::prelude::Field;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 
     use super::*;
-    use crate::prelude::BoolVariable;
+    use crate::prelude::{BoolVariable, PoseidonGoldilocksConfig};
 
     #[test]
     fn test_mux() {
         type F = GoldilocksField;
         const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
 
         let mut builder = CircuitBuilder::<F, D>::new();
-        let b = builder.init::<ArrayVariable<BoolVariable, 3>>();
-        let selector = builder.init::<Variable>();
+        let b = builder.read::<ArrayVariable<BoolVariable, 3>>();
+        let selector = builder.read::<Variable>();
         let result = builder.mux(b, selector);
+        builder.write(result);
 
-        // let mut pw = PartialWitness::new();
-        // b.set(&mut pw, vec![true, false, true]);
-        // selector.set(&mut pw, 1);
-
-        // // let value = pw.try_get_target(b.0 .0).unwrap();
-        // assert_eq!(GoldilocksField::ONE, value);
+        let circuit = builder.build::<C>();
+        let mut input = circuit.input();
+        input.write::<ArrayVariable<BoolVariable, 3>>(vec![true, false, true]);
+        input.write::<Variable>(F::from_canonical_u16(1));
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
     }
 }

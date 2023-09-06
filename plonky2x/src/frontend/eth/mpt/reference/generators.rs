@@ -159,6 +159,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         targets
     }
 
+    #[allow(unused_variables)]
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
         let a_offset = self.a_offset.get(witness).to_canonical_u64() as usize;
         let b_offset = self.b_offset.get(witness).to_canonical_u64() as usize;

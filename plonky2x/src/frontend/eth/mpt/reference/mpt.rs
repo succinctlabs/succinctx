@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use array_macro::array;
 use ethers::types::{Bytes, H256};
 use ethers::utils::keccak256;
 use itertools::Itertools;
@@ -507,7 +506,7 @@ mod tests {
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
         let block_number = 17880427u64;
-        let state_root =
+        let _state_root =
             bytes32!("0xff90251f501c864f21d696c811af4c3aa987006916bd0e31a6c06cc612e7632e");
         let address = address!("0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5");
         let location =
