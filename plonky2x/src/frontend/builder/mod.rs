@@ -84,7 +84,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     pub fn debug(&mut self, index: usize) {
-        println!("Debugging variable {}", index);
         self.debug_variables.insert(index, "".to_string());
     }
 
@@ -192,7 +191,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         }
     }
 
-    /// TODO: should we change to `eq`?
     /// Returns 1 if i1 == i2 and 0 otherwise as a BoolVariable
     pub fn is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) -> BoolVariable {
         assert_eq!(i1.targets().len(), i2.targets().len());

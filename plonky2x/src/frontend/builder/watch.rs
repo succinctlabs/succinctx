@@ -27,7 +27,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         self.add_simple_generator(&generator);
     }
 
-    pub fn watch_array<V: CircuitVariable>(&mut self, variables: &[V], log: &str) {
+    pub fn watch_slice<V: CircuitVariable>(&mut self, variables: &[V], log: &str) {
         let variables = variables.to_vec();
         let log = String::from(log);
 

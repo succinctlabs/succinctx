@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, CircuitVariable, Target, Variable,
@@ -40,12 +40,23 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D> for LeG
 
     #[allow(unused_variables)]
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
+        dst.write_target_vec(&self.lhs.targets())?;
+        dst.write_target_vec(&self.rhs.targets())?;
+        dst.write_target_vec(&self.output.targets())?;
+        Ok(())
     }
 
     #[allow(unused_variables)]
     fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        todo!()
+        let lhs = src.read_target_vec()?;
+        let rhs = src.read_target_vec()?;
+        let output = src.read_target_vec()?;
+        Ok(Self {
+            lhs: Variable::from_targets(&lhs),
+            rhs: Variable::from_targets(&rhs),
+            output: BoolVariable::from_targets(&output),
+            _phantom: PhantomData,
+        })
     }
 }
 
