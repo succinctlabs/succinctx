@@ -6,8 +6,10 @@ use std::collections::HashMap;
 
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
+use plonky2::gadgets::arithmetic_extension::QuotientGeneratorExtension;
 use plonky2::gadgets::range_check::LowHighGenerator;
 use plonky2::gadgets::split_base::BaseSumGenerator;
+use plonky2::gadgets::split_join::{SplitGenerator, WireSplitGenerator};
 use plonky2::gates::arithmetic_base::{ArithmeticBaseGenerator, ArithmeticGate};
 use plonky2::gates::arithmetic_extension::{ArithmeticExtensionGate, ArithmeticExtensionGenerator};
 use plonky2::gates::base_sum::{BaseSplitGenerator, BaseSumGate};
@@ -17,17 +19,19 @@ use plonky2::gates::exponentiation::{ExponentiationGate, ExponentiationGenerator
 use plonky2::gates::gate::{AnyGate, Gate, GateRef};
 use plonky2::gates::lookup::{LookupGate, LookupGenerator};
 use plonky2::gates::lookup_table::{LookupTableGate, LookupTableGenerator};
-use plonky2::gates::multiplication_extension::MulExtensionGate;
+use plonky2::gates::multiplication_extension::{MulExtensionGate, MulExtensionGenerator};
 use plonky2::gates::noop::NoopGate;
 use plonky2::gates::poseidon::{PoseidonGate, PoseidonGenerator};
 use plonky2::gates::poseidon_mds::{PoseidonMdsGate, PoseidonMdsGenerator};
 use plonky2::gates::public_input::PublicInputGate;
-use plonky2::gates::random_access::RandomAccessGate;
-use plonky2::gates::reducing::ReducingGate;
-use plonky2::gates::reducing_extension::ReducingExtensionGate;
+use plonky2::gates::random_access::{RandomAccessGate, RandomAccessGenerator};
+use plonky2::gates::reducing::{ReducingGate, ReducingGenerator};
+use plonky2::gates::reducing_extension::{
+    ReducingExtensionGate, ReducingGenerator as ReducingExtensionGenerator,
+};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{
-    ConstantGenerator, CopyGenerator, RandomValueGenerator, SimpleGenerator,
+    ConstantGenerator, CopyGenerator, NonzeroTestGenerator, RandomValueGenerator, SimpleGenerator,
     SimpleGeneratorAdapter, WitnessGenerator, WitnessGeneratorRef,
 };
 use plonky2::plonk::circuit_data::CommonCircuitData;
@@ -37,7 +41,31 @@ use plonky2::util::serialization::{
     Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
 };
 
-use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGate;
+use crate::frontend::builder::watch::WatchGenerator;
+use crate::frontend::eth::beacon::generators::balance::BeaconBalanceGenerator;
+use crate::frontend::eth::beacon::generators::balances::BeaconBalancesGenerator;
+use crate::frontend::eth::beacon::generators::historical::BeaconHistoricalBlockGenerator;
+use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
+use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
+use crate::frontend::eth::beacon::generators::withdrawal::BeaconWithdrawalGenerator;
+use crate::frontend::eth::beacon::generators::withdrawals::BeaconWithdrawalsGenerator;
+use crate::frontend::eth::beacon::vars::{
+    BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
+    BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
+};
+use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
+use crate::frontend::eth::storage::generators::storage::{
+    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+};
+use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
+use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
+use crate::frontend::num::biguint::BigUintDivRemGenerator;
+use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
+use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32ArithmeticGenerator};
+use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
+use crate::frontend::uint::uint256::U256Variable;
+use crate::frontend::uint::uint64::U64Variable;
+use crate::frontend::vars::Bytes32Variable;
 
 /// A registry to store serializers for witness generators.
 ///
@@ -208,7 +236,7 @@ where
         self.0
             .registry
             .get(type_id)
-            .expect("Generator type not registered")
+            .unwrap_or_else(|| panic!("Generator type not registered {}", type_id))
             .read(buf, common_data)
     }
 
@@ -223,14 +251,13 @@ where
             .0
             .index
             .get(&type_id)
-            .expect("Generator type not registered");
+            .unwrap_or_else(|| panic!("Generator type not registered {}", type_id));
         buf.write_usize(*idx)?;
 
-        // generator.0.serialize(buf, common_data)?;
         self.0
             .registry
             .get(&type_id)
-            .expect("Generator type not registered")
+            .unwrap_or_else(|| panic!("Generator type not registered {}", type_id))
             .write(buf, generator, common_data)?;
         Ok(())
     }
@@ -251,7 +278,7 @@ where
         self.0
             .registry
             .get(&type_id)
-            .expect("Gate type not registered")
+            .unwrap_or_else(|| panic!("Gate type not registered {:?}", type_id))
             .read(buf, common_data)
     }
 
@@ -267,16 +294,25 @@ where
             .0
             .index
             .get(&type_id)
-            .expect("Gate type not registered");
+            .unwrap_or_else(|| panic!("Gate type not registered {:?}", gate));
         buf.write_usize(*idx)?;
 
         self.0
             .registry
             .get(&type_id)
-            .expect("Gate type not registered")
+            .unwrap_or_else(|| panic!("Gate type not registered {:?}", gate))
             .write(buf, gate, common_data)?;
         Ok(())
     }
+}
+
+macro_rules! register_watch_generator {
+    ($registry:ident, $($type:ty),*) => {
+        $(
+            let generator_id = WatchGenerator::<$type>::id();
+            $registry.register_simple::<WatchGenerator<$type>>(generator_id);
+        )*
+    };
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D> {
@@ -342,6 +378,100 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
         let low_high_generator_id = SimpleGenerator::<F, D>::id(&LowHighGenerator::default());
         r.register_simple::<LowHighGenerator>(low_high_generator_id);
 
+        let mul_extension_generator_id =
+            SimpleGenerator::<F, D>::id(&MulExtensionGenerator::<F, D>::default());
+        r.register_simple::<MulExtensionGenerator<F, D>>(mul_extension_generator_id);
+
+        let nonzero_test_generator_id =
+            SimpleGenerator::<F, D>::id(&NonzeroTestGenerator::default());
+        r.register_simple::<NonzeroTestGenerator>(nonzero_test_generator_id);
+
+        let quotient_generator_extension_id =
+            SimpleGenerator::<F, D>::id(&QuotientGeneratorExtension::<D>::default());
+        r.register_simple::<QuotientGeneratorExtension<D>>(quotient_generator_extension_id);
+
+        let random_access_generator_id =
+            SimpleGenerator::<F, D>::id(&RandomAccessGenerator::<F, D>::default());
+        r.register_simple::<RandomAccessGenerator<F, D>>(random_access_generator_id);
+
+        let reducing_generator_id = SimpleGenerator::<F, D>::id(&ReducingGenerator::<D>::default());
+        r.register_simple::<ReducingGenerator<D>>(reducing_generator_id);
+
+        let reducing_extension_generator_id =
+            SimpleGenerator::<F, D>::id(&ReducingExtensionGenerator::<D>::default());
+        r.register_simple::<ReducingExtensionGenerator<D>>(reducing_extension_generator_id);
+
+        let split_generator_id = SimpleGenerator::<F, D>::id(&SplitGenerator::default());
+        r.register_simple::<SplitGenerator>(split_generator_id);
+
+        let wire_split_generator_id = SimpleGenerator::<F, D>::id(&WireSplitGenerator::default());
+        r.register_simple::<WireSplitGenerator>(wire_split_generator_id);
+
+        let eth_storage_proof_generator_id = EthStorageProofGenerator::<F, D>::id();
+        r.register_simple::<EthStorageProofGenerator<F, D>>(eth_storage_proof_generator_id);
+
+        let eth_log_generator_id = EthLogGenerator::<F, D>::id();
+        r.register_simple::<EthLogGenerator<F, D>>(eth_log_generator_id);
+
+        let eth_block_generator_id = EthBlockGenerator::<F, D>::id();
+        r.register_simple::<EthBlockGenerator<F, D>>(eth_block_generator_id);
+
+        let eth_storage_key_generator_id = EthStorageKeyGenerator::<F, D>::id();
+        r.register_simple::<EthStorageKeyGenerator<F, D>>(eth_storage_key_generator_id);
+
+        let keccak256_generator_id = Keccak256Generator::<F, D>::id();
+        r.register_simple::<Keccak256Generator<F, D>>(keccak256_generator_id);
+
+        let beacon_balance_generator_id = BeaconBalanceGenerator::<F, D>::id();
+        r.register_simple::<BeaconBalanceGenerator<F, D>>(beacon_balance_generator_id);
+
+        let beacon_balances_generator_id = BeaconBalancesGenerator::<F, D>::id();
+        r.register_simple::<BeaconBalancesGenerator<F, D>>(beacon_balances_generator_id);
+
+        let beacon_validator_generator_id = BeaconValidatorGenerator::<F, D>::id();
+        r.register_simple::<BeaconValidatorGenerator<F, D>>(beacon_validator_generator_id);
+
+        let beacon_validators_generator_id = BeaconValidatorsGenerator::<F, D>::id();
+        r.register_simple::<BeaconValidatorsGenerator<F, D>>(beacon_validators_generator_id);
+
+        let beacon_withdrawal_generator_id = BeaconWithdrawalGenerator::<F, D>::id();
+        r.register_simple::<BeaconWithdrawalGenerator<F, D>>(beacon_withdrawal_generator_id);
+
+        let beacon_withdrawals_generator_id = BeaconWithdrawalsGenerator::<F, D>::id();
+        r.register_simple::<BeaconWithdrawalsGenerator<F, D>>(beacon_withdrawals_generator_id);
+
+        let beacon_historical_block_generator_id = BeaconHistoricalBlockGenerator::<F, D>::id();
+        r.register_simple::<BeaconHistoricalBlockGenerator<F, D>>(
+            beacon_historical_block_generator_id,
+        );
+
+        let big_uint_div_rem_generator_id = BigUintDivRemGenerator::<F, D>::id();
+        r.register_simple::<BigUintDivRemGenerator<F, D>>(big_uint_div_rem_generator_id);
+
+        let u32_arithmetic_generator_id = U32ArithmeticGenerator::<F, D>::id();
+        r.register_simple::<U32ArithmeticGenerator<F, D>>(u32_arithmetic_generator_id);
+
+        let u32_add_many_generator_id = U32AddManyGenerator::<F, D>::id();
+        r.register_simple::<U32AddManyGenerator<F, D>>(u32_add_many_generator_id);
+
+        let comparison_generator_id = ComparisonGenerator::<F, D>::id();
+        r.register_simple::<ComparisonGenerator<F, D>>(comparison_generator_id);
+
+        let xor3_generator_id = XOR3Generator::<F, D>::id();
+        r.register_simple::<XOR3Generator<F, D>>(xor3_generator_id);
+
+        register_watch_generator!(
+            r,
+            U64Variable,
+            U256Variable,
+            Bytes32Variable,
+            BeaconValidatorsVariable,
+            BeaconBalancesVariable,
+            BeaconWithdrawalsVariable,
+            BeaconWithdrawalVariable,
+            BeaconValidatorVariable
+        );
+
         r
     }
 }
@@ -368,7 +498,10 @@ impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
         r.register::<RandomAccessGate<F, D>>();
         r.register::<ReducingExtensionGate<D>>();
         r.register::<ReducingGate<D>>();
+        r.register::<XOR3Gate>();
+        r.register::<ComparisonGate<F, D>>();
         r.register::<U32AddManyGate<F, D>>();
+        r.register::<U32ArithmeticGate<F, D>>();
 
         r
     }

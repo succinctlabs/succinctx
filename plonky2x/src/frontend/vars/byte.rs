@@ -28,7 +28,7 @@ impl CircuitVariable for ByteVariable {
         builder: &mut CircuitBuilder<F, D>,
         value: Self::ValueType<F>,
     ) -> Self {
-        Self(array![i => BoolVariable::constant(builder, (value >> (7 - i)) & 1 != 0); 8])
+        Self(array![i => BoolVariable::constant(builder, (value >> (7 - i)) & 1 == 1); 8])
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -86,12 +86,12 @@ impl EvmVariable for ByteVariable {
 }
 
 impl ByteVariable {
-    pub fn to_be_bits(self) -> [BoolVariable; 8] {
+    pub fn as_be_bits(self) -> [BoolVariable; 8] {
         self.0
     }
 
-    pub fn to_le_bits(self) -> [BoolVariable; 8] {
-        let mut bits = self.to_be_bits();
+    pub fn as_le_bits(self) -> [BoolVariable; 8] {
+        let mut bits = self.as_be_bits();
         bits.reverse();
         bits
     }
@@ -114,7 +114,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Not<F, D> for ByteVariable {
     type Output = Self;
 
     fn not(self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        ByteVariable(self.to_be_bits().map(|x| builder.not(x)))
+        ByteVariable(self.as_be_bits().map(|x| builder.not(x)))
     }
 }
 
@@ -122,8 +122,8 @@ impl<F: RichField + Extendable<D>, const D: usize> BitAnd<F, D> for ByteVariable
     type Output = Self;
 
     fn bitand(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        let self_bits = self.to_be_bits();
-        let rhs_bits = rhs.to_be_bits();
+        let self_bits = self.as_be_bits();
+        let rhs_bits = rhs.as_be_bits();
         let mut and_bit = |i| builder.and(self_bits[i], rhs_bits[i]);
         ByteVariable(array![i => and_bit(i); 8])
     }
@@ -133,8 +133,8 @@ impl<F: RichField + Extendable<D>, const D: usize> BitOr<F, D> for ByteVariable 
     type Output = Self;
 
     fn bitor(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        let self_bits = self.to_be_bits();
-        let rhs_bits = rhs.to_be_bits();
+        let self_bits = self.as_be_bits();
+        let rhs_bits = rhs.as_be_bits();
         let mut or_bit = |i| builder.or(self_bits[i], rhs_bits[i]);
         ByteVariable(array![i => or_bit(i); 8])
     }
@@ -144,8 +144,8 @@ impl<F: RichField + Extendable<D>, const D: usize> BitXor<F, D> for ByteVariable
     type Output = Self;
 
     fn bitxor(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        let self_bits = self.to_be_bits();
-        let rhs_bits = rhs.to_be_bits();
+        let self_bits = self.as_be_bits();
+        let rhs_bits = rhs.as_be_bits();
         let mut xor_bit = |i| builder.xor(self_bits[i], rhs_bits[i]);
         ByteVariable(array![i => xor_bit(i); 8])
     }
@@ -155,7 +155,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Shl<F, D, usize> for ByteVari
     type Output = Self;
 
     fn shl(self, rhs: usize, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        let self_bits = self.to_be_bits();
+        let self_bits = self.as_be_bits();
         let mut shl_bit = |i| {
             if i + rhs > 7 {
                 builder.constant(false)
@@ -171,7 +171,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Shr<F, D, usize> for ByteVari
     type Output = Self;
 
     fn shr(self, rhs: usize, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        let self_bits = self.to_be_bits();
+        let self_bits = self.as_be_bits();
         let mut shr_bit = |i| {
             if i < rhs {
                 builder.constant(false)
@@ -187,7 +187,7 @@ impl<F: RichField + Extendable<D>, const D: usize> RotateLeft<F, D, usize> for B
     type Output = Self;
 
     fn rotate_left(self, rhs: usize, _builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        let self_bits = self.to_be_bits();
+        let self_bits = self.as_be_bits();
         let rot_bit = |i| self_bits[(i + rhs) % 8];
         ByteVariable(array![i => rot_bit(i); 8])
     }
@@ -197,7 +197,7 @@ impl<F: RichField + Extendable<D>, const D: usize> RotateRight<F, D, usize> for 
     type Output = Self;
 
     fn rotate_right(self, rhs: usize, _builder: &mut CircuitBuilder<F, D>) -> Self::Output {
-        let self_bits = self.to_be_bits();
+        let self_bits = self.as_be_bits();
         let rot_bit = |i| self_bits[(i + 8 - rhs) % 8];
         ByteVariable(array![i => rot_bit(i); 8])
     }

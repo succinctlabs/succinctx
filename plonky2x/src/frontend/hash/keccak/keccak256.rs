@@ -20,11 +20,17 @@ pub struct Keccak256Generator<F: RichField + Extendable<D>, const D: usize> {
     pub _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> Keccak256Generator<F, D> {
+    pub fn id() -> String {
+        "Keccak256Generator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for Keccak256Generator<F, D>
 {
     fn id(&self) -> String {
-        "Keccak256Generator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {

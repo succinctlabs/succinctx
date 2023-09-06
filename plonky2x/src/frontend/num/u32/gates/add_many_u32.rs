@@ -292,11 +292,17 @@ pub struct U32AddManyGenerator<F: RichField + Extendable<D>, const D: usize> {
     _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> U32AddManyGenerator<F, D> {
+    pub fn id() -> String {
+        "U32AddManyGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for U32AddManyGenerator<F, D>
 {
     fn id(&self) -> String {
-        "U32AddManyGenerator".to_string()
+        Self::id()
     }
 
     fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
