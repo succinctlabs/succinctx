@@ -254,7 +254,6 @@ where
             .unwrap_or_else(|| panic!("Generator type not registered {}", type_id));
         buf.write_usize(*idx)?;
 
-        // generator.0.serialize(buf, common_data)?;
         self.0
             .registry
             .get(&type_id)
