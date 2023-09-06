@@ -99,6 +99,34 @@ mod tests {
     }
 
     #[test]
+    fn test_mux_random_access_fail() {
+        // Tried to route a wire that isn't routable
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        let five = builder.constant::<Variable>(F::from_noncanonical_u64(5));
+
+        let inputs: Vec<u64> = (1..=65781).collect();
+        let input_variables = inputs
+            .iter()
+            .map(|x| U256Variable::constant(&mut builder, U256::from(*x)))
+            .collect::<Vec<_>>();
+
+        let output_select = builder.select_index_with_select(five, &input_variables[..]);
+        let output = builder.select_index(five, &input_variables[..]);
+
+        builder.assert_is_equal(output_select, input_variables[5]);
+        builder.assert_is_equal(output, input_variables[5]);
+
+        let circuit = builder.build::<C>();
+        let pw = PartialWitness::new();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
     fn test_mux_val_equal() {
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
