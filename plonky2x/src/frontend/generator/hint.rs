@@ -92,11 +92,7 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> SimpleGenerator<L::Fi
     }
 
     fn dependencies(&self) -> Vec<Target> {
-        self.input_stream
-            .real_all()
-            .iter()
-            .map(|v| v.0)
-            .collect()
+        self.input_stream.real_all().iter().map(|v| v.0).collect()
     }
 
     fn run_once(

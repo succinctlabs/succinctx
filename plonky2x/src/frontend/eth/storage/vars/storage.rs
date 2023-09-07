@@ -8,7 +8,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, VariableStream, U256Variable};
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable, VariableStream};
 use crate::prelude::Variable;
 
 #[derive(Debug, Clone, Copy)]
