@@ -310,17 +310,13 @@ mod tests {
 
     #[test]
     fn test_to_nibbles() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         let byte = builder.read::<ByteVariable>();
         let nibbles = byte.to_nibbles(&mut builder);
         builder.write(nibbles[0]);
         builder.write(nibbles[1]);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
 
         let value = rand::random::<u8>();
         let mut inputs = circuit.input();

@@ -690,7 +690,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=john/nightly#49f5da619a11475c76e2da6b95ac9c957e7f2da2"
+source = "git+https://github.com/succinctlabs/curta.git?branch=john/nightly#b64dab8c1db6a3d014eed5770f7e9a21b87d0c49"
 dependencies = [
  "anyhow",
  "bincode",
