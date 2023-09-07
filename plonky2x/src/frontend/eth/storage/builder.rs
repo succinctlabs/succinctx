@@ -45,7 +45,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         address: AddressVariable,
         block_hash: Bytes32Variable,
     ) -> EthAccountVariable {
-        let generator = EthAccountProofGenerator::new(self, address, block_hash);
+        let generator = EthAccountProofGenerator::new(self, block_hash, address);
         self.add_simple_generator(&generator);
         generator.value
     }
@@ -71,14 +71,10 @@ mod tests {
     use ethers::types::{U256, U64};
 
     use super::*;
-    use crate::backend::config::DefaultParameters;
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthAccount, EthHeader, EthLog};
     use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
-
-    type L = DefaultParameters;
-    const D: usize = 2;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]

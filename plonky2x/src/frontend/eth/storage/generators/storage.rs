@@ -356,7 +356,7 @@ pub struct EthStorageProofGenerator<L: PlonkParameters<D>, const D: usize> {
     storage_key: Bytes32Variable,
     pub value: Bytes32Variable,
     chain_id: u64,
-    _phantom: PhantomData<F>,
+    _phantom: PhantomData<L>,
 }
 
 impl<L: PlonkParameters<D>, const D: usize> EthStorageProofGenerator<L, D> {
@@ -374,7 +374,7 @@ impl<L: PlonkParameters<D>, const D: usize> EthStorageProofGenerator<L, D> {
             storage_key,
             value,
             chain_id,
-            _phantom: PhantomData::<F>,
+            _phantom: PhantomData::<L>,
         }
     }
 

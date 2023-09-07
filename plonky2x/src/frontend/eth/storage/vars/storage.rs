@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use array_macro::array;
-use ethers::types::{Address, H256, U256};
+use ethers::types::{Address, H256, U256, U64};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
@@ -61,7 +61,7 @@ impl CircuitVariable for EthProofVariable {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EthAccount {
     pub balance: U256,
     pub code_hash: H256,
@@ -222,56 +222,5 @@ impl CircuitVariable for EthLogVariable {
         self.topics[1].set(witness, value.topics[1]);
         self.topics[2].set(witness, value.topics[2]);
         self.data_hash.set(witness, value.data_hash);
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct EthProof {
-    pub proof: H256,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct EthProofVariable {
-    pub proof: Bytes32Variable,
-}
-
-impl CircuitVariable for EthProofVariable {
-    type ValueType<F: RichField> = EthProof;
-
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
-        Self {
-            proof: Bytes32Variable::init(builder),
-        }
-    }
-
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
-    ) -> Self {
-        Self {
-            proof: Bytes32Variable::constant(builder, value.proof),
-        }
-    }
-
-    fn variables(&self) -> Vec<Variable> {
-        self.proof.variables()
-    }
-
-    fn from_variables(variables: &[Variable]) -> Self {
-        Self {
-            proof: Bytes32Variable::from_variables(variables),
-        }
-    }
-
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        EthProof {
-            proof: self.proof.get(witness),
-        }
-    }
-
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        self.proof.set(witness, value.proof);
     }
 }
