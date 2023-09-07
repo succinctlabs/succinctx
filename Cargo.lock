@@ -690,7 +690,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=john/nightly#08f71def29041e95d72521734b5af7cd721d5150"
+source = "git+https://github.com/succinctlabs/curta.git?branch=john/nightly#49f5da619a11475c76e2da6b95ac9c957e7f2da2"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2577,7 +2577,7 @@ checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/jtguibas/plonky2.git?branch=jtguibas/serde-target#800603d6f19ef2d1a06a45a99cc63e70946f4d13"
+source = "git+https://github.com/mir-protocol/plonky2.git#e6ca46062384ee7f113f52e06c1c828cdc4b9106"
 dependencies = [
  "ahash",
  "anyhow",

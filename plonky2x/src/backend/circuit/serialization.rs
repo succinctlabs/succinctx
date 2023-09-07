@@ -4,7 +4,12 @@ use core::hash::Hash;
 use core::marker::PhantomData;
 use std::collections::HashMap;
 
-use curta::chip::hash::sha::sha256::generator::{SHA256Generator, SHA256HintGenerator};
+use curta::chip::hash::sha::sha256::generator::{
+    SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
+};
+use curta::chip::trace::generator::ArithmeticGenerator;
+use curta::chip::Chip;
+use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
 use plonky2::gadgets::arithmetic_extension::QuotientGeneratorExtension;
@@ -473,6 +478,16 @@ where
 
         let sha256_generator = SHA256Generator::<L::Field, L::CubicParams>::id();
         r.register_simple::<SHA256Generator<L::Field, L::CubicParams>>(sha256_generator);
+
+        let simple_stark_witness_generator_id = "SimpleStarkWitnessGenerator".to_string();
+        r.register_simple::<SimpleStarkWitnessGenerator<
+            Chip<SHA256AirParameters<L::Field, L::CubicParams>>,
+            ArithmeticGenerator<SHA256AirParameters<L::Field, L::CubicParams>>,
+            L::Field,
+            L::Config,
+            L::Field,
+            D,
+        >>(simple_stark_witness_generator_id);
 
         register_watch_generator!(
             r,
