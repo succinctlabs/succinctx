@@ -1,20 +1,21 @@
 pub mod io;
-pub mod utils;
+pub mod serialization;
 
-use core::marker::PhantomData;
 use std::fs;
 
 use itertools::Itertools;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
+use plonky2::field::types::PrimeField64;
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_data::CircuitData;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputs;
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use plonky2::util::serialization::{
+    Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
+};
 
 use self::io::{CircuitInput, CircuitOutput};
-use self::utils::{CustomGateSerializer, CustomGeneratorSerializer};
+use self::serialization::{GateRegistry, WitnessGeneratorRegistry};
+use super::config::PlonkParameters;
 use crate::frontend::builder::io::{EvmIO, FieldIO};
 use crate::frontend::builder::CircuitIO;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
@@ -22,18 +23,14 @@ use crate::utils::hex;
 
 /// A compiled circuit which can compute any function in the form `f(x)=y`.
 #[derive(Debug)]
-pub struct Circuit<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    pub data: CircuitData<F, C, D>,
+pub struct Circuit<L: PlonkParameters<D>, const D: usize> {
+    pub data: CircuitData<L::Field, L::Config, D>,
     pub io: CircuitIO<D>,
 }
 
-impl<F: RichField + Extendable<D>, C, const D: usize> Circuit<F, C, D>
-where
-    C: GenericConfig<D, F = F> + 'static,
-    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-{
+impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
     /// Returns an input instance for the circuit.
-    pub fn input(&self) -> CircuitInput<F, D> {
+    pub fn input(&self) -> CircuitInput<L, D> {
         CircuitInput {
             io: self.io.clone(),
             buffer: Vec::new(),
@@ -43,8 +40,11 @@ where
     /// Generates a proof for the circuit. The proof can be verified using `verify`.
     pub fn prove(
         &self,
-        input: &CircuitInput<F, D>,
-    ) -> (ProofWithPublicInputs<F, C, D>, CircuitOutput<F, D>) {
+        input: &CircuitInput<L, D>,
+    ) -> (
+        ProofWithPublicInputs<L::Field, L::Config, D>,
+        CircuitOutput<L, D>,
+    ) {
         // Get input variables from io.
         let input_variables = if self.io.evm.is_some() {
             self.io
@@ -83,9 +83,9 @@ where
     /// Verifies a proof for the circuit.
     pub fn verify(
         &self,
-        proof: &ProofWithPublicInputs<F, C, D>,
-        input: &CircuitInput<F, D>,
-        output: &CircuitOutput<F, D>,
+        proof: &ProofWithPublicInputs<L::Field, L::Config, D>,
+        input: &CircuitInput<L, D>,
+        output: &CircuitOutput<L, D>,
     ) {
         let mut public_inputs = Vec::new();
         public_inputs.extend(input.buffer.clone());
@@ -97,35 +97,26 @@ where
         self.data.verify(proof.clone()).unwrap();
     }
 
-    fn serializers() -> (CustomGateSerializer, CustomGeneratorSerializer<C, D>) {
-        let gate_serializer = CustomGateSerializer;
-        let generator_serializer = CustomGeneratorSerializer::<C, D> {
-            _phantom: PhantomData,
-        };
-        (gate_serializer, generator_serializer)
-    }
-
     pub fn id(&self) -> String {
         let circuit_digest = hex!(self
             .data
             .verifier_only
             .circuit_digest
-            .elements
+            .to_vec()
             .iter()
             .flat_map(|e| e.to_canonical_u64().to_be_bytes())
             .collect::<Vec<u8>>());
         circuit_digest[0..22].to_string()
     }
 
-    pub fn serialize(&self) -> IoResult<Vec<u8>> {
-        // Setup serializers.
-        let (gate_serializer, generator_serializer) = Self::serializers();
-
+    pub fn serialize(
+        &self,
+        gate_serializer: &impl GateSerializer<L::Field, D>,
+        generator_serializer: &impl WitnessGeneratorSerializer<L::Field, D>,
+    ) -> IoResult<Vec<u8>> {
         // Setup buffer.
         let mut buffer = Vec::new();
-        let circuit_bytes = self
-            .data
-            .to_bytes(&gate_serializer, &generator_serializer)?;
+        let circuit_bytes = self.data.to_bytes(gate_serializer, generator_serializer)?;
         buffer.write_usize(circuit_bytes.len())?;
         buffer.write_all(&circuit_bytes)?;
 
@@ -165,16 +156,17 @@ where
                     .as_slice(),
             )?;
         } else {
-            todo!()
+            buffer.write_usize(2)?;
         }
 
         Ok(buffer)
     }
 
-    pub fn deserialize(buffer: &[u8]) -> IoResult<Self> {
-        // Setup serializers.
-        let (gate_serializer, generator_serializer) = Self::serializers();
-
+    pub fn deserialize(
+        buffer: &[u8],
+        gate_serializer: &impl GateSerializer<L::Field, D>,
+        generator_serializer: &impl WitnessGeneratorSerializer<L::Field, D>,
+    ) -> IoResult<Self> {
         // Setup buffer.
         let mut buffer = Buffer::new(buffer);
 
@@ -182,10 +174,10 @@ where
         let circuit_bytes_len = buffer.read_usize()?;
         let mut circuit_bytes = vec![0u8; circuit_bytes_len];
         buffer.read_exact(circuit_bytes.as_mut_slice())?;
-        let data = CircuitData::<F, C, D>::from_bytes(
+        let data = CircuitData::<L::Field, L::Config, D>::from_bytes(
             &circuit_bytes,
-            &gate_serializer,
-            &generator_serializer,
+            gate_serializer,
+            generator_serializer,
         )?;
 
         let mut circuit = Circuit {
@@ -219,24 +211,69 @@ where
         Ok(circuit)
     }
 
-    pub fn save(&self, path: &String) {
-        let bytes = self.serialize().unwrap();
+    pub fn save(
+        &self,
+        path: &String,
+        gate_serializer: &impl GateSerializer<L::Field, D>,
+        generator_serializer: &impl WitnessGeneratorSerializer<L::Field, D>,
+    ) {
+        let bytes = self
+            .serialize(gate_serializer, generator_serializer)
+            .unwrap();
         fs::write(path, bytes).unwrap();
     }
 
-    pub fn load(path: &str) -> IoResult<Self> {
+    pub fn load(
+        path: &str,
+        gate_serializer: &impl GateSerializer<L::Field, D>,
+        generator_serializer: &impl WitnessGeneratorSerializer<L::Field, D>,
+    ) -> IoResult<Self> {
         let bytes = fs::read(path).unwrap();
-        Self::deserialize(bytes.as_slice())
+        Self::deserialize(bytes.as_slice(), gate_serializer, generator_serializer)
     }
 
-    pub fn save_to_build_dir(&self) {
+    pub fn save_to_build_dir(
+        &self,
+        gate_serializer: &impl GateSerializer<L::Field, D>,
+        generator_serializer: &impl WitnessGeneratorSerializer<L::Field, D>,
+    ) {
         let path = format!("./build/{}.circuit", self.id());
-        self.save(&path);
+        self.save(&path, gate_serializer, generator_serializer);
     }
 
-    pub fn load_from_build_dir(circuit_id: String) -> IoResult<Self> {
+    pub fn load_from_build_dir(
+        circuit_id: String,
+        gate_serializer: &impl GateSerializer<L::Field, D>,
+        generator_serializer: &impl WitnessGeneratorSerializer<L::Field, D>,
+    ) -> IoResult<Self> {
         let path = format!("./build/{}.circuit", circuit_id);
-        Self::load(&path)
+        Self::load(&path, gate_serializer, generator_serializer)
+    }
+
+    pub fn test_default_serializers(&self)
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        self.test_serializers(&gate_serializer, &generator_serializer);
+    }
+
+    pub fn test_serializers(
+        &self,
+        gate_serializer: &impl GateSerializer<L::Field, D>,
+        generator_serializer: &impl WitnessGeneratorSerializer<L::Field, D>,
+    ) {
+        let serialized_bytes = self
+            .serialize(gate_serializer, generator_serializer)
+            .unwrap();
+        let deserialized_circuit = Self::deserialize(
+            serialized_bytes.as_slice(),
+            gate_serializer,
+            generator_serializer,
+        )
+        .unwrap();
+        assert_eq!(self.data, deserialized_circuit.data);
     }
 }
 
@@ -245,12 +282,13 @@ pub(crate) mod tests {
 
     use plonky2::field::types::Field;
 
+    use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
     use crate::backend::circuit::Circuit;
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::builder::CircuitBuilderX;
     use crate::prelude::*;
 
-    type F = GoldilocksField;
-    type C = PoseidonGoldilocksConfig;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]
@@ -263,7 +301,7 @@ pub(crate) mod tests {
         builder.write(c);
 
         // Build your circuit.
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         let mut input = circuit.input();
@@ -276,14 +314,21 @@ pub(crate) mod tests {
         // Verify proof.
         circuit.verify(&proof, &input, &output);
 
+        // Setup serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
         // Serialize.
-        let bytes = circuit.serialize().unwrap();
+        let bytes = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
         let old_digest = circuit.data.verifier_only.circuit_digest;
         let old_input_variables = circuit.io.field.as_ref().unwrap().input_variables.clone();
         let old_output_variables = circuit.io.field.as_ref().unwrap().input_variables.clone();
 
         // Deserialize.
-        let circuit = Circuit::<F, C, D>::deserialize(&bytes).unwrap();
+        let circuit =
+            Circuit::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer).unwrap();
         let new_digest = circuit.data.verifier_only.circuit_digest;
         let new_input_variables = circuit.io.field.as_ref().unwrap().input_variables.clone();
         let new_output_variables = circuit.io.field.as_ref().unwrap().input_variables.clone();
@@ -310,7 +355,7 @@ pub(crate) mod tests {
         builder.evm_write(c);
 
         // Build your circuit.
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         let mut input = circuit.input();
@@ -323,14 +368,21 @@ pub(crate) mod tests {
         // Verify proof.
         circuit.verify(&proof, &input, &output);
 
+        // Setup serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
         // Serialize.
-        let bytes = circuit.serialize().unwrap();
+        let bytes = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
         let old_digest = circuit.data.verifier_only.circuit_digest;
         let old_input_bytes = circuit.io.evm.as_ref().unwrap().input_bytes.clone();
         let old_output_bytes = circuit.io.evm.as_ref().unwrap().output_bytes.clone();
 
         // Deserialize.
-        let circuit = Circuit::<F, C, D>::deserialize(&bytes).unwrap();
+        let circuit =
+            Circuit::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer).unwrap();
         let new_digest = circuit.data.verifier_only.circuit_digest;
         let new_input_bytes = circuit.io.evm.as_ref().unwrap().input_bytes.clone();
         let new_output_bytes = circuit.io.evm.as_ref().unwrap().output_bytes.clone();

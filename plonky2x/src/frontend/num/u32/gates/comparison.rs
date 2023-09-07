@@ -418,11 +418,17 @@ pub struct ComparisonGenerator<F: RichField + Extendable<D>, const D: usize> {
     gate: ComparisonGate<F, D>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> ComparisonGenerator<F, D> {
+    pub fn id() -> String {
+        "ComparisonGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for ComparisonGenerator<F, D>
 {
     fn id(&self) -> String {
-        "ComparisonGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {

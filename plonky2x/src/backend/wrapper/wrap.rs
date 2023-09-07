@@ -4,62 +4,60 @@ use std::path::Path;
 
 use anyhow::Result;
 use log::{debug, info};
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{
-    CircuitData, CommonCircuitData, VerifierCircuitTarget, VerifierOnlyCircuitData,
+    CommonCircuitData, VerifierCircuitTarget, VerifierOnlyCircuitData,
 };
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use serde::Serialize;
 
 use crate::backend::circuit::Circuit;
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::hash::sha::sha256::sha256;
-use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable};
+use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable};
 
 #[derive(Debug)]
 pub struct WrappedCircuit<
-    F: RichField + Extendable<D>,
-    InnerConfig: GenericConfig<D, F = F> + 'static,
-    OuterConfig: GenericConfig<D, F = F>,
+    InnerParameters: PlonkParameters<D>,
+    OuterParameters: PlonkParameters<D, Field = InnerParameters::Field>,
     const D: usize,
 > where
-    InnerConfig::Hasher: AlgebraicHasher<F>,
+    <InnerParameters::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<InnerParameters::Field>,
 {
-    circuit: Circuit<F, InnerConfig, D>,
-    hash_circuit: Circuit<F, InnerConfig, D>,
+    circuit: Circuit<InnerParameters, D>,
+    hash_circuit: Circuit<InnerParameters, D>,
     circuit_proof_target: ProofWithPublicInputsTarget<D>,
     circuit_verifier_target: VerifierCircuitTarget,
-    recursive_circuit: Circuit<F, InnerConfig, D>,
+    recursive_circuit: Circuit<InnerParameters, D>,
     hash_verifier_target: VerifierCircuitTarget,
     hash_proof_target: ProofWithPublicInputsTarget<D>,
-    wrapper_data: CircuitData<F, OuterConfig, D>,
+    wrapper_circuit: Circuit<OuterParameters, D>,
     proof_target: ProofWithPublicInputsTarget<D>,
     verifier_target: VerifierCircuitTarget,
 }
 
 impl<
-        F: RichField + Extendable<D>,
-        InnerConfig: GenericConfig<D, F = F>,
-        OuterConfig: GenericConfig<D, F = F>,
+        InnerParameters: PlonkParameters<D>,
+        OuterParameters: PlonkParameters<D, Field = InnerParameters::Field>,
         const D: usize,
-    > WrappedCircuit<F, InnerConfig, OuterConfig, D>
+    > WrappedCircuit<InnerParameters, OuterParameters, D>
 where
-    InnerConfig::Hasher: AlgebraicHasher<F>,
+    <InnerParameters::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<InnerParameters::Field>,
 {
-    pub fn build(circuit: Circuit<F, InnerConfig, D>) -> Self {
+    pub fn build(circuit: Circuit<InnerParameters, D>) -> Self {
         let Some(evm_io) = circuit.io.evm.as_ref() else {
             panic!("CircuitIO must be EVM")
         };
 
         // Standartize the public inputs/outputs to their hash and verify the circuit recursively
-        let mut hash_builder = CircuitBuilder::<F, D>::new();
+        let mut hash_builder = CircuitBuilder::<InnerParameters, D>::new();
         let circuit_proof_target = hash_builder.add_virtual_proof_with_pis(&circuit.data.common);
-        let circuit_verifier_target = hash_builder.constant_verifier_data(&circuit.data);
-        hash_builder.verify_proof::<InnerConfig>(
+        let circuit_verifier_target =
+            hash_builder.constant_verifier_data::<InnerParameters>(&circuit.data);
+        hash_builder.verify_proof::<InnerParameters>(
             &circuit_proof_target,
             &circuit_verifier_target,
             &circuit.data.common,
@@ -99,23 +97,23 @@ where
             .split_at(num_input_targets);
 
         let input_bytes = input_targets
-            .chunks_exact(ByteVariable::nb_elements::<F, D>())
+            .chunks_exact(ByteVariable::nb_elements())
             .map(ByteVariable::from_targets)
             .collect::<Vec<_>>();
         let output_bytes = output_targets
-            .chunks_exact(ByteVariable::nb_elements::<F, D>())
+            .chunks_exact(ByteVariable::nb_elements())
             .map(ByteVariable::from_targets)
             .collect::<Vec<_>>();
 
         let input_bits = input_bytes
             .iter()
-            .flat_map(|b| b.to_le_bits())
+            .flat_map(|b| b.to_le_bits::<InnerParameters, D>(&mut hash_builder))
             .map(|b| BoolTarget::new_unsafe(b.targets()[0]))
             .collect::<Vec<_>>();
 
         let output_bits = output_bytes
             .iter()
-            .flat_map(|b| b.to_le_bits())
+            .flat_map(|b| b.to_le_bits(&mut hash_builder))
             .map(|b| BoolTarget::new_unsafe(b.targets()[0]))
             .collect::<Vec<_>>();
 
@@ -144,14 +142,15 @@ where
         hash_builder.write(input_hash_bytes);
         hash_builder.write(output_hash_bytes);
 
-        let hash_circuit = hash_builder.build::<InnerConfig>();
+        let hash_circuit = hash_builder.build();
 
         // An inner recursion to standartize the degree
-        let mut recursive_builder = CircuitBuilder::<F, D>::new();
+        let mut recursive_builder = CircuitBuilder::<InnerParameters, D>::new();
         let hash_proof_target =
             recursive_builder.add_virtual_proof_with_pis(&hash_circuit.data.common);
-        let hash_verifier_target = recursive_builder.constant_verifier_data(&hash_circuit.data);
-        recursive_builder.verify_proof::<InnerConfig>(
+        let hash_verifier_target =
+            recursive_builder.constant_verifier_data::<InnerParameters>(&hash_circuit.data);
+        recursive_builder.verify_proof::<InnerParameters>(
             &hash_proof_target,
             &hash_verifier_target,
             &hash_circuit.data.common,
@@ -159,19 +158,19 @@ where
 
         recursive_builder.register_public_inputs(&hash_proof_target.public_inputs);
 
-        let recursive_circuit = recursive_builder.build::<InnerConfig>();
+        let recursive_circuit = recursive_builder.build();
         debug!(
             "Recursive circuit degree: {}",
             recursive_circuit.data.common.degree()
         );
 
         // Finally, wrap this in the outer circuit
-        let mut wrapper_builder = CircuitBuilder::<F, D>::new();
+        let mut wrapper_builder = CircuitBuilder::<OuterParameters, D>::new();
         let proof_target =
             wrapper_builder.add_virtual_proof_with_pis(&recursive_circuit.data.common);
-        let verifier_target = wrapper_builder
-            .constant_verifier_data(&recursive_circuit.data);
-        wrapper_builder.verify_proof::<InnerConfig>(
+        let verifier_target =
+            wrapper_builder.constant_verifier_data::<InnerParameters>(&recursive_circuit.data);
+        wrapper_builder.verify_proof::<InnerParameters>(
             &proof_target,
             &verifier_target,
             &recursive_circuit.data.common,
@@ -179,8 +178,11 @@ where
 
         wrapper_builder.register_public_inputs(&proof_target.public_inputs);
 
-        let wrapper_data = wrapper_builder.build::<OuterConfig>().data;
-        debug!("Wrapped circuit degree: {}", wrapper_data.common.degree());
+        let wrapper_circuit = wrapper_builder.build();
+        debug!(
+            "Wrapped circuit degree: {}",
+            wrapper_circuit.data.common.degree()
+        );
 
         Self {
             circuit,
@@ -190,7 +192,7 @@ where
             circuit_verifier_target,
             hash_proof_target,
             hash_verifier_target,
-            wrapper_data,
+            wrapper_circuit,
             proof_target,
             verifier_target,
         }
@@ -198,8 +200,8 @@ where
 
     pub fn prove(
         &self,
-        inner_proof: &ProofWithPublicInputs<F, InnerConfig, D>,
-    ) -> Result<WrappedOutput<F, OuterConfig, D>> {
+        inner_proof: &ProofWithPublicInputs<InnerParameters::Field, InnerParameters::Config, D>,
+    ) -> Result<WrappedOutput<OuterParameters, D>> {
         let mut pw = PartialWitness::new();
         pw.set_verifier_data_target(
             &self.circuit_verifier_target,
@@ -231,31 +233,29 @@ where
         );
         pw.set_proof_with_pis_target(&self.proof_target, &recursive_proof);
 
-        let proof = self.wrapper_data.prove(pw)?;
-        self.wrapper_data.verify(proof.clone())?;
+        let proof = self.wrapper_circuit.data.prove(pw)?;
+        self.wrapper_circuit.data.verify(proof.clone())?;
         debug!("Successfully verified wrapper proof");
 
         Ok(WrappedOutput {
             proof,
-            common_data: self.wrapper_data.common.clone(),
-            verifier_data: self.wrapper_data.verifier_only.clone(),
+            common_data: self.wrapper_circuit.data.common.clone(),
+            verifier_data: self.wrapper_circuit.data.verifier_only.clone(),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct WrappedOutput<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    pub proof: ProofWithPublicInputs<F, C, D>,
-    pub common_data: CommonCircuitData<F, D>,
-    pub verifier_data: VerifierOnlyCircuitData<C, D>,
+pub struct WrappedOutput<L: PlonkParameters<D>, const D: usize> {
+    pub proof: ProofWithPublicInputs<L::Field, L::Config, D>,
+    pub common_data: CommonCircuitData<L::Field, D>,
+    pub verifier_data: VerifierOnlyCircuitData<L::Config, D>,
 }
 
-impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
-    WrappedOutput<F, C, D>
-{
+impl<L: PlonkParameters<D>, const D: usize> WrappedOutput<L, D> {
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<()>
     where
-        C: Serialize,
+        L::Config: Serialize,
     {
         if !path.as_ref().exists() {
             fs::create_dir_all(&path)?;
@@ -283,7 +283,7 @@ mod tests {
     use plonky2::field::types::Field;
 
     use super::*;
-    use crate::backend::wrapper::plonky2_config::PoseidonBN128GoldilocksConfig;
+    use crate::backend::config::{DefaultParameters, Groth16VerifierParameters};
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::hash::sha::sha256::sha256;
     use crate::prelude::*;
@@ -308,8 +308,8 @@ mod tests {
     fn test_wrapper() {
         type F = GoldilocksField;
         const D: usize = 2;
-        type InnerConfig = PoseidonGoldilocksConfig;
-        type OuterConfig = PoseidonBN128GoldilocksConfig;
+        type InnerParameters = DefaultParameters;
+        type OuterParameters = Groth16VerifierParameters;
 
         setup_logger();
 
@@ -317,17 +317,18 @@ mod tests {
         let path = format!("{}/test_circuit/", build_path);
         let dummy_path = format!("{}/dummy/", build_path);
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
         builder.init_evm_io();
         let _ = builder.constant::<Variable>(F::ONE);
 
         // Set up the dummy circuit and wrapper
-        let dummy_circuit = builder.build::<InnerConfig>();
+        let dummy_circuit = builder.build();
         let dummy_input = dummy_circuit.input();
         let (dummy_inner_proof, dummy_output) = dummy_circuit.prove(&dummy_input);
         dummy_circuit.verify(&dummy_inner_proof, &dummy_input, &dummy_output);
 
-        let dummy_wrapper = WrappedCircuit::<F, InnerConfig, OuterConfig, D>::build(dummy_circuit);
+        let dummy_wrapper =
+            WrappedCircuit::<InnerParameters, OuterParameters, D>::build(dummy_circuit);
         let dummy_wrapped_proof = dummy_wrapper.prove(&dummy_inner_proof).unwrap();
         dummy_wrapped_proof.save(dummy_path).unwrap();
 
@@ -337,7 +338,7 @@ mod tests {
         let expected_digest = "8943a85083f16e93dc92d6af455841daacdae5081aa3125b614a626df15461eb";
         let digest_bits = to_bits(decode(expected_digest).unwrap());
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
         // builder.init_evm_io();
         let targets = msg_bits
             .iter()
@@ -360,17 +361,17 @@ mod tests {
             }
         }
 
-        let circuit = builder.build::<InnerConfig>();
+        let circuit = builder.build();
         let mut input = circuit.input();
         input.evm_write::<ByteVariable>(0u8);
         input.evm_write::<ByteVariable>(0u8);
         let (proof, _output) = circuit.prove(&input);
 
-        let wrapped_circuit = WrappedCircuit::<F, InnerConfig, OuterConfig, D>::build(circuit);
+        let wrapped_circuit = WrappedCircuit::<InnerParameters, OuterParameters, D>::build(circuit);
 
         assert_eq!(
-            wrapped_circuit.wrapper_data.common,
-            dummy_wrapper.wrapper_data.common,
+            wrapped_circuit.wrapper_circuit.data.common,
+            dummy_wrapper.wrapper_circuit.data.common,
         );
 
         let wrapped_proof = wrapped_circuit.prove(&proof).unwrap();

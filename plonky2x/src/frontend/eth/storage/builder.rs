@@ -1,18 +1,17 @@
 use ethers::types::Address;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 
 use super::generators::block::EthBlockGenerator;
 use super::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::vars::Bytes32Variable;
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn get_storage_key_at(
         &mut self,
         mapping_location: U256Variable,
@@ -70,13 +69,17 @@ mod tests {
 
     use ethers::providers::{Http, Provider};
     use ethers::types::{U256, U64};
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::*;
+    use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthHeader, EthLog};
     use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
+
+    type L = DefaultParameters;
+    const D: usize = 2;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -96,7 +99,7 @@ mod tests {
         builder.evm_write(value);
 
         // Build your circuit.
-        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         // These values are taken from Ethereum block https://etherscan.io/block/17880427
@@ -113,7 +116,7 @@ mod tests {
         ));
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
@@ -126,7 +129,14 @@ mod tests {
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
         );
 
-        let _ = circuit.serialize().unwrap();
+        // initialize serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
+        // test serialization
+        let _ = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
     }
 
     #[test]
@@ -143,7 +153,7 @@ mod tests {
         builder.write(value);
 
         // Build your circuit.
-        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         let mut input = circuit.input();
@@ -162,7 +172,7 @@ mod tests {
         );
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
@@ -175,7 +185,14 @@ mod tests {
             bytes32!("0xca77d4e79102603cb6842afffd8846a3123877159ed214aeadfc4333d595fd50"),
         );
 
-        let _ = circuit.serialize().unwrap();
+        // initialize serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
+        // test serialization
+        let _ = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
     }
 
     #[test]
@@ -195,7 +212,7 @@ mod tests {
         builder.write(value);
 
         // Build your circuit.
-        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         // These values are taken from Ethereum block https://etherscan.io/block/17880427
@@ -206,7 +223,7 @@ mod tests {
         ));
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
@@ -241,7 +258,14 @@ mod tests {
             }
         );
 
-        let _ = circuit.serialize().unwrap();
+        // initialize serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
+        // test serialization
+        let _ = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
     }
 
     #[test]
@@ -263,7 +287,7 @@ mod tests {
         builder.write(value);
 
         // Build your circuit.
-        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         // These values are taken from Ethereum block https://etherscan.io/block/17880427
@@ -278,7 +302,7 @@ mod tests {
         ));
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
@@ -301,6 +325,13 @@ mod tests {
             }
         );
 
-        let _ = circuit.serialize().unwrap();
+        // initialize serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
+        // test serialization
+        let _ = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
     }
 }

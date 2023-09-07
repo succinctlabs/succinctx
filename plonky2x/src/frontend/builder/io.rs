@@ -1,8 +1,7 @@
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
 use super::CircuitBuilder;
+use crate::backend::config::PlonkParameters;
 use crate::frontend::vars::EvmVariable;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
 
@@ -45,8 +44,8 @@ impl<const D: usize> CircuitIO<D> {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub(crate) fn init_field_io(&mut self) {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    fn init_field_io(&mut self) {
         if self.io.evm.is_some() || self.io.recursive_proof.is_some() {
             panic!("cannot use field io and other io methods at the same time")
         } else if self.io.field.is_none() {
@@ -80,7 +79,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     pub fn evm_read<V: EvmVariable>(&mut self) -> V {
         self.init_evm_io();
-        let nb_bytes = V::nb_bytes::<F, D>();
+        let nb_bytes = V::nb_bytes::<L, D>();
         let mut bytes = Vec::new();
         for _ in 0..nb_bytes {
             bytes.push(self.init::<ByteVariable>());

@@ -7,39 +7,47 @@ use std::io::{Read, Write};
 use clap::Parser;
 use curta::math::prelude::PrimeField64;
 use log::{info, warn};
-use plonky2::field::extension::Extendable;
-use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, PoseidonGoldilocksConfig};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use self::cli::{BuildArgs, ProveArgs};
+use super::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
+use super::config::PlonkParameters;
 use crate::backend::circuit::Circuit;
+use crate::backend::config::DefaultParameters;
 use crate::backend::function::cli::{Args, Commands};
 use crate::backend::function::io::{FunctionInput, FunctionOutput, FunctionOutputGroth16};
 
 pub trait CircuitFunction {
     /// Builds the circuit.
-    fn build<F, C, const D: usize>() -> Circuit<F, C, D>
+    fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D>;
+
+    fn generators<L: PlonkParameters<D>, const D: usize>() -> WitnessGeneratorRegistry<L, D>
     where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>;
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        WitnessGeneratorRegistry::<L, D>::new()
+    }
+
+    fn gates<L: PlonkParameters<D>, const D: usize>() -> GateRegistry<L, D>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        GateRegistry::<L, D>::new()
+    }
 
     /// Builds the circuit and saves it to disk.
-    fn compile<F, C, const D: usize>(args: BuildArgs)
+    fn compile<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
     where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         info!("Building circuit...");
-        let circuit = Self::build::<F, C, D>();
+        let circuit = Self::build::<L, D>();
         info!("Successfully built circuit.");
         info!("> Circuit: {}", circuit.id());
         info!("> Degree: {}", circuit.data.common.degree());
         info!("> Number of Gates: {}", circuit.data.common.gates.len());
         let path = format!("{}/main.circuit", args.build_dir);
-        circuit.save(&path);
+        circuit.save(&path, &Self::gates::<L, D>(), &Self::generators::<L, D>());
         info!("Successfully saved circuit to disk at {}.", path);
 
         info!("Building verifier contract...");
@@ -79,15 +87,15 @@ contract FunctionVerifier is IFunctionVerifier {
     //     Output hexutil.Bytes  `json:"output"`
     // }
 
-    fn prove_with_evm_io<F, C, const D: usize>(args: ProveArgs, bytes: Vec<u8>)
+    fn prove_with_evm_io<L: PlonkParameters<D>, const D: usize>(args: ProveArgs, bytes: Vec<u8>)
     where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let circuit = Circuit::<F, C, D>::load(&path).unwrap();
+        let circuit =
+            Circuit::<L, D>::load(&path, &Self::gates::<L, D>(), &Self::generators::<L, D>())
+                .unwrap();
         info!("Successfully loaded circuit.");
 
         let mut input = circuit.input();
@@ -129,15 +137,17 @@ contract FunctionVerifier is IFunctionVerifier {
     }
 
     /// Generates a proof with field-based inputs and outputs.
-    fn prove_with_field_io<F, C, const D: usize>(args: ProveArgs, elements: Vec<F>)
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+    fn prove_with_field_io<L: PlonkParameters<D>, const D: usize>(
+        args: ProveArgs,
+        elements: Vec<L::Field>,
+    ) where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let circuit = Circuit::<F, C, D>::load(&path).unwrap();
+        let circuit =
+            Circuit::<L, D>::load(&path, &Self::gates::<L, D>(), &Self::generators::<L, D>())
+                .unwrap();
         info!("Successfully loaded circuit.");
 
         let mut input = circuit.input();
@@ -179,21 +189,20 @@ contract FunctionVerifier is IFunctionVerifier {
 
     /// The entry point for the function when using CLI-based tools.
     fn cli() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
+        type L = DefaultParameters;
         const D: usize = 2;
 
         let args = Args::parse();
         match args.command {
             Commands::Build(args) => {
-                Self::compile::<F, C, D>(args);
+                Self::compile::<L, D>(args);
             }
             Commands::Prove(args) => {
                 let input = Self::read_function_input(args.clone().input_json);
                 if input.bytes.is_some() {
-                    Self::prove_with_evm_io::<F, C, D>(args, input.bytes());
+                    Self::prove_with_evm_io::<L, D>(args, input.bytes());
                 } else if input.elements.is_some() {
-                    Self::prove_with_field_io::<F, C, D>(args, input.elements());
+                    Self::prove_with_field_io::<L, D>(args, input.elements());
                 } else {
                     warn!("No input bytes or elements found in input.json.");
                 }
@@ -201,25 +210,23 @@ contract FunctionVerifier is IFunctionVerifier {
         }
     }
 
-    fn test<F, C, const D: usize>(input_json: String)
+    fn test<L: PlonkParameters<D>, const D: usize>(input_json: String)
     where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         let build_args = BuildArgs {
             build_dir: "./build".to_string(),
         };
-        Self::compile::<F, C, D>(build_args);
+        Self::compile::<L, D>(build_args);
         let prove_args = ProveArgs {
             build_dir: "./build".to_string(),
             input_json: input_json.clone(),
         };
         let input = Self::read_function_input(input_json);
         if input.bytes.is_some() {
-            Self::prove_with_evm_io::<F, C, D>(prove_args, input.bytes());
+            Self::prove_with_evm_io::<L, D>(prove_args, input.bytes());
         } else if input.elements.is_some() {
-            Self::prove_with_field_io::<F, C, D>(prove_args, input.elements());
+            Self::prove_with_field_io::<L, D>(prove_args, input.elements());
         } else {
             panic!("No input bytes or field elements found in input.json.")
         }

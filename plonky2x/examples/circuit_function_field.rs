@@ -17,34 +17,27 @@
 
 use std::env;
 
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::AlgebraicHasher;
 use plonky2x::backend::circuit::Circuit;
+use plonky2x::backend::config::PlonkParameters;
 use plonky2x::backend::function::CircuitFunction;
 use plonky2x::prelude::{CircuitBuilder, Variable};
 
 struct Function {}
 
 impl CircuitFunction for Function {
-    fn build<F, C, const D: usize>() -> Circuit<F, C, D>
-    where
-        F: RichField + Extendable<D>,
-        C: plonky2::plonk::config::GenericConfig<D, F = F> + 'static,
-        <C as plonky2::plonk::config::GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-    {
-        let mut builder = CircuitBuilder::<F, D>::new();
+    fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D> {
+        let mut builder = CircuitBuilder::<L, D>::new();
         let a = builder.read::<Variable>();
         let b = builder.read::<Variable>();
         let c = builder.add(a, b);
         builder.write(c);
-        builder.build::<C>()
+        builder.build()
     }
 }
 
 fn main() {
     env::set_var("RUST_LOG", "info");
-    env_logger::init();
+    env_logger::try_init().unwrap_or_default();
     Function::cli();
 }
 
@@ -57,13 +50,12 @@ mod tests {
 
     use super::*;
 
-    type F = GoldilocksField;
-    type C = PoseidonGoldilocksConfig;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]
     fn test_circuit_function_field() {
-        let circuit = Function::build::<F, C, D>();
+        let circuit = Function::build::<L, D>();
         let mut input = circuit.input();
         input.write::<Variable>(F::from_canonical_u64(1));
         input.write::<Variable>(F::from_canonical_u64(2));
@@ -80,6 +72,6 @@ mod tests {
             "{}/examples/circuit_function_field_input.json",
             root.display()
         );
-        Function::test::<F, C, D>(path);
+        Function::test::<L, D>(path);
     }
 }

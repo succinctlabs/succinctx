@@ -2,13 +2,13 @@ use std::fmt::Debug;
 
 use array_macro::array;
 use ethers::types::{Address, H256, U256};
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable};
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable, VariableBuffer};
 use crate::prelude::Variable;
 
 #[derive(Debug, Clone, Copy)]
@@ -24,17 +24,15 @@ pub struct EthProofVariable {
 impl CircuitVariable for EthProofVariable {
     type ValueType<F: RichField> = EthProof;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self {
             proof: Bytes32Variable::init(builder),
         }
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self {
             proof: Bytes32Variable::constant(builder, value.proof),
@@ -81,9 +79,7 @@ pub struct EthAccountVariable {
 impl CircuitVariable for EthAccountVariable {
     type ValueType<F: RichField> = EthAccount;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self {
             balance: U256Variable::init(builder),
             code_hash: Bytes32Variable::init(builder),
@@ -92,9 +88,9 @@ impl CircuitVariable for EthAccountVariable {
         }
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self {
             balance: U256Variable::constant(builder, value.balance),
@@ -163,9 +159,7 @@ pub struct EthLogVariable {
 impl CircuitVariable for EthLogVariable {
     type ValueType<F: RichField> = EthLog;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self {
             address: AddressVariable::init(builder),
             topics: array![_ => Bytes32Variable::init(builder); 3],
@@ -173,9 +167,9 @@ impl CircuitVariable for EthLogVariable {
         }
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self {
             address: AddressVariable::constant(builder, value.address),
@@ -198,16 +192,10 @@ impl CircuitVariable for EthLogVariable {
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        // TODO: include assertion about how long variables are
-        let address = AddressVariable::from_variables(&variables[0..8 * 20]);
-        let mut offset = 8 * 20;
-        let topics = [
-            Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]),
-            Bytes32Variable::from_variables(&variables[offset + 32 * 8..offset + 32 * 8 * 2]),
-            Bytes32Variable::from_variables(&variables[offset + 32 * 8 * 2..offset + 32 * 8 * 3]),
-        ];
-        offset += 32 * 8 * 3;
-        let data_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        let mut var_buffer = VariableBuffer::new(variables);
+        let address = var_buffer.read::<AddressVariable>();
+        let topics = array![_ => var_buffer.read::<Bytes32Variable>(); 3];
+        let data_hash = var_buffer.read::<Bytes32Variable>();
         Self {
             address,
             topics,

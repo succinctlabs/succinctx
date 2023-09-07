@@ -30,7 +30,7 @@ pub fn _shr<F: RichField + Extendable<D>, const D: usize, const S: usize>(
     res.map(|x| x.unwrap())
 }
 
-pub fn uint64_to_bits<F: RichField + Extendable<D>, const D: usize>(
+pub fn u64_to_bits<F: RichField + Extendable<D>, const D: usize>(
     value: u64,
     builder: &mut CircuitBuilder<F, D>,
 ) -> [BoolTarget; 64] {

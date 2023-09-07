@@ -1,40 +1,34 @@
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData, VerifierCircuitTarget};
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn add_virtual_proof_with_pis(
         &mut self,
-        common_data: &CommonCircuitData<F, D>,
+        common_data: &CommonCircuitData<L::Field, D>,
     ) -> ProofWithPublicInputsTarget<D> {
         self.api.add_virtual_proof_with_pis(common_data)
     }
 
-    pub fn verify_proof<C>(
+    pub fn verify_proof<P: PlonkParameters<D, Field = L::Field>>(
         &mut self,
         proof_with_pis: &ProofWithPublicInputsTarget<D>,
         inner_verifier_data: &VerifierCircuitTarget,
-        inner_common_data: &CommonCircuitData<F, D>,
+        inner_common_data: &CommonCircuitData<L::Field, D>,
     ) where
-        C: GenericConfig<D, F = F>,
-        C::Hasher: AlgebraicHasher<F>,
+        <<P as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         self.api
-            .verify_proof::<C>(proof_with_pis, inner_verifier_data, inner_common_data);
+            .verify_proof::<P::Config>(proof_with_pis, inner_verifier_data, inner_common_data);
     }
 
-    pub fn constant_verifier_data<C>(
+    pub fn constant_verifier_data<P: PlonkParameters<D, Field = L::Field>>(
         &mut self,
-        data: &CircuitData<F, C, D>,
-    ) -> VerifierCircuitTarget
-    where
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-    {
+        data: &CircuitData<P::Field, P::Config, D>,
+    ) -> VerifierCircuitTarget {
         // Set the verifier data target to be the verifier data, which is a constant.
         let vd = self
             .api
@@ -44,7 +38,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         for i in 0..vd.circuit_digest.elements.len() {
             let constant = self
                 .api
-                .constant(data.verifier_only.circuit_digest.elements[i]);
+                .constant(data.verifier_only.circuit_digest.to_vec()[i]);
             self.api.connect(vd.circuit_digest.elements[i], constant);
         }
 
@@ -54,7 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             for j in 0..cap.len() {
                 let constant = self
                     .api
-                    .constant(data.verifier_only.constants_sigmas_cap.0[i].elements[j]);
+                    .constant(data.verifier_only.constants_sigmas_cap.0[i].to_vec()[j]);
                 self.api.connect(cap[j], constant);
             }
         }
