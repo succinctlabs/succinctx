@@ -1,11 +1,12 @@
 use std::fmt::Debug;
 
-use plonky2::field::extension::Extendable;
+use curta::math::field::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, Variable};
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not};
 
@@ -16,19 +17,17 @@ pub struct BoolVariable(pub Variable);
 impl CircuitVariable for BoolVariable {
     type ValueType<F: RichField> = bool;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self(Variable::init(builder))
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self(Variable::constant(
             builder,
-            F::from_canonical_u64(value as u64),
+            L::Field::from_canonical_u64(value as u64),
         ))
     }
 
@@ -62,28 +61,28 @@ impl From<Variable> for BoolVariable {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BitAnd<F, D> for BoolVariable {
+impl<L: PlonkParameters<D>, const D: usize> BitAnd<L, D> for BoolVariable {
     type Output = BoolVariable;
 
-    fn bitand(self, rhs: BoolVariable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn bitand(self, rhs: BoolVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         builder.mul(self.0, rhs.0).into()
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BitOr<F, D> for BoolVariable {
+impl<L: PlonkParameters<D>, const D: usize> BitOr<L, D> for BoolVariable {
     type Output = BoolVariable;
 
-    fn bitor(self, rhs: BoolVariable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn bitor(self, rhs: BoolVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_plus_rhs = builder.add(self.0, rhs.0);
         let self_times_rhs = builder.mul(self.0, rhs.0);
         builder.sub(self_plus_rhs, self_times_rhs).into()
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BitXor<F, D> for BoolVariable {
+impl<L: PlonkParameters<D>, const D: usize> BitXor<L, D> for BoolVariable {
     type Output = BoolVariable;
 
-    fn bitxor(self, rhs: BoolVariable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn bitxor(self, rhs: BoolVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let a_plus_b = builder.add(self.0, rhs.0);
         let a_b = builder.mul(self.0, rhs.0);
         let two_a_b = builder.add(a_b, a_b);
@@ -91,10 +90,10 @@ impl<F: RichField + Extendable<D>, const D: usize> BitXor<F, D> for BoolVariable
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Not<F, D> for BoolVariable {
+impl<L: PlonkParameters<D>, const D: usize> Not<L, D> for BoolVariable {
     type Output = BoolVariable;
 
-    fn not(self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn not(self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let one = builder.one::<Variable>();
         builder.sub(one, self.0).into()
     }
@@ -102,15 +101,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Not<F, D> for BoolVariable {
 
 #[cfg(test)]
 mod tests {
+    use crate::backend::config::DefaultParameters;
     use crate::prelude::*;
+
+    type L = DefaultParameters;
+    const D: usize = 2;
 
     #[test]
     fn test_bit_operations() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let x = builder.init::<BoolVariable>();
         let y = builder.init::<BoolVariable>();
@@ -142,7 +141,7 @@ mod tests {
         x_xor_x.set(&mut pw, false);
         y_xor_y.set(&mut pw, false);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
     }

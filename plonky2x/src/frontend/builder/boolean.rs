@@ -1,10 +1,8 @@
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{BoolVariable, Variable};
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn _false(&mut self) -> BoolVariable {
         let zero = self.zero::<Variable>();
         zero.into()
@@ -23,13 +21,14 @@ mod tests {
     use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 
     use super::*;
+    use crate::backend::config::DefaultParameters;
+
+    type L = DefaultParameters;
+    const D: usize = 2;
 
     #[test]
     fn test_init_bool_and_set() {
-        type F = GoldilocksField;
-        const D: usize = 2;
-
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         let b = builder.init::<BoolVariable>();
 
         let mut pw = PartialWitness::new();

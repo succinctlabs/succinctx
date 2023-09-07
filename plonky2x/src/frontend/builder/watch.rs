@@ -8,6 +8,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{IoResult, Read, Write};
 
 use super::CircuitBuilder;
+use crate::backend::config::PlonkParameters;
 use crate::prelude::CircuitVariable;
 
 #[derive(Debug, Clone)]
@@ -16,7 +17,7 @@ pub struct WatchGenerator<V: CircuitVariable> {
     pub log: String,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn watch<V: CircuitVariable>(&mut self, variable: &V, log: &str) {
         let variable = variable.clone();
         let log = String::from(log);
@@ -95,7 +96,7 @@ mod tests {
         builder.write(c);
 
         // Build your circuit.
-        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         let mut input = circuit.input();

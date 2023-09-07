@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
 use ethers::types::{Address, H256, U256, U64};
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint64::U64Variable;
@@ -53,9 +53,7 @@ pub struct EthHeaderVariable {
 impl CircuitVariable for EthHeaderVariable {
     type ValueType<F: RichField> = EthHeader;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self {
             parent_hash: Bytes32Variable::init(builder),
             uncle_hash: Bytes32Variable::init(builder),
@@ -74,9 +72,9 @@ impl CircuitVariable for EthHeaderVariable {
     }
 
     #[allow(unused_variables)]
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         todo!()
     }

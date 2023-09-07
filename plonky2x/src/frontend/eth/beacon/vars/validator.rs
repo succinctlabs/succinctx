@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::vars::{
@@ -28,9 +28,7 @@ pub struct BeaconValidatorVariable {
 impl CircuitVariable for BeaconValidatorVariable {
     type ValueType<F: RichField> = BeaconValidator;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self {
             pubkey: BLSPubkeyVariable::init(builder),
             withdrawal_credentials: Bytes32Variable::init(builder),
@@ -44,9 +42,9 @@ impl CircuitVariable for BeaconValidatorVariable {
     }
 
     #[allow(unused_variables)]
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self {
             pubkey: BLSPubkeyVariable::constant(builder, bytes!(value.pubkey)),
@@ -140,9 +138,9 @@ impl CircuitVariable for BeaconValidatorVariable {
 }
 
 impl SSZVariable for BeaconValidatorVariable {
-    fn hash_tree_root<F: RichField + Extendable<D>, const D: usize>(
+    fn hash_tree_root<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> Bytes32Variable {
         // Reference: https://www.ssz.dev/sszexplorer
 
@@ -190,17 +188,14 @@ impl SSZVariable for BeaconValidatorVariable {
 #[cfg(test)]
 pub(crate) mod tests {
 
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
-
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::beacon::vars::BeaconValidatorVariable;
     use crate::frontend::vars::{Bytes32Variable, SSZVariable};
     use crate::utils::bytes32;
     use crate::utils::eth::beacon::BeaconValidator;
 
-    type F = GoldilocksField;
-    type C = PoseidonGoldilocksConfig;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]
@@ -208,7 +203,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         let validator = BeaconValidator {
             pubkey: "0x1d7d6a239c32e1a82c53f9f5506d0e2bb5e4be75b5046ecb5c685544c2346a2e659203c77f9896d0783dca8c2bc7345f".to_string(),
             withdrawal_credentials: "0xc2f56d5e99cd47e06d5a7a449ed9317c843ed5056982a15fac1972eb7b1b6048".to_string(),
@@ -226,7 +221,7 @@ pub(crate) mod tests {
         ));
         builder.assert_is_equal(hash, expected_hash);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -237,7 +232,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         let validator = BeaconValidator {
             pubkey: "0x933ad9491b62059dd065b560d256d8957a8c402cc6e8d8ee7290ae11e8f7329267a8811c397529dac52ae1342ba58c95".to_string(),
             withdrawal_credentials: "0x0100000000000000000000000d369bb49efa5100fd3b86a9f828c55da04d2d50".to_string(),
@@ -255,7 +250,7 @@ pub(crate) mod tests {
         ));
         builder.assert_is_equal(hash, expected_hash);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);

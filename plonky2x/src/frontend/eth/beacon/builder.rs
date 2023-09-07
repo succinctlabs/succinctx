@@ -1,8 +1,6 @@
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-
 use super::generators::balance::BeaconBalanceGenerator;
 use super::generators::balances::BeaconBalancesGenerator;
+use super::generators::historical::BeaconHistoricalBlockGenerator;
 use super::generators::validator::BeaconValidatorGenerator;
 use super::generators::withdrawal::BeaconWithdrawalGenerator;
 use super::generators::withdrawals::BeaconWithdrawalsGenerator;
@@ -10,15 +8,13 @@ use super::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
     BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::beacon::generators::historical::BeaconHistoricalBlockGenerator;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{
-    ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable,
-};
-use crate::prelude::BytesVariable;
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable};
+use crate::prelude::{ByteVariable, BytesVariable};
 
 /// The gindex for blockRoot -> validatorsRoot.
 const VALIDATORS_ROOT_GINDEX: u64 = 363;
@@ -41,7 +37,7 @@ const WITHDRAWAL_BASE_GINDEX: u64 = 32;
 /// The gindex for blockRoot -> historicalBlockSummaries[i].
 const HISTORICAL_BLOCK_SUMMARIES_BASE_GINDEX: u64 = 25434259456;
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Get the validators for a given block root.
     pub fn beacon_get_validators(
         &mut self,
@@ -332,9 +328,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 pub(crate) mod tests {
     use std::env;
 
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
-
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::vars::BLSPubkeyVariable;
     use crate::frontend::uint::uint64::U64Variable;
@@ -342,8 +336,7 @@ pub(crate) mod tests {
     use crate::utils::eth::beacon::BeaconClient;
     use crate::utils::{bytes, bytes32};
 
-    type F = GoldilocksField;
-    type C = PoseidonGoldilocksConfig;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]
@@ -356,14 +349,14 @@ pub(crate) mod tests {
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let validators = builder.beacon_get_validators(block_root);
         builder.watch(&validators, "validators");
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -380,7 +373,7 @@ pub(crate) mod tests {
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
@@ -392,7 +385,7 @@ pub(crate) mod tests {
         ));
         builder.assert_is_equal(validator.pubkey, expected_validator_pubkey);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -409,7 +402,7 @@ pub(crate) mod tests {
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
@@ -420,7 +413,7 @@ pub(crate) mod tests {
         ));
         builder.assert_is_equal(validator.pubkey, expected_validator_pubkey);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -437,7 +430,7 @@ pub(crate) mod tests {
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
@@ -448,7 +441,7 @@ pub(crate) mod tests {
         let (_, validator) = builder.beacon_get_validator_by_pubkey(validators, pubkey);
         builder.assert_is_equal(validator.pubkey, pubkey);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -465,14 +458,14 @@ pub(crate) mod tests {
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let balances = builder.beacon_get_balances(block_root);
         builder.watch(&balances, "balances");
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -489,7 +482,7 @@ pub(crate) mod tests {
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
@@ -498,7 +491,7 @@ pub(crate) mod tests {
         let balance = builder.beacon_get_balance(balances, index);
         builder.watch(&balance, "balance");
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -515,14 +508,14 @@ pub(crate) mod tests {
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let withdrawals = builder.beacon_get_withdrawals(block_root);
         builder.watch(&withdrawals.withdrawals_root, "withdrawals_root");
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -539,7 +532,7 @@ pub(crate) mod tests {
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
@@ -548,7 +541,7 @@ pub(crate) mod tests {
         let withdrawal = builder.beacon_get_withdrawal(withdrawals, idx);
         builder.watch(&withdrawal, "withdrawal");
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -565,7 +558,7 @@ pub(crate) mod tests {
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root_sync().unwrap();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
@@ -573,7 +566,7 @@ pub(crate) mod tests {
         let historical_block = builder.beacon_get_historical_block(block_root, idx);
         builder.watch(&historical_block, "historical_block");
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -585,7 +578,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let leaf = builder.constant::<Bytes32Variable>(bytes32!(
             "0xa1b2c3d4e5f60718291a2b3c4d5e6f708192a2b3c4d5e6f7a1b2c3d4e5f60718"
@@ -606,7 +599,7 @@ pub(crate) mod tests {
         let computed_root = builder.ssz_restore_merkle_root(leaf, &branch, index);
         builder.assert_is_equal(expected_root, computed_root);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -619,7 +612,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let leaf = builder.constant::<Bytes32Variable>(bytes32!(
             "0xa1b2c3d4e5f60718291a2b3c4d5e6f708192a2b3c4d5e6f7a1b2c3d4e5f60718"
@@ -639,7 +632,7 @@ pub(crate) mod tests {
         let computed_root = builder.ssz_restore_merkle_root(leaf, &branch, index);
         builder.assert_is_equal(expected_root, computed_root);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -651,7 +644,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let leaf = builder.constant::<Bytes32Variable>(bytes32!(
             "0xa1b2c3d4e5f60718291a2b3c4d5e6f708192a2b3c4d5e6f7a1b2c3d4e5f60718"
@@ -671,7 +664,7 @@ pub(crate) mod tests {
         let computed_root = builder.ssz_restore_merkle_root_const(leaf, &branch, index);
         builder.assert_is_equal(expected_root, computed_root);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -684,7 +677,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let leaf = builder.constant::<Bytes32Variable>(bytes32!(
             "0xa1b2c3d4e5f60718291a2b3c4d5e6f708192a2b3c4d5e6f7a1b2c3d4e5f60718"
@@ -704,7 +697,7 @@ pub(crate) mod tests {
         let computed_root = builder.ssz_restore_merkle_root_const(leaf, &branch, index);
         builder.assert_is_equal(expected_root, computed_root);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
