@@ -116,7 +116,7 @@ mod tests {
         ));
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
@@ -172,7 +172,7 @@ mod tests {
         );
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
@@ -223,7 +223,7 @@ mod tests {
         ));
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
@@ -302,7 +302,7 @@ mod tests {
         ));
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
