@@ -149,7 +149,7 @@ impl<F: RichField + Extendable<D>, const D: usize, const N: usize> Shr<F, D, usi
         let self_bits = self
             .0
             .iter()
-            .flat_map(|x| x.to_be_bits())
+            .flat_map(|x| x.as_be_bits())
             .collect::<Vec<_>>();
         let shr_bit = |i| {
             if i < rhs {
@@ -185,7 +185,7 @@ impl<F: RichField + Extendable<D>, const D: usize, const N: usize> Shl<F, D, usi
         let self_bits = self
             .0
             .iter()
-            .flat_map(|x| x.to_be_bits())
+            .flat_map(|x| x.as_be_bits())
             .collect::<Vec<_>>();
         let shl_bit = |i| {
             if i + rhs > 8 * N - 1 {
@@ -216,7 +216,7 @@ impl<F: RichField + Extendable<D>, const D: usize, const N: usize> RotateLeft<F,
         let self_bits = self
             .0
             .iter()
-            .flat_map(|x| x.to_be_bits())
+            .flat_map(|x| x.as_be_bits())
             .collect::<Vec<_>>();
         let rot_bit = |i| self_bits[(i + rhs) % (8 * N)];
         let rot_bits = (0..8 * N).map(rot_bit).collect::<Vec<_>>();
@@ -241,7 +241,7 @@ impl<F: RichField + Extendable<D>, const D: usize, const N: usize> RotateRight<F
         let self_bits = self
             .0
             .iter()
-            .flat_map(|x| x.to_be_bits())
+            .flat_map(|x| x.as_be_bits())
             .collect::<Vec<_>>();
         let rot_bit = |i| self_bits[(i + 8 * N - rhs) % (8 * N)];
         let rot_bits = (0..8 * N).map(rot_bit).collect::<Vec<_>>();

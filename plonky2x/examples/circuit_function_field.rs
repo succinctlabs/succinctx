@@ -1,6 +1,3 @@
-#![allow(incomplete_features)]
-#![feature(generic_const_exprs)]
-
 //! An example of a basic circuit function which wraps an existing circuit and makes it compatible
 //! with a standard for serializing and deserializing inputs and outputs.
 //!
@@ -47,7 +44,7 @@ impl CircuitFunction for Function {
 
 fn main() {
     env::set_var("RUST_LOG", "info");
-    env_logger::init();
+    env_logger::try_init().unwrap_or_default();
     Function::cli();
 }
 

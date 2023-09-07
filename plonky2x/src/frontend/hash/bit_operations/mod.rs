@@ -374,9 +374,15 @@ pub struct XOR3Generator<F: RichField + Extendable<D>, const D: usize> {
     _phantom: PhantomData<F>,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> XOR3Generator<F, D> {
+    pub fn id() -> String {
+        "XOR3Generator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D> for XOR3Generator<F, D> {
     fn id(&self) -> String {
-        "XOR3Generator".to_string()
+        Self::id()
     }
 
     fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {

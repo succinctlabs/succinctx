@@ -181,11 +181,17 @@ pub struct U32RangeCheckGenerator<F: RichField + Extendable<D>, const D: usize> 
     row: usize,
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> U32RangeCheckGenerator<F, D> {
+    pub fn id() -> String {
+        "U32RangeCheckGenerator".to_string()
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for U32RangeCheckGenerator<F, D>
 {
     fn id(&self) -> String {
-        "U32RangeCheckGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {

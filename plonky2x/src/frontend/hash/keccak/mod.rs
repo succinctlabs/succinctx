@@ -3,7 +3,7 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
-use self::keccak256::Keccack256Generator;
+use self::keccak256::Keccak256Generator;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{ByteVariable, CircuitBuilder};
 
@@ -11,7 +11,7 @@ pub mod keccak256;
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn keccak256(&mut self, bytes: &[ByteVariable]) -> Bytes32Variable {
-        let generator = Keccack256Generator {
+        let generator = Keccak256Generator {
             input: bytes.to_vec(),
             output: self.init(),
             length: None,
@@ -33,7 +33,7 @@ mod tests {
 
     #[test]
     fn test_keccak256() {
-        env_logger::init();
+        env_logger::try_init().unwrap_or_default();
 
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
