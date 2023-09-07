@@ -328,7 +328,7 @@ mod tests {
         let mut inputs = circuit.input();
         inputs.write::<ByteVariable>(value);
 
-        let (proof, output) = circuit.prove(&inputs);
+        let (proof, mut output) = circuit.prove(&inputs);
         circuit.verify(&proof, &inputs, &output);
 
         let expected_left_nibble = (value >> 4) & 0x0F;
