@@ -104,6 +104,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         Circuit { data, io: self.io }
     }
 
+    pub fn mock_build<C>(mut self) -> Circuit<F, C, D> {}
+
     /// Add simple generator.
     pub fn add_simple_generator<G: SimpleGenerator<F, D> + Clone>(&mut self, generator: &G) {
         self.api.add_simple_generator(generator.clone())

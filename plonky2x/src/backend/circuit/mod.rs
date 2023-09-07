@@ -29,11 +29,6 @@ pub struct Circuit<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, con
     pub io: CircuitIO<D>,
 }
 
-enum ProofOrWitness<'a, F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    Proof(ProofWithPublicInputs<F, C, D>),
-    Witness(PartitionWitness<'a, F>),
-}
-
 impl<F: RichField + Extendable<D>, C, const D: usize> Circuit<F, C, D>
 where
     C: GenericConfig<D, F = F> + 'static,
@@ -45,6 +40,23 @@ where
             io: self.io.clone(),
             buffer: Vec::new(),
         }
+    }
+
+    /// Only generates a witness for the circuit. Can be useful for cases where you don't want to use .input()
+    /// Example:
+    /// let mut pw = PartialWitness::new();
+    /// pw.set(&a, 1u8);
+    /// pw.set(&b, 2u8);
+    /// let filled_witness = circuit.fill_in_witness(&mut pw);
+    /// println!("{:?}", c.get(filled_witness));
+    pub fn compute_witness(&self, &mut pw: PartialWitness) -> PartitionWitness<F> {
+        generate_partial_witness(pw, &self.data.prover_only, &self.data.common)
+    }
+
+    pub fn prove_from_witness(
+        &self,
+        &mut pw: PartialWitness,
+    ) -> (ProofOrWitness, CircuitOutput<F, D>) {
     }
 
     /// Generates a proof for the circuit. The proof can be verified using `verify`.
