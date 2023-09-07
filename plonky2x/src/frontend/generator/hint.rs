@@ -10,7 +10,7 @@ use plonky2::util::serialization::{Buffer, IoResult};
 
 use crate::backend::circuit::serialization::Serializer;
 use crate::backend::config::PlonkParameters;
-use crate::frontend::vars::{OutputStream, ValueStream, VariableStream};
+use crate::frontend::vars::{OutputVariableStream, ValueStream, VariableStream};
 use crate::prelude::{CircuitBuilder, CircuitVariable};
 
 pub trait Hint<L: PlonkParameters<D>, const D: usize>:
@@ -67,7 +67,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         input_stream: VariableStream,
         hint: H,
-    ) -> OutputStream<L, D> {
+    ) -> OutputVariableStream<L, D> {
         let output_stream = VariableStream::new();
 
         let hint = HintGenerator::<L, H> {
@@ -79,7 +79,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let hint_id = self.hints.len();
         self.hints.push(Box::new(hint));
 
-        OutputStream::new(hint_id)
+        OutputVariableStream::new(hint_id)
     }
 }
 
@@ -93,7 +93,7 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> SimpleGenerator<L::Fi
 
     fn dependencies(&self) -> Vec<Target> {
         self.input_stream
-            .all_variables()
+            .real_all()
             .iter()
             .map(|v| v.0)
             .collect()
@@ -106,7 +106,7 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> SimpleGenerator<L::Fi
     ) {
         let input_values = self
             .input_stream
-            .all_variables()
+            .real_all()
             .iter()
             .map(|v| v.get(witness))
             .collect::<Vec<_>>();
@@ -116,7 +116,7 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> SimpleGenerator<L::Fi
         self.hint.hint(&mut input_stream, &mut output_stream);
 
         let output_values = output_stream.read_all();
-        let output_vars = self.output_stream.all_variables();
+        let output_vars = self.output_stream.real_all();
         assert_eq!(output_values.len(), output_vars.len());
 
         for (var, val) in output_vars.iter().zip(output_values) {

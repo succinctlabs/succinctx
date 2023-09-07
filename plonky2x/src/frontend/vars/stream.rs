@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::{CircuitVariable, Variable};
 use crate::backend::config::PlonkParameters;
 use crate::prelude::CircuitBuilder;
+use crate::utils::stream::Stream;
 
 /// A stream of field elements.
 ///
@@ -19,13 +20,14 @@ pub struct ValueStream<L: PlonkParameters<D>, const D: usize>(Stream<L::Field>);
 #[derive(Debug, Clone)]
 pub struct VariableStream(Stream<Variable>);
 
+/// A stream  
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OutputStream<L: PlonkParameters<D>, const D: usize> {
+pub struct OutputVariableStream<L: PlonkParameters<D>, const D: usize> {
     hint_id: usize,
     _marker: PhantomData<L>,
 }
 
-impl<L: PlonkParameters<D>, const D: usize> OutputStream<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
     pub(crate) fn new(hint_id: usize) -> Self {
         Self {
             hint_id,
@@ -51,53 +53,6 @@ impl<L: PlonkParameters<D>, const D: usize> OutputStream<L, D> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Stream<T> {
-    data: Vec<T>,
-    position: usize,
-}
-
-impl<T> Stream<T> {
-    pub fn new(data: Vec<T>) -> Self {
-        Self { data, position: 0 }
-    }
-
-    pub fn read_exact(&mut self, len: usize) -> &[T] {
-        if (self.position + len) > self.data.len() {
-            panic!("Not enough elements in Stream");
-        }
-        let out_slice = self.data[self.position..self.position + len].as_ref();
-        self.position += len;
-
-        out_slice
-    }
-
-    /// Read all remaining elements
-    pub fn read_all(&self) -> &[T] {
-        let length = self.data.len() - self.position;
-        &self.data[self.position..self.position + length]
-    }
-
-    /// Drain the stream and return the underlying data (including data already read)
-    pub fn drain(self) -> Vec<T> {
-        self.data
-    }
-
-    pub fn write_slice(&mut self, slice: &[T])
-    where
-        T: Clone,
-    {
-        self.data.extend_from_slice(slice);
-    }
-}
-
-impl Stream<Variable> {
-    pub fn read<V: CircuitVariable>(&mut self) -> V {
-        let variables = self.read_exact(V::nb_elements());
-        V::from_variables(variables)
-    }
-}
-
 impl VariableStream {
     pub fn new() -> Self {
         Self(Stream::new(Vec::new()))
@@ -117,8 +72,13 @@ impl VariableStream {
         Self(Stream::new(variables))
     }
 
-    pub(crate) fn all_variables(&self) -> &[Variable] {
+    pub fn real_all(&self) -> &[Variable] {
         self.0.read_all()
+    }
+
+    pub fn read<V: CircuitVariable>(&mut self) -> V {
+        let variables = self.0.read_exact(V::nb_elements());
+        V::from_variables(variables)
     }
 
     pub fn write<V: CircuitVariable>(&mut self, value: &V) {
