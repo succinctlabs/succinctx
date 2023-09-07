@@ -202,12 +202,11 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::config::DefaultParameters;
     use crate::prelude::*;
 
-    fn plus_one(
-        input_stream: &mut ValueStream<DefaultParameters, 2>,
-        output_stream: &mut ValueStream<DefaultParameters, 2>,
+    fn plus_one<L: PlonkParameters<D>, const D: usize>(
+        input_stream: &mut ValueStream<L, D>,
+        output_stream: &mut ValueStream<L, D>,
     ) {
         let byte: u8 = input_stream.read_value::<ByteVariable>();
 
