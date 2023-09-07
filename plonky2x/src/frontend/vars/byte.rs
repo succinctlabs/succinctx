@@ -305,21 +305,27 @@ mod tests {
         const D: usize = 2;
 
         let mut builder = CircuitBuilder::<F, D>::new();
+        let byte = builder.read::<ByteVariable>();
+        let nibbles = byte.to_nibbles(&mut builder);
+        builder.write(nibbles[0]);
+        builder.write(nibbles[1]);
+
+        let circuit = builder.build::<C>();
 
         let value = rand::random::<u8>();
-        let byte = builder.constant::<ByteVariable>(value);
-        let nibbles = byte.to_nibbles(&mut builder);
+        let mut inputs = circuit.input();
+        inputs.write::<ByteVariable>(value);
 
-        let mut pw = PartialWitness::new();
-        byte.set(&mut pw, value);
+        let (proof, output) = circuit.prove(&inputs);
+        circuit.verify(&proof, &inputs, &output);
 
         let expected_left_nibble = (value >> 4) & 0x0F;
         let expected_right_nibble = value & 0x0F;
-        nibbles[0].set(&mut pw, expected_left_nibble);
-        nibbles[1].set(&mut pw, expected_right_nibble);
 
-        let circuit = builder.build::<C>();
-        let proof = circuit.data.prove(pw).unwrap();
-        circuit.data.verify(proof).unwrap();
+        let left_nibble = output.read::<ByteVariable>();
+        let right_nibble = output.read::<ByteVariable>();
+
+        assert_eq!(left_nibble, expected_left_nibble);
+        assert_eq!(right_nibble, expected_right_nibble);
     }
 }
