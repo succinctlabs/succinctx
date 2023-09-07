@@ -1,15 +1,14 @@
 mod array;
 mod boolean;
-mod buffer;
 mod byte;
 mod bytes;
 mod bytes32;
+mod stream;
 mod variable;
 use std::fmt::Debug;
 
 pub use array::*;
 pub use boolean::*;
-pub use buffer::*;
 pub use byte::*;
 pub use bytes::*;
 pub use bytes32::*;
@@ -17,6 +16,7 @@ use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
+pub use stream::*;
 pub use variable::*;
 
 pub use super::uint::uint256::*;

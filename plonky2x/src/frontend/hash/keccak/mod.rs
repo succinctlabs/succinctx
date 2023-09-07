@@ -15,8 +15,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             length: None,
             _phantom: Default::default(),
         };
-        self.add_simple_generator(&generator);
-        generator.output
+        let output = generator.output;
+        self.add_simple_generator(generator);
+        output
     }
 }
 

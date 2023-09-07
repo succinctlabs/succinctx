@@ -85,7 +85,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 .padded_messages
                 .extend_from_slice(&self.sha256_requests[i]);
             let hint = SHA256HintGenerator::new(&self.sha256_requests[i], self.sha256_responses[i]);
-            self.add_simple_generator(&hint);
+            self.add_simple_generator(hint);
             gadget.digests.extend_from_slice(&self.sha256_responses[i]);
             gadget.chunk_sizes.push(self.sha256_requests[i].len() / 64);
         }

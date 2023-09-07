@@ -14,6 +14,7 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
+use super::generator::hint::HintRef;
 use super::vars::EvmVariable;
 use crate::backend::circuit::Circuit;
 use crate::backend::config::{DefaultParameters, PlonkParameters};
@@ -28,6 +29,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
+    pub(crate) hints: Vec<Box<dyn HintRef<L, D>>>,
     pub sha256_requests: Vec<Vec<Target>>,
     pub sha256_responses: Vec<[Target; 32]>,
 }
@@ -55,6 +57,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             beacon_client: None,
             execution_client: None,
             chain_id: None,
+            hints: Vec::new(),
             sha256_requests: Vec::new(),
             sha256_responses: Vec::new(),
         }
@@ -83,6 +86,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Build the circuit.
     pub fn build(mut self) -> Circuit<L, D> {
+        let hints = self.hints.drain(..).collect::<Vec<_>>();
+        for hint in hints {
+            hint.register(&mut self);
+        }
         if self.io.evm.is_some() {
             let io = self.io.evm.as_ref().unwrap();
             let inputs: Vec<Target> = io.input_bytes.iter().flat_map(|b| b.targets()).collect();
@@ -102,8 +109,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Add simple generator.
-    pub fn add_simple_generator<G: SimpleGenerator<L::Field, D> + Clone>(&mut self, generator: &G) {
-        self.api.add_simple_generator(generator.clone())
+    pub fn add_simple_generator<G: SimpleGenerator<L::Field, D> + Clone>(&mut self, generator: G) {
+        self.api.add_simple_generator(generator)
     }
 
     /// Initializes a variable with no value in the circuit.

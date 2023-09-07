@@ -261,8 +261,8 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
 
     pub fn test_serializers(
         &self,
-        gate_serializer: &impl GateSerializer<L::Field, D>,
-        generator_serializer: &impl WitnessGeneratorSerializer<L::Field, D>,
+        gate_serializer: &GateRegistry<L, D>,
+        generator_serializer: &WitnessGeneratorRegistry<L, D>,
     ) {
         let serialized_bytes = self
             .serialize(gate_serializer, generator_serializer)
