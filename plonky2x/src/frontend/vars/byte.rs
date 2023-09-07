@@ -100,7 +100,7 @@ impl ByteVariable {
         self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> [ByteVariable; 2] {
-        let bits = self.to_be_bits();
+        let bits = self.as_be_bits();
 
         let mut left_nibble = array![_ => builder.constant(false); 8];
         left_nibble[4..].copy_from_slice(&bits[0..4]);
