@@ -541,10 +541,10 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
 
     use super::*;
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::prelude::CircuitBuilder;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     type F = GoldilocksField;
     const D: usize = 2;
 
@@ -569,8 +569,6 @@ mod tests {
 
     #[test]
     fn test_gate_serialization() {
-        type F = GoldilocksField;
-
         let builder = CircuitBuilder::<L, D>::new();
         let common_data = builder.build().data.common;
 

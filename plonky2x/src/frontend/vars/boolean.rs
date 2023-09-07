@@ -101,10 +101,10 @@ impl<L: PlonkParameters<D>, const D: usize> Not<L, D> for BoolVariable {
 
 #[cfg(test)]
 mod tests {
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::prelude::*;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

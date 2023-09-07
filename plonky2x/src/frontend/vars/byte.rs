@@ -224,10 +224,10 @@ impl ByteVariable {
 mod tests {
     use itertools::Itertools;
 
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::prelude::*;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

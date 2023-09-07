@@ -79,10 +79,10 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::prelude::*;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

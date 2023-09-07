@@ -24,11 +24,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 mod tests {
 
     use super::*;
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::prelude::CircuitBuilder;
     use crate::utils::bytes32;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

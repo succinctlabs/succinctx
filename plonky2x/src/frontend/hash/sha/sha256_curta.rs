@@ -97,10 +97,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 #[cfg(test)]
 mod tests {
 
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::prelude::{ByteVariable, CircuitBuilder};
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

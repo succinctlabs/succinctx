@@ -188,14 +188,14 @@ impl SSZVariable for BeaconValidatorVariable {
 #[cfg(test)]
 pub(crate) mod tests {
 
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::beacon::vars::BeaconValidatorVariable;
     use crate::frontend::vars::{Bytes32Variable, SSZVariable};
     use crate::utils::bytes32;
     use crate::utils::eth::beacon::BeaconValidator;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

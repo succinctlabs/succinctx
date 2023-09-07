@@ -284,11 +284,11 @@ pub(crate) mod tests {
 
     use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
     use crate::backend::circuit::Circuit;
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::builder::CircuitBuilderX;
     use crate::prelude::*;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

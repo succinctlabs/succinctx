@@ -328,7 +328,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 pub(crate) mod tests {
     use std::env;
 
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::vars::BLSPubkeyVariable;
     use crate::frontend::uint::uint64::U64Variable;
@@ -336,7 +336,7 @@ pub(crate) mod tests {
     use crate::utils::eth::beacon::BeaconClient;
     use crate::utils::{bytes, bytes32};
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

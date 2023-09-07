@@ -122,14 +122,14 @@ pub(crate) mod tests {
 
     use plonky2::iop::witness::PartialWitness;
 
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
     use crate::frontend::vars::Bytes32Variable;
     use crate::utils::bytes32;
     use crate::utils::eth::beacon::BeaconClient;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

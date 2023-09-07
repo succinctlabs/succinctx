@@ -58,7 +58,7 @@ mod tests {
     use anyhow::Result;
     use plonky2::plonk::config::GenericConfig;
 
-    use crate::backend::config::{PlonkParameters, PoseidonGoldilocksParameters};
+    use crate::backend::config::{DefaultParameters, PlonkParameters};
     use crate::frontend::vars::Bytes32Variable;
     use crate::prelude::CircuitBuilder;
     use crate::utils::{bytes32, setup_logger};
@@ -67,7 +67,7 @@ mod tests {
     fn test_poseidon() -> Result<()> {
         setup_logger();
 
-        type L = PoseidonGoldilocksParameters;
+        type L = DefaultParameters;
         const D: usize = 2;
         type H = <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::InnerHasher;
         let mut builder = CircuitBuilder::<L, D>::new();

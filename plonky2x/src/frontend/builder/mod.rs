@@ -16,7 +16,7 @@ use tokio::runtime::Runtime;
 pub use self::io::CircuitIO;
 use super::vars::EvmVariable;
 use crate::backend::circuit::Circuit;
-use crate::backend::config::{PlonkParameters, PoseidonGoldilocksParameters};
+use crate::backend::config::{DefaultParameters, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
 
@@ -38,8 +38,8 @@ pub struct CircuitBuilderX {}
 impl CircuitBuilderX {
     /// Creates a new builder.
     #[allow(clippy::new_ret_no_self)]
-    pub fn new() -> CircuitBuilder<PoseidonGoldilocksParameters, 2> {
-        CircuitBuilder::<PoseidonGoldilocksParameters, 2>::new()
+    pub fn new() -> CircuitBuilder<DefaultParameters, 2> {
+        CircuitBuilder::<DefaultParameters, 2>::new()
     }
 }
 

@@ -263,10 +263,10 @@ impl<const N: usize> BytesVariable<N> {
 mod tests {
     use rand::{thread_rng, Rng};
 
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::prelude::*;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

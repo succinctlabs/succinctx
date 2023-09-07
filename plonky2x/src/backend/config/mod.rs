@@ -17,9 +17,9 @@ pub trait PlonkParameters<const D: usize>: Debug + Clone + Sync + Send + 'static
 }
 
 #[derive(Debug, Clone)]
-pub struct PoseidonGoldilocksParameters;
+pub struct DefaultParameters;
 
-impl PlonkParameters<2> for PoseidonGoldilocksParameters {
+impl PlonkParameters<2> for DefaultParameters {
     type Field = GoldilocksField;
 
     type CubicParams = GoldilocksCubicParameters;

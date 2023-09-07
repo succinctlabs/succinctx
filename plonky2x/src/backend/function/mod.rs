@@ -13,7 +13,7 @@ use self::cli::{BuildArgs, ProveArgs};
 use super::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
 use super::config::PlonkParameters;
 use crate::backend::circuit::Circuit;
-use crate::backend::config::PoseidonGoldilocksParameters;
+use crate::backend::config::DefaultParameters;
 use crate::backend::function::cli::{Args, Commands};
 use crate::backend::function::io::{FunctionInput, FunctionOutput, FunctionOutputGroth16};
 
@@ -189,7 +189,7 @@ contract FunctionVerifier is IFunctionVerifier {
 
     /// The entry point for the function when using CLI-based tools.
     fn cli() {
-        type L = PoseidonGoldilocksParameters;
+        type L = DefaultParameters;
         const D: usize = 2;
 
         let args = Args::parse();

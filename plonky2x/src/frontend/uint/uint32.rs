@@ -183,11 +183,11 @@ mod tests {
     use rand::Rng;
 
     use super::U32Variable;
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

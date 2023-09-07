@@ -72,13 +72,13 @@ mod tests {
 
     use super::*;
     use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthHeader, EthLog};
     use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

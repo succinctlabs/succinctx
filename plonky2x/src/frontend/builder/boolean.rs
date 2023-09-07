@@ -21,9 +21,9 @@ mod tests {
     use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 
     use super::*;
-    use crate::backend::config::PoseidonGoldilocksParameters;
+    use crate::backend::config::DefaultParameters;
 
-    type L = PoseidonGoldilocksParameters;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]

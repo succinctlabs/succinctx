@@ -21,7 +21,7 @@ pub use variable::*;
 
 pub use super::uint::uint256::*;
 pub use super::uint::uint32::*;
-use crate::backend::config::{PlonkParameters, PoseidonGoldilocksParameters};
+use crate::backend::config::{DefaultParameters, PlonkParameters};
 use crate::frontend::builder::CircuitBuilder;
 
 pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
@@ -61,7 +61,7 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
 
     /// The number of field elements it takes to represent this variable.
     fn nb_elements() -> usize {
-        type L = PoseidonGoldilocksParameters;
+        type L = DefaultParameters;
         const D: usize = 2;
         let mut builder = CircuitBuilder::<L, D>::new();
         let variable = builder.init::<Self>();
