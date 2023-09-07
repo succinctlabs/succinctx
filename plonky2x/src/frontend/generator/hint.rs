@@ -23,7 +23,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         &mut self,
         input_stream: VariableStream,
         hint_fn: fn(&mut ValueStream<F, D>, &mut ValueStream<F, D>),
-    ) -> OutputStream {
+    ) -> OutputStream<F, D> {
         let output_stream = VariableStream::new();
 
         let hint = Hint::<F, D> {
@@ -150,14 +150,14 @@ mod tests {
     fn test_hint_serialization() {
         let mut builder = CircuitBuilderX::new();
 
-        let a = builder.read_input::<ByteVariable>();
+        let a = builder.read::<ByteVariable>();
 
         let mut input_stream = VariableStream::new();
         input_stream.write(&a);
 
         let output_stream = builder.hint(input_stream, plus_one);
-        let b = builder.read::<ByteVariable>(&output_stream);
-        builder.write_output(b);
+        let b = output_stream.read::<ByteVariable>(&mut builder);
+        builder.write(b);
 
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
 

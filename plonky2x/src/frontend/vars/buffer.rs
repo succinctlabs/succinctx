@@ -1,3 +1,5 @@
+use core::marker::PhantomData;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::util::serialization::{IoResult, Read, Write};
@@ -13,15 +15,16 @@ pub struct ValueStream<F, const D: usize>(Stream<F>);
 pub struct VariableStream(Stream<Variable>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OutputStream {
+pub struct OutputStream<F: RichField + Extendable<D>, const D: usize> {
     hint_id: usize,
+    _marker: PhantomData<F>
 }
 
-impl OutputStream {
+impl<F: RichField + Extendable<D>, const D: usize> OutputStream<F, D> {
     pub(crate) fn new(hint_id: usize) -> Self {
-        Self { hint_id }
+        Self { hint_id, _marker: PhantomData }
     }
-    pub fn read_exact<F: RichField + Extendable<D>, const D: usize>(
+    pub fn read_exact(
         &self,
         builder: &mut CircuitBuilder<F, D>,
         len: usize,
@@ -38,7 +41,7 @@ impl OutputStream {
 
         variables
     }
-    pub fn read<F: RichField + Extendable<D>, const D: usize, V: CircuitVariable>(
+    pub fn read<V: CircuitVariable>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> V {
@@ -113,26 +116,6 @@ impl VariableStream {
         Self(Stream::new(variables))
     }
 
-    // pub fn read_exact<F: RichField + Extendable<D>, const D: usize>(
-    //     &mut self,
-    //     builder: &mut CircuitBuilder<F, D>,
-    //     len: usize,
-    // ) -> &[Variable] {
-    //     let variables = (0..len)
-    //         .map(|_| builder.init::<Variable>())
-    //         .collect::<Vec<_>>();
-    //     self.0.write_slice(&variables);
-
-    //     self.0.read_exact(len)
-    // }
-
-    // pub fn read<F: RichField + Extendable<D>, const D: usize, V: CircuitVariable>(
-    //     &mut self,
-    //     builder: &mut CircuitBuilder<F, D>,
-    // ) -> V {
-    //     let variables = self.read_exact(builder, V::nb_elements());
-    //     V::from_variables(variables)
-    // }
 
     pub(crate) fn all_variables(&self) -> &[Variable] {
         self.0.read_all()
@@ -185,12 +168,6 @@ impl<F: RichField + Extendable<D>, const D: usize> ValueStream<F, D> {
 
     pub fn write_value<V: CircuitVariable>(&mut self, value: V::ValueType<F>) {
         self.0.write_slice(&V::elements(value));
-    }
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn read<V: CircuitVariable>(&mut self, stream: &OutputStream) -> V {
-        stream.read::<F, D, V>(self)
     }
 }
 

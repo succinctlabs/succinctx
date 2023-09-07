@@ -148,11 +148,11 @@ mod tests {
         dotenv::dotenv().ok();
         // This is the circuit definition
         let mut builder = CircuitBuilderX::new();
-        let mapping_location = builder.read_input::<U256Variable>();
-        let map_key = builder.read_input::<Bytes32Variable>();
+        let mapping_location = builder.read::<U256Variable>();
+        let map_key = builder.read::<Bytes32Variable>();
 
         let value = builder.get_storage_key_at(mapping_location, map_key);
-        builder.write_output(value);
+        builder.write(value);
 
         // Build your circuit.
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
@@ -208,10 +208,10 @@ mod tests {
         // This is the circuit definition
         let mut builder = CircuitBuilderX::new();
         builder.set_execution_client(provider);
-        let block_hash = builder.read_input::<Bytes32Variable>();
+        let block_hash = builder.read::<Bytes32Variable>();
 
         let value = builder.eth_get_block_by_hash(block_hash);
-        builder.write_output(value);
+        builder.write(value);
 
         // Build your circuit.
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
@@ -281,12 +281,12 @@ mod tests {
         // This is the circuit definition
         let mut builder = CircuitBuilderX::new();
         builder.set_execution_client(provider);
-        let transaction_hash = builder.read_input::<Bytes32Variable>();
-        let block_hash = builder.read_input::<Bytes32Variable>();
+        let transaction_hash = builder.read::<Bytes32Variable>();
+        let block_hash = builder.read::<Bytes32Variable>();
         let log_index = 0u64;
 
         let value = builder.eth_get_transaction_log(transaction_hash, block_hash, log_index);
-        builder.write_output(value);
+        builder.write(value);
 
         // Build your circuit.
         let circuit = builder.build::<PoseidonGoldilocksConfig>();

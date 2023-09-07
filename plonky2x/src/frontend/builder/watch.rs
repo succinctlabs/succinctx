@@ -89,11 +89,11 @@ mod tests {
         setup_logger();
 
         let mut builder = CircuitBuilderX::new();
-        let a = builder.read_input::<Variable>();
-        let b = builder.read_input::<Variable>();
+        let a = builder.read::<Variable>();
+        let b = builder.read::<Variable>();
         let c = builder.add(a, b);
         builder.watch(&c, "c");
-        builder.write_output(c);
+        builder.write(c);
 
         // Build your circuit.
         let circuit = builder.build::<PoseidonGoldilocksConfig>();

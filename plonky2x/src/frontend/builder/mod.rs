@@ -216,10 +216,10 @@ pub(crate) mod tests {
     fn test_simple_circuit_with_field_io() {
         // Define your circuit.
         let mut builder = CircuitBuilderX::new();
-        let a = builder.read_input::<Variable>();
-        let b = builder.read_input::<Variable>();
+        let a = builder.read::<Variable>();
+        let b = builder.read::<Variable>();
         let c = builder.add(a, b);
-        builder.write_output(c);
+        builder.write(c);
 
         // Build your circuit.
         let circuit = builder.build::<PoseidonGoldilocksConfig>();
