@@ -1,17 +1,15 @@
 //! An implementation of the keccak256 hash functions in a plonky2 circuit
 
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-
 use self::keccak256::Keccak256Generator;
+use crate::backend::config::PlonkParameters;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{ByteVariable, CircuitBuilder};
 
 pub mod keccak256;
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn keccak256(&mut self, bytes: &[ByteVariable]) -> Bytes32Variable {
-        let generator = Keccak256Generator {
+        let generator: Keccak256Generator<L, D> = Keccak256Generator {
             input: bytes.to_vec(),
             output: self.init(),
             length: None,
@@ -25,29 +23,27 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
 #[cfg(test)]
 mod tests {
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::*;
+    use crate::backend::config::DefaultParameters;
     use crate::prelude::CircuitBuilder;
     use crate::utils::bytes32;
+
+    type L = DefaultParameters;
+    const D: usize = 2;
 
     #[test]
     fn test_keccak256() {
         env_logger::try_init().unwrap_or_default();
 
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         let word = builder.constant::<Bytes32Variable>(bytes32!(
             "0x0000000000000000000000000000000000000000000000000000000000000000"
         ));
         let hash = builder.keccak256(&word.0 .0);
         builder.watch(&hash, "hi");
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let input = circuit.input();
         let (_, _) = circuit.prove(&input);
     }

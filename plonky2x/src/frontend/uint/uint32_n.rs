@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
 use array_macro::array;
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
@@ -62,18 +62,16 @@ pub struct U32NVariable<U: Uint<N>, const N: usize> {
 impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
     type ValueType<F: RichField> = U;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self {
             limbs: array![_ => U32Variable::init(builder); N],
             _marker: core::marker::PhantomData,
         }
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         let limbs = U::to_u32_limbs(value);
         Self {
@@ -112,9 +110,9 @@ impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
 }
 
 impl<U: Uint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
-    fn encode<F: RichField + Extendable<D>, const D: usize>(
+    fn encode<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> Vec<ByteVariable> {
         self.limbs
             .iter()
@@ -123,8 +121,8 @@ impl<U: Uint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
             .collect::<Vec<_>>()
     }
 
-    fn decode<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
+    fn decode<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
         bytes: &[ByteVariable],
     ) -> Self {
         assert_eq!(bytes.len(), N * 4);
@@ -150,10 +148,10 @@ impl<U: Uint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Zero<F, D>
+impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Zero<L, D>
     for U32NVariable<U, N>
 {
-    fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
+    fn zero(builder: &mut CircuitBuilder<L, D>) -> Self {
         let zero = U32Variable::zero(builder);
         Self {
             limbs: [zero; N],
@@ -162,10 +160,10 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Z
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> One<F, D>
+impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> One<L, D>
     for U32NVariable<U, N>
 {
-    fn one(builder: &mut CircuitBuilder<F, D>) -> Self {
+    fn one(builder: &mut CircuitBuilder<L, D>) -> Self {
         let zero = U32Variable::zero(builder);
         let one = U32Variable::one(builder);
 
@@ -178,12 +176,12 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> O
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Add<F, D>
+impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Add<L, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
 
-    fn add(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn add(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_targets = self
             .limbs
             .iter()
@@ -217,12 +215,12 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> A
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Sub<F, D>
+impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Sub<L, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
 
-    fn sub(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn sub(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_targets = self
             .limbs
             .iter()
@@ -255,12 +253,12 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> S
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Mul<F, D>
+impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Mul<L, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
 
-    fn mul(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn mul(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_targets = self
             .limbs
             .iter()
@@ -294,12 +292,12 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> M
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Div<F, D>
+impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Div<L, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
 
-    fn div(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn div(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_targets = self
             .limbs
             .iter()
@@ -333,12 +331,12 @@ impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> D
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize, U: Uint<N>, const N: usize> Rem<F, D>
+impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Rem<L, D>
     for U32NVariable<U, N>
 {
     type Output = Self;
 
-    fn rem(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn rem(self, rhs: U32NVariable<U, N>, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_targets = self
             .limbs
             .iter()
@@ -378,20 +376,17 @@ mod tests {
     use rand::rngs::OsRng;
     use rand::Rng;
 
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::uint::uint32_n::{U32NVariable, Uint};
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
-    // #[test]
+    type L = DefaultParameters;
+    const D: usize = 2;
+
     fn test_u32n_evm<U: Uint<N>, const N: usize>() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
         let num_bytes = N * 4;
-
-        // for
-
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         let mut var_bytes = vec![];
         for i in 0..(num_bytes) {
             let byte = ByteVariable::constant(&mut builder, i as u8);
@@ -406,7 +401,7 @@ mod tests {
             builder.assert_is_equal(var_bytes[i], encoded[i]);
         }
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let pw = PartialWitness::new();
 
         let proof = circuit.data.prove(pw).unwrap();
@@ -439,10 +434,6 @@ mod tests {
     }
 
     fn test_u32n_add<U: Uint<N>, const N: usize>() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
         let mut rng = OsRng;
 
         let a = U::from_u32_limbs([rng.gen(); N]);
@@ -450,7 +441,7 @@ mod tests {
 
         let (expected_value, _) = a.overflowing_add(b);
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let a = U32NVariable::constant(&mut builder, a);
         let b = U32NVariable::constant(&mut builder, b);
@@ -459,7 +450,7 @@ mod tests {
 
         builder.assert_is_equal(result, expected_result_var);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let pw = PartialWitness::new();
 
         let proof = circuit.data.prove(pw).unwrap();
@@ -474,9 +465,6 @@ mod tests {
     }
 
     fn test_u256_sub<U: Uint<N>, const N: usize>() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
         let _num_bytes = N * 4;
 
         let mut rng = OsRng;
@@ -486,7 +474,7 @@ mod tests {
 
         let (expected_value, _) = a.overflowing_sub(b);
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let a = U32NVariable::constant(&mut builder, a);
         let b = U32NVariable::constant(&mut builder, b);
@@ -495,7 +483,7 @@ mod tests {
 
         builder.assert_is_equal(result, expected_result_var);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let pw = PartialWitness::new();
 
         let proof = circuit.data.prove(pw).unwrap();
@@ -510,8 +498,6 @@ mod tests {
     }
 
     fn test_u256_mul<U: Uint<N>, const N: usize>() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
         let mut rng = OsRng;
@@ -521,7 +507,7 @@ mod tests {
 
         let (expected_value, _) = a.overflowing_mul(b);
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let a = U32NVariable::constant(&mut builder, a);
         let b = U32NVariable::constant(&mut builder, b);
@@ -530,7 +516,7 @@ mod tests {
 
         builder.assert_is_equal(result, expected_result_var);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let pw = PartialWitness::new();
 
         let proof = circuit.data.prove(pw).unwrap();

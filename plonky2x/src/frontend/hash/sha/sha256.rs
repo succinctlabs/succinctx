@@ -4,6 +4,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
 use crate::frontend::hash::bit_operations::util::{_right_rotate, _shr, uint32_to_bits};
 use crate::frontend::hash::bit_operations::{
@@ -281,13 +282,13 @@ pub fn sha256<F: RichField + Extendable<D>, const D: usize>(
 }
 
 /// Implements SHA256 implementation for CircuitBuilder
-impl<F: RichField + Extendable<D>, const D: usize> Plonky2xCircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> Plonky2xCircuitBuilder<L, D> {
     pub fn sha256(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
         let input_bool: Vec<BoolTarget> = input
             .iter()
             .flat_map(|byte| byte.as_bool_targets().to_vec())
             .collect();
-        let hash_bool = sha256::<F, D>(&mut self.api, &input_bool);
+        let hash_bool = sha256::<L::Field, D>(&mut self.api, &input_bool);
         let hash_bytes_vec = hash_bool
             .chunks(8)
             .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8]))

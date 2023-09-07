@@ -1,28 +1,27 @@
 mod array;
 mod boolean;
-mod buffer;
 mod byte;
 mod bytes;
 mod bytes32;
+mod stream;
 mod variable;
 use std::fmt::Debug;
 
 pub use array::*;
 pub use boolean::*;
-pub use buffer::*;
 pub use byte::*;
 pub use bytes::*;
 pub use bytes32::*;
 use itertools::Itertools;
-use plonky2::field::extension::Extendable;
-use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
+pub use stream::*;
 pub use variable::*;
 
 pub use super::uint::uint256::*;
 pub use super::uint::uint32::*;
+use crate::backend::config::{DefaultParameters, PlonkParameters};
 use crate::frontend::builder::CircuitBuilder;
 
 pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
@@ -30,14 +29,12 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     type ValueType<F: RichField>: Debug;
 
     /// Initializes the variable with no value in the circuit.
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self;
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self;
 
     /// Initializes the variable with a constant value in the circuit.
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self;
 
     /// Serializes the circuit variable to targets.
@@ -64,16 +61,18 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
 
     /// The number of field elements it takes to represent this variable.
     fn nb_elements() -> usize {
-        type F = GoldilocksField;
+        type L = DefaultParameters;
         const D: usize = 2;
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         let variable = builder.init::<Self>();
         variable.variables().len()
     }
 
     /// Serializes the value to a list of field elements.
-    fn elements<F: RichField + Extendable<D>, const D: usize>(value: Self::ValueType<F>) -> Vec<F> {
-        let mut builder = CircuitBuilder::<F, D>::new();
+    fn elements<L: PlonkParameters<D>, const D: usize>(
+        value: Self::ValueType<L::Field>,
+    ) -> Vec<L::Field> {
+        let mut builder = CircuitBuilder::<L, D>::new();
         let variable = builder.constant::<Self>(value);
         let variables = variable.variables();
         variables
@@ -83,10 +82,10 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     }
 
     /// Deserializes the value to a list of field elements.
-    fn from_elements<F: RichField + Extendable<D>, const D: usize>(
-        elements: &[F],
-    ) -> Self::ValueType<F> {
-        let mut builder = CircuitBuilder::<F, D>::new();
+    fn from_elements<L: PlonkParameters<D>, const D: usize>(
+        elements: &[L::Field],
+    ) -> Self::ValueType<L::Field> {
+        let mut builder = CircuitBuilder::<L, D>::new();
         let variable = builder.init::<Self>();
         let variables = variable.variables();
         assert_eq!(variables.len(), elements.len());
@@ -100,28 +99,28 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
 
 pub trait EvmVariable: CircuitVariable {
     /// The number of bytes it takes to represent this variable.
-    fn nb_bytes<F: RichField + Extendable<D>, const D: usize>() -> usize {
-        let mut builder = CircuitBuilder::<F, D>::new();
+    fn nb_bytes<L: PlonkParameters<D>, const D: usize>() -> usize {
+        let mut builder = CircuitBuilder::<L, D>::new();
         let variable = builder.init::<Self>();
         variable.encode(&mut builder).len()
     }
 
     /// The number of bits it takes to represent this variable.
-    fn nb_bits<F: RichField + Extendable<D>, const D: usize>() -> usize {
-        Self::nb_bytes::<F, D>() * 8
+    fn nb_bits<L: PlonkParameters<D>, const D: usize>() -> usize {
+        Self::nb_bytes::<L, D>() * 8
     }
 
     /// Serializes the variable to a vector of byte variables with len `nb_bytes()`. This
     /// implementation should match the implementation of `abi.encodePacked(...)`.
-    fn encode<F: RichField + Extendable<D>, const D: usize>(
+    fn encode<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> Vec<ByteVariable>;
 
     /// Deserializes the variable to a vector of byte variables with len `nb_bytes()`. This
     /// implementation should match the implementation of `abi.decodePacked(...)`.
-    fn decode<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
+    fn decode<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
         bytes: &[ByteVariable],
     ) -> Self;
 
@@ -134,9 +133,9 @@ pub trait EvmVariable: CircuitVariable {
     fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F>;
 
     /// Serializes the variable to little endian bits.
-    fn to_le_bits<F: RichField + Extendable<D>, const D: usize>(
+    fn to_le_bits<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> Vec<BoolVariable> {
         let bytes = self.encode(builder);
         let mut bytes = bytes.into_iter().flat_map(|b| b.as_be_bits()).collect_vec();
@@ -145,9 +144,9 @@ pub trait EvmVariable: CircuitVariable {
     }
 
     /// Serializes the variable to big endian bits.
-    fn to_be_bits<F: RichField + Extendable<D>, const D: usize>(
+    fn to_be_bits<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> Vec<BoolVariable> {
         let mut bits = self.to_le_bits(builder);
         bits.reverse();
@@ -156,8 +155,8 @@ pub trait EvmVariable: CircuitVariable {
 }
 
 pub trait SSZVariable: CircuitVariable {
-    fn hash_tree_root<F: RichField + Extendable<D>, const D: usize>(
+    fn hash_tree_root<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> Bytes32Variable;
 }

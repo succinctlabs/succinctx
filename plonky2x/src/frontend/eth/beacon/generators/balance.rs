@@ -2,8 +2,6 @@ use core::marker::PhantomData;
 use std::env;
 
 use array_macro::array;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
@@ -11,6 +9,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint64::U64Variable;
@@ -31,7 +30,7 @@ pub enum BeaconBalanceInput {
 }
 
 #[derive(Debug, Clone)]
-pub struct BeaconBalanceGenerator<F: RichField + Extendable<D>, const D: usize> {
+pub struct BeaconBalanceGenerator<L: PlonkParameters<D>, const D: usize> {
     client: BeaconClient,
     block_root: Bytes32Variable,
     input: BeaconBalanceInput,
@@ -39,12 +38,12 @@ pub struct BeaconBalanceGenerator<F: RichField + Extendable<D>, const D: usize> 
     pub balance_leaf: Bytes32Variable,
     pub proof: [Bytes32Variable; DEPTH],
     pub gindex: U64Variable,
-    _phantom: PhantomData<F>,
+    _phantom: PhantomData<L>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BeaconBalanceGenerator<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> BeaconBalanceGenerator<L, D> {
     pub fn new_with_index_const(
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         block_root: Bytes32Variable,
         validator_idx: u64,
     ) -> Self {
@@ -61,7 +60,7 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconBalanceGenerator<F, D> 
     }
 
     pub fn new_with_index_variable(
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         block_root: Bytes32Variable,
         validator_idx: U64Variable,
     ) -> Self {
@@ -78,7 +77,7 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconBalanceGenerator<F, D> 
     }
 
     pub fn new_with_pubkey_const(
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         block_root: Bytes32Variable,
         pubkey: BLSPubkey,
     ) -> Self {
@@ -95,7 +94,7 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconBalanceGenerator<F, D> 
     }
 
     pub fn new_with_pubkey_variable(
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         block_root: Bytes32Variable,
         pubkey: BLSPubkeyVariable,
     ) -> Self {
@@ -116,8 +115,8 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconBalanceGenerator<F, D> 
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for BeaconBalanceGenerator<F, D>
+impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
+    for BeaconBalanceGenerator<L, D>
 {
     fn id(&self) -> String {
         Self::id()
@@ -139,7 +138,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         targets
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+    fn run_once(
+        &self,
+        witness: &PartitionWitness<L::Field>,
+        out_buffer: &mut GeneratedValues<L::Field>,
+    ) {
         let block_root = self.block_root.get(witness);
         let rt = Runtime::new().expect("failed to create tokio runtime");
         let result = rt
@@ -184,7 +187,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     #[allow(unused_variables)]
-    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
+    fn serialize(
+        &self,
+        dst: &mut Vec<u8>,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<()> {
         dst.write_target_vec(&self.block_root.targets())?;
         match &self.input {
             BeaconBalanceInput::IndexConst(idx) => {
@@ -214,7 +221,10 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     #[allow(unused_variables)]
-    fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
+    fn deserialize(
+        src: &mut Buffer,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<Self> {
         let block_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
         let input_type = src.read_usize()?;
         let input = if input_type == 0 {

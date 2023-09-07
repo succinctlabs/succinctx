@@ -1,6 +1,4 @@
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::CircuitVariable;
 
@@ -16,40 +14,36 @@ mod uint32_n;
 /// It has a zero value, a one value, and can be added, subtracted, and multiplied.
 pub trait AlgebraicVariable: CircuitVariable {
     /// Returns the zero value of the variable.
-    fn zero<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self;
+    fn zero<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self;
 
     /// Returns the one value of the variable.
-    fn one<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self;
+    fn one<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self;
 
     // Adds two variables together.
-    fn add<F: RichField + Extendable<D>, const D: usize>(
+    fn add<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         other: &Self,
     ) -> Self;
 
     // Subtracts two variables.
-    fn sub<F: RichField + Extendable<D>, const D: usize>(
+    fn sub<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         other: &Self,
     ) -> Self;
 
     // Multiplies two variables.
-    fn mul<F: RichField + Extendable<D>, const D: usize>(
+    fn mul<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         other: &Self,
     ) -> Self;
 
     // Negates a variable.
-    fn neg<F: RichField + Extendable<D>, const D: usize>(
+    fn neg<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> Self;
 }
 

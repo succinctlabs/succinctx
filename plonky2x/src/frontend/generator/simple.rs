@@ -10,6 +10,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoError, IoResult, Write};
 use serde::{Deserialize, Serialize};
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::vars::Variable;
 use crate::prelude::CircuitBuilder;
 
@@ -21,8 +22,8 @@ pub trait Generator<F: RichField + Extendable<D>, const D: usize>:
     fn run(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>);
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn add_generator<G: Generator<F, D> + 'static>(&mut self, generator: G) {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn add_generator<G: Generator<L::Field, D> + 'static>(&mut self, generator: G) {
         let generator = GeneratorWrapper { generator };
         self.add_simple_generator(generator);
     }

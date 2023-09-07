@@ -2,8 +2,6 @@ use core::marker::PhantomData;
 use std::env;
 
 use array_macro::array;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
@@ -11,6 +9,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::utils::eth::beacon::BeaconClient;
@@ -19,17 +18,17 @@ use crate::utils::{bytes32, hex};
 const DEPTH: usize = 8;
 
 #[derive(Debug, Clone)]
-pub struct BeaconValidatorsGenerator<F: RichField + Extendable<D>, const D: usize> {
+pub struct BeaconValidatorsGenerator<L: PlonkParameters<D>, const D: usize> {
     client: BeaconClient,
     block_root: Bytes32Variable,
     pub validators_root: Bytes32Variable,
     pub proof: [Bytes32Variable; DEPTH],
-    _phantom: PhantomData<F>,
+    _phantom: PhantomData<L>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorsGenerator<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> BeaconValidatorsGenerator<L, D> {
     pub fn new(
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         client: BeaconClient,
         block_root: Bytes32Variable,
     ) -> Self {
@@ -47,8 +46,8 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconValidatorsGenerator<F, 
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for BeaconValidatorsGenerator<F, D>
+impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
+    for BeaconValidatorsGenerator<L, D>
 {
     fn id(&self) -> String {
         Self::id()
@@ -58,7 +57,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         self.block_root.targets()
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+    fn run_once(
+        &self,
+        witness: &PartitionWitness<L::Field>,
+        out_buffer: &mut GeneratedValues<L::Field>,
+    ) {
         let block_root = self.block_root.get(witness);
 
         let rt = Runtime::new().expect("failed to create tokio runtime");
@@ -77,7 +80,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     #[allow(unused_variables)]
-    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
+    fn serialize(
+        &self,
+        dst: &mut Vec<u8>,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<()> {
         dst.write_target_vec(&self.block_root.targets())?;
         dst.write_target_vec(&self.validators_root.targets())?;
         for i in 0..DEPTH {
@@ -87,7 +94,10 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     #[allow(unused_variables)]
-    fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
+    fn deserialize(
+        src: &mut Buffer,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<Self> {
         let block_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
         let validators_root = Bytes32Variable::from_targets(&src.read_target_vec()?);
         let mut proof = Vec::new();
@@ -110,36 +120,34 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 pub(crate) mod tests {
     use std::env;
 
-    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
     use crate::frontend::vars::Bytes32Variable;
     use crate::utils::bytes32;
     use crate::utils::eth::beacon::BeaconClient;
 
+    type L = DefaultParameters;
+    const D: usize = 2;
+
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validators_generator() {
         dotenv::dotenv().ok();
 
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(
             "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
         ));
-        let generator = BeaconValidatorsGenerator::<F, D>::new(&mut builder, client, block_root);
+        let generator = BeaconValidatorsGenerator::<L, D>::new(&mut builder, client, block_root);
         builder.add_simple_generator(generator);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let pw = PartialWitness::new();
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
