@@ -57,7 +57,7 @@ use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
-use crate::frontend::generator::hint::HintSerializer;
+use crate::frontend::generator::hint::{HintSerializer, Hint};
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
@@ -66,7 +66,7 @@ use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32Ari
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, ValueStream};
+use crate::frontend::vars::Bytes32Variable;
 
 /// A registry to store serializers for witness generators.
 ///
@@ -202,8 +202,8 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
         self.register::<SimpleGeneratorAdapter<F, SG, D>>(id)
     }
 
-    pub fn register_hint(&mut self, hint_fn: fn(&mut ValueStream<F, D>, &mut ValueStream<F, D>)) {
-        let hint_serializer = HintSerializer::new(hint_fn);
+    pub fn register_hint<H: Hint<F, D>>(&mut self, hint : H) {
+        let hint_serializer = HintSerializer::new(hint);
         let id = hint_serializer.id();
 
         let exists = self

@@ -35,7 +35,7 @@ impl<F: RichField + Extendable<D>, const D: usize> OutputStream<F, D> {
             .hints
             .get_mut(self.hint_id)
             .expect("Hint not found")
-            .output_stream;
+            .output_stream();
         stream.0.write_slice(&variables);
 
         variables
