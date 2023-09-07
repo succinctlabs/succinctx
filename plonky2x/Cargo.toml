@@ -11,9 +11,10 @@ parallel = ["plonky2/parallel"]
 std = ["plonky2/std", "itertools/use_std"]
 timing = ["plonky2/timing"]
 ci=[]
+mock=["plonky2/mock"]
 
 [dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false}
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false, features = ["mock"]}
 curta = { git = "https://github.com/succinctlabs/curta.git" }
 
 num = { version = "0.4", default-features = false }

@@ -279,6 +279,8 @@ mod tests {
 
     #[test]
     fn test_bytes_operations() {
+        env_logger::try_init().unwrap_or_default();
+
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;

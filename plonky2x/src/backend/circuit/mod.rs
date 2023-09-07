@@ -6,7 +6,8 @@ use std::fs;
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::PartialWitness;
+use plonky2::iop::generator::generate_partial_witness;
+use plonky2::iop::witness::{PartialWitness, PartitionWitness};
 use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
@@ -28,6 +29,11 @@ pub struct Circuit<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, con
     pub io: CircuitIO<D>,
 }
 
+enum ProofOrWitness<'a, F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
+    Proof(ProofWithPublicInputs<F, C, D>),
+    Witness(PartitionWitness<'a, F>),
+}
+
 impl<F: RichField + Extendable<D>, C, const D: usize> Circuit<F, C, D>
 where
     C: GenericConfig<D, F = F> + 'static,
@@ -42,10 +48,7 @@ where
     }
 
     /// Generates a proof for the circuit. The proof can be verified using `verify`.
-    pub fn prove(
-        &self,
-        input: &CircuitInput<F, D>,
-    ) -> (ProofWithPublicInputs<F, C, D>, CircuitOutput<F, D>) {
+    pub fn prove(&self, input: &CircuitInput<F, D>) -> (ProofOrWitness, CircuitOutput<F, D>) {
         // Get input variables from io.
         let input_variables = if self.io.evm.is_some() {
             self.io
@@ -69,25 +72,59 @@ where
             input_variables[i].set(&mut pw, input.buffer[i]);
         }
 
+        #[cfg(feature = "mock")]
+        {
+            let witness = generate_partial_witness(pw, &self.data.prover_only, &self.data.common);
+            let output_variables = if self.io.evm.is_some() {
+                self.io
+                    .evm
+                    .clone()
+                    .unwrap()
+                    .output_bytes
+                    .into_iter()
+                    .flat_map(|b| b.variables())
+                    .collect()
+            } else if self.io.field.is_some() {
+                self.io.field.clone().unwrap().output_variables
+            } else {
+                vec![]
+            };
+            let output_buffer = output_variables
+                .iter()
+                .map(|v| v.get(&witness))
+                .collect_vec();
+            let output = CircuitOutput {
+                io: self.io.clone(),
+                buffer: output_buffer,
+            };
+            return (ProofOrWitness::Witness(witness), output);
+        }
+
         // Generate the proof.
         let proof = self.data.prove(pw).unwrap();
-
         // Slice the public inputs to reflect the output portion of the circuit.
         let output = CircuitOutput {
             io: self.io.clone(),
             buffer: proof.public_inputs[input_variables.len()..].to_vec(),
         };
 
-        (proof, output)
+        (ProofOrWitness::Proof(proof), output)
     }
 
     /// Verifies a proof for the circuit.
     pub fn verify(
         &self,
-        proof: &ProofWithPublicInputs<F, C, D>,
+        proof: &ProofOrWitness<F, C, D>,
         input: &CircuitInput<F, D>,
         output: &CircuitOutput<F, D>,
     ) {
+        let proof = match proof {
+            ProofOrWitness::Witness(witness) => {
+                return; // early return
+            }
+            _ => {}
+        };
+
         let mut public_inputs = Vec::new();
         public_inputs.extend(input.buffer.clone());
         public_inputs.extend(output.buffer.clone());
