@@ -94,7 +94,7 @@ impl ByteVariable {
         bits
     }
 
-    pub fn to_nibbles<F: RichField + Extendable<D>, const D: usize>(
+    pub fn to_nibbles<L: PlonkParameters<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<F, D>,
     ) -> [ByteVariable; 2] {
