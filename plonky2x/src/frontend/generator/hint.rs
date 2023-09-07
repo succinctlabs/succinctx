@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef};
@@ -8,7 +9,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
 use crate::backend::circuit::serialization::Serializer;
-use crate::frontend::vars::{ValueStream, VariableStream, OutputStream};
+use crate::frontend::vars::{OutputStream, ValueStream, VariableStream};
 use crate::prelude::{CircuitBuilder, CircuitVariable};
 
 #[derive(Debug, Clone)]

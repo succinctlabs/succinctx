@@ -17,18 +17,17 @@ pub struct VariableStream(Stream<Variable>);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutputStream<F: RichField + Extendable<D>, const D: usize> {
     hint_id: usize,
-    _marker: PhantomData<F>
+    _marker: PhantomData<F>,
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> OutputStream<F, D> {
     pub(crate) fn new(hint_id: usize) -> Self {
-        Self { hint_id, _marker: PhantomData }
+        Self {
+            hint_id,
+            _marker: PhantomData,
+        }
     }
-    pub fn read_exact(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        len: usize,
-    ) -> Vec<Variable> {
+    pub fn read_exact(&self, builder: &mut CircuitBuilder<F, D>, len: usize) -> Vec<Variable> {
         let variables = (0..len)
             .map(|_| builder.init::<Variable>())
             .collect::<Vec<_>>();
@@ -41,10 +40,7 @@ impl<F: RichField + Extendable<D>, const D: usize> OutputStream<F, D> {
 
         variables
     }
-    pub fn read<V: CircuitVariable>(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> V {
+    pub fn read<V: CircuitVariable>(&self, builder: &mut CircuitBuilder<F, D>) -> V {
         let variables = self.read_exact(builder, V::nb_elements());
         V::from_variables(&variables)
     }
@@ -115,7 +111,6 @@ impl VariableStream {
             .collect::<Vec<_>>();
         Self(Stream::new(variables))
     }
-
 
     pub(crate) fn all_variables(&self) -> &[Variable] {
         self.0.read_all()
