@@ -126,7 +126,7 @@ mod tests {
         let x_xor_x = builder.xor(x, x);
         let y_xor_y = builder.xor(y, y);
 
-        let mut pw = PartialWitness::new();
+        let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
 
         x.set(&mut pw, true);
         y.set(&mut pw, false);

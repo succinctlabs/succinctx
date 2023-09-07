@@ -71,8 +71,7 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
 
     fn run_once(&self, witness: &PartitionWitness<F>, _out_buffer: &mut GeneratedValues<F>) {
         let value = self.variable.get(witness);
-
-        log!(Level::Debug, "Variable {} was set to {:?}", self.log, value);
+        log!(Level::Info, "Variable {} was set to {:?}", self.log, value);
     }
 }
 
@@ -104,7 +103,7 @@ mod tests {
         input.write::<Variable>(GoldilocksField::TWO);
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);

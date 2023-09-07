@@ -95,6 +95,21 @@ impl ByteVariable {
         bits.reverse();
         bits
     }
+
+    pub fn to_nibbles<F: RichField + Extendable<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> [ByteVariable; 2] {
+        let bits = self.as_be_bits();
+
+        let mut left_nibble = array![_ => builder.constant(false); 8];
+        left_nibble[4..].copy_from_slice(&bits[0..4]);
+
+        let mut right_nibble = array![_ => builder.constant(false); 8];
+        right_nibble[4..].copy_from_slice(&bits[4..8]);
+
+        [ByteVariable(left_nibble), ByteVariable(right_nibble)]
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Not<F, D> for ByteVariable {
@@ -293,5 +308,36 @@ mod tests {
 
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_to_nibbles() {
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+        let byte = builder.read::<ByteVariable>();
+        let nibbles = byte.to_nibbles(&mut builder);
+        builder.write(nibbles[0]);
+        builder.write(nibbles[1]);
+
+        let circuit = builder.build::<C>();
+
+        let value = rand::random::<u8>();
+        let mut inputs = circuit.input();
+        inputs.write::<ByteVariable>(value);
+
+        let (proof, mut output) = circuit.prove(&inputs);
+        circuit.verify(&proof, &inputs, &output);
+
+        let expected_left_nibble = (value >> 4) & 0x0F;
+        let expected_right_nibble = value & 0x0F;
+
+        let left_nibble = output.read::<ByteVariable>();
+        let right_nibble = output.read::<ByteVariable>();
+
+        assert_eq!(left_nibble, expected_left_nibble);
+        assert_eq!(right_nibble, expected_right_nibble);
     }
 }

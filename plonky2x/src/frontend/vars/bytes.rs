@@ -257,6 +257,20 @@ impl<F: RichField + Extendable<D>, const D: usize, const N: usize> RotateRight<F
     }
 }
 
+impl<const N: usize> BytesVariable<N> {
+    pub fn to_nibbles<F: RichField + Extendable<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> [ByteVariable; N * 2] {
+        self.0
+            .iter()
+            .flat_map(|b| b.to_nibbles(builder))
+            .collect::<Vec<ByteVariable>>()
+            .try_into()
+            .unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rand::{thread_rng, Rng};
