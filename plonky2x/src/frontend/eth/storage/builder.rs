@@ -71,15 +71,10 @@ mod tests {
     use ethers::types::{U256, U64};
 
     use super::*;
-    use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
-    use crate::backend::config::DefaultParameters;
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthAccount, EthHeader, EthLog};
     use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
-
-    type L = DefaultParameters;
-    const D: usize = 2;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -129,14 +124,7 @@ mod tests {
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
         );
 
-        // initialize serializers
-        let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
-
-        // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
+        circuit.test_default_serializers()
     }
 
     #[test]
@@ -251,14 +239,7 @@ mod tests {
             }
         );
 
-        // initialize serializers
-        let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
-
-        // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
+        circuit.test_default_serializers()
     }
 
     #[test]
@@ -318,14 +299,7 @@ mod tests {
             }
         );
 
-        // initialize serializers
-        let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
-
-        // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
+        circuit.test_default_serializers()
     }
 
     #[test]
@@ -379,13 +353,6 @@ mod tests {
             },
         );
 
-        // initialize serializers
-        let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
-
-        // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
+        circuit.test_default_serializers()
     }
 }

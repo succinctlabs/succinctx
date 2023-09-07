@@ -9,7 +9,7 @@ use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable, VariableBuffer};
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable};
 use crate::prelude::Variable;
 
 #[derive(Debug, Clone, Copy)]
@@ -111,11 +111,10 @@ impl CircuitVariable for EthAccountVariable {
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        let mut var_buffer = VariableBuffer::new(variables);
-        let balance = var_buffer.read::<U256Variable>();
-        let code_hash = var_buffer.read::<Bytes32Variable>();
-        let nonce = var_buffer.read::<U64Variable>();
-        let storage_hash = var_buffer.read::<Bytes32Variable>();
+        let balance = U256Variable::from_variables(&variables[0..8]);
+        let code_hash = Bytes32Variable::from_variables(&variables[8..264]);
+        let nonce = U64Variable::from_variables(&variables[264..266]);
+        let storage_hash = Bytes32Variable::from_variables(&variables[266..522]);
         Self {
             balance,
             code_hash,
@@ -191,10 +190,9 @@ impl CircuitVariable for EthLogVariable {
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        let mut var_buffer = VariableBuffer::new(variables);
-        let address = var_buffer.read::<AddressVariable>();
-        let topics = array![_ => var_buffer.read::<Bytes32Variable>(); 3];
-        let data_hash = var_buffer.read::<Bytes32Variable>();
+        let address = AddressVariable::from_variables(&variables[0..160]);
+        let topics = array![i => Bytes32Variable::from_variables(&variables[160 + (i * 256)..160 + ((i+1) * 256)]); 3];
+        let data_hash = Bytes32Variable::from_variables(&variables[928..1184]);
         Self {
             address,
             topics,

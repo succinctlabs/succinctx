@@ -8,7 +8,7 @@ use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable, VariableBuffer};
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable};
 use crate::prelude::Variable;
 
 /// A variable representing the Ethereum Block Header
@@ -113,19 +113,19 @@ impl CircuitVariable for EthHeaderVariable {
 
     #[allow(unused_variables)]
     fn from_variables(variables: &[Variable]) -> Self {
-        let mut var_buffer = VariableBuffer::new(variables);
-        let parent_hash = var_buffer.read::<Bytes32Variable>();
-        let uncle_hash = var_buffer.read::<Bytes32Variable>();
-        let coinbase = var_buffer.read::<AddressVariable>();
-        let root = var_buffer.read::<Bytes32Variable>();
-        let tx_hash = var_buffer.read::<Bytes32Variable>();
-        let receipt_hash = var_buffer.read::<Bytes32Variable>();
+        // let mut var_buffer = VariableBuffer::new(variables);
+        let parent_hash = Bytes32Variable::from_variables(&variables[0..256]);
+        let uncle_hash = Bytes32Variable::from_variables(&variables[256..512]);
+        let coinbase = AddressVariable::from_variables(&variables[512..672]);
+        let root = Bytes32Variable::from_variables(&variables[672..928]);
+        let tx_hash = Bytes32Variable::from_variables(&variables[928..1184]);
+        let receipt_hash = Bytes32Variable::from_variables(&variables[1184..1440]);
         // let root = var_buffer.read::<Bytes32Variable>();
-        let difficulty = var_buffer.read::<U256Variable>();
-        let number = var_buffer.read::<U64Variable>();
-        let gas_limit = var_buffer.read::<U256Variable>();
-        let gas_used = var_buffer.read::<U256Variable>();
-        let time = var_buffer.read::<U256Variable>();
+        let difficulty = U256Variable::from_variables(&variables[1440..1448]);
+        let number = U64Variable::from_variables(&variables[1448..1450]);
+        let gas_limit = U256Variable::from_variables(&variables[1450..1458]);
+        let gas_used = U256Variable::from_variables(&variables[1458..1466]);
+        let time = U256Variable::from_variables(&variables[1466..1474]);
         // let extra = var_buffer.read::<Bytes32Variable>();
 
         Self {

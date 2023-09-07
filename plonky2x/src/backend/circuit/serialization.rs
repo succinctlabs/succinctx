@@ -64,6 +64,7 @@ use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthAccountProofGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
+use crate::frontend::eth::storage::vars::{EthAccountVariable, EthLogVariable, EthProofVariable};
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
@@ -501,7 +502,10 @@ where
             BeaconBalancesVariable,
             BeaconWithdrawalsVariable,
             BeaconWithdrawalVariable,
-            BeaconValidatorVariable
+            BeaconValidatorVariable,
+            EthLogVariable,
+            EthProofVariable,
+            EthAccountVariable
         );
 
         r
