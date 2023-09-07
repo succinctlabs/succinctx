@@ -3,7 +3,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::frontend::hash::bit_operations::util::{_right_rotate, _shr, uint64_to_bits};
+use crate::frontend::hash::bit_operations::util::{_right_rotate, _shr, u64_to_bits};
 use crate::frontend::hash::bit_operations::{
     add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add,
 };
@@ -33,7 +33,7 @@ pub fn get_initial_hash<F: RichField + Extendable<D>, const D: usize>(
     ];
     let mut res = [None; 8];
     for i in 0..8 {
-        res[i] = Some(uint64_to_bits(initial_hash[i], builder));
+        res[i] = Some(u64_to_bits(initial_hash[i], builder));
     }
     res.map(|x| x.unwrap())
 }
@@ -125,7 +125,7 @@ pub fn get_round_constants<F: RichField + Extendable<D>, const D: usize>(
     ];
     let mut res = [None; 80];
     for i in 0..80 {
-        res[i] = Some(uint64_to_bits(round_constants[i], builder));
+        res[i] = Some(u64_to_bits(round_constants[i], builder));
     }
     res.map(|x| x.unwrap())
 }

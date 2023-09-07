@@ -1,18 +1,67 @@
 use std::fmt::Debug;
 
 use array_macro::array;
-use ethers::types::{Address, H256, U256, U64};
-use plonky2::field::extension::Extendable;
+use ethers::types::{Address, H256, U256};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable, VariableBuffer};
 use crate::prelude::Variable;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
+pub struct EthProof {
+    pub proof: H256,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EthProofVariable {
+    pub proof: Bytes32Variable,
+}
+
+impl CircuitVariable for EthProofVariable {
+    type ValueType<F: RichField> = EthProof;
+
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+        Self {
+            proof: Bytes32Variable::init(builder),
+        }
+    }
+
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
+    ) -> Self {
+        Self {
+            proof: Bytes32Variable::constant(builder, value.proof),
+        }
+    }
+
+    fn variables(&self) -> Vec<Variable> {
+        self.proof.variables()
+    }
+
+    fn from_variables(variables: &[Variable]) -> Self {
+        Self {
+            proof: Bytes32Variable::from_variables(variables),
+        }
+    }
+
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+        EthProof {
+            proof: self.proof.get(witness),
+        }
+    }
+
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+        self.proof.set(witness, value.proof);
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct EthAccount {
     pub balance: U256,
     pub code_hash: H256,
@@ -31,9 +80,7 @@ pub struct EthAccountVariable {
 impl CircuitVariable for EthAccountVariable {
     type ValueType<F: RichField> = EthAccount;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self {
             balance: U256Variable::init(builder),
             code_hash: Bytes32Variable::init(builder),
@@ -42,9 +89,9 @@ impl CircuitVariable for EthAccountVariable {
         }
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self {
             balance: U256Variable::constant(builder, value.balance),
@@ -113,9 +160,7 @@ pub struct EthLogVariable {
 impl CircuitVariable for EthLogVariable {
     type ValueType<F: RichField> = EthLog;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self {
             address: AddressVariable::init(builder),
             topics: array![_ => Bytes32Variable::init(builder); 3],
@@ -123,9 +168,9 @@ impl CircuitVariable for EthLogVariable {
         }
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self {
             address: AddressVariable::constant(builder, value.address),

@@ -3,8 +3,6 @@ use core::marker::PhantomData;
 
 use ethers::providers::Middleware;
 use ethers::types::{Block, H256};
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
@@ -12,31 +10,32 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::storage::vars::{EthHeader, EthHeaderVariable};
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::utils::eth::get_provider;
 
 #[derive(Debug, Clone)]
-pub struct EthBlockGenerator<F: RichField + Extendable<D>, const D: usize> {
+pub struct EthBlockGenerator<L: PlonkParameters<D>, const D: usize> {
     block_hash: Bytes32Variable,
     pub value: EthHeaderVariable,
     chain_id: u64,
-    _phantom: PhantomData<F>,
+    _phantom: PhantomData<L>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> EthBlockGenerator<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> EthBlockGenerator<L, D> {
     pub fn new(
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         block_hash: Bytes32Variable,
-    ) -> EthBlockGenerator<F, D> {
+    ) -> EthBlockGenerator<L, D> {
         let chain_id = builder.get_chain_id();
         let value = builder.init::<EthHeaderVariable>();
         EthBlockGenerator {
             block_hash,
             value,
             chain_id,
-            _phantom: PhantomData::<F>,
+            _phantom: PhantomData,
         }
     }
 
@@ -45,8 +44,8 @@ impl<F: RichField + Extendable<D>, const D: usize> EthBlockGenerator<F, D> {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for EthBlockGenerator<F, D>
+impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
+    for EthBlockGenerator<L, D>
 {
     fn id(&self) -> String {
         Self::id()
@@ -58,7 +57,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         targets
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, buffer: &mut GeneratedValues<F>) {
+    fn run_once(
+        &self,
+        witness: &PartitionWitness<L::Field>,
+        buffer: &mut GeneratedValues<L::Field>,
+    ) {
         let block_hash = self.block_hash.get(witness);
         let provider = get_provider(self.chain_id);
         let rt = Runtime::new().expect("failed to create tokio runtime");
@@ -91,7 +94,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     #[allow(unused_variables)]
-    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
+    fn serialize(
+        &self,
+        dst: &mut Vec<u8>,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<()> {
         let chain_id_bytes = self.chain_id.to_be_bytes();
         dst.write_all(&chain_id_bytes)?;
 
@@ -100,7 +107,10 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     #[allow(unused_variables)]
-    fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
+    fn deserialize(
+        src: &mut Buffer,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<Self> {
         let mut chain_id_bytes = [0u8; 8];
         src.read_exact(&mut chain_id_bytes)?;
         let chain_id = u64::from_be_bytes(chain_id_bytes);
@@ -115,7 +125,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
             block_hash,
             value,
             chain_id,
-            _phantom: PhantomData::<F>,
+            _phantom: PhantomData,
         })
     }
 }

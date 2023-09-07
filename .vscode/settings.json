@@ -15,6 +15,7 @@
         "-A",
         "incomplete-features"
     ],
+<<<<<<< HEAD
     "editor.rulers": [
         100
     ],
@@ -23,4 +24,13 @@
         "editor.formatOnSave": true,
         "editor.inlayHints.enabled": "offUnlessPressed"
     },
+=======
+    "rust-analyzer.runnables.extraEnv": {
+        "RUST_LOG": "debug",
+        "RUSTFLAGS": "-Ctarget-cpu=native"
+    },
+    "rust-analyzer.runnables.extraArgs": [
+        "--release"
+    ],
+>>>>>>> origin/main
 }

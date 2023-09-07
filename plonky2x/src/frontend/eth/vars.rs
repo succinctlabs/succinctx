@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
 use ethers::types::H160;
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{ByteVariable, BytesVariable, CircuitVariable, EvmVariable};
 use crate::prelude::Variable;
@@ -15,15 +15,13 @@ pub struct BLSPubkeyVariable(pub BytesVariable<48>);
 impl CircuitVariable for BLSPubkeyVariable {
     type ValueType<F: RichField> = [u8; 48];
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self(BytesVariable::init(builder))
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self(BytesVariable::constant(builder, value))
     }
@@ -51,15 +49,13 @@ pub struct AddressVariable(pub BytesVariable<20>);
 impl CircuitVariable for AddressVariable {
     type ValueType<F: RichField> = H160;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self(BytesVariable::init(builder))
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self(BytesVariable::constant(
             builder,
@@ -88,15 +84,15 @@ impl CircuitVariable for AddressVariable {
 }
 
 impl EvmVariable for AddressVariable {
-    fn encode<F: RichField + Extendable<D>, const D: usize>(
+    fn encode<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> Vec<ByteVariable> {
         self.0.encode(builder)
     }
 
-    fn decode<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
+    fn decode<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
         bytes: &[ByteVariable],
     ) -> Self {
         Self(BytesVariable::decode(builder, bytes))
