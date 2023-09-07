@@ -221,7 +221,7 @@ pub(crate) mod tests {
         input.write::<Variable>(GoldilocksField::TWO);
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
@@ -249,7 +249,7 @@ pub(crate) mod tests {
         input.evm_write::<ByteVariable>(7u8);
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);

@@ -63,10 +63,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitInput<L, D> {
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitOutput<L, D> {
     /// Reads a value from the public circuit output using field-based serialization.
-    pub fn read<V: CircuitVariable>(&self) -> V::ValueType<L::Field> {
+    pub fn read<V: CircuitVariable>(&mut self) -> V::ValueType<F> {
         self.io.field.as_ref().expect("field io is not enabled");
-        let elements = self.buffer.iter().take(V::nb_elements()).collect_vec();
-        V::from_elements::<L, D>(elements.into_iter().copied().collect_vec().as_slice())
+        let elements = self.buffer.drain(0..V::nb_elements()).collect_vec();
+        V::from_elements(&elements)
     }
 
     /// Reads the entire stream of field elements from the public circuit output.
@@ -76,10 +76,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitOutput<L, D> {
     }
 
     /// Reads a value from the public circuit output using byte-based serialization.
-    pub fn evm_read<V: EvmVariable>(&self) -> V::ValueType<L::Field> {
+    pub fn evm_read<V: EvmVariable>(&mut self) -> V::ValueType<F> {
         self.io.evm.as_ref().expect("evm io is not enabled");
-        let nb_bytes = V::nb_bytes::<L, D>();
-        let bits = self.buffer.iter().take(nb_bytes * 8).collect_vec();
+        let nb_bytes = V::nb_bytes::<F, D>();
+        let bits = self.buffer.drain(0..nb_bytes * 8).collect_vec();
         let mut bytes = Vec::new();
         for i in 0..bits.len() / 8 {
             let mut byte = 0u8;
