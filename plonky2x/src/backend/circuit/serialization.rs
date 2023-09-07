@@ -64,6 +64,7 @@ use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
+use crate::frontend::generator::hint::{Hint, HintSerializer};
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
@@ -91,6 +92,31 @@ pub struct GateRegistry<L: PlonkParameters<D>, const D: usize>(
     SerializationRegistry<TypeId, L::Field, GateRef<L::Field, D>, D>,
 );
 
+#[derive(Debug, Clone)]
+pub enum GeneratorID {
+    Name(String),
+    Type(TypeId, String),
+}
+
+impl PartialEq for GeneratorID {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Name(name1), Self::Name(name2)) => name1 == name2,
+            (Self::Type(type_id1, _), Self::Type(type_id2, _)) => type_id1 == type_id2,
+            _ => false,
+        }
+    }
+}
+
+impl Hash for GeneratorID {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Name(name) => name.hash(state),
+            Self::Type(type_id, _) => type_id.hash(state),
+        }
+    }
+}
+
 /// A trait for serializing and deserializing objects compatible with plonky2 traits.
 pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize> {
     fn read(&self, buf: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<T>;
@@ -106,7 +132,7 @@ pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize> {
 pub(crate) struct SerializationRegistry<K: Hash, F: RichField + Extendable<D>, T, const D: usize> {
     registry: HashMap<K, Box<dyn Serializer<F, T, D>>>,
     index: HashMap<K, usize>,
-    type_ids: Vec<K>,
+    identifiers: Vec<K>,
     current_index: usize,
 }
 
@@ -117,7 +143,7 @@ impl<K: Hash + Debug, F: RichField + Extendable<D>, T: Debug, const D: usize> De
         f.debug_struct("SerializationRegistry")
             .field("ids of registered objects", &self.registry.keys())
             .field("index", &self.index)
-            .field("type_ids", &self.type_ids)
+            .field("identifiers", &self.identifiers)
             .field("current_index", &self.current_index)
             .finish()
     }
@@ -130,7 +156,7 @@ impl<F: RichField + Extendable<D>, K: Hash, T: Any, const D: usize>
         Self {
             registry: HashMap::new(),
             index: HashMap::new(),
-            type_ids: Vec::new(),
+            identifiers: Vec::new(),
             current_index: 0,
         }
     }
@@ -198,7 +224,7 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
             panic!("Generator type {} already registered", id);
         }
 
-        self.0.type_ids.push(id.clone());
+        self.0.identifiers.push(id.clone());
         self.0.index.insert(id, self.0.current_index);
         self.0.current_index += 1;
     }
@@ -206,6 +232,24 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
     /// Registers a new simple witness generator with the given id.
     pub fn register_simple<SG: SimpleGenerator<L::Field, D>>(&mut self, id: String) {
         self.register::<SimpleGeneratorAdapter<L::Field, SG, D>>(id)
+    }
+
+    pub fn register_hint<H: Hint<L, D>>(&mut self, hint: H) {
+        let hint_serializer = HintSerializer::new(hint);
+        let id = hint_serializer.id();
+
+        let exists = self
+            .0
+            .registry
+            .insert(id.clone(), Box::new(hint_serializer));
+
+        if exists.is_some() {
+            panic!("Generator type {} already registered", id);
+        }
+
+        self.0.identifiers.push(id.clone());
+        self.0.index.insert(id, self.0.current_index);
+        self.0.current_index += 1;
     }
 }
 
@@ -222,7 +266,7 @@ impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
             panic!("Gate type already registered");
         }
 
-        self.0.type_ids.push(type_id);
+        self.0.identifiers.push(type_id);
         self.0.index.insert(type_id, self.0.current_index);
         self.0.current_index += 1;
     }
@@ -237,7 +281,7 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorSerializer<L::Field,
         common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<WitnessGeneratorRef<L::Field, D>> {
         let idx = buf.read_usize()?;
-        let type_id = &self.0.type_ids[idx];
+        let type_id = &self.0.identifiers[idx];
 
         self.0
             .registry
@@ -276,7 +320,7 @@ impl<L: PlonkParameters<D>, const D: usize> GateSerializer<L::Field, D> for Gate
         common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<GateRef<L::Field, D>> {
         let idx = buf.read_usize()?;
-        let type_id = self.0.type_ids[idx];
+        let type_id = self.0.identifiers[idx];
 
         self.0
             .registry

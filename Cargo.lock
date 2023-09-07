@@ -2635,6 +2635,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "array-macro",
+ "bincode",
  "clap",
  "curta",
  "curve25519-dalek",
