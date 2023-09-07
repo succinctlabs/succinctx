@@ -248,7 +248,7 @@ impl<L: PlonkParameters<D>, const D: usize, const N: usize> RotateRight<L, D, us
 impl<const N: usize> BytesVariable<N> {
     pub fn to_nibbles<L: PlonkParameters<D>, const D: usize>(
         self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> [ByteVariable; N * 2] {
         self.0
             .iter()

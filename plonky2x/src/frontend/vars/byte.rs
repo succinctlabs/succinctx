@@ -96,7 +96,7 @@ impl ByteVariable {
 
     pub fn to_nibbles<L: PlonkParameters<D>, const D: usize>(
         self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> [ByteVariable; 2] {
         let bits = self.as_be_bits();
 
