@@ -8,7 +8,7 @@ use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable};
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable, VariableBuffer};
 use crate::prelude::Variable;
 
 /// A variable representing the Ethereum Block Header
@@ -76,7 +76,21 @@ impl CircuitVariable for EthHeaderVariable {
         builder: &mut CircuitBuilder<L, D>,
         value: Self::ValueType<L::Field>,
     ) -> Self {
-        todo!()
+        Self {
+            parent_hash: Bytes32Variable::constant(builder, value.parent_hash),
+            uncle_hash: Bytes32Variable::constant(builder, value.uncle_hash),
+            coinbase: AddressVariable::constant(builder, value.coinbase),
+            root: Bytes32Variable::constant(builder, value.root),
+            tx_hash: Bytes32Variable::constant(builder, value.tx_hash),
+            receipt_hash: Bytes32Variable::constant(builder, value.receipt_hash),
+            // bloom,
+            difficulty: U256Variable::constant(builder, value.difficulty),
+            number: U64Variable::constant(builder, value.number),
+            gas_limit: U256Variable::constant(builder, value.gas_limit),
+            gas_used: U256Variable::constant(builder, value.gas_used),
+            time: U256Variable::constant(builder, value.time),
+            // extra
+        }
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -99,39 +113,20 @@ impl CircuitVariable for EthHeaderVariable {
 
     #[allow(unused_variables)]
     fn from_variables(variables: &[Variable]) -> Self {
-        let parent_hash = Bytes32Variable::from_variables(&variables[0..32 * 8]);
-        let mut offset = 32 * 8;
-        let uncle_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
-        offset += 32 * 8;
-        let coinbase = AddressVariable::from_variables(&variables[offset..offset + 8 * 20]);
-        offset += 8 * 20;
-        let root = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
-        offset += 32 * 8;
-
-        let tx_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
-        offset += 32 * 8;
-
-        let receipt_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
-        offset += 32 * 8;
-
-        // let bloom = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
-        // offset += 32 * 8;
-
-        let difficulty = U256Variable::from_variables(&variables[offset..offset + 4]);
-        offset += 4;
-
-        let number = U64Variable::from_variables(&variables[offset..offset + 1]);
-        offset += 1;
-
-        let gas_limit = U256Variable::from_variables(&variables[offset..offset + 4]);
-        offset += 4;
-
-        let gas_used = U256Variable::from_variables(&variables[offset..offset + 4]);
-        offset += 4;
-
-        let time = U256Variable::from_variables(&variables[offset..offset + 4]);
-
-        // let extra = Bytes32Variable::from_variables(&variables[offset+8..offset+8+32*8]);
+        let mut var_buffer = VariableBuffer::new(variables);
+        let parent_hash = var_buffer.read::<Bytes32Variable>();
+        let uncle_hash = var_buffer.read::<Bytes32Variable>();
+        let coinbase = var_buffer.read::<AddressVariable>();
+        let root = var_buffer.read::<Bytes32Variable>();
+        let tx_hash = var_buffer.read::<Bytes32Variable>();
+        let receipt_hash = var_buffer.read::<Bytes32Variable>();
+        // let root = var_buffer.read::<Bytes32Variable>();
+        let difficulty = var_buffer.read::<U256Variable>();
+        let number = var_buffer.read::<U64Variable>();
+        let gas_limit = var_buffer.read::<U256Variable>();
+        let gas_used = var_buffer.read::<U256Variable>();
+        let time = var_buffer.read::<U256Variable>();
+        // let extra = var_buffer.read::<Bytes32Variable>();
 
         Self {
             parent_hash,

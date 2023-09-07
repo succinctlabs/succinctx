@@ -71,10 +71,15 @@ mod tests {
     use ethers::types::{U256, U64};
 
     use super::*;
+    use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
+    use crate::backend::config::DefaultParameters;
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthAccount, EthHeader, EthLog};
     use crate::prelude::CircuitBuilderX;
     use crate::utils::{address, bytes32};
+
+    type L = DefaultParameters;
+    const D: usize = 2;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -124,7 +129,14 @@ mod tests {
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
         );
 
-        circuit.test_default_serializers();
+        // initialize serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
+        // test serialization
+        let _ = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
     }
 
     #[test]
@@ -134,11 +146,11 @@ mod tests {
         dotenv::dotenv().ok();
         // This is the circuit definition
         let mut builder = CircuitBuilderX::new();
-        let mapping_location = builder.read::<U256Variable>();
-        let map_key = builder.read::<Bytes32Variable>();
+        let mapping_location = builder.evm_read::<U256Variable>();
+        let map_key = builder.evm_read::<Bytes32Variable>();
 
         let value = builder.get_storage_key_at(mapping_location, map_key);
-        builder.write(value);
+        builder.evm_write(value);
 
         // Build your circuit.
         let circuit = builder.build();
@@ -147,12 +159,12 @@ mod tests {
         let mut input = circuit.input();
         let mapping_location = U256::from("0x0");
         // mapping_location
-        input.write::<U256Variable>(mapping_location);
+        input.evm_write::<U256Variable>(mapping_location);
 
         let map_key =
             bytes32!("0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe");
         // map_key
-        input.write::<Bytes32Variable>(map_key);
+        input.evm_write::<Bytes32Variable>(map_key);
 
         println!(
             "storage key: {:?}",
@@ -166,14 +178,14 @@ mod tests {
         circuit.verify(&proof, &input, &output);
 
         // Read output.
-        let circuit_value = output.read::<Bytes32Variable>();
+        let circuit_value = output.evm_read::<Bytes32Variable>();
         println!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
             bytes32!("0xca77d4e79102603cb6842afffd8846a3123877159ed214aeadfc4333d595fd50"),
         );
 
-        circuit.test_default_serializers();
+        circuit.test_default_serializers()
     }
 
     #[test]
@@ -239,7 +251,14 @@ mod tests {
             }
         );
 
-        circuit.test_default_serializers();
+        // initialize serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
+        // test serialization
+        let _ = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
     }
 
     #[test]
@@ -299,7 +318,14 @@ mod tests {
             }
         );
 
-        circuit.test_default_serializers();
+        // initialize serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
+        // test serialization
+        let _ = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
     }
 
     #[test]
@@ -353,6 +379,13 @@ mod tests {
             },
         );
 
-        circuit.test_default_serializers();
+        // initialize serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
+        // test serialization
+        let _ = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
     }
 }

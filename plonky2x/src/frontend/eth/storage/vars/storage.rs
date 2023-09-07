@@ -111,13 +111,11 @@ impl CircuitVariable for EthAccountVariable {
     }
 
     fn from_variables(variables: &[Variable]) -> Self {
-        let balance = U256Variable::from_variables(&variables[0..4]);
-        let mut offset = 4;
-        let code_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
-        offset += 32 * 8;
-        let nonce = U64Variable::from_variables(&variables[offset..offset + 1]);
-        offset += 1;
-        let storage_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        let mut var_buffer = VariableBuffer::new(variables);
+        let balance = var_buffer.read::<U256Variable>();
+        let code_hash = var_buffer.read::<Bytes32Variable>();
+        let nonce = var_buffer.read::<U64Variable>();
+        let storage_hash = var_buffer.read::<Bytes32Variable>();
         Self {
             balance,
             code_hash,
