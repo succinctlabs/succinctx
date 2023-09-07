@@ -74,7 +74,6 @@ mod tests {
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::*;
-    use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthAccount, EthHeader, EthLog};
     use crate::prelude::CircuitBuilderX;
