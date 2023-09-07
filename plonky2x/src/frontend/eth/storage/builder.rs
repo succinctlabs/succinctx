@@ -128,14 +128,7 @@ mod tests {
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
         );
 
-        // initialize serializers
-        let gate_serializer = GateRegistry::new();
-        let generator_serializer = WitnessGeneratorRegistry::new::<PoseidonGoldilocksConfig>();
-
-        // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -184,14 +177,7 @@ mod tests {
             bytes32!("0xca77d4e79102603cb6842afffd8846a3123877159ed214aeadfc4333d595fd50"),
         );
 
-        // initialize serializers
-        let gate_serializer = GateRegistry::new();
-        let generator_serializer = WitnessGeneratorRegistry::new::<PoseidonGoldilocksConfig>();
-
-        // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -257,14 +243,7 @@ mod tests {
             }
         );
 
-        // initialize serializers
-        let gate_serializer = GateRegistry::new();
-        let generator_serializer = WitnessGeneratorRegistry::new::<PoseidonGoldilocksConfig>();
-
-        // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -324,14 +303,7 @@ mod tests {
             }
         );
 
-        // initialize serializers
-        let gate_serializer = GateRegistry::new();
-        let generator_serializer = WitnessGeneratorRegistry::new::<PoseidonGoldilocksConfig>();
-
-        // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -385,13 +357,6 @@ mod tests {
             },
         );
 
-        // initialize serializers
-        let gate_serializer = GateRegistry::new();
-        let generator_serializer = WitnessGeneratorRegistry::new::<PoseidonGoldilocksConfig>();
-
-        // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
+        circuit.test_default_serializers();
     }
 }
