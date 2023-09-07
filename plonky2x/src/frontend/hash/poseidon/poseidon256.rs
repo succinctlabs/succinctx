@@ -1,20 +1,22 @@
 use array_macro::array;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::config::AlgebraicHasher;
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable};
 
 /// Implements the Poseidon hash for CircuitBuilder.
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Note: This Poseidon implementation operates on bytes, not field elements. The input bytes to
     /// the Poseidon hash are converted into field elements internally. Specifically, we convert the
     /// [ByteVariable; N] into a [u32; N/4] and then represent the u32 as a [F; N/4]. We use u32's
     /// instead of u64's to represent the bytes because of the Goldilocks field size.
-    pub fn poseidon<H: AlgebraicHasher<F>>(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
+    pub fn poseidon<H: AlgebraicHasher<L::Field>>(
+        &mut self,
+        input: &[ByteVariable],
+    ) -> Bytes32Variable {
         let input_targets: Vec<BoolTarget> = input
             .iter()
             .flat_map(|byte| byte.as_bool_targets().to_vec())
@@ -54,21 +56,21 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::GenericConfig;
 
-    use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
+    use crate::backend::config::{PlonkParameters, PoseidonGoldilocksParameters};
     use crate::frontend::vars::Bytes32Variable;
+    use crate::prelude::CircuitBuilder;
     use crate::utils::{bytes32, setup_logger};
 
     #[test]
     fn test_poseidon() -> Result<()> {
         setup_logger();
 
+        type L = PoseidonGoldilocksParameters;
         const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type H = <C as GenericConfig<D>>::InnerHasher;
-        let mut builder = Plonky2xCircuitBuilder::<F, D>::new();
+        type H = <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::InnerHasher;
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let leaf = builder.constant::<Bytes32Variable>(bytes32!(
             "d68d62c262c2ec08961c1104188cde86f51695878759666ad61490c8ec66745c"
@@ -88,7 +90,7 @@ mod tests {
         builder.watch(&computed_hash, "computed_hash");
 
         // Build your circuit.
-        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         let input = circuit.input();

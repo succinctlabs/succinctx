@@ -13,8 +13,9 @@ timing = ["plonky2/timing"]
 ci=[]
 
 [dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false}
-curta = { git = "https://github.com/succinctlabs/curta.git" }
+# plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false}
+plonky2 = { git = "https://github.com/jtguibas/plonky2.git", default-features = false, optional = true, branch = "jtguibas/serde-target"}
+curta = { git = "https://github.com/succinctlabs/curta.git", branch = "john/nightly" }
 
 num = { version = "0.4", default-features = false }
 sha2 = "0.10.7"
@@ -38,5 +39,6 @@ dotenv = "0.15.0"
 serde_with = "3.3.0"
 
 [dev-dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = ["gate_testing"]}
+plonky2 = { git = "https://github.com/jtguibas/plonky2.git", branch = "jtguibas/serde-target", features = ["gate_testing"]}
+# plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = ["gate_testing"]}
 env_logger = "0.10.0"

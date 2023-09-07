@@ -11,6 +11,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
@@ -30,8 +31,8 @@ pub struct BeaconHistoricalBlockGenerator<F: RichField + Extendable<D>, const D:
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> BeaconHistoricalBlockGenerator<F, D> {
-    pub fn new(
-        builder: &mut CircuitBuilder<F, D>,
+    pub fn new<L: PlonkParameters<D>>(
+        builder: &mut CircuitBuilder<L, D>,
         client: BeaconClient,
         block_root: Bytes32Variable,
         offset: U64Variable,

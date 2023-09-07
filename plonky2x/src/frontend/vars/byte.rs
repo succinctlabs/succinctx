@@ -1,12 +1,12 @@
 use std::fmt::Debug;
 
 use array_macro::array;
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
+use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 
@@ -18,15 +18,13 @@ pub struct ByteVariable(pub [BoolVariable; 8]);
 impl CircuitVariable for ByteVariable {
     type ValueType<F: RichField> = u8;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self(array![_ => BoolVariable::init(builder); 8])
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self(array![i => BoolVariable::constant(builder, (value >> (7 - i)) & 1 == 1); 8])
     }
@@ -60,15 +58,15 @@ impl CircuitVariable for ByteVariable {
 }
 
 impl EvmVariable for ByteVariable {
-    fn encode<F: RichField + Extendable<D>, const D: usize>(
+    fn encode<L: PlonkParameters<D>, const D: usize>(
         &self,
-        _: &mut CircuitBuilder<F, D>,
+        _: &mut CircuitBuilder<L, D>,
     ) -> Vec<ByteVariable> {
         vec![*self]
     }
 
-    fn decode<F: RichField + Extendable<D>, const D: usize>(
-        _: &mut CircuitBuilder<F, D>,
+    fn decode<L: PlonkParameters<D>, const D: usize>(
+        _: &mut CircuitBuilder<L, D>,
         bytes: &[ByteVariable],
     ) -> Self {
         assert_eq!(bytes.len(), 1);
@@ -97,18 +95,18 @@ impl ByteVariable {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Not<F, D> for ByteVariable {
+impl<L: PlonkParameters<D>, const D: usize> Not<L, D> for ByteVariable {
     type Output = Self;
 
-    fn not(self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn not(self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         ByteVariable(self.as_be_bits().map(|x| builder.not(x)))
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BitAnd<F, D> for ByteVariable {
+impl<L: PlonkParameters<D>, const D: usize> BitAnd<L, D> for ByteVariable {
     type Output = Self;
 
-    fn bitand(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn bitand(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_bits = self.as_be_bits();
         let rhs_bits = rhs.as_be_bits();
         let mut and_bit = |i| builder.and(self_bits[i], rhs_bits[i]);
@@ -116,10 +114,10 @@ impl<F: RichField + Extendable<D>, const D: usize> BitAnd<F, D> for ByteVariable
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BitOr<F, D> for ByteVariable {
+impl<L: PlonkParameters<D>, const D: usize> BitOr<L, D> for ByteVariable {
     type Output = Self;
 
-    fn bitor(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn bitor(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_bits = self.as_be_bits();
         let rhs_bits = rhs.as_be_bits();
         let mut or_bit = |i| builder.or(self_bits[i], rhs_bits[i]);
@@ -127,10 +125,10 @@ impl<F: RichField + Extendable<D>, const D: usize> BitOr<F, D> for ByteVariable 
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BitXor<F, D> for ByteVariable {
+impl<L: PlonkParameters<D>, const D: usize> BitXor<L, D> for ByteVariable {
     type Output = Self;
 
-    fn bitxor(self, rhs: Self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn bitxor(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_bits = self.as_be_bits();
         let rhs_bits = rhs.as_be_bits();
         let mut xor_bit = |i| builder.xor(self_bits[i], rhs_bits[i]);
@@ -138,10 +136,10 @@ impl<F: RichField + Extendable<D>, const D: usize> BitXor<F, D> for ByteVariable
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Shl<F, D, usize> for ByteVariable {
+impl<L: PlonkParameters<D>, const D: usize> Shl<L, D, usize> for ByteVariable {
     type Output = Self;
 
-    fn shl(self, rhs: usize, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn shl(self, rhs: usize, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_bits = self.as_be_bits();
         let mut shl_bit = |i| {
             if i + rhs > 7 {
@@ -154,10 +152,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Shl<F, D, usize> for ByteVari
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Shr<F, D, usize> for ByteVariable {
+impl<L: PlonkParameters<D>, const D: usize> Shr<L, D, usize> for ByteVariable {
     type Output = Self;
 
-    fn shr(self, rhs: usize, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn shr(self, rhs: usize, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_bits = self.as_be_bits();
         let mut shr_bit = |i| {
             if i < rhs {
@@ -170,28 +168,28 @@ impl<F: RichField + Extendable<D>, const D: usize> Shr<F, D, usize> for ByteVari
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> RotateLeft<F, D, usize> for ByteVariable {
+impl<L: PlonkParameters<D>, const D: usize> RotateLeft<L, D, usize> for ByteVariable {
     type Output = Self;
 
-    fn rotate_left(self, rhs: usize, _builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn rotate_left(self, rhs: usize, _builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_bits = self.as_be_bits();
         let rot_bit = |i| self_bits[(i + rhs) % 8];
         ByteVariable(array![i => rot_bit(i); 8])
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> RotateRight<F, D, usize> for ByteVariable {
+impl<L: PlonkParameters<D>, const D: usize> RotateRight<L, D, usize> for ByteVariable {
     type Output = Self;
 
-    fn rotate_right(self, rhs: usize, _builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn rotate_right(self, rhs: usize, _builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_bits = self.as_be_bits();
         let rot_bit = |i| self_bits[(i + 8 - rhs) % 8];
         ByteVariable(array![i => rot_bit(i); 8])
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for ByteVariable {
-    fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
+impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for ByteVariable {
+    fn zero(builder: &mut CircuitBuilder<L, D>) -> Self {
         ByteVariable(array![_ => builder.constant(false); 8])
     }
 }
@@ -211,15 +209,15 @@ impl ByteVariable {
 mod tests {
     use itertools::Itertools;
 
+    use crate::backend::config::PoseidonGoldilocksParameters;
     use crate::prelude::*;
+
+    type L = PoseidonGoldilocksParameters;
+    const D: usize = 2;
 
     #[test]
     fn test_byte_operations() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let x_bytes = (0..256)
             .map(|_| builder.init::<ByteVariable>())
@@ -251,7 +249,7 @@ mod tests {
             })
             .unzip();
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let mut pw = PartialWitness::new();
 
         let x_values = (0..256).map(|i| i as u8).collect::<Vec<_>>();
