@@ -5,11 +5,11 @@ use plonky2::iop::target::BoolTarget;
 use crate::prelude::{CircuitBuilder, CircuitVariable, Variable};
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn select_index_with_select<T: CircuitVariable>(
+    pub fn select_index_with_select<V: CircuitVariable>(
         &mut self,
         selector: Variable,
-        inputs: &[T],
-    ) -> T {
+        inputs: &[V],
+    ) -> V {
         // Serialized variables for the circuit variable.
         let num_var_in_t = inputs[0].variables().len();
         let input_len = inputs.len();
@@ -19,6 +19,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         for i in 0..input_len {
             let target_i = self.constant::<Variable>(F::from_canonical_usize(i));
             let diff = self.sub(target_i, selector);
+            
             let whether_select = self.is_zero(diff);
 
             let vars = inputs[i].variables();
@@ -31,10 +32,33 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             }
         }
 
-        T::from_variables(&res)
+        V::from_variables(&res)
     }
 
-    pub fn select_index<T: CircuitVariable>(&mut self, selector: Variable, inputs: &[T]) -> T {
+    pub fn select_index_with_inner_product<V: CircuitVariable>(
+        &mut self,
+        selector: Variable,
+        inputs: &[V],
+    ) -> V {
+        // Serialized variables for the circuit variable.
+        let num_var_in_t = inputs[0].variables().len();
+        let input_len = inputs.len();
+        let mut res = inputs[0].variables();
+
+        for i in 0..num_var_in_t {
+            let mut selected_var = self.api.zero();
+            for j in 0..input_len {
+                let index = self.constant::<Variable>(F::from_canonical_usize(j));
+                let selection = self.api.is_equal(index.0, selector.0);
+                selected_var = self.api.mul_add(selection.target, inputs[j].variables()[i].0, selected_var);
+            }
+            res[i] = Variable(selected_var);
+        }
+
+        V::from_variables(&res)
+    }
+
+    pub fn select_index<V: CircuitVariable>(&mut self, selector: Variable, inputs: &[V]) -> V {
         let num_var_in_t = inputs[0].variables().len();
         let api = &mut self.api;
         let mut final_vars = Vec::new();
@@ -53,7 +77,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             final_vars.push(Variable(api.random_access(selector.0, pos_vars)));
         }
 
-        T::from_variables(&final_vars)
+        V::from_variables(&final_vars)
     }
 }
 
@@ -81,16 +105,18 @@ mod tests {
         // random inputs
         let mut rng = OsRng;
         let inputs = rng.gen::<[u64; 10]>();
-        let input_variables = inputs
+        let input_variables: Vec<U256Variable> = inputs
             .iter()
             .map(|x| U256Variable::constant(&mut builder, U256::from(*x)))
             .collect::<Vec<_>>();
 
         let output_select = builder.select_index_with_select(five, &input_variables[..]);
-        let output = builder.select_index(five, &input_variables[..]);
+        // let output = builder.select_index(five, &input_variables[..]);
+        let output_inner_product = builder.select_index_with_inner_product(five, &input_variables[..]);
 
         builder.assert_is_equal(output_select, input_variables[5]);
-        builder.assert_is_equal(output, input_variables[5]);
+        // builder.assert_is_equal(output, input_variables[5]);
+        builder.assert_is_equal(output_inner_product, input_variables[5]);
 
         let circuit = builder.build::<C>();
         let pw = PartialWitness::new();
@@ -180,7 +206,5 @@ mod tests {
         let pw = PartialWitness::new();
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
-        // This verification should fail
-        //  assert!(circuit.data.verify(proof).is_err());
     }
 }

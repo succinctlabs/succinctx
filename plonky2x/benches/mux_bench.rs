@@ -13,8 +13,8 @@ fn benchmark_select_index(c: &mut Criterion) {
     type F = GoldilocksField;
     const D: usize = 2;
     let mut builder = CircuitBuilder::<F, D>::new();
-    let selector = builder.constant::<Variable>(F::from_canonical_usize(42)); // Example selector value
-    let inputs: Vec<u64> = (1..=74851).collect();
+    let selector = builder.constant::<Variable>(F::from_canonical_usize(4)); // Example selector value
+    let inputs: Vec<u64> = (1..=10).collect();
 
     let input_variables = inputs
             .iter()
@@ -26,6 +26,8 @@ fn benchmark_select_index(c: &mut Criterion) {
             |b, _| b.iter(|| builder.select_index(selector, &input_variables)));
         group.bench_with_input(BenchmarkId::new("select_index_with_select", i), i, 
             |b, _| b.iter(|| builder.select_index_with_select(selector, &input_variables)));
+        group.bench_with_input(BenchmarkId::new("select_index_with_inner_product", i), i, 
+            |b, _| b.iter(|| builder.select_index_with_inner_product(selector, &input_variables)));
     }
     group.finish();
 }
