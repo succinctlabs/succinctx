@@ -156,6 +156,8 @@ fn add_trait_bounds(mut generics: Generics) -> Generics {
 
 fn value(name: &Ident, data: &Data, _generics: &Generics) -> (Ident, TokenStream) {
     let namevalue = Ident::new(&format!("{}Value", name), name.span());
+    // let mut value_generics = generics.clone();
+    // value_generics.params.push(parse_quote!(F: RichField));
     let value_expanded = match *data {
         Data::Struct(ref data) => {
             let recurse = data.fields.iter().map(|f| {

@@ -172,6 +172,7 @@ mod tests {
         struct Point {
             x: Variable,
             y: Variable,
+            z: Variable,
         }
 
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
