@@ -45,8 +45,8 @@ pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usi
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn le(&mut self, lhs: Variable, rhs: Variable) -> BoolVariable {
         let generator = LeGenerator {
-            lhs: lhs.clone(),
-            rhs: rhs.clone(),
+            lhs,
+            rhs,
             output: self.init::<BoolVariable>(),
             _phantom: PhantomData,
         };
@@ -56,23 +56,40 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
         let generator = ByteToVariableGenerator {
-            lhs: lhs.clone(),
+            lhs,
             output: self.init::<Variable>(),
             _phantom: PhantomData,
         };
         self.add_simple_generator(&generator);
-        generator.output
+        let output = generator.output;
+
+        let _two = self.constant::<Variable>(F::from_canonical_u8(2));
+        let mut acc = self.zero::<Variable>();
+        let mut pow = self.one::<Variable>();
+        for i in 0..8 {
+            let curr = lhs.0[i].0;
+            let tmp = self.mul(acc, pow);
+            acc = self.add(tmp, curr);
+            pow = self.mul(pow, _two);
+        }
+        self.assert_is_equal(output, acc);
+
+        output
     }
 
     pub fn sub_byte(&mut self, lhs: ByteVariable, rhs: ByteVariable) -> ByteVariable {
         let generator = ByteSubGenerator {
-            lhs: lhs.clone(),
-            rhs: rhs.clone(),
+            lhs,
+            rhs,
             output: self.init::<ByteVariable>(),
             _phantom: PhantomData,
         };
         self.add_simple_generator(&generator);
-        generator.output
+        let output = generator.output;
+        let _zero = self.zero::<ByteVariable>();
+        let total = self.add(output, rhs);
+        self.assert_is_equal(i1, i2);
+        output
     }
 
     #[allow(dead_code, unused_variables)]
