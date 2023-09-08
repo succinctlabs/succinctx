@@ -154,12 +154,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let offset = self.div(index, four);
         gindex = self.add(gindex, offset);
 
-        self.ssz_verify_proof(
-            balances.balances_root,
-            generator.balance_leaf,
-            &generator.proof,
-            gindex,
-        );
+        // self.ssz_verify_proof(
+        //     balances.balances_root,
+        //     generator.balance_leaf,
+        //     &generator.proof,
+        //     gindex,
+        // );
 
         let index = self.rem(index, four);
         let bits = self.to_be_bits(index);
