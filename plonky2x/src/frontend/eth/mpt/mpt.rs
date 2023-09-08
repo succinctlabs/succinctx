@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use itertools::Itertools;
-use plonky2::{field::extension::Extendable, iop::target::Target};
+use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 
 use super::generators::*;
@@ -53,11 +53,14 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         self.add_simple_generator(&generator);
 
         const NUM_LIMBS: usize = 64;
+        // FIXME: overflow? potentially
+        // might have to use a zipped iterator and compute lt
         let max = self.constant(F::from_canonical_u64(1 << NUM_LIMBS));
         let _one: Variable = self.constant(F::from_canonical_u64(1));
         // from circomlib: https://github.com/iden3/circomlib/blob/master/circuits/comparators.circom#L89
         let tmp = self.add(lhs, max);
         let res = self.sub(tmp, rhs);
+        // typically stored in BE, but we can just index instead of reversing
         let res_bits = self.api.split_le(res.0, NUM_LIMBS);
         let last_bit = Variable::from(res_bits[NUM_LIMBS - 1].target);
         let lt_var = self.sub(_one, last_bit);

@@ -8,7 +8,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
+use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero, Add};
 
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.
