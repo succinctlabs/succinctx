@@ -244,6 +244,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d86b93f97252c47b41663388e6d155714a9d0c398b99f1005cbc5f978b29f445"
 
 [[package]]
+name = "bincode"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -681,9 +690,14 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
+<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/curta.git#d2fb9da038ab058287a491190a61357dbfdbac95"
+=======
+source = "git+https://github.com/succinctlabs/curta.git?branch=john/nightly#f3933b0b748ccf51521092fba9e82928311c2f35"
+>>>>>>> main
 dependencies = [
  "anyhow",
+ "bincode",
  "hex",
  "itertools 0.10.5",
  "log",
@@ -2338,9 +2352,15 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "parity-scale-codec"
+<<<<<<< HEAD
 version = "3.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d640b40e81625f53b59f9c5812d3fb9e7ce11971d3fb34268eb7a83adf98051"
+=======
+version = "3.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0dec8a8073036902368c2cdc0387e85ff9a37054d7e7c98e592145e0c92cd4fb"
+>>>>>>> main
 dependencies = [
  "arrayvec",
  "bitvec",
@@ -2352,9 +2372,15 @@ dependencies = [
 
 [[package]]
 name = "parity-scale-codec-derive"
+<<<<<<< HEAD
 version = "3.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ac464815d51fff2f64d690bf6ea4442d365e53495d50737685cfecfa3dd3f62"
+=======
+version = "3.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "312270ee71e1cd70289dacf597cab7b207aa107d2f28191c2ae45b2ece18a260"
+>>>>>>> main
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2567,7 +2593,11 @@ checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
+<<<<<<< HEAD
 source = "git+https://github.com/mir-protocol/plonky2.git#65917f5f238bc2cff620bfb4061784ffc2436da0"
+=======
+source = "git+https://github.com/mir-protocol/plonky2.git#180c20942b35f10b2579be7b28f48f2e4fcd69d0"
+>>>>>>> main
 dependencies = [
  "ahash",
  "anyhow",
@@ -2631,6 +2661,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "array-macro",
+ "bincode",
  "clap",
  "curta",
  "curve25519-dalek",

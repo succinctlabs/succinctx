@@ -3,7 +3,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::frontend::hash::bit_operations::util::{_right_rotate, uint64_to_bits};
+use crate::frontend::hash::bit_operations::util::{_right_rotate, u64_to_bits};
 use crate::frontend::hash::bit_operations::{add_arr, not_arr, xor2_arr_slow, xor3_arr_slow};
 
 const SIGMA_LEN: usize = 10;
@@ -37,7 +37,7 @@ fn get_iv<F: RichField + Extendable<D>, const D: usize>(
     ];
     let mut res = [None; 8];
     for i in 0..8 {
-        res[i] = Some(uint64_to_bits(iv[i], builder));
+        res[i] = Some(u64_to_bits(iv[i], builder));
     }
     res.map(|x| x.unwrap())
 }
@@ -216,7 +216,7 @@ pub fn blake2b<
 
     // Mix key size and hash length (64 0x40); p[0] = 0x0101kknn
     let p = 0x1010000 + (DIGEST_SIZE as u64);
-    blake2b_hash[0] = xor2_arr_slow(blake2b_hash[0], uint64_to_bits(p, builder), builder);
+    blake2b_hash[0] = xor2_arr_slow(blake2b_hash[0], u64_to_bits(p, builder), builder);
 
     let mut do_noop = builder.constant_bool(false);
 

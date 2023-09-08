@@ -8,32 +8,36 @@ use std::collections::HashMap;
 
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
-use plonky2::field::extension::Extendable;
-use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::SimpleGenerator;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as _CircuitBuilder;
 use plonky2::plonk::circuit_data::CircuitConfig;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
+use super::generator::hint::HintRef;
 use super::vars::EvmVariable;
 use crate::backend::circuit::Circuit;
+use crate::backend::config::{DefaultParameters, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
 
 /// The universal api for building circuits using `plonky2x`.
-pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {
-    pub api: _CircuitBuilder<F, D>,
+pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
+    pub api: _CircuitBuilder<L::Field, D>,
     pub io: CircuitIO<D>,
-    pub constants: HashMap<Variable, F>,
+    pub constants: HashMap<Variable, L::Field>,
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
+<<<<<<< HEAD
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
+=======
+    pub(crate) hints: Vec<Box<dyn HintRef<L, D>>>,
+    pub sha256_requests: Vec<Vec<Target>>,
+    pub sha256_responses: Vec<[Target; 32]>,
+>>>>>>> main
 }
 
 /// The default suggested circuit builder using the Goldilocks field and the fast recursion config.
@@ -42,12 +46,12 @@ pub struct CircuitBuilderX {}
 impl CircuitBuilderX {
     /// Creates a new builder.
     #[allow(clippy::new_ret_no_self)]
-    pub fn new() -> CircuitBuilder<GoldilocksField, 2> {
-        CircuitBuilder::<GoldilocksField, 2>::new()
+    pub fn new() -> CircuitBuilder<DefaultParameters, 2> {
+        CircuitBuilder::<DefaultParameters, 2>::new()
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Creates a new builder.
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
@@ -61,6 +65,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             chain_id: None,
             debug: false,
             debug_variables: HashMap::new(),
+            hints: Vec::new(),
+            sha256_requests: Vec::new(),
+            sha256_responses: Vec::new(),
         }
     }
 
@@ -78,6 +85,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
                 self.debug_variables.insert(index, format!("{:#?}", bt));
             }
             _ => panic!("Expected a virtual target"),
+
         }
     }
 
@@ -103,11 +111,11 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Build the circuit.
-    pub fn build<C>(mut self) -> Circuit<F, C, D>
-    where
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-    {
+    pub fn build(mut self) -> Circuit<L, D> {
+        let hints = self.hints.drain(..).collect::<Vec<_>>();
+        for hint in hints {
+            hint.register(&mut self);
+        }
         if self.io.evm.is_some() {
             let io = self.io.evm.as_ref().unwrap();
             let inputs: Vec<Target> = io.input_bytes.iter().flat_map(|b| b.targets()).collect();
@@ -136,8 +144,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Add simple generator.
-    pub fn add_simple_generator<G: SimpleGenerator<F, D> + Clone>(&mut self, generator: &G) {
-        self.api.add_simple_generator(generator.clone())
+    pub fn add_simple_generator<G: SimpleGenerator<L::Field, D> + Clone>(&mut self, generator: G) {
+        self.api.add_simple_generator(generator)
     }
 
     /// Initializes a variable with no value in the circuit.
@@ -146,7 +154,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     /// Initializes a variable with a constant value in the circuit.
-    pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<F>) -> V {
+    pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) -> V {
         V::constant(self, value)
     }
 
@@ -223,7 +231,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Default for CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> Default for CircuitBuilder<L, D> {
     fn default() -> Self {
         Self::new()
     }
@@ -247,7 +255,7 @@ pub(crate) mod tests {
         builder.write(c);
 
         // Build your circuit.
-        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         let mut input = circuit.input();
@@ -275,7 +283,7 @@ pub(crate) mod tests {
         builder.evm_write(c);
 
         // Build your circuit.
-        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         let mut input = circuit.input();
