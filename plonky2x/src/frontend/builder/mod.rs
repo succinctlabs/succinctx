@@ -3,6 +3,7 @@ pub mod io;
 mod proof;
 pub mod watch;
 
+use std::backtrace::Backtrace;
 use std::collections::HashMap;
 
 use ethers::providers::{Http, Middleware, Provider};
@@ -31,6 +32,8 @@ pub struct CircuitBuilder<F: RichField + Extendable<D>, const D: usize> {
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
+    pub debug: bool,
+    pub debug_variables: HashMap<usize, String>,
 }
 
 /// The default suggested circuit builder using the Goldilocks field and the fast recursion config.
@@ -56,6 +59,25 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             beacon_client: None,
             execution_client: None,
             chain_id: None,
+            debug: false,
+            debug_variables: HashMap::new(),
+        }
+    }
+
+    pub fn set_debug(&mut self) {
+        self.debug = true;
+    }
+
+    pub fn debug_target(&mut self, target: Target) {
+        if !self.debug {
+            return;
+        }
+        match target {
+            Target::VirtualTarget { index } => {
+                let bt = Backtrace::new();
+                self.debug_variables.insert(index, format!("{:#?}", bt));
+            }
+            _ => panic!("Expected a virtual target"),
         }
     }
 
@@ -104,7 +126,14 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         Circuit { data, io: self.io }
     }
 
-    pub fn mock_build<C>(mut self) -> Circuit<F, C, D> {}
+    pub fn mock_build<C>(mut self) -> MockCircuit<F, C, D> {
+        let mock_circuit = self.api.mock_build();
+        MockCircuit {
+            data: mock_circuit,
+            io: self.io,
+            debug: self.debug_variables,
+        }
+    }
 
     /// Add simple generator.
     pub fn add_simple_generator<G: SimpleGenerator<F, D> + Clone>(&mut self, generator: &G) {
