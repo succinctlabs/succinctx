@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 
 use clap::Parser;
 use curta::math::prelude::PrimeField64;
-use log::{info, warn};
+use log::{debug, info, warn};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use self::cli::{BuildArgs, ProveArgs};
@@ -47,6 +47,7 @@ pub trait CircuitFunction {
         info!("> Degree: {}", circuit.data.common.degree());
         info!("> Number of Gates: {}", circuit.data.common.gates.len());
         let path = format!("{}/main.circuit", args.build_dir);
+        debug!("attempting to save circuit to disk at {}...", path);
         circuit.save(&path, &Self::gates::<L, D>(), &Self::generators::<L, D>());
         info!("Successfully saved circuit to disk at {}.", path);
 

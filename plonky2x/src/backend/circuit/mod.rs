@@ -4,6 +4,7 @@ pub mod serialization;
 use std::fs;
 
 use itertools::Itertools;
+use log::debug;
 use plonky2::field::types::PrimeField64;
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_data::CircuitData;
@@ -116,11 +117,14 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
     ) -> IoResult<Vec<u8>> {
         // Setup buffer.
         let mut buffer = Vec::new();
+        debug!("starting to serialize circuit");
         let circuit_bytes = self.data.to_bytes(gate_serializer, generator_serializer)?;
+        debug!("finished serializing circuit data to bytes");
         buffer.write_usize(circuit_bytes.len())?;
         buffer.write_all(&circuit_bytes)?;
 
         if self.io.evm.is_some() {
+            debug!("serializing evm io");
             let io = self.io.evm.as_ref().unwrap();
             buffer.write_usize(0)?;
             buffer.write_target_vec(
@@ -139,6 +143,7 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
                     .as_slice(),
             )?;
         } else if self.io.field.is_some() {
+            debug!("serializing field io");
             let io = self.io.field.as_ref().unwrap();
             buffer.write_usize(1)?;
             buffer.write_target_vec(
@@ -156,6 +161,7 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
                     .as_slice(),
             )?;
         } else {
+            debug!("serializing empty io");
             buffer.write_usize(2)?;
         }
 
@@ -220,7 +226,9 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
         let bytes = self
             .serialize(gate_serializer, generator_serializer)
             .unwrap();
+        debug!("finished serializing circuit to bytes");
         fs::write(path, bytes).unwrap();
+        debug!("finished writing circuit to file {}", path);
     }
 
     pub fn load(
