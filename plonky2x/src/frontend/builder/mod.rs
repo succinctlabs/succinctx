@@ -5,6 +5,7 @@ pub mod watch;
 
 use std::collections::HashMap;
 
+use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
 use plonky2::iop::generator::SimpleGenerator;
@@ -16,11 +17,11 @@ use tokio::runtime::Runtime;
 pub use self::io::CircuitIO;
 use super::generator::hint::HintRef;
 use super::vars::EvmVariable;
+use crate::backend::circuit::mock::MockCircuit;
 use crate::backend::circuit::Circuit;
 use crate::backend::config::{DefaultParameters, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
-
 /// The universal api for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub api: _CircuitBuilder<L::Field, D>,
@@ -29,6 +30,8 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
+    pub debug: bool,
+    pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintRef<L, D>>>,
     pub sha256_requests: Vec<Vec<Target>>,
     pub sha256_responses: Vec<[Target; 32]>,
@@ -57,9 +60,28 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             beacon_client: None,
             execution_client: None,
             chain_id: None,
+            debug: false,
+            debug_variables: HashMap::new(),
             hints: Vec::new(),
             sha256_requests: Vec::new(),
             sha256_responses: Vec::new(),
+        }
+    }
+
+    pub fn set_debug(&mut self) {
+        self.debug = true;
+    }
+
+    pub fn debug_target(&mut self, target: Target) {
+        if !self.debug {
+            return;
+        }
+        match target {
+            Target::VirtualTarget { index } => {
+                let bt = Backtrace::new();
+                self.debug_variables.insert(index, format!("{:#?}", bt));
+            }
+            _ => panic!("Expected a virtual target"),
         }
     }
 
@@ -106,6 +128,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let data = self.api.build();
         Circuit { data, io: self.io }
+    }
+
+    pub fn mock_build(self) -> MockCircuit<L, D> {
+        let mock_circuit = self.api.mock_build();
+        MockCircuit {
+            data: mock_circuit,
+            io: self.io,
+            debug_variables: self.debug_variables,
+        }
     }
 
     /// Add simple generator.

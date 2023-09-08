@@ -42,6 +42,38 @@ impl<const D: usize> CircuitIO<D> {
             recursive_proof: None,
         }
     }
+
+    pub fn get_input_variables(&self) -> Vec<Variable> {
+        if self.evm.is_some() {
+            self.evm
+                .clone()
+                .unwrap()
+                .input_bytes
+                .into_iter()
+                .flat_map(|b| b.variables())
+                .collect()
+        } else if self.field.is_some() {
+            self.field.clone().unwrap().input_variables
+        } else {
+            vec![]
+        }
+    }
+
+    pub fn get_output_variables(&self) -> Vec<Variable> {
+        if self.evm.is_some() {
+            self.evm
+                .clone()
+                .unwrap()
+                .output_bytes
+                .into_iter()
+                .flat_map(|b| b.variables())
+                .collect()
+        } else if self.field.is_some() {
+            self.field.clone().unwrap().output_variables
+        } else {
+            vec![]
+        }
+    }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
