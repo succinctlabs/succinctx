@@ -13,9 +13,10 @@ use plonky2::util::serialization::{
 };
 
 use super::witness::{fill_witness, FillWitnessError};
-use crate::backend::circuit::CircuitInput;
+use crate::backend::circuit::{CircuitInput, CircuitOutput};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
+use crate::frontend::vars::CircuitVariable;
 /// A compiled circuit which can compute any function in the form `f(x)=y`.
 #[derive(Debug)]
 pub struct MockCircuit<L: PlonkParameters<D>, const D: usize> {
@@ -48,36 +49,37 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuit<L, D> {
         }
     }
 
-    // TODO: below should take in `inputs` and return (witness, output)
-    // It should be implemented using `mock_prove_witness`
-    pub fn mock_prove(&mut self) {
-        todo!()
+    pub fn mock_prove(
+        &self,
+        input: &CircuitInput<L, D>,
+    ) -> (PartitionWitness<L::Field>, CircuitOutput<L, D>) {
+        // Get input variables from io.
+        let input_variables = self.io.get_input_variables();
+        assert_eq!(input_variables.len(), input.buffer.len());
+
+        // Assign input variables.
+        let mut pw = PartialWitness::new();
+        for i in 0..input_variables.len() {
+            input_variables[i].set(&mut pw, input.buffer[i]);
+        }
+
+        let partition_witness = self.mock_prove_witness(pw).unwrap();
+
+        let output_variables = self.io.get_output_variables();
+        let output_elements = output_variables
+            .iter()
+            .map(|v| v.get(&partition_witness))
+            .collect_vec();
+
+        (
+            partition_witness,
+            CircuitOutput {
+                io: self.io.clone(),
+                buffer: output_elements,
+            },
+        )
     }
 }
-
-//     let witness = generate_partial_witness(pw, &self.data.prover_only, &self.data.common);
-//     let output_variables = if self.io.evm.is_some() {
-//         self.io
-//             .evm
-//             .clone()
-//             .unwrap()
-//             .output_bytes
-//             .into_iter()
-//             .flat_map(|b| b.variables())
-//             .collect()
-//     } else if self.io.field.is_some() {
-//         self.io.field.clone().unwrap().output_variables
-//     } else {
-//         vec![]
-//     };
-//     let output_buffer = output_variables
-//         .iter()
-//         .map(|v| v.get(&witness))
-//         .collect_vec();
-//     let output = CircuitOutput {
-//         io: self.io.clone(),
-//         buffer: output_buffer,
-//     };
 
 #[cfg(test)]
 pub(crate) mod tests {
@@ -125,11 +127,11 @@ pub(crate) mod tests {
         input.write::<Variable>(GoldilocksField::TWO);
 
         // // Generate a proof.
-        // let (proof, mut output) = mock_circuit.prove(&input);
+        let (_witness, mut output) = mock_circuit.mock_prove(&input);
 
         // // Read output.
-        // let sum = output.read::<Variable>();
-        // println!("{}", sum.0);
+        let sum = output.read::<Variable>();
+        println!("{}", sum.0);
     }
 
     #[test]
@@ -142,18 +144,18 @@ pub(crate) mod tests {
         builder.evm_write(c);
 
         // Build your circuit.
-        let circuit = builder.build();
+        let mock_circuit = builder.mock_build();
 
         // Write to the circuit input.
-        let mut input = circuit.input();
+        let mut input = mock_circuit.input();
         input.evm_write::<ByteVariable>(0u8);
         input.evm_write::<ByteVariable>(7u8);
 
         // // Generate a proof.
-        // let (proof, mut output) = circuit.prove(&input);
+        let (_witness, mut output) = mock_circuit.mock_prove(&input);
 
         // // Read output.
-        // let xor = output.evm_read::<ByteVariable>();
-        // println!("{}", xor);
+        let xor = output.evm_read::<ByteVariable>();
+        println!("{}", xor);
     }
 }
