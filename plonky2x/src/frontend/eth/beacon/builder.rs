@@ -162,15 +162,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         );
 
         let index = self.rem(index, four);
-        let bits = self.to_be_bits(index);
+        let bits = self.to_le_bits(index);
         let first_half: BytesVariable<16> =
             BytesVariable::<16>(generator.balance_leaf.0 .0[..16].try_into().unwrap());
         let second_half: BytesVariable<16> =
             BytesVariable::<16>(generator.balance_leaf.0 .0[16..].try_into().unwrap());
-        let half = self.select(bits[0], second_half, first_half);
+        let half = self.select(bits[1], second_half, first_half);
         let first_quarter: BytesVariable<8> = BytesVariable::<8>(half.0[..8].try_into().unwrap());
         let second_quarter: BytesVariable<8> = BytesVariable::<8>(half.0[8..].try_into().unwrap());
-        let quarter = self.select(bits[1], second_quarter, first_quarter);
+        let quarter = self.select(bits[0], second_quarter, first_quarter);
 
         let balance_bytes = generator.balance.encode(self);
         let quarter_bytes = quarter.0;
@@ -487,7 +487,7 @@ pub(crate) mod tests {
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let balances = builder.beacon_get_balances(block_root);
-        let index = builder.constant::<U64Variable>(0.into());
+        let index = builder.constant::<U64Variable>(7.into());
         let balance = builder.beacon_get_balance(balances, index);
         builder.watch(&balance, "balance");
 
