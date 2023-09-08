@@ -98,11 +98,11 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
     ) -> IoResult<()> {
         let chain_id_bytes = self.chain_id.to_be_bytes();
         dst.write_all(&chain_id_bytes)?;
-
         dst.write_target_vec(&self.block_hash.targets())?;
         dst.write_target_vec(&self.address.targets())?;
         dst.write_target_vec(&self.storage_key.targets())?;
-        dst.write_target_vec(&self.value.targets())
+        dst.write_target_vec(&self.value.targets())?;
+        Ok(())
     }
 
     #[allow(unused_variables)]
