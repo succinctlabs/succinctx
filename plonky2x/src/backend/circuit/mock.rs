@@ -1,31 +1,38 @@
 use itertools::Itertools;
+use std::collections::HashMap;
+
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::generate_partial_witness;
 use plonky2::iop::witness::{PartialWitness, PartitionWitness};
-use plonky2::plonk::circuit_data::CircuitData;
+use plonky2::plonk::circuit_data::{MockCircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::serialization::{
     Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
 };
 
-/// A mock circuit which can compute any function in the form `f(x)=y`.
+use super::witness::fill_witness;
+use crate::backend::config::PlonkParameters;
+use crate::frontend::builder::CircuitIO;
+/// A compiled circuit which can compute any function in the form `f(x)=y`.
 #[derive(Debug)]
-pub struct MockCircuit<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    pub data: MockCircuitData<F, C, D>,
+pub struct MockCircuit<L: PlonkParameters<D>, const D: usize> {
+    pub data: MockCircuitData<L::Field, L::Config, D>,
     pub io: CircuitIO<D>,
+    pub debug_variables: HashMap<usize, String>,
 }
 
-impl MockCircuit<GoldilocksField, FastConfig, 2> {
+impl<L: PlonkParameters<D>, const D: usize> MockCircuit<L, D> {
     /// Creates a new mock circuit.
-    pub fn fill_witness(&mut pw: PartialWitness<F>) -> Self {
-        let res = fill_witness(pw, &self.data.prover_data, &self.data.common_data);
+    pub fn fill_witness(&mut self, pw: PartialWitness<L::Field>) {
+        let res = fill_witness(pw, &self.data.prover_only, &self.data.common);
         match res {
             Ok(witness) => {
-                let mut io = CircuitIO::new();
-                io.set_witness(witness);
-                Self { data, io }
+                let mut io: CircuitIO<D> = CircuitIO::new();
+                // io.set_witness(witness);
+                // Self { data, io }
             }
             Err(e) => {
                 println!("failed to fill witness");

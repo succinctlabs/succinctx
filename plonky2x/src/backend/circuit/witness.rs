@@ -1,8 +1,9 @@
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::generator::{generate_partial_witness, GeneratedValues};
-use plonky2::iop::witness::{PartialWitness, PartitionWitness};
+use plonky2::iop::generator::GeneratedValues;
+use plonky2::iop::target::Target;
+use plonky2::iop::witness::{PartialWitness, PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData, ProverOnlyCircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
@@ -102,7 +103,7 @@ pub fn fill_witness<
                 }
             }
         }
-        FillWitnessError::GeneratorsNotRun(unpopulated_targets)
+        return Err(FillWitnessError::GeneratorsNotRun(unpopulated_targets));
     }
 
     assert_eq!(
