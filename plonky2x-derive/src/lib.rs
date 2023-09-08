@@ -82,3 +82,14 @@ fn add_trait_bounds(mut generics: Generics) -> Generics {
     }
     generics
 }
+
+
+
+// #[proc_macro_attribute]
+// pub fn value_traits(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+
+//     // let trait_list = parse_macro_input!(attr as syn::Attribute);
+
+//     let expanded = quote! {};
+//     proc_macro::TokenStream::from(expanded)
+// }
