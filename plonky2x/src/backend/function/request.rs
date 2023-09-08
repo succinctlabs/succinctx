@@ -3,17 +3,17 @@ use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BytesData {
+pub struct BytesInput {
     pub input: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ElementsData {
+pub struct ElementsInput {
     pub input: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RecursiveProofsData {
+pub struct RecursiveProofsInput {
     pub subfunction: Option<String>,
     pub input: Vec<String>,
     pub proofs: Vec<String>,
@@ -30,16 +30,16 @@ pub struct FunctionRequestWrapper<D> {
 #[serde(tag = "type")]
 pub enum FunctionRequest {
     #[serde(rename = "req_bytes")]
-    Bytes(FunctionRequestWrapper<BytesData>),
+    Bytes(FunctionRequestWrapper<BytesInput>),
     #[serde(rename = "req_elements")]
-    Elements(FunctionRequestWrapper<ElementsData>),
+    Elements(FunctionRequestWrapper<ElementsInput>),
     #[serde(rename = "req_recursiveProofs")]
-    RecursiveProofs(FunctionRequestWrapper<RecursiveProofsData>),
+    RecursiveProofs(FunctionRequestWrapper<RecursiveProofsInput>),
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use crate::backend::function::io::FunctionRequest;
+    use crate::backend::function::request::FunctionRequest;
 
     #[test]
     fn test_function_request_deserialize() {

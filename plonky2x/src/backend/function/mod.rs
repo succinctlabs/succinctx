@@ -1,12 +1,14 @@
 mod cli;
 mod io;
+mod request;
+mod result;
 
 use std::fs::File;
 use std::io::{Read, Write};
 
 use clap::Parser;
-use curta::math::prelude::PrimeField64;
 use log::{debug, info, warn};
+use plonky2::field::types::Field;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use self::cli::{BuildArgs, ProveArgs};
@@ -15,7 +17,10 @@ use super::config::PlonkParameters;
 use crate::backend::circuit::Circuit;
 use crate::backend::config::DefaultParameters;
 use crate::backend::function::cli::{Args, Commands};
-use crate::backend::function::io::{FunctionInput, FunctionOutput, FunctionOutputGroth16};
+use crate::backend::function::request::FunctionRequest;
+use crate::backend::function::result::{
+    BytesResult, ElementsResult, FunctionResult, FunctionResultWrapper,
+};
 
 pub trait CircuitFunction {
     /// Builds the circuit.
@@ -79,15 +84,6 @@ contract FunctionVerifier is IFunctionVerifier {
         );
     }
 
-    /// Generates a proof with evm-based inputs and outputs.
-    /// type Groth16Proof struct {
-    //     A      [2]*big.Int    `json:"a"`
-    //     B      [2][2]*big.Int `json:"b"`
-    //     C      [2]*big.Int    `json:"c"`
-    //     Input  hexutil.Bytes  `json:"input"`
-    //     Output hexutil.Bytes  `json:"output"`
-    // }
-
     fn prove_with_evm_io<L: PlonkParameters<D>, const D: usize>(args: ProveArgs, bytes: Vec<u8>)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
@@ -108,33 +104,21 @@ contract FunctionVerifier is IFunctionVerifier {
         circuit.verify(&proof, &input, &output);
         info!("Proof verified.");
         let output_bytes = output.evm_read_all();
-
-        let function_output = FunctionOutput {
-            bytes: Some(hex::encode(output_bytes.clone())),
-            elements: None,
-            proof: hex::encode(proof.to_bytes()),
-        };
-        let json = serde_json::to_string_pretty(&function_output).unwrap();
-        let mut file = File::create("plonky2_output.json").unwrap();
-        file.write_all(json.as_bytes()).unwrap();
-        info!(
-            "Succesfully wrote output of {} bytes and proof to plonky2_output.json.",
-            output_bytes.len()
-        );
-
-        let input_hex_string = format!("0x{}", hex::encode(bytes.clone()));
         let output_hex_string = format!("0x{}", hex::encode(output_bytes.clone()));
-        let dummy_groth16_proof = FunctionOutputGroth16 {
-            a: [0, 0],
-            b: [[0, 0], [0, 0]],
-            c: [0, 0],
-            input: input_hex_string,
-            output: output_hex_string,
-        };
-        let json = serde_json::to_string_pretty(&dummy_groth16_proof).unwrap();
+
+        let function_result = FunctionResult::Bytes(FunctionResultWrapper {
+            data: BytesResult {
+                proof: hex::encode(proof.to_bytes()),
+                output: output_hex_string,
+            },
+        });
+        let json = serde_json::to_string(&function_result).unwrap();
         let mut file = File::create("output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
-        info!("Succesfully wrote dummy proof to output.json.");
+        info!(
+            "Succesfully wrote output of {} bytes and proof to output.json.",
+            output_bytes.len()
+        );
     }
 
     /// Generates a proof with field-based inputs and outputs.
@@ -161,16 +145,12 @@ contract FunctionVerifier is IFunctionVerifier {
         info!("Proof verified.");
         let output_elements = output.read_all();
 
-        let function_output = FunctionOutput {
-            bytes: None,
-            elements: Some(
-                output_elements
-                    .iter()
-                    .map(|e| e.as_canonical_u64())
-                    .collect(),
-            ),
-            proof: hex::encode(proof.to_bytes()),
-        };
+        let function_output = FunctionResult::Elements(FunctionResultWrapper {
+            data: ElementsResult {
+                proof: hex::encode(proof.to_bytes()),
+                output: output_elements.iter().map(|e| e.to_string()).collect(),
+            },
+        });
         let json = serde_json::to_string_pretty(&function_output).unwrap();
         let mut file = File::create("output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
@@ -181,7 +161,7 @@ contract FunctionVerifier is IFunctionVerifier {
     }
 
     /// Reads the function input from a JSON file path.
-    fn read_function_input(input_json: String) -> FunctionInput {
+    fn read_function_input(input_json: String) -> FunctionRequest {
         let mut file = File::open(input_json).unwrap();
         let mut data = String::new();
         file.read_to_string(&mut data).unwrap();
@@ -200,12 +180,31 @@ contract FunctionVerifier is IFunctionVerifier {
             }
             Commands::Prove(args) => {
                 let input = Self::read_function_input(args.clone().input_json);
-                if input.bytes.is_some() {
-                    Self::prove_with_evm_io::<L, D>(args, input.bytes());
-                } else if input.elements.is_some() {
-                    Self::prove_with_field_io::<L, D>(args, input.elements());
-                } else {
-                    warn!("No input bytes or elements found in input.json.");
+                match input {
+                    FunctionRequest::Bytes(input) => {
+                        Self::prove_with_evm_io::<L, D>(
+                            args,
+                            hex::decode(input.data.input).expect("failed to decode input bytes"),
+                        );
+                    }
+                    FunctionRequest::Elements(input) => {
+                        Self::prove_with_field_io::<L, D>(
+                            args,
+                            input
+                                .data
+                                .input
+                                .iter()
+                                .map(|e| {
+                                    <L as PlonkParameters<D>>::Field::from_canonical_u64(
+                                        e.parse::<u64>().unwrap(),
+                                    )
+                                })
+                                .collect(),
+                        );
+                    }
+                    _ => {
+                        warn!("No input bytes or elements found in input.json.");
+                    }
                 }
             }
         }
@@ -224,12 +223,31 @@ contract FunctionVerifier is IFunctionVerifier {
             input_json: input_json.clone(),
         };
         let input = Self::read_function_input(input_json);
-        if input.bytes.is_some() {
-            Self::prove_with_evm_io::<L, D>(prove_args, input.bytes());
-        } else if input.elements.is_some() {
-            Self::prove_with_field_io::<L, D>(prove_args, input.elements());
-        } else {
-            panic!("No input bytes or field elements found in input.json.")
+        match input {
+            FunctionRequest::Bytes(input) => {
+                Self::prove_with_evm_io::<L, D>(
+                    prove_args,
+                    hex::decode(input.data.input).expect("failed to decode input bytes"),
+                );
+            }
+            FunctionRequest::Elements(input) => {
+                Self::prove_with_field_io::<L, D>(
+                    prove_args,
+                    input
+                        .data
+                        .input
+                        .iter()
+                        .map(|e| {
+                            <L as PlonkParameters<D>>::Field::from_canonical_u64(
+                                e.parse::<u64>().unwrap(),
+                            )
+                        })
+                        .collect(),
+                );
+            }
+            _ => {
+                warn!("No input bytes or elements found in input.json.");
+            }
         }
     }
 }
