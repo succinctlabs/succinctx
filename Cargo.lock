@@ -2647,6 +2647,7 @@ dependencies = [
  "log",
  "num",
  "plonky2",
+ "plonky2x-derive",
  "rand",
  "reqwest",
  "serde",
@@ -2654,6 +2655,15 @@ dependencies = [
  "serde_with",
  "sha2",
  "tokio",
+]
+
+[[package]]
+name = "plonky2x-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.31",
 ]
 
 [[package]]

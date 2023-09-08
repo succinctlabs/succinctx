@@ -15,9 +15,15 @@ pub mod frontend;
 pub mod utils;
 
 pub mod prelude {
+    pub use plonky2::field::extension::Extendable;
     pub use plonky2::field::goldilocks_field::GoldilocksField;
+    pub use plonky2::field::types::Field;
+    pub use plonky2::hash::hash_types::RichField;
     pub use plonky2::iop::witness::PartialWitness;
     pub use plonky2::plonk::config::PoseidonGoldilocksConfig;
+    pub use plonky2::iop::witness::{Witness, WitnessWrite};
+
+    pub use plonky2x_derive::CircuitVariable;
 
     pub use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
     pub use crate::frontend::builder::{CircuitBuilder, CircuitBuilderX};
@@ -25,5 +31,6 @@ pub mod prelude {
     pub use crate::frontend::vars::{
         BoolVariable, ByteVariable, BytesVariable, CircuitVariable, Variable,
     };
+    pub use crate::backend::config::{DefaultParameters, PlonkParameters};
     pub use crate::utils::{address, bytes, bytes32, hex};
 }

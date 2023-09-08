@@ -37,16 +37,6 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
         value: Self::ValueType<L::Field>,
     ) -> Self;
 
-    /// Serializes the circuit variable to targets.
-    fn targets(&self) -> Vec<Target> {
-        self.variables().into_iter().map(|v| v.0).collect()
-    }
-
-    /// Deserializes a variable from a list of targets.
-    fn from_targets(targets: &[Target]) -> Self {
-        Self::from_variables(&targets.iter().map(|t| Variable(*t)).collect_vec())
-    }
-
     /// Serializes the circuit variable to variables.
     fn variables(&self) -> Vec<Variable>;
 
@@ -58,6 +48,17 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
 
     /// Sets the value of the variable in the witness.
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>);
+
+
+    /// Serializes the circuit variable to targets.
+    fn targets(&self) -> Vec<Target> {
+        self.variables().into_iter().map(|v| v.0).collect()
+    }
+
+    /// Deserializes a variable from a list of targets.
+    fn from_targets(targets: &[Target]) -> Self {
+        Self::from_variables(&targets.iter().map(|t| Variable(*t)).collect_vec())
+    }
 
     /// The number of field elements it takes to represent this variable.
     fn nb_elements() -> usize {
@@ -159,4 +160,21 @@ pub trait SSZVariable: CircuitVariable {
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) -> Bytes32Variable;
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[derive(Debug, Clone, CircuitVariable)]
+    struct Point {
+        x : Variable,
+        y : Variable,
+    }
+
+    #[test]
+    fn derive_test() {
+
+    }
 }
