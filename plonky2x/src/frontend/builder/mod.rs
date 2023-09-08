@@ -130,7 +130,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         Circuit { data, io: self.io }
     }
 
-    pub fn mock_build<C>(mut self) -> MockCircuit<L, D> {
+    pub fn mock_build(mut self) -> MockCircuit<L, D> {
         let mock_circuit = self.api.mock_build();
         MockCircuit {
             data: mock_circuit,
