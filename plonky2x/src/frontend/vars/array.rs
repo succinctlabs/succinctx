@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+use std::ops::{Index, Range};
 
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
@@ -26,6 +27,28 @@ impl<V: CircuitVariable, const N: usize> ArrayVariable<V, N> {
 
     pub fn as_vec(&self) -> Vec<V> {
         self.elements.clone()
+    }
+}
+
+impl<V: CircuitVariable, const N: usize> Index<usize> for ArrayVariable<V, N> {
+    type Output = V;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.elements[index]
+    }
+}
+
+impl<V: CircuitVariable, const N: usize> Index<Range<usize>> for ArrayVariable<V, N> {
+    type Output = [V];
+
+    fn index(&self, range: Range<usize>) -> &Self::Output {
+        &self.elements[range]
+    }
+}
+
+impl<V: CircuitVariable, const N: usize> From<Vec<V>> for ArrayVariable<V, N> {
+    fn from(elements: Vec<V>) -> Self {
+        ArrayVariable::new(elements)
     }
 }
 
