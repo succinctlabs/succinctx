@@ -77,6 +77,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
 
         dst.write_target_vec(&self.output.targets())?;
 
+        dst.write_bool(self.length.is_some())?;
         if self.length.is_some() {
             dst.write_target_vec(&self.length.unwrap().targets())
         } else {
@@ -102,12 +103,14 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         }
 
         let output_targets = src.read_target_vec()?;
-        let output = Bytes32Variable::from_targets(&input_targets);
+        let output = Bytes32Variable::from_targets(&output_targets);
 
-        let length = src
-            .read_target_vec()
-            .map(|targets| Some(Variable::from_targets(&targets)))
-            .unwrap_or(None);
+        let length_exists = src.read_bool()?;
+        let length = if length_exists {
+            Some(Variable::from_targets(&src.read_target_vec()?))
+        } else {
+            None
+        };
 
         Ok(Self {
             input,
