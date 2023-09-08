@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 
 use clap::Parser;
-use log::{debug, info, warn};
+use log::{info, warn};
 use plonky2::field::types::Field;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
