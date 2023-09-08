@@ -1,24 +1,19 @@
-use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::GeneratedValues;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, PartitionWitness, Witness, WitnessWrite};
-use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData, ProverOnlyCircuitData};
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::ProofWithPublicInputs;
-use plonky2::util::serialization::{
-    Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
-};
+use plonky2::plonk::circuit_data::{CommonCircuitData, ProverOnlyCircuitData};
+use plonky2::plonk::config::GenericConfig;
 
 #[derive(Debug, Clone)]
-pub enum FillWitnessError {
+pub enum GenerateWitnessError {
     GeneratorsNotRun(Vec<Target>),
 }
 
-/// Given a `PartitionWitness` that has only inputs set, populates the rest of the witness using the
+/// Given a `PartialWitness` that has only inputs set, populates the rest of the witness using the
 /// given set of generators.
-pub fn fill_witness<
+pub fn generate_witness<
     'a,
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -27,7 +22,7 @@ pub fn fill_witness<
     inputs: PartialWitness<F>,
     prover_data: &'a ProverOnlyCircuitData<F, C, D>,
     common_data: &'a CommonCircuitData<F, D>,
-) -> Result<PartitionWitness<'a, F>, FillWitnessError> {
+) -> Result<PartitionWitness<'a, F>, GenerateWitnessError> {
     let config = &common_data.config;
     let generators = &prover_data.generators;
     let generator_indices_by_watches = &prover_data.generator_indices_by_watches;
@@ -103,7 +98,7 @@ pub fn fill_witness<
                 }
             }
         }
-        return Err(FillWitnessError::GeneratorsNotRun(unpopulated_targets));
+        return Err(GenerateWitnessError::GeneratorsNotRun(unpopulated_targets));
     }
 
     assert_eq!(

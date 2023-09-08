@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::generator::generate_partial_witness;
 use plonky2::iop::witness::{PartialWitness, PartitionWitness};
 use plonky2::plonk::circuit_data::MockCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
@@ -12,7 +11,7 @@ use plonky2::util::serialization::{
     Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
 };
 
-use super::witness::{fill_witness, FillWitnessError};
+use super::witness::{generate_witness, GenerateWitnessError};
 use crate::backend::circuit::{CircuitInput, CircuitOutput};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
@@ -26,21 +25,6 @@ pub struct MockCircuit<L: PlonkParameters<D>, const D: usize> {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> MockCircuit<L, D> {
-    pub fn mock_prove_witness(
-        &self,
-        pw: PartialWitness<L::Field>,
-    ) -> Result<PartitionWitness<L::Field>, FillWitnessError> {
-        let res = fill_witness(pw, &self.data.prover_only, &self.data.common);
-        match res {
-            Ok(witness) => Ok(witness),
-            Err(e) => {
-                println!("failed to fill witness");
-                // TODO: Use the debug information
-                Err(e)
-            }
-        }
-    }
-
     /// Returns an input instance for the circuit.
     pub fn input(&self) -> CircuitInput<L, D> {
         CircuitInput {
@@ -63,16 +47,24 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuit<L, D> {
             input_variables[i].set(&mut pw, input.buffer[i]);
         }
 
-        let partition_witness = self.mock_prove_witness(pw).unwrap();
+        let result = generate_witness(pw, &self.data.prover_only, &self.data.common);
+        if let Err(e) = result {
+            match e {
+                GenerateWitnessError::GeneratorsNotRun(targets) => {
+                    panic!("generators not run: {:?}", targets)
+                }
+            }
+        };
+        let filled_witness = result.unwrap();
 
         let output_variables = self.io.get_output_variables();
         let output_elements = output_variables
             .iter()
-            .map(|v| v.get(&partition_witness))
+            .map(|v| v.get(&filled_witness))
             .collect_vec();
 
         (
-            partition_witness,
+            filled_witness,
             CircuitOutput {
                 io: self.io.clone(),
                 buffer: output_elements,
@@ -87,27 +79,6 @@ pub(crate) mod tests {
     use plonky2::field::types::Field;
 
     use crate::prelude::*;
-
-    #[test]
-    fn test_mock_circuit_mock_prove_witness() {
-        // Define your circuit.
-        let mut builder = CircuitBuilderX::new();
-        let a = builder.read::<Variable>();
-        let b = builder.read::<Variable>();
-        let c = builder.add(a, b);
-        builder.write(c);
-
-        // Build your circuit.
-        let mock_circuit = builder.mock_build();
-
-        let mut pw = PartialWitness::new();
-        a.set(&mut pw, GoldilocksField::TWO);
-        b.set(&mut pw, GoldilocksField::TWO);
-        let witness = mock_circuit.mock_prove_witness(pw).unwrap();
-
-        let c_value = c.get(&witness);
-        println!("{}", c_value);
-    }
 
     #[test]
     fn test_mock_circuit_with_field_io() {
