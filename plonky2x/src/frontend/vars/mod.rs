@@ -3,6 +3,7 @@ mod boolean;
 mod byte;
 mod bytes;
 mod bytes32;
+mod collections;
 mod stream;
 mod variable;
 use std::fmt::Debug;
@@ -48,7 +49,6 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
 
     /// Sets the value of the variable in the witness.
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>);
-
 
     /// Serializes the circuit variable to targets.
     fn targets(&self) -> Vec<Target> {
@@ -162,19 +162,26 @@ pub trait SSZVariable: CircuitVariable {
     ) -> Bytes32Variable;
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
 
-    #[derive(Debug, Clone, CircuitVariable)]
-    struct Point {
-        x : Variable,
-        y : Variable,
-    }
-
     #[test]
-    fn derive_test() {
+    fn test_derive_struct() {
+        #[derive(PartialEq, Eq, Debug, Clone, CircuitVariable)]
+        struct Point {
+            x: Variable,
+            y: Variable,
+        }
 
+        let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
+
+        let point = builder.init::<Point>();
+
+        let variables = point.variables();
+
+        let point_back = Point::from_variables(&variables);
+
+        assert_eq!(point, point_back);
     }
 }
