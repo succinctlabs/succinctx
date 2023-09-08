@@ -1,8 +1,18 @@
 extern crate proc_macro;
 
-use proc_macro2::{Ident, TokenStream};
+mod constant;
+mod init;
+mod value;
+mod variables;
+mod witness;
+
+use constant::constant;
+use init::init;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, Data, DeriveInput, GenericParam, Generics};
+use syn::{parse_macro_input, parse_quote, DeriveInput, GenericParam, Generics};
+use value::value;
+use variables::{from_variables, variables};
+use witness::{get, set};
 
 #[proc_macro_derive(CircuitVariable)]
 pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -14,7 +24,7 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
 
     let data = input.data;
 
-    let (value_ident, value_generics,value_expanded) = value(&name, &data, &generics);
+    let (value_ident, value_generics, value_expanded) = value(&name, &data, &generics);
     let (_, value_ty_generics, _) = value_generics.split_for_impl();
 
     let init_expanded = init(&data);
@@ -64,88 +74,6 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
     proc_macro::TokenStream::from(expanded)
 }
 
-fn init(data: &Data) -> TokenStream {
-    match *data {
-        Data::Struct(ref data) => {
-            let recurse = data.fields.iter().map(|f| {
-                let name = &f.ident;
-                let ty = &f.ty;
-                quote! {
-                    #name: <#ty as CircuitVariable>::init(builder),
-                }
-            });
-            quote! {
-                Self {
-                    #(#recurse)*
-                }
-            }
-        }
-        Data::Enum(_) => unimplemented!("enums not supported"),
-        Data::Union(_) => unimplemented!("unions not supported"),
-    }
-}
-
-fn constant(data: &Data) -> TokenStream {
-    match *data {
-        Data::Struct(ref data) => {
-            let recurse = data.fields.iter().map(|f| {
-                let name = &f.ident;
-                let ty = &f.ty;
-                quote! {
-                    #name: <#ty as CircuitVariable>::constant(builder, value.#name),
-                }
-            });
-            quote! {
-                Self {
-                    #(#recurse)*
-                }
-            }
-        }
-        Data::Enum(_) => unimplemented!("enums not supported"),
-        Data::Union(_) => unimplemented!("unions not supported"),
-    }
-}
-
-fn variables(data: &Data) -> TokenStream {
-    match *data {
-        Data::Struct(ref data) => {
-            let recurse = data.fields.iter().map(|f| {
-                        let name = &f.ident;
-                        let ty = &f.ty;
-                        quote! {
-                            vars_vec.extend_from_slice(<#ty as CircuitVariable>::variables(&self.#name).as_slice());
-
-                        }
-                    });
-            quote! {
-                let mut vars_vec = vec![];
-
-                #(#recurse)*
-
-                vars_vec
-            }
-        }
-        Data::Enum(ref data) => {
-            let recurse = data.variants.iter().enumerate().map(|(i, v)| {
-                let name = &v.ident;
-                quote! {
-                    #name => {
-                        let mut vars = vec![F::from_canonical_usize(#i as usize)];
-                        vars.extend_from_slice(&<#name as CircuitVariable>::variables(self));
-                        vars
-                    },
-                }
-            });
-            quote! {
-                match self {
-                    #(#recurse)*
-                }
-            }
-        }
-        Data::Union(_) => unimplemented!(),
-    }
-}
-
 fn add_trait_bounds(mut generics: Generics) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
@@ -153,105 +81,4 @@ fn add_trait_bounds(mut generics: Generics) -> Generics {
         }
     }
     generics
-}
-
-fn value(name: &Ident, data: &Data, generics: &Generics) -> (Ident, Generics, TokenStream) {
-    let namevalue = Ident::new(&format!("{}Value", name), name.span());
-    let mut value_generics = generics.clone();
-    value_generics.params.push(parse_quote!(F: RichField));
-    let value_expanded = match *data {
-        Data::Struct(ref data) => {
-            let recurse = data.fields.iter().map(|f| {
-                let name = &f.ident;
-                let ty = &f.ty;
-                // let visibility = &f.vis;
-                quote! {
-                    pub #name: <#ty as CircuitVariable>::ValueType<F>,
-                }
-            });
-            quote! {
-                #[derive(Debug, Clone)]
-                pub struct #namevalue #value_generics {
-                    #(#recurse)*
-                }
-            }
-        }
-        Data::Enum(_) => unimplemented!("enums not supported"),
-        Data::Union(_) => unimplemented!("unions not supported"),
-    };
-    (namevalue,value_generics, value_expanded)
-}
-
-fn from_variables(data: &Data) -> TokenStream {
-    match *data {
-        Data::Struct(ref data) => {
-            let value_recurse = data.fields.iter().map(|f| {
-                let name = &f.ident;
-                let ty = &f.ty;
-                quote! {
-                    let size = <#ty as CircuitVariable>::nb_elements();
-                    let #name = <#ty as CircuitVariable>::from_variables(&variables[index..index+size]);
-                    index += size;
-                }
-            });
-
-            let instant_recurse = data.fields.iter().map(|f| {
-                let name = &f.ident;
-                quote! {
-                    #name,
-                }
-            });
-            quote! {
-                let mut index = 0;
-                #(#value_recurse)*
-
-                Self {
-                    #(#instant_recurse)*
-                }
-            }
-        }
-        Data::Enum(_) => unimplemented!("enums not supported"),
-        Data::Union(_) => unimplemented!("unions not supported"),
-    }
-}
-
-fn set(data: &Data) -> TokenStream {
-    match *data {
-        Data::Struct(ref data) => {
-            let recurse = data.fields.iter().map(|f| {
-                let name = &f.ident;
-                let ty = &f.ty;
-                quote! {
-                    <#ty as CircuitVariable>::set(&self.#name, witness, value.#name);
-                }
-            });
-            quote! {
-                #(#recurse)*
-            }
-        }
-        Data::Enum(_) => unimplemented!("enums not supported"),
-        Data::Union(_) => unimplemented!("unions not supported"),
-    }
-}
-
-fn get(data: &Data) -> TokenStream {
-    match *data {
-        Data::Struct(ref data) => {
-            let recurse = data.fields.iter().map(|f| {
-                let name = &f.ident;
-                let ty = &f.ty;
-                quote! {
-                    #name: <#ty as CircuitVariable>::get(&self.#name, witness),
-
-                }
-            });
-            quote! {
-                Self::ValueType::<F> {
-                    #(#recurse)*
-                }
-            }
-        }
-        Data::Enum(_) => unimplemented!("enums not supported"),
-        Data::Union(_) => unimplemented!("unions not supported"),
-    }
 }

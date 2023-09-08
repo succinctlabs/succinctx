@@ -169,8 +169,8 @@ mod tests {
     #[test]
     fn test_derive_struct() {
         #[derive(Debug, Clone, CircuitVariable)]
-        struct Point<V : CircuitVariable, U: CircuitVariable> {
-            x: V,
+        struct Point<V: CircuitVariable, U: CircuitVariable> {
+            pub x: V,
             y: U,
             z: Variable,
         }
@@ -187,7 +187,6 @@ mod tests {
             z: GoldilocksField::ZERO,
         });
 
-
         builder.assert_is_equal(point.clone(), constant_point.clone());
 
         let variables = point.variables();
@@ -203,6 +202,5 @@ mod tests {
             y: 1u8,
             z: GoldilocksField::ZERO,
         });
-
     }
 }
