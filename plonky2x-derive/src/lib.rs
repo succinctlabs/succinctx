@@ -14,7 +14,8 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
 
     let data = input.data;
 
-    let (value_ident, value_expanded) = value(&name, &data, &generics);
+    let (value_ident, value_generics,value_expanded) = value(&name, &data, &generics);
+    let (_, value_ty_generics, _) = value_generics.split_for_impl();
 
     let init_expanded = init(&data);
     let constant_expanded = constant(&data);
@@ -27,9 +28,9 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
 
         #value_expanded
 
-        impl #impl_generics CircuitVariable for #name #ty_generics #where_clause {
+        impl #impl_generics CircuitVariable for #name #ty_generics where #where_clause {
 
-            type ValueType<F: RichField> = #value_ident<F>;
+            type ValueType<F: RichField> = #value_ident #value_ty_generics;
 
             fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
                 #init_expanded
@@ -154,10 +155,10 @@ fn add_trait_bounds(mut generics: Generics) -> Generics {
     generics
 }
 
-fn value(name: &Ident, data: &Data, _generics: &Generics) -> (Ident, TokenStream) {
+fn value(name: &Ident, data: &Data, generics: &Generics) -> (Ident, Generics, TokenStream) {
     let namevalue = Ident::new(&format!("{}Value", name), name.span());
-    // let mut value_generics = generics.clone();
-    // value_generics.params.push(parse_quote!(F: RichField));
+    let mut value_generics = generics.clone();
+    value_generics.params.push(parse_quote!(F: RichField));
     let value_expanded = match *data {
         Data::Struct(ref data) => {
             let recurse = data.fields.iter().map(|f| {
@@ -170,7 +171,7 @@ fn value(name: &Ident, data: &Data, _generics: &Generics) -> (Ident, TokenStream
             });
             quote! {
                 #[derive(Debug, Clone)]
-                pub struct #namevalue<F: RichField> {
+                pub struct #namevalue #value_generics {
                     #(#recurse)*
                 }
             }
@@ -178,7 +179,7 @@ fn value(name: &Ident, data: &Data, _generics: &Generics) -> (Ident, TokenStream
         Data::Enum(_) => unimplemented!("enums not supported"),
         Data::Union(_) => unimplemented!("unions not supported"),
     };
-    (namevalue, value_expanded)
+    (namevalue,value_generics, value_expanded)
 }
 
 fn from_variables(data: &Data) -> TokenStream {

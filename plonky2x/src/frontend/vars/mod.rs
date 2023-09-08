@@ -27,7 +27,7 @@ use crate::frontend::builder::CircuitBuilder;
 
 pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     /// The underlying type of the variable if it were not in a circuit.
-    type ValueType<F: RichField>: Debug;
+    type ValueType<F: RichField>: Debug + Clone;
 
     /// Initializes the variable with no value in the circuit.
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self;
@@ -168,21 +168,41 @@ mod tests {
 
     #[test]
     fn test_derive_struct() {
-        #[derive(PartialEq, Eq, Debug, Clone, CircuitVariable)]
-        struct Point {
-            x: Variable,
-            y: Variable,
+        #[derive(Debug, Clone, CircuitVariable)]
+        struct Point<V : CircuitVariable, U: CircuitVariable> {
+            x: V,
+            y: U,
             z: Variable,
         }
 
+        type TestPoint = Point<Variable, ByteVariable>;
+
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
 
-        let point = builder.init::<Point>();
+        let point = builder.read::<TestPoint>();
+
+        let constant_point = builder.constant::<TestPoint>(PointValue {
+            x: GoldilocksField::ONE,
+            y: 1u8,
+            z: GoldilocksField::ZERO,
+        });
+
+
+        builder.assert_is_equal(point.clone(), constant_point.clone());
 
         let variables = point.variables();
+        let point_back = TestPoint::from_variables(&variables);
+        assert_eq!(point.variables(), point_back.variables());
 
-        let point_back = Point::from_variables(&variables);
+        builder.write::<TestPoint>(constant_point);
 
-        assert_eq!(point, point_back);
+        let circuit = builder.build();
+        let mut input = circuit.input();
+        input.write::<TestPoint>(PointValue {
+            x: GoldilocksField::ONE,
+            y: 1u8,
+            z: GoldilocksField::ZERO,
+        });
+
     }
 }

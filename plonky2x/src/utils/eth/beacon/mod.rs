@@ -51,7 +51,7 @@ pub struct BeaconHeader {
 
 /// The beacon validator struct according to the consensus spec.
 /// Reference: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde_as]
 pub struct BeaconValidator {
