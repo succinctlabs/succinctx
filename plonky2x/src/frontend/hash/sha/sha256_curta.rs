@@ -138,7 +138,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             // If temp_nb_chunks / 1024 != nb_chunks / 1024 & temp_nb_chunks % 1024 != 0 we need to zero pad
             if (temp_nb_chunks / 1024 != nb_chunks / 1024) && temp_nb_chunks % 1024 != 0 {
-                println!("zero padding in between");
                 while nb_chunks % 1024 != 0 {
                     // We want to insert a 0 chunk in here!
                     let bytes = pad_variable_to_target(self, &zero_chunk);
@@ -158,14 +157,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             rq_idx += 1;
         }
 
-        println!("nb_chunks: {}", nb_chunks);
-        println!("sha_256_requests len {}", self.sha256_requests.len());
         while nb_chunks % 1024 != 0 {
             self.sha256_curta(&zero_chunk);
             nb_chunks += 1;
         }
-        println!("nb_chunks: {}", nb_chunks);
-        println!("sha_256_requests len {}", self.sha256_requests.len());
 
         let gadgets: Vec<SHA256BuilderGadget<<L as PlonkParameters<D>>::Field, L::CubicParams, D>> =
             (0..nb_chunks / 1024)
@@ -174,7 +169,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let mut rq_idx = 0;
         for i in 0..gadgets.len() {
-            println!("gadget num: {}", i);
             let mut gadget = gadgets[i].to_owned();
 
             let mut num_chunks_so_far = 0;
@@ -231,6 +225,6 @@ mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        // circuit.test_default_serializers();
+        circuit.test_default_serializers();
     }
 }
