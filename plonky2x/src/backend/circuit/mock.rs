@@ -1,21 +1,15 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{PartialWitness, PartitionWitness};
 use plonky2::plonk::circuit_data::MockCircuitData;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::ProofWithPublicInputs;
-use plonky2::util::serialization::{
-    Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
-};
 
 use super::witness::{generate_witness, GenerateWitnessError};
 use crate::backend::circuit::{CircuitInput, CircuitOutput};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
 use crate::frontend::vars::CircuitVariable;
+
 /// A compiled circuit which can compute any function in the form `f(x)=y`.
 #[derive(Debug)]
 pub struct MockCircuit<L: PlonkParameters<D>, const D: usize> {

@@ -1,4 +1,3 @@
-use std::backtrace::Backtrace;
 use std::fmt::Debug;
 
 use plonky2::hash::hash_types::RichField;
