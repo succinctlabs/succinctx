@@ -1,30 +1,40 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use syn::{parse_quote, Data, Generics};
+use syn::{parse_quote, Generics};
 
-pub fn value(name: &Ident, data: &Data, generics: &Generics) -> (Ident, Generics, TokenStream) {
-    let namevalue = Ident::new(&format!("{}Value", name), name.span());
+use crate::StructData;
+
+pub(crate) fn value(
+    name: &Ident,
+    value_derive: &[Ident],
+    data: &StructData,
+    generics: &Generics,
+) -> (Generics, TokenStream) {
+    // let namevalue = Ident::new(&format!("{}Value", name), name.span());
     let mut value_generics = generics.clone();
     value_generics.params.push(parse_quote!(F: RichField));
-    let value_expanded = match *data {
-        Data::Struct(ref data) => {
-            let recurse = data.fields.iter().map(|f| {
-                let name = &f.ident;
-                let ty = &f.ty;
-                let vis = &f.vis;
-                quote! {
-                    #vis #name: <#ty as CircuitVariable>::ValueType<F>,
-                }
-            });
-            quote! {
-                #[derive(Debug, Clone)]
-                pub struct #namevalue #value_generics {
-                    #(#recurse)*
-                }
-            }
+
+    let value_derive_recurs = value_derive.iter().map(|d| {
+        quote! {
+            #d,
         }
-        Data::Enum(_) => unimplemented!("enums not supported"),
-        Data::Union(_) => unimplemented!("unions not supported"),
+    });
+
+    let value_derive_expanded = quote! {
+        #[derive(#(#value_derive_recurs)*)]
     };
-    (namevalue, value_generics, value_expanded)
+
+    let recurse = data.fields.iter().map(|(name, ty, vis)| {
+        quote! {
+            #vis #name: <#ty as CircuitVariable>::ValueType<F>,
+        }
+    });
+
+    let value_expanded = quote! {
+        #value_derive_expanded
+        pub struct #name #value_generics {
+            #(#recurse)*
+        }
+    };
+    (value_generics, value_expanded)
 }

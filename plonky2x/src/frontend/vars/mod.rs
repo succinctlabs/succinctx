@@ -169,10 +169,11 @@ mod tests {
     #[test]
     fn test_derive_struct() {
         #[derive(Debug, Clone, CircuitVariable)]
+        #[value_name(MyPoint)]
         struct Point<V: CircuitVariable, U: CircuitVariable> {
             pub x: V,
             y: U,
-            z: Variable,
+            z: (Variable, V),
         }
 
         type TestPoint = Point<Variable, ByteVariable>;
@@ -181,10 +182,10 @@ mod tests {
 
         let point = builder.read::<TestPoint>();
 
-        let constant_point = builder.constant::<TestPoint>(PointValue {
+        let constant_point = builder.constant::<TestPoint>(MyPoint {
             x: GoldilocksField::ONE,
             y: 1u8,
-            z: GoldilocksField::ZERO,
+            z: (GoldilocksField::ZERO, GoldilocksField::ONE),
         });
 
         builder.assert_is_equal(point.clone(), constant_point.clone());
@@ -197,10 +198,10 @@ mod tests {
 
         let circuit = builder.build();
         let mut input = circuit.input();
-        input.write::<TestPoint>(PointValue {
+        input.write::<TestPoint>(MyPoint {
             x: GoldilocksField::ONE,
             y: 1u8,
-            z: GoldilocksField::ZERO,
+            z: (GoldilocksField::ZERO, GoldilocksField::ONE),
         });
     }
 }

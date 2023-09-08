@@ -8,31 +8,66 @@ mod witness;
 
 use constant::constant;
 use init::init;
+use proc_macro2::Ident;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, DeriveInput, GenericParam, Generics};
+use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Meta, Type, Visibility};
 use value::value;
 use variables::{from_variables, variables};
 use witness::{get, set};
 
-#[proc_macro_derive(CircuitVariable)]
+struct StructData {
+    fields: Vec<(Option<Ident>, Type, Visibility)>,
+}
+
+#[proc_macro_derive(CircuitVariable, attributes(value_name, value_derive))]
 pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     let name = input.ident;
-    let generics = add_trait_bounds(input.generics);
+    let generics = input.generics;
+
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let data = input.data;
 
-    let (value_ident, value_generics, value_expanded) = value(&name, &data, &generics);
+    let mut value_ident = Ident::new(&format!("{}Value", name), name.span());
+    let mut value_derive = vec![parse_quote!(Debug), parse_quote!(Clone)];
+
+    for attr in &input.attrs {
+        if attr.path().is_ident("value_name") {
+            value_ident = attr.parse_args::<Ident>().unwrap();
+        }
+        if attr.path().is_ident("value_derive") {
+            match attr.meta {
+                Meta::Path(ref path) => value_derive.push(path.get_ident().unwrap().clone()),
+                Meta::List(ref list) => {
+                    list.parse_nested_meta(|meta| {
+                        let ident = meta
+                            .path
+                            .get_ident()
+                            .expect("Could not parse value_derive attribute");
+                        value_derive.push(ident.clone());
+                        Ok(())
+                    })
+                    .expect("Could not parse value_derive atrributes");
+                }
+                Meta::NameValue(_) => panic!("value_derive cannot be a named value"),
+            }
+        }
+    }
+
+    let struct_data = parse_struct_data(data);
+
+    let (value_generics, value_expanded) =
+        value(&value_ident, &value_derive, &struct_data, &generics);
     let (_, value_ty_generics, _) = value_generics.split_for_impl();
 
-    let init_expanded = init(&data);
-    let constant_expanded = constant(&data);
-    let variables_expanded = variables(&data);
-    let from_variables_expanded = from_variables(&data);
-    let set_exapaned = set(&data);
-    let get_exapaned = get(&data);
+    let init_expanded = init(&struct_data);
+    let constant_expanded = constant(&struct_data);
+    let variables_expanded = variables(&struct_data);
+    let from_variables_expanded = from_variables(&struct_data);
+    let set_exapaned = set(&struct_data);
+    let get_exapaned = get(&struct_data);
 
     let expanded = quote! {
 
@@ -74,22 +109,22 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
     proc_macro::TokenStream::from(expanded)
 }
 
-fn add_trait_bounds(mut generics: Generics) -> Generics {
-    for param in &mut generics.params {
-        if let GenericParam::Type(ref mut type_param) = *param {
-            type_param.bounds.push(parse_quote!(CircuitVariable));
-        }
+fn parse_struct_data(data: Data) -> StructData {
+    match data {
+        Data::Struct(data) => StructData {
+            fields: data
+                .fields
+                .into_iter()
+                .map(|f| {
+                    let name = f.ident;
+                    let ty = f.ty;
+                    let vis = f.vis;
+
+                    (name, ty, vis)
+                })
+                .collect(),
+        },
+        Data::Enum(_) => unimplemented!("enums not supported"),
+        Data::Union(_) => unimplemented!("unions not supported"),
     }
-    generics
 }
-
-
-
-// #[proc_macro_attribute]
-// pub fn value_traits(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-
-//     // let trait_list = parse_macro_input!(attr as syn::Attribute);
-
-//     let expanded = quote! {};
-//     proc_macro::TokenStream::from(expanded)
-// }
