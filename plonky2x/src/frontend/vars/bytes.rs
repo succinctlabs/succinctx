@@ -271,6 +271,8 @@ mod tests {
 
     #[test]
     fn test_bytes_operations() {
+        env_logger::try_init().unwrap_or_default();
+
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let num_tests = 32;

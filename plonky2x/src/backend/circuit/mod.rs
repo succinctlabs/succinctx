@@ -1,6 +1,7 @@
 pub mod io;
+pub mod mock;
 pub mod serialization;
-
+pub mod witness;
 use std::fs;
 
 use itertools::Itertools;
@@ -46,20 +47,7 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
         CircuitOutput<L, D>,
     ) {
         // Get input variables from io.
-        let input_variables = if self.io.evm.is_some() {
-            self.io
-                .evm
-                .clone()
-                .unwrap()
-                .input_bytes
-                .into_iter()
-                .flat_map(|b| b.variables())
-                .collect()
-        } else if self.io.field.is_some() {
-            self.io.field.clone().unwrap().input_variables
-        } else {
-            vec![]
-        };
+        let input_variables = self.io.get_input_variables();
         assert_eq!(input_variables.len(), input.buffer.len());
 
         // Assign input variables.

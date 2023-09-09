@@ -18,6 +18,7 @@ impl CircuitVariable for Variable {
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         let target = builder.api.add_virtual_target();
+        builder.debug_target(target);
         Self(target)
     }
 
@@ -29,6 +30,7 @@ impl CircuitVariable for Variable {
         // so that we can use it to implement serialization/deserialize to/from elements for
         // ValueType automatically.
         let target = builder.api.constant(value);
+        builder.debug_target(target); // TODO: not sure if I need this
         let variable = Self(target);
         builder.constants.insert(variable, value);
         Self(target)
