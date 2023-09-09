@@ -14,11 +14,16 @@ pub(crate) fn value(
     let mut value_generics = generics.clone();
     value_generics.params.push(parse_quote!(F: RichField));
 
-    let value_derive_recurs = value_derive.iter().map(|d| {
-        quote! {
-            #d,
-        }
-    });
+    let (_, _, where_clause) = value_generics.split_for_impl();
+
+    let value_derive_recurs = value_derive
+        .iter()
+        .map(|d| {
+            quote! {
+                #d,
+            }
+        })
+        .collect::<Vec<_>>();
 
     let value_derive_expanded = quote! {
         #[derive(#(#value_derive_recurs)*)]
@@ -32,7 +37,7 @@ pub(crate) fn value(
 
     let value_expanded = quote! {
         #value_derive_expanded
-        pub struct #name #value_generics {
+        pub struct #name #value_generics #where_clause {
             #(#recurse)*
         }
     };

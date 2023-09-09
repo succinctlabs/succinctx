@@ -170,10 +170,10 @@ mod tests {
     fn test_derive_struct() {
         #[derive(Debug, Clone, CircuitVariable)]
         #[value_name(MyPoint)]
-        struct Point<V: CircuitVariable, U: CircuitVariable> {
+        struct Point<V, U> {
             pub x: V,
             y: U,
-            z: (Variable, V),
+            z: (Variable, Variable),
         }
 
         type TestPoint = Point<Variable, ByteVariable>;
