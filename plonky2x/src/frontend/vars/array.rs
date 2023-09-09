@@ -10,7 +10,7 @@ use crate::frontend::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a fixed length array of variables.
 /// We use this to avoid stack overflow arrays associated with fixed-length arrays.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ArrayVariable<V: CircuitVariable, const N: usize> {
     elements: Vec<V>,
 }
