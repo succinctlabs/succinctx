@@ -5,37 +5,37 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{CircuitVariable, Variable};
+use super::{FieldVariable, Variable};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not};
 
 /// A variable in the circuit representing a boolean value.
 #[derive(Debug, Clone, Copy)]
-pub struct BoolVariable(pub Variable);
+pub struct BoolVariable(pub FieldVariable);
 
-impl CircuitVariable for BoolVariable {
+impl Variable for BoolVariable {
     type ValueType<F: RichField> = bool;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
-        Self(Variable::init(builder))
+        Self(FieldVariable::init(builder))
     }
 
     fn constant<L: PlonkParameters<D>, const D: usize>(
         builder: &mut CircuitBuilder<L, D>,
         value: Self::ValueType<L::Field>,
     ) -> Self {
-        Self(Variable::constant(
+        Self(FieldVariable::constant(
             builder,
             L::Field::from_canonical_u64(value as u64),
         ))
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         vec![self.0]
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         assert_eq!(variables.len(), 1);
         Self(variables[0])
     }
@@ -51,12 +51,12 @@ impl CircuitVariable for BoolVariable {
 
 impl From<Target> for BoolVariable {
     fn from(v: Target) -> Self {
-        Self(Variable(v))
+        Self(FieldVariable(v))
     }
 }
 
-impl From<Variable> for BoolVariable {
-    fn from(v: Variable) -> Self {
+impl From<FieldVariable> for BoolVariable {
+    fn from(v: FieldVariable) -> Self {
         Self(v)
     }
 }
@@ -94,7 +94,7 @@ impl<L: PlonkParameters<D>, const D: usize> Not<L, D> for BoolVariable {
     type Output = BoolVariable;
 
     fn not(self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        let one = builder.one::<Variable>();
+        let one = builder.one::<FieldVariable>();
         builder.sub(one, self.0).into()
     }
 }

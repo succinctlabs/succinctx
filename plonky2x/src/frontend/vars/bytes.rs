@@ -4,7 +4,7 @@ use array_macro::array;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{CircuitVariable, EvmVariable, Variable};
+use super::{EvmVariable, FieldVariable, Variable};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
@@ -14,7 +14,7 @@ use crate::frontend::vars::ByteVariable;
 #[derive(Debug, Clone, Copy)]
 pub struct BytesVariable<const N: usize>(pub [ByteVariable; N]);
 
-impl<const N: usize> CircuitVariable for BytesVariable<N> {
+impl<const N: usize> Variable for BytesVariable<N> {
     type ValueType<F: RichField> = [u8; N];
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -28,11 +28,11 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         Self(array![i => ByteVariable::constant(builder, value[i]); N])
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         self.0.iter().flat_map(|b| b.variables()).collect()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         assert_eq!(variables.len(), 8 * N);
         Self(
             variables

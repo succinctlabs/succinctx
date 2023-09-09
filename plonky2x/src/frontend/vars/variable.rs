@@ -4,16 +4,16 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::CircuitVariable;
+use super::Variable;
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
 
 /// A variable in the circuit. It represents a value between `[0, 2**64 - 2**32 + 1)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Variable(pub Target);
+pub struct FieldVariable(pub Target);
 
-impl CircuitVariable for Variable {
+impl Variable for FieldVariable {
     type ValueType<F: RichField> = F;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -36,11 +36,11 @@ impl CircuitVariable for Variable {
         Self(target)
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         vec![*self]
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         assert_eq!(variables.len(), 1);
         variables[0]
     }
@@ -54,55 +54,55 @@ impl CircuitVariable for Variable {
     }
 }
 
-impl From<Target> for Variable {
+impl From<Target> for FieldVariable {
     fn from(target: Target) -> Self {
         Self(target)
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for Variable {
-    type Output = Variable;
-    fn add(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        Variable(builder.api.add(self.0, rhs.0))
+impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for FieldVariable {
+    type Output = FieldVariable;
+    fn add(self, rhs: FieldVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        FieldVariable(builder.api.add(self.0, rhs.0))
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for Variable {
-    type Output = Variable;
-    fn sub(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        Variable(builder.api.sub(self.0, rhs.0))
+impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for FieldVariable {
+    type Output = FieldVariable;
+    fn sub(self, rhs: FieldVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        FieldVariable(builder.api.sub(self.0, rhs.0))
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> Mul<L, D> for Variable {
-    type Output = Variable;
-    fn mul(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        Variable(builder.api.mul(self.0, rhs.0))
+impl<L: PlonkParameters<D>, const D: usize> Mul<L, D> for FieldVariable {
+    type Output = FieldVariable;
+    fn mul(self, rhs: FieldVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        FieldVariable(builder.api.mul(self.0, rhs.0))
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> Neg<L, D> for Variable {
-    type Output = Variable;
+impl<L: PlonkParameters<D>, const D: usize> Neg<L, D> for FieldVariable {
+    type Output = FieldVariable;
     fn neg(self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        Variable(builder.api.neg(self.0))
+        FieldVariable(builder.api.neg(self.0))
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> Div<L, D> for Variable {
-    type Output = Variable;
-    fn div(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        Variable(builder.api.div(self.0, rhs.0))
+impl<L: PlonkParameters<D>, const D: usize> Div<L, D> for FieldVariable {
+    type Output = FieldVariable;
+    fn div(self, rhs: FieldVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        FieldVariable(builder.api.div(self.0, rhs.0))
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for Variable {
+impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for FieldVariable {
     fn zero(builder: &mut CircuitBuilder<L, D>) -> Self {
-        Variable(builder.api.zero())
+        FieldVariable(builder.api.zero())
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> One<L, D> for Variable {
+impl<L: PlonkParameters<D>, const D: usize> One<L, D> for FieldVariable {
     fn one(builder: &mut CircuitBuilder<L, D>) -> Self {
-        Variable(builder.api.one())
+        FieldVariable(builder.api.one())
     }
 }

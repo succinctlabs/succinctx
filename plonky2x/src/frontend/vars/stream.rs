@@ -3,7 +3,7 @@ use core::marker::PhantomData;
 use plonky2::util::serialization::{IoResult, Read, Write};
 use serde::{Deserialize, Serialize};
 
-use super::{CircuitVariable, Variable};
+use super::{FieldVariable, Variable};
 use crate::backend::config::PlonkParameters;
 use crate::prelude::CircuitBuilder;
 use crate::utils::stream::Stream;
@@ -18,7 +18,7 @@ pub struct ValueStream<L: PlonkParameters<D>, const D: usize>(Stream<L::Field>);
 ///
 /// This struct is used as a buffer for `CircuitVariable`s.
 #[derive(Debug, Clone)]
-pub struct VariableStream(Stream<Variable>);
+pub struct VariableStream(Stream<FieldVariable>);
 
 /// A stream  
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,9 +34,9 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
             _marker: PhantomData,
         }
     }
-    pub fn read_exact(&self, builder: &mut CircuitBuilder<L, D>, len: usize) -> Vec<Variable> {
+    pub fn read_exact(&self, builder: &mut CircuitBuilder<L, D>, len: usize) -> Vec<FieldVariable> {
         let variables = (0..len)
-            .map(|_| builder.init::<Variable>())
+            .map(|_| builder.init::<FieldVariable>())
             .collect::<Vec<_>>();
         let stream = &mut builder
             .hints
@@ -47,7 +47,7 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
 
         variables
     }
-    pub fn read<V: CircuitVariable>(&self, builder: &mut CircuitBuilder<L, D>) -> V {
+    pub fn read<V: Variable>(&self, builder: &mut CircuitBuilder<L, D>) -> V {
         let variables = self.read_exact(builder, V::nb_elements());
         V::from_variables(&variables)
     }
@@ -58,7 +58,7 @@ impl VariableStream {
         Self(Stream::new(Vec::new()))
     }
 
-    pub fn from_variables(variables: Vec<Variable>) -> Self {
+    pub fn from_variables(variables: Vec<FieldVariable>) -> Self {
         Self(Stream::new(variables))
     }
 
@@ -67,21 +67,21 @@ impl VariableStream {
         size: usize,
     ) -> Self {
         let variables = (0..size)
-            .map(|_| builder.init::<Variable>())
+            .map(|_| builder.init::<FieldVariable>())
             .collect::<Vec<_>>();
         Self(Stream::new(variables))
     }
 
-    pub fn real_all(&self) -> &[Variable] {
+    pub fn real_all(&self) -> &[FieldVariable] {
         self.0.read_all()
     }
 
-    pub fn read<V: CircuitVariable>(&mut self) -> V {
+    pub fn read<V: Variable>(&mut self) -> V {
         let variables = self.0.read_exact(V::nb_elements());
         V::from_variables(variables)
     }
 
-    pub fn write<V: CircuitVariable>(&mut self, value: &V) {
+    pub fn write<V: Variable>(&mut self, value: &V) {
         self.0.write_slice(&value.variables());
     }
 
@@ -90,7 +90,7 @@ impl VariableStream {
         let variables = reader
             .read_target_vec()?
             .into_iter()
-            .map(Variable)
+            .map(FieldVariable)
             .collect::<Vec<_>>();
         Ok(VariableStream::from_variables(variables))
     }
@@ -117,7 +117,7 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         Self(Stream::new(values))
     }
 
-    pub fn read_value<V: CircuitVariable>(&mut self) -> V::ValueType<L::Field> {
+    pub fn read_value<V: Variable>(&mut self) -> V::ValueType<L::Field> {
         let elements = self.0.read_exact(V::nb_elements());
         V::from_elements::<L, D>(elements)
     }
@@ -126,7 +126,7 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         self.0.read_all()
     }
 
-    pub fn write_value<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) {
+    pub fn write_value<V: Variable>(&mut self, value: V::ValueType<L::Field>) {
         self.0.write_slice(&V::elements::<L, D>(value));
     }
 }

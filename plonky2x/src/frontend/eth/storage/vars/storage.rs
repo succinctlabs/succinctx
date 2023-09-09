@@ -8,8 +8,8 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable, VariableStream};
-use crate::prelude::Variable;
+use crate::frontend::vars::{Bytes32Variable, U256Variable, Variable, VariableStream};
+use crate::prelude::FieldVariable;
 
 #[derive(Debug, Clone, Copy)]
 pub struct EthProof {
@@ -21,7 +21,7 @@ pub struct EthProofVariable {
     pub proof: Bytes32Variable,
 }
 
-impl CircuitVariable for EthProofVariable {
+impl Variable for EthProofVariable {
     type ValueType<F: RichField> = EthProof;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -39,11 +39,11 @@ impl CircuitVariable for EthProofVariable {
         }
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         self.proof.variables()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         Self {
             proof: Bytes32Variable::from_variables(variables),
         }
@@ -76,7 +76,7 @@ pub struct EthAccountVariable {
     pub storage_hash: Bytes32Variable,
 }
 
-impl CircuitVariable for EthAccountVariable {
+impl Variable for EthAccountVariable {
     type ValueType<F: RichField> = EthAccount;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -100,7 +100,7 @@ impl CircuitVariable for EthAccountVariable {
         }
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         let mut vars = Vec::new();
         vars.extend(self.balance.variables());
         vars.extend(self.code_hash.variables());
@@ -109,7 +109,7 @@ impl CircuitVariable for EthAccountVariable {
         vars
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         let balance = U256Variable::from_variables(&variables[0..4]);
         let mut offset = 4;
         let code_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
@@ -156,7 +156,7 @@ pub struct EthLogVariable {
     pub data_hash: Bytes32Variable,
 }
 
-impl CircuitVariable for EthLogVariable {
+impl Variable for EthLogVariable {
     type ValueType<F: RichField> = EthLog;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -178,20 +178,20 @@ impl CircuitVariable for EthLogVariable {
         }
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         let mut vars = Vec::new();
         vars.extend(self.address.variables());
         vars.extend(
             self.topics
                 .iter()
                 .flat_map(|t| t.variables())
-                .collect::<Vec<Variable>>(),
+                .collect::<Vec<FieldVariable>>(),
         );
         vars.extend(self.data_hash.variables());
         vars
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         let mut var_buffer = VariableStream::from_variables(variables.to_vec());
         let address = var_buffer.read::<AddressVariable>();
         let topics = array![_ => var_buffer.read::<Bytes32Variable>(); 3];

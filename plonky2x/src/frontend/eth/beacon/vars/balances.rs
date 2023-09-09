@@ -6,8 +6,8 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
-use crate::prelude::Variable;
+use crate::frontend::vars::{Bytes32Variable, Variable};
+use crate::prelude::FieldVariable;
 
 #[derive(Debug, Clone, Copy)]
 pub struct BeaconBalancesValue {
@@ -21,7 +21,7 @@ pub struct BeaconBalancesVariable {
     pub balances_root: Bytes32Variable,
 }
 
-impl CircuitVariable for BeaconBalancesVariable {
+impl Variable for BeaconBalancesVariable {
     type ValueType<F: RichField> = BeaconBalancesValue;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -41,7 +41,7 @@ impl CircuitVariable for BeaconBalancesVariable {
         }
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         self.block_root
             .variables()
             .into_iter()
@@ -49,7 +49,7 @@ impl CircuitVariable for BeaconBalancesVariable {
             .collect()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         let block_root = Bytes32Variable::from_variables(&variables[0..256]);
         let validators_root = Bytes32Variable::from_variables(&variables[256..512]);
         Self {

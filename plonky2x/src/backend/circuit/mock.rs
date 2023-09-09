@@ -8,7 +8,7 @@ use super::witness::{generate_witness, GenerateWitnessError};
 use crate::backend::circuit::{CircuitInput, CircuitOutput};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
-use crate::frontend::vars::CircuitVariable;
+use crate::frontend::vars::Variable;
 
 /// A compiled circuit which can compute any function in the form `f(x)=y`.
 #[derive(Debug)]
@@ -78,8 +78,8 @@ pub(crate) mod tests {
     fn test_mock_circuit_with_field_io() {
         // Define your circuit.
         let mut builder = CircuitBuilderX::new();
-        let a = builder.read::<Variable>();
-        let b = builder.read::<Variable>();
+        let a = builder.read::<FieldVariable>();
+        let b = builder.read::<FieldVariable>();
         let c = builder.add(a, b);
         builder.write(c);
 
@@ -88,14 +88,14 @@ pub(crate) mod tests {
 
         // Write to the circuit input.
         let mut input = mock_circuit.input();
-        input.write::<Variable>(GoldilocksField::TWO);
-        input.write::<Variable>(GoldilocksField::TWO);
+        input.write::<FieldVariable>(GoldilocksField::TWO);
+        input.write::<FieldVariable>(GoldilocksField::TWO);
 
         // // Generate a proof.
         let (_witness, mut output) = mock_circuit.mock_prove(&input);
 
         // // Read output.
-        let sum = output.read::<Variable>();
+        let sum = output.read::<FieldVariable>();
         println!("{}", sum.0);
     }
 

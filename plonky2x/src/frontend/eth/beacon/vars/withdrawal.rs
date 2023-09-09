@@ -9,8 +9,8 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable};
-use crate::prelude::{ByteVariable, Variable};
+use crate::frontend::vars::{Bytes32Variable, EvmVariable, SSZVariable, Variable};
+use crate::prelude::{ByteVariable, FieldVariable};
 
 #[derive(Debug, Clone)]
 pub struct BeaconWithdrawalValue {
@@ -28,7 +28,7 @@ pub struct BeaconWithdrawalVariable {
     pub amount: U256Variable,
 }
 
-impl CircuitVariable for BeaconWithdrawalVariable {
+impl Variable for BeaconWithdrawalVariable {
     type ValueType<F: RichField> = BeaconWithdrawalValue;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -52,7 +52,7 @@ impl CircuitVariable for BeaconWithdrawalVariable {
         }
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         let mut variables = Vec::new();
         variables.extend(self.index.variables());
         variables.extend(self.validator_index.variables());
@@ -61,7 +61,7 @@ impl CircuitVariable for BeaconWithdrawalVariable {
         variables
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         let index = U64Variable::from_variables(&variables[0..2]);
         let validator_index = U64Variable::from_variables(&variables[2..4]);
         let address = AddressVariable::from_variables(&variables[4..164]);

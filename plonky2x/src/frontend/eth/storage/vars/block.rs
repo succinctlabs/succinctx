@@ -8,8 +8,8 @@ use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable};
-use crate::prelude::Variable;
+use crate::frontend::vars::{Bytes32Variable, U256Variable, Variable};
+use crate::prelude::FieldVariable;
 
 /// A variable representing the Ethereum Block Header
 /// Follow the following struct in go-ethereum
@@ -50,7 +50,7 @@ pub struct EthHeaderVariable {
     // pub extra: Bytes32Variable, // TODO: add back once we have arbitrary bytes variables
 }
 
-impl CircuitVariable for EthHeaderVariable {
+impl Variable for EthHeaderVariable {
     type ValueType<F: RichField> = EthHeader;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -79,7 +79,7 @@ impl CircuitVariable for EthHeaderVariable {
         todo!()
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         let mut vars = Vec::new();
         vars.extend(self.parent_hash.variables());
         vars.extend(self.uncle_hash.variables());
@@ -98,7 +98,7 @@ impl CircuitVariable for EthHeaderVariable {
     }
 
     #[allow(unused_variables)]
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         let parent_hash = Bytes32Variable::from_variables(&variables[0..32 * 8]);
         let mut offset = 32 * 8;
         let uncle_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);

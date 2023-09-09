@@ -1,6 +1,6 @@
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::CircuitVariable;
+use crate::frontend::vars::Variable;
 
 pub mod uint128;
 pub mod uint256;
@@ -12,7 +12,7 @@ mod uint32_n;
 /// A variable in the circuit representing an algebraic value.
 ///
 /// It has a zero value, a one value, and can be added, subtracted, and multiplied.
-pub trait AlgebraicVariable: CircuitVariable {
+pub trait AlgebraicVariable: Variable {
     /// Returns the zero value of the variable.
     fn zero<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self;
 

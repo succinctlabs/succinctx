@@ -10,36 +10,36 @@ use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
-use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
+use crate::frontend::vars::{EvmVariable, FieldVariable, Variable};
 use crate::prelude::*;
 
 /// A variable in the circuit representing a u32 value. Under the hood, it is represented as
 /// a single field element.
 #[derive(Debug, Clone, Copy)]
-pub struct U32Variable(pub Variable);
+pub struct U32Variable(pub FieldVariable);
 
-impl CircuitVariable for U32Variable {
+impl Variable for U32Variable {
     type ValueType<F: RichField> = u32;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
-        Self(Variable::init(builder))
+        Self(FieldVariable::init(builder))
     }
 
     fn constant<L: PlonkParameters<D>, const D: usize>(
         builder: &mut CircuitBuilder<L, D>,
         value: Self::ValueType<L::Field>,
     ) -> Self {
-        Self(Variable::constant(
+        Self(FieldVariable::constant(
             builder,
             L::Field::from_canonical_u32(value),
         ))
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         vec![self.0]
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         assert_eq!(variables.len(), 1);
         Self(variables[0])
     }
@@ -81,7 +81,7 @@ impl EvmVariable for U32Variable {
         let target = builder
             .api
             .le_sum(bits.into_iter().map(BoolTarget::new_unsafe));
-        Self(Variable(target))
+        Self(FieldVariable(target))
     }
 
     fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {
@@ -104,14 +104,14 @@ impl EvmVariable for U32Variable {
 
 impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for U32Variable {
     fn zero(builder: &mut CircuitBuilder<L, D>) -> Self {
-        let zero = Variable::zero(builder);
+        let zero = FieldVariable::zero(builder);
         Self(zero)
     }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> One<L, D> for U32Variable {
     fn one(builder: &mut CircuitBuilder<L, D>) -> Self {
-        let one = Variable::one(builder);
+        let one = FieldVariable::one(builder);
         Self(one)
     }
 }
@@ -133,7 +133,7 @@ impl<L: PlonkParameters<D>, const D: usize> Mul<L, D> for U32Variable {
 
         // Get the least significant limb
         let product = product_biguint.limbs[0].0;
-        Self(Variable(product))
+        Self(FieldVariable(product))
     }
 }
 
@@ -155,7 +155,7 @@ impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for U32Variable {
         // Get the least significant limb
         let sum = sum_biguint.limbs[0].0;
 
-        Self(Variable(sum))
+        Self(FieldVariable(sum))
     }
 }
 
@@ -174,7 +174,7 @@ impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for U32Variable {
 
         let diff_biguint = builder.api.sub_biguint(&self_biguint, &rhs_biguint);
         let diff = diff_biguint.limbs[0].0;
-        Self(Variable(diff))
+        Self(FieldVariable(diff))
     }
 }
 

@@ -11,13 +11,13 @@ use plonky2::util::serialization::{Buffer, IoError, IoResult, Write};
 use serde::{Deserialize, Serialize};
 
 use crate::backend::config::PlonkParameters;
-use crate::frontend::vars::Variable;
+use crate::frontend::vars::FieldVariable;
 use crate::prelude::CircuitBuilder;
 
 pub trait Generator<F: RichField + Extendable<D>, const D: usize>:
     'static + Send + Clone + Sync + Debug + Any + Serialize + for<'de> Deserialize<'de>
 {
-    fn inputs(&self) -> Vec<Variable>;
+    fn inputs(&self) -> Vec<FieldVariable>;
 
     fn run(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>);
 }

@@ -13,7 +13,7 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable};
+use crate::frontend::vars::{Bytes32Variable, EvmVariable, SSZVariable, Variable};
 use crate::prelude::{ByteVariable, BytesVariable};
 
 /// The gindex for blockRoot -> validatorsRoot.

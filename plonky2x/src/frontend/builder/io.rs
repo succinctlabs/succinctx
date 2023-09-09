@@ -3,7 +3,7 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use super::CircuitBuilder;
 use crate::backend::config::PlonkParameters;
 use crate::frontend::vars::EvmVariable;
-use crate::prelude::{ByteVariable, CircuitVariable, Variable};
+use crate::prelude::{ByteVariable, FieldVariable, Variable};
 
 /// Stores circuit variables used for reading and writing data to the EVM.
 #[derive(Debug, Clone)]
@@ -15,15 +15,15 @@ pub struct EvmIO {
 /// Stores circuit variable used for reading and writing data using field elements.
 #[derive(Debug, Clone)]
 pub struct FieldIO {
-    pub input_variables: Vec<Variable>,
-    pub output_variables: Vec<Variable>,
+    pub input_variables: Vec<FieldVariable>,
+    pub output_variables: Vec<FieldVariable>,
 }
 
 /// Stores circuit variables used for recursive proof verification.
 #[derive(Debug, Clone)]
 pub struct RecursiveProofIO<const D: usize> {
     pub input_proofs: Vec<ProofWithPublicInputsTarget<D>>,
-    pub output_variables: Vec<Variable>,
+    pub output_variables: Vec<FieldVariable>,
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ impl<const D: usize> CircuitIO<D> {
         }
     }
 
-    pub fn get_input_variables(&self) -> Vec<Variable> {
+    pub fn get_input_variables(&self) -> Vec<FieldVariable> {
         if self.evm.is_some() {
             self.evm
                 .clone()
@@ -59,7 +59,7 @@ impl<const D: usize> CircuitIO<D> {
         }
     }
 
-    pub fn get_output_variables(&self) -> Vec<Variable> {
+    pub fn get_output_variables(&self) -> Vec<FieldVariable> {
         if self.evm.is_some() {
             self.evm
                 .clone()
@@ -99,7 +99,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
     }
 
-    pub fn read<V: CircuitVariable>(&mut self) -> V {
+    pub fn read<V: Variable>(&mut self) -> V {
         self.init_field_io();
         let variable = self.init::<V>();
         match self.io.field {
@@ -124,7 +124,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         variable
     }
 
-    pub fn write<V: CircuitVariable>(&mut self, variable: V) {
+    pub fn write<V: Variable>(&mut self, variable: V) {
         self.init_field_io();
         match self.io.field {
             Some(ref mut io) => io.output_variables.extend(variable.variables()),

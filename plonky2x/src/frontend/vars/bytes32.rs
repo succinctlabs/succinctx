@@ -4,7 +4,7 @@ use ethers::types::H256;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{ByteVariable, CircuitVariable, EvmVariable, U256Variable, Variable};
+use super::{ByteVariable, EvmVariable, FieldVariable, U256Variable, Variable};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::BytesVariable;
@@ -26,7 +26,7 @@ impl Bytes32Variable {
     }
 }
 
-impl CircuitVariable for Bytes32Variable {
+impl Variable for Bytes32Variable {
     type ValueType<F: RichField> = H256;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -43,11 +43,11 @@ impl CircuitVariable for Bytes32Variable {
         ))
     }
 
-    fn variables(&self) -> Vec<super::Variable> {
+    fn variables(&self) -> Vec<super::FieldVariable> {
         self.0.variables()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         Self(BytesVariable::from_variables(variables))
     }
 
@@ -92,7 +92,7 @@ mod test {
 
     use super::Bytes32Variable;
     use crate::frontend::uint::uint256::U256Variable;
-    use crate::prelude::{CircuitBuilderX, CircuitVariable};
+    use crate::prelude::{CircuitBuilderX, Variable};
     use crate::utils::bytes32;
 
     #[test]

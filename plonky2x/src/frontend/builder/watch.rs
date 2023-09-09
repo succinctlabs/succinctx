@@ -9,16 +9,16 @@ use plonky2::util::serialization::{IoResult, Read, Write};
 
 use super::CircuitBuilder;
 use crate::backend::config::PlonkParameters;
-use crate::prelude::CircuitVariable;
+use crate::prelude::Variable;
 
 #[derive(Debug, Clone)]
-pub struct WatchGenerator<V: CircuitVariable> {
+pub struct WatchGenerator<V: Variable> {
     pub variable: V,
     pub log: String,
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn watch<V: CircuitVariable>(&mut self, variable: &V, log: &str) {
+    pub fn watch<V: Variable>(&mut self, variable: &V, log: &str) {
         let variable = variable.clone();
         let log = String::from(log);
 
@@ -27,13 +27,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 }
 
-impl<V: CircuitVariable> WatchGenerator<V> {
+impl<V: Variable> WatchGenerator<V> {
     pub fn id() -> String {
         format!("WatchGenerator{}", std::any::type_name::<V>())
     }
 }
 
-impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGenerator<F, D>
+impl<F: RichField + Extendable<D>, V: Variable, const D: usize> SimpleGenerator<F, D>
     for WatchGenerator<V>
 {
     fn id(&self) -> String {
@@ -89,8 +89,8 @@ mod tests {
         setup_logger();
 
         let mut builder = CircuitBuilderX::new();
-        let a = builder.read::<Variable>();
-        let b = builder.read::<Variable>();
+        let a = builder.read::<FieldVariable>();
+        let b = builder.read::<FieldVariable>();
         let c = builder.add(a, b);
         builder.watch(&c, "c");
         builder.write(c);
@@ -100,8 +100,8 @@ mod tests {
 
         // Write to the circuit input.
         let mut input = circuit.input();
-        input.write::<Variable>(GoldilocksField::TWO);
-        input.write::<Variable>(GoldilocksField::TWO);
+        input.write::<FieldVariable>(GoldilocksField::TWO);
+        input.write::<FieldVariable>(GoldilocksField::TWO);
 
         // Generate a proof.
         let (proof, mut output) = circuit.prove(&input);
@@ -110,7 +110,7 @@ mod tests {
         circuit.verify(&proof, &input, &output);
 
         // Read output.
-        let sum = output.read::<Variable>();
+        let sum = output.read::<FieldVariable>();
         println!("{}", sum.0);
     }
 }

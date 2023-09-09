@@ -4,18 +4,18 @@ use std::ops::{Index, Range};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{CircuitVariable, Variable};
+use super::{FieldVariable, Variable};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a fixed length array of variables.
 /// We use this to avoid stack overflow arrays associated with fixed-length arrays.
 #[derive(Debug, Clone)]
-pub struct ArrayVariable<V: CircuitVariable, const N: usize> {
+pub struct ArrayVariable<V: Variable, const N: usize> {
     elements: Vec<V>,
 }
 
-impl<V: CircuitVariable, const N: usize> ArrayVariable<V, N> {
+impl<V: Variable, const N: usize> ArrayVariable<V, N> {
     pub fn new(elements: Vec<V>) -> Self {
         assert_eq!(elements.len(), N);
         Self { elements }
@@ -30,7 +30,7 @@ impl<V: CircuitVariable, const N: usize> ArrayVariable<V, N> {
     }
 }
 
-impl<V: CircuitVariable, const N: usize> Index<usize> for ArrayVariable<V, N> {
+impl<V: Variable, const N: usize> Index<usize> for ArrayVariable<V, N> {
     type Output = V;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -38,7 +38,7 @@ impl<V: CircuitVariable, const N: usize> Index<usize> for ArrayVariable<V, N> {
     }
 }
 
-impl<V: CircuitVariable, const N: usize> Index<Range<usize>> for ArrayVariable<V, N> {
+impl<V: Variable, const N: usize> Index<Range<usize>> for ArrayVariable<V, N> {
     type Output = [V];
 
     fn index(&self, range: Range<usize>) -> &Self::Output {
@@ -46,13 +46,13 @@ impl<V: CircuitVariable, const N: usize> Index<Range<usize>> for ArrayVariable<V
     }
 }
 
-impl<V: CircuitVariable, const N: usize> From<Vec<V>> for ArrayVariable<V, N> {
+impl<V: Variable, const N: usize> From<Vec<V>> for ArrayVariable<V, N> {
     fn from(elements: Vec<V>) -> Self {
         ArrayVariable::new(elements)
     }
 }
 
-impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N> {
+impl<V: Variable, const N: usize> Variable for ArrayVariable<V, N> {
     type ValueType<F: RichField> = Vec<V::ValueType<F>>;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -71,11 +71,11 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
         }
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         self.elements.iter().flat_map(|x| x.variables()).collect()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         assert_eq!(variables.len(), N * V::nb_elements());
         let mut res = Vec::new();
         for i in 0..N {

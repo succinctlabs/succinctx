@@ -11,7 +11,7 @@ use plonky2::util::serialization::{Buffer, IoResult};
 use crate::backend::circuit::serialization::Serializer;
 use crate::backend::config::PlonkParameters;
 use crate::frontend::vars::{OutputVariableStream, ValueStream, VariableStream};
-use crate::prelude::{CircuitBuilder, CircuitVariable};
+use crate::prelude::{CircuitBuilder, Variable};
 
 pub trait Hint<L: PlonkParameters<D>, const D: usize>:
     'static + Debug + Clone + Send + Sync

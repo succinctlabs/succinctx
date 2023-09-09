@@ -1,15 +1,15 @@
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::{BoolVariable, Variable};
+use crate::frontend::vars::{BoolVariable, FieldVariable};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn _false(&mut self) -> BoolVariable {
-        let zero = self.zero::<Variable>();
+        let zero = self.zero::<FieldVariable>();
         zero.into()
     }
 
     pub fn _true(&mut self) -> BoolVariable {
-        let one = self.one::<Variable>();
+        let one = self.one::<FieldVariable>();
         one.into()
     }
 }

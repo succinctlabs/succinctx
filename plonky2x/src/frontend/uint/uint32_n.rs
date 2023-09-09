@@ -8,7 +8,7 @@ use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
-use crate::frontend::vars::{CircuitVariable, EvmVariable, U32Variable, Variable};
+use crate::frontend::vars::{EvmVariable, FieldVariable, U32Variable, Variable};
 use crate::prelude::*;
 
 pub trait Uint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
@@ -59,7 +59,7 @@ pub struct U32NVariable<U: Uint<N>, const N: usize> {
     _marker: std::marker::PhantomData<U>,
 }
 
-impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
+impl<U: Uint<N>, const N: usize> Variable for U32NVariable<U, N> {
     type ValueType<F: RichField> = U;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -80,11 +80,11 @@ impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
         }
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         self.limbs.iter().map(|x| x.0).collect()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         assert_eq!(variables.len(), N);
         Self {
             limbs: array![i => U32Variable(variables[i]); N],
@@ -205,7 +205,7 @@ impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Add<L, D
         // Get the least significant limbs
         let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
         for i in 0..N {
-            limbs[i] = U32Variable(Variable(sum_biguint.limbs[i].0));
+            limbs[i] = U32Variable(FieldVariable(sum_biguint.limbs[i].0));
         }
 
         Self {
@@ -243,7 +243,7 @@ impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Sub<L, D
 
         let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
         for i in 0..N {
-            limbs[i] = U32Variable(Variable(diff_biguint.limbs[i].0));
+            limbs[i] = U32Variable(FieldVariable(diff_biguint.limbs[i].0));
         }
 
         Self {
@@ -282,7 +282,7 @@ impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Mul<L, D
         // Get the least significant limb
         let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
         for i in 0..N {
-            limbs[i] = U32Variable(Variable(product_biguint.limbs[i].0));
+            limbs[i] = U32Variable(FieldVariable(product_biguint.limbs[i].0));
         }
 
         Self {
@@ -321,7 +321,7 @@ impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Div<L, D
         // Get the least significant limb
         let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
         for i in 0..N {
-            limbs[i] = U32Variable(Variable(product_biguint.limbs[i].0));
+            limbs[i] = U32Variable(FieldVariable(product_biguint.limbs[i].0));
         }
 
         Self {
@@ -360,7 +360,7 @@ impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Rem<L, D
         // Get the least significant limb
         let mut limbs: [U32Variable; N] = Self::zero(builder).limbs;
         for i in 0..N {
-            limbs[i] = U32Variable(Variable(product_biguint.limbs[i].0));
+            limbs[i] = U32Variable(FieldVariable(product_biguint.limbs[i].0));
         }
 
         Self {

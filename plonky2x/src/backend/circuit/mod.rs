@@ -19,7 +19,7 @@ use self::serialization::{GateRegistry, WitnessGeneratorRegistry};
 use super::config::PlonkParameters;
 use crate::frontend::builder::io::{EvmIO, FieldIO};
 use crate::frontend::builder::CircuitIO;
-use crate::prelude::{ByteVariable, CircuitVariable, Variable};
+use crate::prelude::{ByteVariable, FieldVariable, Variable};
 use crate::utils::hex;
 
 /// A compiled circuit which can compute any function in the form `f(x)=y`.
@@ -191,8 +191,8 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
             let input_targets = buffer.read_target_vec()?;
             let output_targets = buffer.read_target_vec()?;
             circuit.io.field = Some(FieldIO {
-                input_variables: input_targets.into_iter().map(Variable).collect_vec(),
-                output_variables: output_targets.into_iter().map(Variable).collect_vec(),
+                input_variables: input_targets.into_iter().map(FieldVariable).collect_vec(),
+                output_variables: output_targets.into_iter().map(FieldVariable).collect_vec(),
             });
         }
 
@@ -283,8 +283,8 @@ pub(crate) mod tests {
     fn test_serialize_with_field_io() {
         // Define your circuit.
         let mut builder = CircuitBuilderX::new();
-        let a = builder.read::<Variable>();
-        let b = builder.read::<Variable>();
+        let a = builder.read::<FieldVariable>();
+        let b = builder.read::<FieldVariable>();
         let c = builder.add(a, b);
         builder.write(c);
 
@@ -293,8 +293,8 @@ pub(crate) mod tests {
 
         // Write to the circuit input.
         let mut input = circuit.input();
-        input.write::<Variable>(GoldilocksField::TWO);
-        input.write::<Variable>(GoldilocksField::TWO);
+        input.write::<FieldVariable>(GoldilocksField::TWO);
+        input.write::<FieldVariable>(GoldilocksField::TWO);
 
         // Generate a proof.
         let (proof, output) = circuit.prove(&input);

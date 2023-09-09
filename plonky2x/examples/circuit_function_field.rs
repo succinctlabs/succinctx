@@ -20,15 +20,15 @@ use std::env;
 use plonky2x::backend::circuit::Circuit;
 use plonky2x::backend::config::PlonkParameters;
 use plonky2x::backend::function::CircuitFunction;
-use plonky2x::prelude::{CircuitBuilder, Variable};
+use plonky2x::prelude::{CircuitBuilder, FieldVariable};
 
 struct Function {}
 
 impl CircuitFunction for Function {
     fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D> {
         let mut builder = CircuitBuilder::<L, D>::new();
-        let a = builder.read::<Variable>();
-        let b = builder.read::<Variable>();
+        let a = builder.read::<FieldVariable>();
+        let b = builder.read::<FieldVariable>();
         let c = builder.add(a, b);
         builder.write(c);
         builder.build()
@@ -57,11 +57,11 @@ mod tests {
     fn test_circuit_function_field() {
         let circuit = Function::build::<L, D>();
         let mut input = circuit.input();
-        input.write::<Variable>(F::from_canonical_u64(1));
-        input.write::<Variable>(F::from_canonical_u64(2));
+        input.write::<FieldVariable>(F::from_canonical_u64(1));
+        input.write::<FieldVariable>(F::from_canonical_u64(2));
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        let sum = output.read::<Variable>();
+        let sum = output.read::<FieldVariable>();
         assert_eq!(sum, F::from_canonical_u64(3));
     }
 

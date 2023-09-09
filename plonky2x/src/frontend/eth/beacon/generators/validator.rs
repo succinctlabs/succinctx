@@ -14,7 +14,7 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::vars::BeaconValidatorVariable;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
+use crate::frontend::vars::{Bytes32Variable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::{bytes32, hex};
 

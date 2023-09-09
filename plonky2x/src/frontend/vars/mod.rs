@@ -24,7 +24,7 @@ pub use super::uint::uint32::*;
 use crate::backend::config::{DefaultParameters, PlonkParameters};
 use crate::frontend::builder::CircuitBuilder;
 
-pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
+pub trait Variable: Debug + Clone + Sized + Sync + Send + 'static {
     /// The underlying type of the variable if it were not in a circuit.
     type ValueType<F: RichField>: Debug;
 
@@ -44,14 +44,14 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
 
     /// Deserializes a variable from a list of targets.
     fn from_targets(targets: &[Target]) -> Self {
-        Self::from_variables(&targets.iter().map(|t| Variable(*t)).collect_vec())
+        Self::from_variables(&targets.iter().map(|t| FieldVariable(*t)).collect_vec())
     }
 
     /// Serializes the circuit variable to variables.
-    fn variables(&self) -> Vec<Variable>;
+    fn variables(&self) -> Vec<FieldVariable>;
 
     /// Deserializes the circuit variable from variables.
-    fn from_variables(variables: &[Variable]) -> Self;
+    fn from_variables(variables: &[FieldVariable]) -> Self;
 
     /// Gets the value of the variable from the witness.
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F>;
@@ -97,7 +97,7 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     }
 }
 
-pub trait EvmVariable: CircuitVariable {
+pub trait EvmVariable: Variable {
     /// The number of bytes it takes to represent this variable.
     fn nb_bytes<L: PlonkParameters<D>, const D: usize>() -> usize {
         let mut builder = CircuitBuilder::<L, D>::new();
@@ -154,7 +154,7 @@ pub trait EvmVariable: CircuitVariable {
     }
 }
 
-pub trait SSZVariable: CircuitVariable {
+pub trait SSZVariable: Variable {
     fn hash_tree_root<L: PlonkParameters<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<L, D>,

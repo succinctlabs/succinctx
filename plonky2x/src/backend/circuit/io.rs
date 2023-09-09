@@ -4,7 +4,7 @@ use itertools::Itertools;
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
 use crate::frontend::vars::EvmVariable;
-use crate::prelude::{ByteVariable, CircuitVariable};
+use crate::prelude::{ByteVariable, Variable};
 
 /// A circuit input. Write to the input using `write` and `evm_write`.
 pub struct CircuitInput<L: PlonkParameters<D>, const D: usize> {
@@ -20,7 +20,7 @@ pub struct CircuitOutput<L: PlonkParameters<D>, const D: usize> {
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitInput<L, D> {
     /// Writes a value to the public circuit input using field-based serialization.
-    pub fn write<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) {
+    pub fn write<V: Variable>(&mut self, value: V::ValueType<L::Field>) {
         self.io.field.as_ref().expect("field io is not enabled");
         self.buffer.extend(V::elements::<L, D>(value));
     }
@@ -56,14 +56,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitInput<L, D> {
 
     /// Sets a value to the circuit input. This method only works if the circuit is using
     /// field element-based IO.
-    pub fn set<V: CircuitVariable>(&mut self, _: V, _: V::ValueType<L::Field>) {
+    pub fn set<V: Variable>(&mut self, _: V, _: V::ValueType<L::Field>) {
         todo!()
     }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitOutput<L, D> {
     /// Reads a value from the public circuit output using field-based serialization.
-    pub fn read<V: CircuitVariable>(&mut self) -> V::ValueType<L::Field> {
+    pub fn read<V: Variable>(&mut self) -> V::ValueType<L::Field> {
         self.io.field.as_ref().expect("field io is not enabled");
         let elements = self.buffer.drain(0..V::nb_elements()).collect_vec();
         V::from_elements::<L, D>(&elements)
@@ -108,7 +108,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitOutput<L, D> {
 
     /// Reads a value from the circuit output. It also can access the value of any intermediate
     /// variable in the circuit.
-    pub fn get<V: CircuitVariable>(&self, _: V) -> V::ValueType<L::Field> {
+    pub fn get<V: Variable>(&self, _: V) -> V::ValueType<L::Field> {
         todo!()
     }
 }

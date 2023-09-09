@@ -18,7 +18,7 @@ use crate::frontend::eth::storage::vars::{EthLog, EthLogVariable};
 use crate::frontend::eth::utils::u256_to_h256_be;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint256::U256Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
+use crate::frontend::vars::{Bytes32Variable, Variable};
 use crate::utils::eth::get_provider;
 
 #[derive(Debug, Clone)]

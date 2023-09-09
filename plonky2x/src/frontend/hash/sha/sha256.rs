@@ -10,9 +10,7 @@ use crate::frontend::hash::bit_operations::util::{_right_rotate, _shr, uint32_to
 use crate::frontend::hash::bit_operations::{
     add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add,
 };
-use crate::frontend::vars::{
-    BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable,
-};
+use crate::frontend::vars::{BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, Variable};
 pub struct Sha256Target {
     pub message: Vec<BoolTarget>,
     pub digest: Vec<BoolTarget>,

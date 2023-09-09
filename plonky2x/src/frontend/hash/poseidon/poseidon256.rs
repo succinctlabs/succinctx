@@ -5,7 +5,7 @@ use plonky2::plonk::config::AlgebraicHasher;
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable};
+use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, Variable};
 
 /// Implements the Poseidon hash for CircuitBuilder.
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {

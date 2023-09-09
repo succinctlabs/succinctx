@@ -7,7 +7,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::hash::bit_operations::util::u64_to_bits;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable};
+use crate::prelude::{ByteVariable, CircuitBuilder, Variable};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn sha256_curta(&mut self, input: &[ByteVariable]) -> Bytes32Variable {

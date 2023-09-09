@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
+use super::{BoolVariable, EvmVariable, FieldVariable, Variable};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
@@ -15,7 +15,7 @@ use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, 
 #[derive(Debug, Clone, Copy)]
 pub struct ByteVariable(pub [BoolVariable; 8]);
 
-impl CircuitVariable for ByteVariable {
+impl Variable for ByteVariable {
     type ValueType<F: RichField> = u8;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -29,11 +29,11 @@ impl CircuitVariable for ByteVariable {
         Self(array![i => BoolVariable::constant(builder, (value >> (7 - i)) & 1 == 1); 8])
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         self.0.iter().map(|x| x.0).collect()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         assert_eq!(variables.len(), 8);
         Self(array![i => BoolVariable(variables[i]); 8])
     }

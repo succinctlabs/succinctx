@@ -6,13 +6,13 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::{ByteVariable, BytesVariable, CircuitVariable, EvmVariable};
-use crate::prelude::Variable;
+use crate::frontend::vars::{ByteVariable, BytesVariable, EvmVariable, Variable};
+use crate::prelude::FieldVariable;
 
 #[derive(Debug, Clone, Copy)]
 pub struct BLSPubkeyVariable(pub BytesVariable<48>);
 
-impl CircuitVariable for BLSPubkeyVariable {
+impl Variable for BLSPubkeyVariable {
     type ValueType<F: RichField> = [u8; 48];
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -26,11 +26,11 @@ impl CircuitVariable for BLSPubkeyVariable {
         Self(BytesVariable::constant(builder, value))
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         self.0.variables()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         Self(BytesVariable::from_variables(variables))
     }
 
@@ -46,7 +46,7 @@ impl CircuitVariable for BLSPubkeyVariable {
 #[derive(Debug, Clone, Copy)]
 pub struct AddressVariable(pub BytesVariable<20>);
 
-impl CircuitVariable for AddressVariable {
+impl Variable for AddressVariable {
     type ValueType<F: RichField> = H160;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -63,11 +63,11 @@ impl CircuitVariable for AddressVariable {
         ))
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         self.0.variables()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         Self(BytesVariable::from_variables(variables))
     }
 

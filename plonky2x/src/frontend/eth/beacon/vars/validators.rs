@@ -6,8 +6,8 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
-use crate::prelude::Variable;
+use crate::frontend::vars::{Bytes32Variable, Variable};
+use crate::prelude::FieldVariable;
 
 /// The value type for `BeaconValidatorsVariable`. Note that this struct does not have a natural
 /// representation of the beacon validators. Instead it stores commitments to the underlying
@@ -28,7 +28,7 @@ pub struct BeaconValidatorsVariable {
     pub validators_root: Bytes32Variable,
 }
 
-impl CircuitVariable for BeaconValidatorsVariable {
+impl Variable for BeaconValidatorsVariable {
     type ValueType<F: RichField> = BeaconValidatorsValue;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -48,7 +48,7 @@ impl CircuitVariable for BeaconValidatorsVariable {
         }
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         self.block_root
             .variables()
             .into_iter()
@@ -56,7 +56,7 @@ impl CircuitVariable for BeaconValidatorsVariable {
             .collect()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         let block_root = Bytes32Variable::from_variables(&variables[0..256]);
         let validators_root = Bytes32Variable::from_variables(&variables[256..512]);
         Self {

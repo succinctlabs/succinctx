@@ -20,13 +20,13 @@ use super::vars::EvmVariable;
 use crate::backend::circuit::mock::MockCircuit;
 use crate::backend::circuit::Circuit;
 use crate::backend::config::{DefaultParameters, PlonkParameters};
-use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
+use crate::frontend::vars::{BoolVariable, FieldVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
 /// The universal api for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub api: _CircuitBuilder<L::Field, D>,
     pub io: CircuitIO<D>,
-    pub constants: HashMap<Variable, L::Field>,
+    pub constants: HashMap<FieldVariable, L::Field>,
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
@@ -145,12 +145,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Initializes a variable with no value in the circuit.
-    pub fn init<V: CircuitVariable>(&mut self) -> V {
+    pub fn init<V: Variable>(&mut self) -> V {
         V::init(self)
     }
 
     /// Initializes a variable with a constant value in the circuit.
-    pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) -> V {
+    pub fn constant<V: Variable>(&mut self, value: V::ValueType<L::Field>) -> V {
         V::constant(self, value)
     }
 
@@ -160,7 +160,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Add returns res = i1 + i2 + ...
-    pub fn add_many(&mut self, values: &[Variable]) -> Variable {
+    pub fn add_many(&mut self, values: &[FieldVariable]) -> FieldVariable {
         let mut acc = values[0].0;
         for i in 1..values.len() {
             acc = self.api.add(acc, values[i].0);
@@ -169,7 +169,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Sub returns res = i1 - i2 - ...
-    pub fn sub_many(&mut self, values: &[Variable]) -> Variable {
+    pub fn sub_many(&mut self, values: &[FieldVariable]) -> FieldVariable {
         let mut acc = values[0].0;
         for i in 1..values.len() {
             acc = self.api.sub(acc, values[i].0);
@@ -178,7 +178,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Mul returns res = i1 * i2 * ...
-    pub fn mul_many(&mut self, values: &[Variable]) -> Variable {
+    pub fn mul_many(&mut self, values: &[FieldVariable]) -> FieldVariable {
         let mut acc = values[0].0;
         for i in 1..values.len() {
             acc = self.api.mul(acc, values[i].0);
@@ -187,12 +187,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Inverse returns res = 1 / i1.
-    pub fn inverse(&mut self, i1: Variable) -> Variable {
+    pub fn inverse(&mut self, i1: FieldVariable) -> FieldVariable {
         self.api.inverse(i1.0).into()
     }
 
     /// If selector is true, yields i1 else yields i2.
-    pub fn select<V: CircuitVariable>(&mut self, selector: BoolVariable, i1: V, i2: V) -> V {
+    pub fn select<V: Variable>(&mut self, selector: BoolVariable, i1: V, i2: V) -> V {
         assert_eq!(i1.targets().len(), i2.targets().len());
         let mut targets = Vec::new();
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
@@ -205,13 +205,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Returns 1 if i1 is zero, 0 otherwise as a boolean.
-    pub fn is_zero(&mut self, i1: Variable) -> BoolVariable {
+    pub fn is_zero(&mut self, i1: FieldVariable) -> BoolVariable {
         let zero = self.api.zero();
         self.api.is_equal(i1.0, zero).target.into()
     }
 
     /// Fails if i1 != i2.
-    pub fn assert_is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) {
+    pub fn assert_is_equal<V: Variable>(&mut self, i1: V, i2: V) {
         assert_eq!(i1.targets().len(), i2.targets().len());
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
             self.api.connect(*t1, *t2);
@@ -245,8 +245,8 @@ pub(crate) mod tests {
     fn test_simple_circuit_with_field_io() {
         // Define your circuit.
         let mut builder = CircuitBuilderX::new();
-        let a = builder.read::<Variable>();
-        let b = builder.read::<Variable>();
+        let a = builder.read::<FieldVariable>();
+        let b = builder.read::<FieldVariable>();
         let c = builder.add(a, b);
         builder.write(c);
 
@@ -255,8 +255,8 @@ pub(crate) mod tests {
 
         // Write to the circuit input.
         let mut input = circuit.input();
-        input.write::<Variable>(GoldilocksField::TWO);
-        input.write::<Variable>(GoldilocksField::TWO);
+        input.write::<FieldVariable>(GoldilocksField::TWO);
+        input.write::<FieldVariable>(GoldilocksField::TWO);
 
         // Generate a proof.
         let (proof, mut output) = circuit.prove(&input);
@@ -265,7 +265,7 @@ pub(crate) mod tests {
         circuit.verify(&proof, &input, &output);
 
         // Read output.
-        let sum = output.read::<Variable>();
+        let sum = output.read::<FieldVariable>();
         println!("{}", sum.0);
     }
 

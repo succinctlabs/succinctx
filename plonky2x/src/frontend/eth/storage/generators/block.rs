@@ -13,7 +13,7 @@ use tokio::runtime::Runtime;
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::storage::vars::{EthHeader, EthHeaderVariable};
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
+use crate::frontend::vars::{Bytes32Variable, Variable};
 use crate::utils::eth::get_provider;
 
 #[derive(Debug, Clone)]

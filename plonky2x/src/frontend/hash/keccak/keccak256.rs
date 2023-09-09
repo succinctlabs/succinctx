@@ -10,13 +10,13 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use crate::backend::config::PlonkParameters;
-use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, Variable};
+use crate::frontend::vars::{ByteVariable, Bytes32Variable, FieldVariable, Variable};
 
 #[derive(Debug, Clone)]
 pub struct Keccak256Generator<L: PlonkParameters<D>, const D: usize> {
     pub input: Vec<ByteVariable>,
     pub output: Bytes32Variable,
-    pub length: Option<Variable>,
+    pub length: Option<FieldVariable>,
     pub _phantom: PhantomData<L>,
 }
 
@@ -107,7 +107,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
 
         let length_exists = src.read_bool()?;
         let length = if length_exists {
-            Some(Variable::from_targets(&src.read_target_vec()?))
+            Some(FieldVariable::from_targets(&src.read_target_vec()?))
         } else {
             None
         };

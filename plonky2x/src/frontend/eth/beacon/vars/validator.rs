@@ -7,9 +7,9 @@ use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::vars::{
-    BoolVariable, Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable, U256Variable,
+    BoolVariable, Bytes32Variable, EvmVariable, SSZVariable, U256Variable, Variable,
 };
-use crate::prelude::{ByteVariable, Variable};
+use crate::prelude::{ByteVariable, FieldVariable};
 use crate::utils::eth::beacon::BeaconValidator;
 use crate::utils::{bytes, bytes32, hex};
 
@@ -25,7 +25,7 @@ pub struct BeaconValidatorVariable {
     pub withdrawable_epoch: U256Variable,
 }
 
-impl CircuitVariable for BeaconValidatorVariable {
+impl Variable for BeaconValidatorVariable {
     type ValueType<F: RichField> = BeaconValidator;
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
@@ -70,7 +70,7 @@ impl CircuitVariable for BeaconValidatorVariable {
         }
     }
 
-    fn variables(&self) -> Vec<Variable> {
+    fn variables(&self) -> Vec<FieldVariable> {
         let mut vars = Vec::new();
         vars.extend(self.pubkey.variables());
         vars.extend(self.withdrawal_credentials.variables());
@@ -83,7 +83,7 @@ impl CircuitVariable for BeaconValidatorVariable {
         vars
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables(variables: &[FieldVariable]) -> Self {
         let pubkey = BLSPubkeyVariable::from_variables(&variables[0..384]);
         let withdrawal_credentials = Bytes32Variable::from_variables(&variables[384..640]);
         let effective_balance = U256Variable::from_variables(&variables[640..648]);
