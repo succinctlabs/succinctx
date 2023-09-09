@@ -10,7 +10,6 @@ pub(crate) fn value(
     data: &StructData,
     generics: &Generics,
 ) -> (Generics, TokenStream) {
-    // let namevalue = Ident::new(&format!("{}Value", name), name.span());
     let mut value_generics = generics.clone();
     value_generics.params.push(parse_quote!(F: RichField));
 

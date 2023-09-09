@@ -58,6 +58,10 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
     let mut generics = input.generics;
     make_where_clause(&data, &mut generics);
 
+    if value_derive.len() > 2 && !generics.params.is_empty() {
+        panic!("Cannot use [value_derive] with generic parameters");
+    }
+
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let (value_generics, value_expanded) = value(&value_ident, &value_derive, &data, &generics);
