@@ -47,7 +47,7 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
         CircuitOutput<L, D>,
     ) {
         // Get input variables from io.
-        let input_variables = self.io.get_input_variables();
+        let input_variables = self.io.input();
         assert_eq!(input_variables.len(), input.buffer.len());
 
         // Assign input variables.
@@ -107,44 +107,33 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
         let circuit_bytes = self.data.to_bytes(gate_serializer, generator_serializer)?;
         buffer.write_usize(circuit_bytes.len())?;
         buffer.write_all(&circuit_bytes)?;
-
-        if self.io.evm.is_some() {
-            let io = self.io.evm.as_ref().unwrap();
-            buffer.write_usize(0)?;
-            buffer.write_target_vec(
-                io.input_bytes
-                    .iter()
-                    .flat_map(|b| b.targets())
-                    .collect_vec()
-                    .as_slice(),
-            )?;
-
-            buffer.write_target_vec(
-                io.output_bytes
-                    .iter()
-                    .flat_map(|b| b.targets())
-                    .collect_vec()
-                    .as_slice(),
-            )?;
-        } else if self.io.field.is_some() {
-            let io = self.io.field.as_ref().unwrap();
-            buffer.write_usize(1)?;
-            buffer.write_target_vec(
-                io.input_variables
-                    .iter()
-                    .map(|v| v.0)
-                    .collect_vec()
-                    .as_slice(),
-            )?;
-            buffer.write_target_vec(
-                io.output_variables
-                    .iter()
-                    .map(|v| v.0)
-                    .collect_vec()
-                    .as_slice(),
-            )?;
-        } else {
-            buffer.write_usize(2)?;
+        match &self.io {
+            CircuitIO::Evm(io) => {
+                buffer.write_usize(0)?;
+                buffer.write_target_vec(
+                    io.input
+                        .iter()
+                        .flat_map(|b| b.targets())
+                        .collect_vec()
+                        .as_slice(),
+                )?;
+                buffer.write_target_vec(
+                    io.output
+                        .iter()
+                        .flat_map(|b| b.targets())
+                        .collect_vec()
+                        .as_slice(),
+                )?;
+            }
+            CircuitIO::Field(io) => {
+                buffer.write_usize(1)?;
+                buffer.write_target_vec(io.input.iter().map(|v| v.0).collect_vec().as_slice())?;
+                buffer.write_target_vec(io.output.iter().map(|v| v.0).collect_vec().as_slice())?;
+            }
+            CircuitIO::None() => {
+                buffer.write_usize(2)?;
+            }
+            _ => panic!("unsupported io type"),
         }
 
         Ok(buffer)
@@ -183,16 +172,16 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
             let output_bytes = (0..output_targets.len() / 8)
                 .map(|i| ByteVariable::from_targets(&output_targets[i * 8..(i + 1) * 8]))
                 .collect_vec();
-            circuit.io.evm = Some(EvmIO {
-                input_bytes,
-                output_bytes,
+            circuit.io = CircuitIO::Evm(EvmIO {
+                input: input_bytes,
+                output: output_bytes,
             });
         } else if io_type == 1 {
             let input_targets = buffer.read_target_vec()?;
             let output_targets = buffer.read_target_vec()?;
-            circuit.io.field = Some(FieldIO {
-                input_variables: input_targets.into_iter().map(Variable).collect_vec(),
-                output_variables: output_targets.into_iter().map(Variable).collect_vec(),
+            circuit.io = CircuitIO::Field(FieldIO {
+                input: input_targets.into_iter().map(Variable).collect_vec(),
+                output: output_targets.into_iter().map(Variable).collect_vec(),
             });
         }
 
@@ -311,15 +300,15 @@ pub(crate) mod tests {
             .serialize(&gate_serializer, &generator_serializer)
             .unwrap();
         let old_digest = circuit.data.verifier_only.circuit_digest;
-        let old_input_variables = circuit.io.field.as_ref().unwrap().input_variables.clone();
-        let old_output_variables = circuit.io.field.as_ref().unwrap().input_variables.clone();
+        let old_input_variables = circuit.io.input();
+        let old_output_variables = circuit.io.output();
 
         // Deserialize.
         let circuit =
             Circuit::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer).unwrap();
         let new_digest = circuit.data.verifier_only.circuit_digest;
-        let new_input_variables = circuit.io.field.as_ref().unwrap().input_variables.clone();
-        let new_output_variables = circuit.io.field.as_ref().unwrap().input_variables.clone();
+        let new_input_variables = circuit.io.input();
+        let new_output_variables = circuit.io.output();
 
         // Perform some sanity checks.
         assert_eq!(old_digest, new_digest);
@@ -365,15 +354,15 @@ pub(crate) mod tests {
             .serialize(&gate_serializer, &generator_serializer)
             .unwrap();
         let old_digest = circuit.data.verifier_only.circuit_digest;
-        let old_input_bytes = circuit.io.evm.as_ref().unwrap().input_bytes.clone();
-        let old_output_bytes = circuit.io.evm.as_ref().unwrap().output_bytes.clone();
+        let old_input_bytes = circuit.io.input();
+        let old_output_bytes = circuit.io.output();
 
         // Deserialize.
         let circuit =
             Circuit::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer).unwrap();
         let new_digest = circuit.data.verifier_only.circuit_digest;
-        let new_input_bytes = circuit.io.evm.as_ref().unwrap().input_bytes.clone();
-        let new_output_bytes = circuit.io.evm.as_ref().unwrap().output_bytes.clone();
+        let new_input_bytes = circuit.io.input();
+        let new_output_bytes = circuit.io.output();
 
         // Perform some sanity checks.
         assert_eq!(old_digest, new_digest);

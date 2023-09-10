@@ -22,6 +22,7 @@ use crate::backend::circuit::Circuit;
 use crate::backend::config::{DefaultParameters, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
+
 /// The universal api for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub api: _CircuitBuilder<L::Field, D>,
@@ -112,19 +113,38 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         for hint in hints {
             hint.register(&mut self);
         }
-        if self.io.evm.is_some() {
-            let io = self.io.evm.as_ref().unwrap();
-            let inputs: Vec<Target> = io.input_bytes.iter().flat_map(|b| b.targets()).collect();
-            let outputs: Vec<Target> = io.output_bytes.iter().flat_map(|b| b.targets()).collect();
-            self.register_public_inputs(inputs.as_slice());
-            self.register_public_inputs(outputs.as_slice());
-        } else if self.io.field.is_some() {
-            let io = self.io.field.as_ref().unwrap();
-            let inputs: Vec<Target> = io.input_variables.iter().map(|v| v.0).collect();
-            let outputs: Vec<Target> = io.output_variables.iter().map(|v| v.0).collect();
-            self.register_public_inputs(inputs.as_slice());
-            self.register_public_inputs(outputs.as_slice());
-        }
+        match self.io {
+            CircuitIO::Evm(ref io) => {
+                let input = io
+                    .input
+                    .iter()
+                    .flat_map(|b| b.targets())
+                    .collect::<Vec<_>>();
+                let output = io
+                    .output
+                    .iter()
+                    .flat_map(|b| b.targets())
+                    .collect::<Vec<_>>();
+                self.register_public_inputs(input.as_slice());
+                self.register_public_inputs(output.as_slice());
+            }
+            CircuitIO::Field(ref io) => {
+                let input = io
+                    .input
+                    .iter()
+                    .flat_map(|b| b.targets())
+                    .collect::<Vec<_>>();
+                let output = io
+                    .output
+                    .iter()
+                    .flat_map(|b| b.targets())
+                    .collect::<Vec<_>>();
+                self.register_public_inputs(input.as_slice());
+                self.register_public_inputs(output.as_slice());
+            }
+            CircuitIO::None() => {}
+            _ => panic!("unsupported io type"),
+        };
 
         let data = self.api.build();
         Circuit { data, io: self.io }

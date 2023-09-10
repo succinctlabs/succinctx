@@ -32,7 +32,7 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuit<L, D> {
         input: &CircuitInput<L, D>,
     ) -> (PartitionWitness<L::Field>, CircuitOutput<L, D>) {
         // Get input variables from io.
-        let input_variables = self.io.get_input_variables();
+        let input_variables = self.io.input();
         assert_eq!(input_variables.len(), input.buffer.len());
 
         // Assign input variables.
@@ -51,7 +51,7 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuit<L, D> {
         };
         let filled_witness = result.unwrap();
 
-        let output_variables = self.io.get_output_variables();
+        let output_variables = self.io.output();
         let output_elements = output_variables
             .iter()
             .map(|v| v.get(&filled_witness))

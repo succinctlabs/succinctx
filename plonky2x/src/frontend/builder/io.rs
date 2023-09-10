@@ -8,136 +8,123 @@ use crate::prelude::{ByteVariable, CircuitVariable, Variable};
 /// Stores circuit variables used for reading and writing data to the EVM.
 #[derive(Debug, Clone)]
 pub struct EvmIO {
-    pub input_bytes: Vec<ByteVariable>,
-    pub output_bytes: Vec<ByteVariable>,
+    pub input: Vec<ByteVariable>,
+    pub output: Vec<ByteVariable>,
 }
 
 /// Stores circuit variable used for reading and writing data using field elements.
 #[derive(Debug, Clone)]
 pub struct FieldIO {
-    pub input_variables: Vec<Variable>,
-    pub output_variables: Vec<Variable>,
+    pub input: Vec<Variable>,
+    pub output: Vec<Variable>,
 }
 
-/// Stores circuit variables used for recursive proof verification.
+/// Stores circuit variables used for circuits with recursive proof inputs.
 #[derive(Debug, Clone)]
 pub struct RecursiveProofIO<const D: usize> {
-    pub input_proofs: Vec<ProofWithPublicInputsTarget<D>>,
-    pub output_variables: Vec<Variable>,
+    pub input: Vec<ProofWithPublicInputsTarget<D>>,
+    pub output: Vec<Variable>,
 }
 
 #[derive(Debug, Clone)]
-pub struct CircuitIO<const D: usize> {
-    pub evm: Option<EvmIO>,
-    pub field: Option<FieldIO>,
-    pub recursive_proof: Option<RecursiveProofIO<D>>,
+pub enum CircuitIO<const D: usize> {
+    Evm(EvmIO),
+    Field(FieldIO),
+    RecursiveProof(RecursiveProofIO<D>),
+    None(),
 }
 
 impl<const D: usize> CircuitIO<D> {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self {
-            evm: None,
-            field: None,
-            recursive_proof: None,
+        Self::None()
+    }
+
+    pub fn input(&self) -> Vec<Variable> {
+        match self {
+            Self::Evm(io) => io.input.iter().flat_map(|b| b.variables()).collect(),
+            Self::Field(io) => io.input.clone(),
+            Self::RecursiveProof(_) => todo!(),
+            Self::None() => vec![],
         }
     }
 
-    pub fn get_input_variables(&self) -> Vec<Variable> {
-        if self.evm.is_some() {
-            self.evm
-                .clone()
-                .unwrap()
-                .input_bytes
-                .into_iter()
-                .flat_map(|b| b.variables())
-                .collect()
-        } else if self.field.is_some() {
-            self.field.clone().unwrap().input_variables
-        } else {
-            vec![]
-        }
-    }
-
-    pub fn get_output_variables(&self) -> Vec<Variable> {
-        if self.evm.is_some() {
-            self.evm
-                .clone()
-                .unwrap()
-                .output_bytes
-                .into_iter()
-                .flat_map(|b| b.variables())
-                .collect()
-        } else if self.field.is_some() {
-            self.field.clone().unwrap().output_variables
-        } else {
-            vec![]
+    pub fn output(&self) -> Vec<Variable> {
+        match self {
+            Self::Evm(io) => io.output.iter().flat_map(|b| b.variables()).collect(),
+            Self::Field(io) => io.output.clone(),
+            Self::RecursiveProof(io) => io.output.clone(),
+            Self::None() => vec![],
         }
     }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    fn init_field_io(&mut self) {
-        if self.io.evm.is_some() || self.io.recursive_proof.is_some() {
-            panic!("cannot use field io and other io methods at the same time")
-        } else if self.io.field.is_none() {
-            self.io.field = Some(FieldIO {
-                input_variables: Vec::new(),
-                output_variables: Vec::new(),
-            })
-        }
+    fn try_init_field_io(&mut self) {
+        match self.io {
+            CircuitIO::None() => {
+                self.io = CircuitIO::Field(FieldIO {
+                    input: Vec::new(),
+                    output: Vec::new(),
+                })
+            }
+            CircuitIO::Field(_) => {}
+            _ => panic!("already set io type"),
+        };
     }
 
-    fn init_evm_io(&mut self) {
-        if self.io.field.is_some() || self.io.recursive_proof.is_some() {
-            panic!("cannot use evm io and other io methods at the same time")
-        } else if self.io.evm.is_none() {
-            self.io.evm = Some(EvmIO {
-                input_bytes: Vec::new(),
-                output_bytes: Vec::new(),
-            })
-        }
+    fn try_init_evm_io(&mut self) {
+        match self.io {
+            CircuitIO::None() => {
+                self.io = CircuitIO::Evm(EvmIO {
+                    input: Vec::new(),
+                    output: Vec::new(),
+                })
+            }
+            CircuitIO::Evm(_) => {}
+            _ => panic!("already set io type"),
+        };
     }
 
     pub fn read<V: CircuitVariable>(&mut self) -> V {
-        self.init_field_io();
+        self.try_init_field_io();
         let variable = self.init::<V>();
-        match self.io.field {
-            Some(ref mut io) => io.input_variables.extend(variable.variables()),
-            None => panic!("cannot read from field io"),
+        match self.io {
+            CircuitIO::Field(ref mut io) => io.input.extend(variable.variables()),
+            _ => panic!("field io is not enabled"),
         }
         variable
     }
 
     pub fn evm_read<V: EvmVariable>(&mut self) -> V {
-        self.init_evm_io();
+        self.try_init_evm_io();
         let nb_bytes = V::nb_bytes::<L, D>();
         let mut bytes = Vec::new();
         for _ in 0..nb_bytes {
             bytes.push(self.init::<ByteVariable>());
         }
         let variable = V::decode(self, bytes.as_slice());
-        match self.io.evm {
-            Some(ref mut io) => io.input_bytes.extend(bytes),
-            None => panic!("cannot read from field io"),
+        match self.io {
+            CircuitIO::Evm(ref mut io) => io.input.extend(bytes),
+            _ => panic!("evm io is not enabled"),
         }
         variable
     }
 
     pub fn write<V: CircuitVariable>(&mut self, variable: V) {
-        self.init_field_io();
-        match self.io.field {
-            Some(ref mut io) => io.output_variables.extend(variable.variables()),
-            None => panic!("cannot write to field io"),
+        self.try_init_field_io();
+        match self.io {
+            CircuitIO::Field(ref mut io) => io.output.extend(variable.variables()),
+            _ => panic!("field io is not enabled"),
         }
     }
 
     pub fn evm_write<V: EvmVariable>(&mut self, variable: V) {
-        self.init_evm_io();
+        self.try_init_evm_io();
         let bytes = variable.encode(self);
-        match self.io.evm {
-            Some(ref mut io) => io.output_bytes.extend(bytes),
-            None => panic!("cannot write to evm io"),
+        match self.io {
+            CircuitIO::Evm(ref mut io) => io.output.extend(bytes),
+            _ => panic!("evm io is not enabled"),
         }
     }
 }
