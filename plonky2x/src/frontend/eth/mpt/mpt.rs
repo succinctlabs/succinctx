@@ -105,9 +105,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         };
         self.add_simple_generator(&generator);
         let output = generator.output;
-        let _zero = self.zero::<ByteVariable>();
-        let total = self.add(output, rhs);
-        self.assert_is_equal(i1, i2);
+        for i in 0..8 {
+            let l = lhs.0[i];
+            let r = rhs.0[i];
+            let curr = self.sub(l.0, r.0);
+            self.assert_is_equal(output.0[i].0, curr);
+        }
         output
     }
 
