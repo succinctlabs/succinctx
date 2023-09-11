@@ -1,24 +1,22 @@
 //! Arithmetic operations.
 
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 /// The addition operation.
 ///
 /// Types implementing this trait can be used within the `builder.add(lhs, rhs)` method.
-pub trait Add<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
+pub trait Add<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
     /// The output type of the operation.
     type Output;
 
-    fn add(self, rhs: Rhs, builder: &mut CircuitBuilder<F, D>) -> Self::Output;
+    fn add(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn add<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Add<F, D, Rhs>>::Output
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn add<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Add<L, D, Rhs>>::Output
     where
-        Lhs: Add<F, D, Rhs>,
+        Lhs: Add<L, D, Rhs>,
     {
         lhs.add(rhs, self)
     }
@@ -27,16 +25,16 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 /// The subtraction operation.
 ///
 /// Types implementing this trait can be used within the `builder.sub(lhs, rhs)` method.
-pub trait Sub<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
+pub trait Sub<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
     type Output;
 
-    fn sub(self, rhs: Rhs, builder: &mut CircuitBuilder<F, D>) -> Self::Output;
+    fn sub(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn sub<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Sub<F, D, Rhs>>::Output
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn sub<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Sub<L, D, Rhs>>::Output
     where
-        Lhs: Sub<F, D, Rhs>,
+        Lhs: Sub<L, D, Rhs>,
     {
         lhs.sub(rhs, self)
     }
@@ -45,16 +43,16 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 /// The multiplication operation.
 ///
 /// Types implementing this trait can be used within the `builder.mul(lhs, rhs)` method.
-pub trait Mul<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
+pub trait Mul<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
     type Output;
 
-    fn mul(self, rhs: Rhs, builder: &mut CircuitBuilder<F, D>) -> Self::Output;
+    fn mul(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn mul<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Mul<F, D, Rhs>>::Output
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn mul<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Mul<L, D, Rhs>>::Output
     where
-        Lhs: Mul<F, D, Rhs>,
+        Lhs: Mul<L, D, Rhs>,
     {
         lhs.mul(rhs, self)
     }
@@ -63,16 +61,16 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 /// The negation operation.
 ///
 /// Types implementing this trait can be used within the `builder.neg(value)` method.
-pub trait Neg<F: RichField + Extendable<D>, const D: usize> {
+pub trait Neg<L: PlonkParameters<D>, const D: usize> {
     type Output;
 
-    fn neg(self, builder: &mut CircuitBuilder<F, D>) -> Self::Output;
+    fn neg(self, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn neg<T>(&mut self, value: T) -> <T as Neg<F, D>>::Output
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn neg<T>(&mut self, value: T) -> <T as Neg<L, D>>::Output
     where
-        T: Neg<F, D>,
+        T: Neg<L, D>,
     {
         value.neg(self)
     }
@@ -81,16 +79,16 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 /// The division operation.
 ///
 /// Types implementing this trait can be used within the `builder.div(lhs, rhs)` method.
-pub trait Div<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
+pub trait Div<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
     type Output;
 
-    fn div(self, rhs: Rhs, builder: &mut CircuitBuilder<F, D>) -> Self::Output;
+    fn div(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn div<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Div<F, D, Rhs>>::Output
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn div<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Div<L, D, Rhs>>::Output
     where
-        Lhs: Div<F, D, Rhs>,
+        Lhs: Div<L, D, Rhs>,
     {
         lhs.div(rhs, self)
     }
@@ -99,16 +97,16 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 /// The remainder operation.
 ///
 /// Types implementing this trait can be used within the `builder.rem(lhs, rhs)` method.
-pub trait Rem<F: RichField + Extendable<D>, const D: usize, Rhs = Self> {
+pub trait Rem<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
     type Output;
 
-    fn rem(self, rhs: Rhs, builder: &mut CircuitBuilder<F, D>) -> Self::Output;
+    fn rem(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn rem<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Rem<F, D, Rhs>>::Output
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn rem<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as Rem<L, D, Rhs>>::Output
     where
-        Lhs: Rem<F, D, Rhs>,
+        Lhs: Rem<L, D, Rhs>,
     {
         lhs.rem(rhs, self)
     }
@@ -117,12 +115,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 /// A zero element
 ///
 /// Types implementing this trait can be used via the `builder.zero()` method.
-pub trait Zero<F: RichField + Extendable<D>, const D: usize> {
-    fn zero(builder: &mut CircuitBuilder<F, D>) -> Self;
+pub trait Zero<L: PlonkParameters<D>, const D: usize> {
+    fn zero(builder: &mut CircuitBuilder<L, D>) -> Self;
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn zero<T: Zero<F, D>>(&mut self) -> T {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn zero<T: Zero<L, D>>(&mut self) -> T {
         T::zero(self)
     }
 }
@@ -130,12 +128,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 /// A One element
 ///
 /// Types implementing this trait can be used via the `builder.one()` method.
-pub trait One<F: RichField + Extendable<D>, const D: usize> {
-    fn one(builder: &mut CircuitBuilder<F, D>) -> Self;
+pub trait One<L: PlonkParameters<D>, const D: usize> {
+    fn one(builder: &mut CircuitBuilder<L, D>) -> Self;
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn one<T: One<F, D>>(&mut self) -> T {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn one<T: One<L, D>>(&mut self) -> T {
         T::one(self)
     }
 }

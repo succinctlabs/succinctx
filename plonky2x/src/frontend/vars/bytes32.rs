@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 
 use ethers::types::H256;
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{ByteVariable, BytesVariable, CircuitVariable, EvmVariable, U256Variable, Variable};
+use super::{ByteVariable, CircuitVariable, EvmVariable, U256Variable, Variable};
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a byte32 value.
@@ -21,9 +21,9 @@ impl Bytes32Variable {
         self.0 .0
     }
 
-    pub fn as_u256<F: RichField + Extendable<D>, const D: usize>(
+    pub fn as_u256<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> U256Variable {
         U256Variable::decode(builder, &self.0 .0)
     }
@@ -45,15 +45,13 @@ impl From<&[ByteVariable]> for Bytes32Variable {
 impl CircuitVariable for Bytes32Variable {
     type ValueType<F: RichField> = H256;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self(BytesVariable::init(builder))
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self(BytesVariable::constant(
             builder,
@@ -80,15 +78,15 @@ impl CircuitVariable for Bytes32Variable {
 }
 
 impl EvmVariable for Bytes32Variable {
-    fn encode<F: RichField + Extendable<D>, const D: usize>(
+    fn encode<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> Vec<ByteVariable> {
         self.0.encode(builder)
     }
 
-    fn decode<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
+    fn decode<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
         bytes: &[super::ByteVariable],
     ) -> Self {
         Self(BytesVariable::decode(builder, bytes))
@@ -107,18 +105,15 @@ impl EvmVariable for Bytes32Variable {
 mod test {
     use ethers::types::U256;
     use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::Bytes32Variable;
     use crate::frontend::uint::uint256::U256Variable;
-    use crate::prelude::{CircuitBuilderX, CircuitVariable};
+    use crate::prelude::{CircuitVariable, DefaultBuilder};
     use crate::utils::bytes32;
-
-    type C = PoseidonGoldilocksConfig;
 
     #[test]
     fn test_bytes32_as_u256() {
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
 
         let b32 = Bytes32Variable::constant(
             &mut builder,
@@ -135,7 +130,7 @@ mod test {
         );
         builder.assert_is_equal(u256, expected);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let pw = PartialWitness::new();
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();

@@ -17,10 +17,7 @@
 
 use std::env;
 
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2x::backend::circuit::Circuit;
+use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::CircuitFunction;
 use plonky2x::frontend::vars::ByteVariable;
 use plonky2x::prelude::CircuitBuilder;
@@ -28,18 +25,13 @@ use plonky2x::prelude::CircuitBuilder;
 struct Function {}
 
 impl CircuitFunction for Function {
-    fn build<F, C, const D: usize>() -> Circuit<F, C, D>
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-    {
-        let mut builder = CircuitBuilder::<F, D>::new();
+    fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D> {
+        let mut builder = CircuitBuilder::<L, D>::new();
         let a = builder.evm_read::<ByteVariable>();
         let b = builder.evm_read::<ByteVariable>();
         let c = builder.xor(a, b);
         builder.evm_write(c);
-        builder.build::<C>()
+        builder.build()
     }
 }
 
@@ -53,21 +45,21 @@ fn main() {
 mod tests {
     use std::path::PathBuf;
 
+    use plonky2x::backend::config::DefaultParameters;
     use plonky2x::prelude::{GoldilocksField, PoseidonGoldilocksConfig};
 
     use super::*;
 
-    type F = GoldilocksField;
-    type C = PoseidonGoldilocksConfig;
+    type L = DefaultParameters;
     const D: usize = 2;
 
     #[test]
     fn test_circuit_function_evm() {
-        let circuit = Function::build::<F, C, D>();
+        let circuit = Function::build::<L, D>();
         let mut input = circuit.input();
         input.evm_write::<ByteVariable>(0u8);
         input.evm_write::<ByteVariable>(1u8);
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         let xor = output.evm_read::<ByteVariable>();
         assert_eq!(xor, 1u8);

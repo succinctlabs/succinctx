@@ -3,8 +3,6 @@ use std::env;
 
 use array_macro::array;
 use ethers::types::{Address, U256};
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
@@ -12,6 +10,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::beacon::vars::{
     BeaconWithdrawalValue, BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
@@ -24,19 +23,19 @@ use crate::utils::{bytes32, hex};
 const DEPTH: usize = 5;
 
 #[derive(Debug, Clone)]
-pub struct BeaconWithdrawalGenerator<F: RichField + Extendable<D>, const D: usize> {
+pub struct BeaconWithdrawalGenerator<L: PlonkParameters<D>, const D: usize> {
     client: BeaconClient,
     withdrawals: BeaconWithdrawalsVariable,
     idx: U64Variable,
     pub withdrawal_root: Bytes32Variable,
     pub withdrawal: BeaconWithdrawalVariable,
     pub proof: [Bytes32Variable; DEPTH],
-    _phantom: PhantomData<F>,
+    _phantom: PhantomData<L>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> BeaconWithdrawalGenerator<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> BeaconWithdrawalGenerator<L, D> {
     pub fn new(
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         client: BeaconClient,
         withdrawals: BeaconWithdrawalsVariable,
         idx: U64Variable,
@@ -57,8 +56,8 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconWithdrawalGenerator<F, 
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
-    for BeaconWithdrawalGenerator<F, D>
+impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
+    for BeaconWithdrawalGenerator<L, D>
 {
     fn id(&self) -> String {
         Self::id()
@@ -71,7 +70,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         targets
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+    fn run_once(
+        &self,
+        witness: &PartitionWitness<L::Field>,
+        out_buffer: &mut GeneratedValues<L::Field>,
+    ) {
         let block_root = self.withdrawals.block_root.get(witness);
         let idx = self.idx.get(witness);
 
@@ -100,7 +103,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     #[allow(unused_variables)]
-    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
+    fn serialize(
+        &self,
+        dst: &mut Vec<u8>,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<()> {
         dst.write_target_vec(&self.withdrawals.targets())?;
         dst.write_target_vec(&self.idx.targets())?;
         dst.write_target_vec(&self.withdrawal_root.targets())?;
@@ -112,7 +119,10 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     #[allow(unused_variables)]
-    fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
+    fn deserialize(
+        src: &mut Buffer,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<Self> {
         let withdrawals = BeaconWithdrawalsVariable::from_targets(&src.read_target_vec()?);
         let idx = U64Variable::from_targets(&src.read_target_vec()?);
         let withdrawal_root = Bytes32Variable::from_targets(&src.read_target_vec()?);

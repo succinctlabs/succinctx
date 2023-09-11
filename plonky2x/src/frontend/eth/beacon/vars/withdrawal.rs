@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
 use ethers::types::{H160, U256, U64};
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint256::U256Variable;
@@ -31,9 +31,7 @@ pub struct BeaconWithdrawalVariable {
 impl CircuitVariable for BeaconWithdrawalVariable {
     type ValueType<F: RichField> = BeaconWithdrawalValue;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self {
             index: U64Variable::init(builder),
             validator_index: U64Variable::init(builder),
@@ -42,9 +40,9 @@ impl CircuitVariable for BeaconWithdrawalVariable {
         }
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         Self {
             index: U64Variable::constant(builder, value.index),
@@ -94,9 +92,9 @@ impl CircuitVariable for BeaconWithdrawalVariable {
 }
 
 impl SSZVariable for BeaconWithdrawalVariable {
-    fn hash_tree_root<F: RichField + Extendable<D>, const D: usize>(
+    fn hash_tree_root<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
     ) -> Bytes32Variable {
         let zero = builder.constant::<ByteVariable>(0);
 

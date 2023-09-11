@@ -7,6 +7,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::IoResult;
 
 use super::CircuitBuilder;
+use crate::backend::circuit::PlonkParameters;
 use crate::prelude::CircuitVariable;
 
 #[derive(Debug, Clone)]
@@ -15,7 +16,7 @@ pub struct WatchGenerator<V: CircuitVariable> {
     pub log: String,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn watch<V: CircuitVariable>(&mut self, variable: &V, log: &str) {
         let variable = variable.clone();
         let log = String::from(log);
@@ -91,6 +92,7 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, _out_buffer: &mut GeneratedValues<F>) {
+<<<<<<< HEAD
         let values: Vec<V::ValueType<F>> = self.variables.iter().map(|x| x.get(witness)).collect();
         if values.len() == 1 {
             println!("[Watch] {}: {:?}", self.log, values[0]);
@@ -98,6 +100,10 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
             println!("[Watch] {}: {:?}", self.log, values);
         }
         // log!(Level::Info, "Variable {} was set to {:?}", self.log, value);
+=======
+        let value = self.variable.get(witness);
+        log!(Level::Info, "Variable {} was set to {:?}", self.log, value);
+>>>>>>> main
     }
 }
 
@@ -105,7 +111,7 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
 mod tests {
     use plonky2::field::types::Field;
 
-    use crate::frontend::builder::CircuitBuilderX;
+    use crate::frontend::builder::DefaultBuilder;
     use crate::prelude::*;
     use crate::utils::setup_logger;
 
@@ -113,7 +119,7 @@ mod tests {
     fn test_watcher() {
         setup_logger();
 
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         let a = builder.read::<Variable>();
         let b = builder.read::<Variable>();
         let c = builder.add(a, b);
@@ -121,7 +127,7 @@ mod tests {
         builder.write(c);
 
         // Build your circuit.
-        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build();
 
         // Write to the circuit input.
         let mut input = circuit.input();
@@ -129,7 +135,7 @@ mod tests {
         input.write::<Variable>(GoldilocksField::TWO);
 
         // Generate a proof.
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);

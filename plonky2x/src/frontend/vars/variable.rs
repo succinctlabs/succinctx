@@ -1,47 +1,42 @@
 use std::fmt::Debug;
 
+<<<<<<< HEAD
 use backtrace::Backtrace;
 use plonky2::field::extension::Extendable;
+=======
+>>>>>>> main
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
+use serde::{Deserialize, Serialize};
 
 use super::CircuitVariable;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
 
 /// A variable in the circuit. It represents a value between `[0, 2**64 - 2**32 + 1)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Variable(pub Target);
 
 impl CircuitVariable for Variable {
     type ValueType<F: RichField> = F;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         let target = builder.api.add_virtual_target();
-
-        match target {
-            Target::VirtualTarget { index } => {
-                if builder.debug_variables.contains_key(&index) {
-                    let bt = Backtrace::new();
-                    println!("{:#?}", bt);
-                }
-            }
-            _ => panic!("Expected a virtual target"),
-        }
+        builder.debug_target(target);
         Self(target)
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Self::ValueType<F>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
     ) -> Self {
         // In the special case that we are creating a variable constant, we record it in the builder
         // so that we can use it to implement serialization/deserialize to/from elements for
         // ValueType automatically.
         let target = builder.api.constant(value);
+        builder.debug_target(target); // TODO: not sure if I need this
         let variable = Self(target);
         builder.constants.insert(variable, value);
         Self(target)
@@ -71,49 +66,49 @@ impl From<Target> for Variable {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Add<F, D> for Variable {
+impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for Variable {
     type Output = Variable;
-    fn add(self, rhs: Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn add(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         Variable(builder.api.add(self.0, rhs.0))
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Sub<F, D> for Variable {
+impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for Variable {
     type Output = Variable;
-    fn sub(self, rhs: Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn sub(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         Variable(builder.api.sub(self.0, rhs.0))
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Mul<F, D> for Variable {
+impl<L: PlonkParameters<D>, const D: usize> Mul<L, D> for Variable {
     type Output = Variable;
-    fn mul(self, rhs: Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn mul(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         Variable(builder.api.mul(self.0, rhs.0))
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Neg<F, D> for Variable {
+impl<L: PlonkParameters<D>, const D: usize> Neg<L, D> for Variable {
     type Output = Variable;
-    fn neg(self, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn neg(self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         Variable(builder.api.neg(self.0))
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Div<F, D> for Variable {
+impl<L: PlonkParameters<D>, const D: usize> Div<L, D> for Variable {
     type Output = Variable;
-    fn div(self, rhs: Variable, builder: &mut CircuitBuilder<F, D>) -> Self::Output {
+    fn div(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         Variable(builder.api.div(self.0, rhs.0))
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Zero<F, D> for Variable {
-    fn zero(builder: &mut CircuitBuilder<F, D>) -> Self {
+impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for Variable {
+    fn zero(builder: &mut CircuitBuilder<L, D>) -> Self {
         Variable(builder.api.zero())
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> One<F, D> for Variable {
-    fn one(builder: &mut CircuitBuilder<F, D>) -> Self {
+impl<L: PlonkParameters<D>, const D: usize> One<L, D> for Variable {
+    fn one(builder: &mut CircuitBuilder<L, D>) -> Self {
         Variable(builder.api.one())
     }
 }

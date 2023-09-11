@@ -1,11 +1,11 @@
 use core::fmt::Debug;
 use std::ops::{Index, Range};
 
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, Variable};
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a fixed length array of variables.
@@ -55,17 +55,15 @@ impl<V: CircuitVariable, const N: usize> From<Vec<V>> for ArrayVariable<V, N> {
 impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N> {
     type ValueType<F: RichField> = Vec<V::ValueType<F>>;
 
-    fn init<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         Self {
             elements: (0..N).map(|_| V::init(builder)).collect(),
         }
     }
 
-    fn constant<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-        value: Vec<V::ValueType<F>>,
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Vec<V::ValueType<L::Field>>,
     ) -> Self {
         assert_eq!(value.len(), N);
         Self {
@@ -105,15 +103,15 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
+
+    type L = DefaultParameters;
+    const D: usize = 2;
 
     #[test]
     fn test_array_variable() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
         let x = builder.init::<BoolVariable>();
         let y = builder.init::<BoolVariable>();
@@ -125,7 +123,7 @@ mod tests {
         y.set(&mut pw, false);
         array.set(&mut pw, vec![true, false]);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
     }

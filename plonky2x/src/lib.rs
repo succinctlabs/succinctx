@@ -20,7 +20,8 @@ pub mod prelude {
     pub use plonky2::iop::witness::PartialWitness;
     pub use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
-    pub use crate::frontend::builder::{CircuitBuilder, CircuitBuilderX};
+    pub use crate::backend::circuit::{GateRegistry, WitnessGeneratorRegistry};
+    pub use crate::frontend::builder::{CircuitBuilder, DefaultBuilder};
     pub use crate::frontend::ops::*;
     pub use crate::frontend::vars::{
         ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable,

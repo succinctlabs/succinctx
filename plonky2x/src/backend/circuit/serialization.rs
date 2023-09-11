@@ -4,6 +4,12 @@ use core::hash::Hash;
 use core::marker::PhantomData;
 use std::collections::HashMap;
 
+use curta::chip::hash::sha::sha256::generator::{
+    SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
+};
+use curta::chip::trace::generator::ArithmeticGenerator;
+use curta::chip::Chip;
+use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
 use plonky2::gadgets::arithmetic_extension::QuotientGeneratorExtension;
@@ -41,22 +47,21 @@ use plonky2::util::serialization::{
     Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
 };
 
+use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
-use crate::frontend::eth::beacon::generators::balance::BeaconBalanceGenerator;
-use crate::frontend::eth::beacon::generators::balances::BeaconBalancesGenerator;
-use crate::frontend::eth::beacon::generators::historical::BeaconHistoricalBlockGenerator;
-use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
-use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
-use crate::frontend::eth::beacon::generators::withdrawal::BeaconWithdrawalGenerator;
-use crate::frontend::eth::beacon::generators::withdrawals::BeaconWithdrawalsGenerator;
+use crate::frontend::eth::beacon::generators::{
+    BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
+    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
+    BeaconWithdrawalsGenerator,
+};
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
     BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
-use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
-use crate::frontend::eth::storage::generators::storage::{
-    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+use crate::frontend::eth::storage::generators::{
+    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
+use crate::frontend::generator::hint::{Hint, HintSerializer};
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
@@ -72,17 +77,44 @@ use crate::frontend::vars::Bytes32Variable;
 /// New witness generators can be added to the registry by calling the `register` method,
 /// specifying the type and the generator's id.
 #[derive(Debug)]
-pub struct WitnessGeneratorRegistry<F: RichField + Extendable<D>, const D: usize>(
-    SerializationRegistry<String, F, WitnessGeneratorRef<F, D>, D>,
+pub struct WitnessGeneratorRegistry<L: PlonkParameters<D>, const D: usize>(
+    SerializationRegistry<String, L::Field, WitnessGeneratorRef<L::Field, D>, D>,
 );
 
 /// A registry to store serializers for gates.
 ///
 /// New gates can be added to the registry by calling the `register` method.
 #[derive(Debug)]
-pub struct GateRegistry<F: RichField + Extendable<D>, const D: usize>(
-    SerializationRegistry<TypeId, F, GateRef<F, D>, D>,
+pub struct GateRegistry<L: PlonkParameters<D>, const D: usize>(
+    SerializationRegistry<TypeId, L::Field, GateRef<L::Field, D>, D>,
 );
+
+#[derive(Debug, Clone)]
+pub enum GeneratorID {
+    #[allow(dead_code)]
+    Name(String),
+    #[allow(dead_code)]
+    Type(TypeId, String),
+}
+
+impl PartialEq for GeneratorID {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Name(name1), Self::Name(name2)) => name1 == name2,
+            (Self::Type(type_id1, _), Self::Type(type_id2, _)) => type_id1 == type_id2,
+            _ => false,
+        }
+    }
+}
+
+impl Hash for GeneratorID {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Name(name) => name.hash(state),
+            Self::Type(type_id, _) => type_id.hash(state),
+        }
+    }
+}
 
 /// A trait for serializing and deserializing objects compatible with plonky2 traits.
 pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize> {
@@ -99,7 +131,7 @@ pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize> {
 pub(crate) struct SerializationRegistry<K: Hash, F: RichField + Extendable<D>, T, const D: usize> {
     registry: HashMap<K, Box<dyn Serializer<F, T, D>>>,
     index: HashMap<K, usize>,
-    type_ids: Vec<K>,
+    identifiers: Vec<K>,
     current_index: usize,
 }
 
@@ -110,7 +142,7 @@ impl<K: Hash + Debug, F: RichField + Extendable<D>, T: Debug, const D: usize> De
         f.debug_struct("SerializationRegistry")
             .field("ids of registered objects", &self.registry.keys())
             .field("index", &self.index)
-            .field("type_ids", &self.type_ids)
+            .field("identifiers", &self.identifiers)
             .field("current_index", &self.current_index)
             .finish()
     }
@@ -123,7 +155,7 @@ impl<F: RichField + Extendable<D>, K: Hash, T: Any, const D: usize>
         Self {
             registry: HashMap::new(),
             index: HashMap::new(),
-            type_ids: Vec::new(),
+            identifiers: Vec::new(),
             current_index: 0,
         }
     }
@@ -179,9 +211,9 @@ impl<F: RichField + Extendable<D>, G: AnyGate<F, D>, const D: usize> Serializer<
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
     /// Registers a new witness generator with the given id.
-    pub fn register<W: WitnessGenerator<F, D>>(&mut self, id: String) {
+    pub fn register<W: WitnessGenerator<L::Field, D>>(&mut self, id: String) {
         let exists = self.0.registry.insert(
             id.clone(),
             Box::new(WitnessGeneratorSerializerFn::<W>(PhantomData)),
@@ -191,20 +223,38 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
             panic!("Generator type {} already registered", id);
         }
 
-        self.0.type_ids.push(id.clone());
+        self.0.identifiers.push(id.clone());
         self.0.index.insert(id, self.0.current_index);
         self.0.current_index += 1;
     }
 
     /// Registers a new simple witness generator with the given id.
-    pub fn register_simple<SG: SimpleGenerator<F, D>>(&mut self, id: String) {
-        self.register::<SimpleGeneratorAdapter<F, SG, D>>(id)
+    pub fn register_simple<SG: SimpleGenerator<L::Field, D>>(&mut self, id: String) {
+        self.register::<SimpleGeneratorAdapter<L::Field, SG, D>>(id)
+    }
+
+    pub fn register_hint<H: Hint<L, D>>(&mut self, hint: H) {
+        let hint_serializer = HintSerializer::new(hint);
+        let id = hint_serializer.id();
+
+        let exists = self
+            .0
+            .registry
+            .insert(id.clone(), Box::new(hint_serializer));
+
+        if exists.is_some() {
+            panic!("Generator type {} already registered", id);
+        }
+
+        self.0.identifiers.push(id.clone());
+        self.0.index.insert(id, self.0.current_index);
+        self.0.current_index += 1;
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
     /// Registers a new gate.
-    pub fn register<G: AnyGate<F, D>>(&mut self) {
+    pub fn register<G: AnyGate<L::Field, D>>(&mut self) {
         let type_id = TypeId::of::<G>();
         let exists = self
             .0
@@ -215,23 +265,22 @@ impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
             panic!("Gate type already registered");
         }
 
-        self.0.type_ids.push(type_id);
+        self.0.identifiers.push(type_id);
         self.0.index.insert(type_id, self.0.current_index);
         self.0.current_index += 1;
     }
 }
 
-impl<F, const D: usize> WitnessGeneratorSerializer<F, D> for WitnessGeneratorRegistry<F, D>
-where
-    F: RichField + Extendable<D>,
+impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorSerializer<L::Field, D>
+    for WitnessGeneratorRegistry<L, D>
 {
     fn read_generator(
         &self,
         buf: &mut Buffer,
-        common_data: &CommonCircuitData<F, D>,
-    ) -> IoResult<WitnessGeneratorRef<F, D>> {
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<WitnessGeneratorRef<L::Field, D>> {
         let idx = buf.read_usize()?;
-        let type_id = &self.0.type_ids[idx];
+        let type_id = &self.0.identifiers[idx];
 
         self.0
             .registry
@@ -243,8 +292,8 @@ where
     fn write_generator(
         &self,
         buf: &mut Vec<u8>,
-        generator: &WitnessGeneratorRef<F, D>,
-        common_data: &CommonCircuitData<F, D>,
+        generator: &WitnessGeneratorRef<L::Field, D>,
+        common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<()> {
         let type_id = generator.0.id();
         let idx = self
@@ -263,17 +312,14 @@ where
     }
 }
 
-impl<F, const D: usize> GateSerializer<F, D> for GateRegistry<F, D>
-where
-    F: RichField + Extendable<D>,
-{
+impl<L: PlonkParameters<D>, const D: usize> GateSerializer<L::Field, D> for GateRegistry<L, D> {
     fn read_gate(
         &self,
         buf: &mut Buffer,
-        common_data: &CommonCircuitData<F, D>,
-    ) -> IoResult<GateRef<F, D>> {
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<GateRef<L::Field, D>> {
         let idx = buf.read_usize()?;
-        let type_id = self.0.type_ids[idx];
+        let type_id = self.0.identifiers[idx];
 
         self.0
             .registry
@@ -285,8 +331,8 @@ where
     fn write_gate(
         &self,
         buf: &mut Vec<u8>,
-        gate: &GateRef<F, D>,
-        common_data: &CommonCircuitData<F, D>,
+        gate: &GateRef<L::Field, D>,
+        common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<()> {
         // let type_id = Any::type_id(&(*gate.0));
         let type_id = gate.0.as_any().type_id();
@@ -315,150 +361,176 @@ macro_rules! register_watch_generator {
     };
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D>
+where
+    <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+{
     /// Creates a new registry with all the default generators that are used in a Plonky2x circuit.
-    pub fn new<C: GenericConfig<D, F = F> + 'static>() -> Self
-    where
-        C::Hasher: AlgebraicHasher<F>,
-    {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
         let mut r = Self(SerializationRegistry::new());
 
-        let dummy_proof_id = DummyProofGenerator::<F, C, D>::default().id();
-        r.register_simple::<DummyProofGenerator<F, C, D>>(dummy_proof_id);
+        let dummy_proof_id = DummyProofGenerator::<L::Field, L::Config, D>::default().id();
+        r.register_simple::<DummyProofGenerator<L::Field, L::Config, D>>(dummy_proof_id);
 
-        let arithmetic_generator_id = ArithmeticBaseGenerator::<F, D>::default().id();
-        r.register_simple::<ArithmeticBaseGenerator<F, D>>(arithmetic_generator_id);
+        let arithmetic_generator_id = ArithmeticBaseGenerator::<L::Field, D>::default().id();
+        r.register_simple::<ArithmeticBaseGenerator<L::Field, D>>(arithmetic_generator_id);
 
-        let constant_generator_id = ConstantGenerator::<F>::default().id();
-        r.register_simple::<ConstantGenerator<F>>(constant_generator_id);
+        let constant_generator_id = ConstantGenerator::<L::Field>::default().id();
+        r.register_simple::<ConstantGenerator<L::Field>>(constant_generator_id);
 
-        let poseidon_generator_id = PoseidonGenerator::<F, D>::default().id();
-        r.register_simple::<PoseidonGenerator<F, D>>(poseidon_generator_id);
+        let poseidon_generator_id = PoseidonGenerator::<L::Field, D>::default().id();
+        r.register_simple::<PoseidonGenerator<L::Field, D>>(poseidon_generator_id);
 
         let poseidon_mds_generator_id =
-            SimpleGenerator::<F, D>::id(&PoseidonMdsGenerator::<D>::default());
+            SimpleGenerator::<L::Field, D>::id(&PoseidonMdsGenerator::<D>::default());
         r.register_simple::<PoseidonMdsGenerator<D>>(poseidon_mds_generator_id);
 
         let random_value_generator_id =
-            SimpleGenerator::<F, D>::id(&RandomValueGenerator::default());
+            SimpleGenerator::<L::Field, D>::id(&RandomValueGenerator::default());
         r.register_simple::<RandomValueGenerator>(random_value_generator_id);
 
-        let arithmetic_extension_generator_id =
-            SimpleGenerator::<F, D>::id(&ArithmeticExtensionGenerator::<F, D>::default());
-        r.register_simple::<ArithmeticExtensionGenerator<F, D>>(arithmetic_extension_generator_id);
+        let arithmetic_extension_generator_id = SimpleGenerator::<L::Field, D>::id(
+            &ArithmeticExtensionGenerator::<L::Field, D>::default(),
+        );
+        r.register_simple::<ArithmeticExtensionGenerator<L::Field, D>>(
+            arithmetic_extension_generator_id,
+        );
 
         let base_split_generator_id =
-            SimpleGenerator::<F, D>::id(&BaseSplitGenerator::<2>::default());
+            SimpleGenerator::<L::Field, D>::id(&BaseSplitGenerator::<2>::default());
         r.register_simple::<BaseSplitGenerator<2>>(base_split_generator_id);
 
-        let base_sum_generator_id = SimpleGenerator::<F, D>::id(&BaseSumGenerator::<2>::default());
+        let base_sum_generator_id =
+            SimpleGenerator::<L::Field, D>::id(&BaseSumGenerator::<2>::default());
         r.register_simple::<BaseSumGenerator<2>>(base_sum_generator_id);
 
-        let copy_generator_id = SimpleGenerator::<F, D>::id(&CopyGenerator::default());
+        let copy_generator_id = SimpleGenerator::<L::Field, D>::id(&CopyGenerator::default());
         r.register_simple::<CopyGenerator>(copy_generator_id);
 
-        let equality_generator_id = SimpleGenerator::<F, D>::id(&EqualityGenerator::default());
+        let equality_generator_id =
+            SimpleGenerator::<L::Field, D>::id(&EqualityGenerator::default());
         r.register_simple::<EqualityGenerator>(equality_generator_id);
 
         let exponentiation_generator_id =
-            SimpleGenerator::<F, D>::id(&ExponentiationGenerator::<F, D>::default());
-        r.register_simple::<ExponentiationGenerator<F, D>>(exponentiation_generator_id);
+            SimpleGenerator::<L::Field, D>::id(&ExponentiationGenerator::<L::Field, D>::default());
+        r.register_simple::<ExponentiationGenerator<L::Field, D>>(exponentiation_generator_id);
 
         let interpolation_generator_id =
-            SimpleGenerator::<F, D>::id(&InterpolationGenerator::<F, D>::default());
-        r.register_simple::<InterpolationGenerator<F, D>>(interpolation_generator_id);
+            SimpleGenerator::<L::Field, D>::id(&InterpolationGenerator::<L::Field, D>::default());
+        r.register_simple::<InterpolationGenerator<L::Field, D>>(interpolation_generator_id);
 
-        let lookup_generator_id = SimpleGenerator::<F, D>::id(&LookupGenerator::default());
+        let lookup_generator_id = SimpleGenerator::<L::Field, D>::id(&LookupGenerator::default());
         r.register_simple::<LookupGenerator>(lookup_generator_id);
 
         let lookup_table_generator_id =
-            SimpleGenerator::<F, D>::id(&LookupTableGenerator::default());
+            SimpleGenerator::<L::Field, D>::id(&LookupTableGenerator::default());
         r.register_simple::<LookupTableGenerator>(lookup_table_generator_id);
 
-        let low_high_generator_id = SimpleGenerator::<F, D>::id(&LowHighGenerator::default());
+        let low_high_generator_id =
+            SimpleGenerator::<L::Field, D>::id(&LowHighGenerator::default());
         r.register_simple::<LowHighGenerator>(low_high_generator_id);
 
         let mul_extension_generator_id =
-            SimpleGenerator::<F, D>::id(&MulExtensionGenerator::<F, D>::default());
-        r.register_simple::<MulExtensionGenerator<F, D>>(mul_extension_generator_id);
+            SimpleGenerator::<L::Field, D>::id(&MulExtensionGenerator::<L::Field, D>::default());
+        r.register_simple::<MulExtensionGenerator<L::Field, D>>(mul_extension_generator_id);
 
         let nonzero_test_generator_id =
-            SimpleGenerator::<F, D>::id(&NonzeroTestGenerator::default());
+            SimpleGenerator::<L::Field, D>::id(&NonzeroTestGenerator::default());
         r.register_simple::<NonzeroTestGenerator>(nonzero_test_generator_id);
 
         let quotient_generator_extension_id =
-            SimpleGenerator::<F, D>::id(&QuotientGeneratorExtension::<D>::default());
+            SimpleGenerator::<L::Field, D>::id(&QuotientGeneratorExtension::<D>::default());
         r.register_simple::<QuotientGeneratorExtension<D>>(quotient_generator_extension_id);
 
         let random_access_generator_id =
-            SimpleGenerator::<F, D>::id(&RandomAccessGenerator::<F, D>::default());
-        r.register_simple::<RandomAccessGenerator<F, D>>(random_access_generator_id);
+            SimpleGenerator::<L::Field, D>::id(&RandomAccessGenerator::<L::Field, D>::default());
+        r.register_simple::<RandomAccessGenerator<L::Field, D>>(random_access_generator_id);
 
-        let reducing_generator_id = SimpleGenerator::<F, D>::id(&ReducingGenerator::<D>::default());
+        let reducing_generator_id =
+            SimpleGenerator::<L::Field, D>::id(&ReducingGenerator::<D>::default());
         r.register_simple::<ReducingGenerator<D>>(reducing_generator_id);
 
         let reducing_extension_generator_id =
-            SimpleGenerator::<F, D>::id(&ReducingExtensionGenerator::<D>::default());
+            SimpleGenerator::<L::Field, D>::id(&ReducingExtensionGenerator::<D>::default());
         r.register_simple::<ReducingExtensionGenerator<D>>(reducing_extension_generator_id);
 
-        let split_generator_id = SimpleGenerator::<F, D>::id(&SplitGenerator::default());
+        let split_generator_id = SimpleGenerator::<L::Field, D>::id(&SplitGenerator::default());
         r.register_simple::<SplitGenerator>(split_generator_id);
 
-        let wire_split_generator_id = SimpleGenerator::<F, D>::id(&WireSplitGenerator::default());
+        let wire_split_generator_id =
+            SimpleGenerator::<L::Field, D>::id(&WireSplitGenerator::default());
         r.register_simple::<WireSplitGenerator>(wire_split_generator_id);
 
-        let eth_storage_proof_generator_id = EthStorageProofGenerator::<F, D>::id();
-        r.register_simple::<EthStorageProofGenerator<F, D>>(eth_storage_proof_generator_id);
+        let eth_storage_proof_generator_id = EthStorageProofGenerator::<L, D>::id();
+        r.register_simple::<EthStorageProofGenerator<L, D>>(eth_storage_proof_generator_id);
 
-        let eth_log_generator_id = EthLogGenerator::<F, D>::id();
-        r.register_simple::<EthLogGenerator<F, D>>(eth_log_generator_id);
+        let eth_log_generator_id = EthLogGenerator::<L, D>::id();
+        r.register_simple::<EthLogGenerator<L, D>>(eth_log_generator_id);
 
-        let eth_block_generator_id = EthBlockGenerator::<F, D>::id();
-        r.register_simple::<EthBlockGenerator<F, D>>(eth_block_generator_id);
+        let eth_block_generator_id = EthBlockGenerator::<L, D>::id();
+        r.register_simple::<EthBlockGenerator<L, D>>(eth_block_generator_id);
 
-        let eth_storage_key_generator_id = EthStorageKeyGenerator::<F, D>::id();
-        r.register_simple::<EthStorageKeyGenerator<F, D>>(eth_storage_key_generator_id);
+        let eth_storage_key_generator_id = EthStorageKeyGenerator::<L, D>::id();
+        r.register_simple::<EthStorageKeyGenerator<L, D>>(eth_storage_key_generator_id);
 
-        let keccak256_generator_id = Keccak256Generator::<F, D>::id();
-        r.register_simple::<Keccak256Generator<F, D>>(keccak256_generator_id);
+        let keccak256_generator_id = Keccak256Generator::<L, D>::id();
+        r.register_simple::<Keccak256Generator<L, D>>(keccak256_generator_id);
 
-        let beacon_balance_generator_id = BeaconBalanceGenerator::<F, D>::id();
-        r.register_simple::<BeaconBalanceGenerator<F, D>>(beacon_balance_generator_id);
+        let beacon_balance_generator_id = BeaconBalanceGenerator::<L, D>::id();
+        r.register_simple::<BeaconBalanceGenerator<L, D>>(beacon_balance_generator_id);
 
-        let beacon_balances_generator_id = BeaconBalancesGenerator::<F, D>::id();
-        r.register_simple::<BeaconBalancesGenerator<F, D>>(beacon_balances_generator_id);
+        let beacon_balances_generator_id = BeaconBalancesGenerator::<L, D>::id();
+        r.register_simple::<BeaconBalancesGenerator<L, D>>(beacon_balances_generator_id);
 
-        let beacon_validator_generator_id = BeaconValidatorGenerator::<F, D>::id();
-        r.register_simple::<BeaconValidatorGenerator<F, D>>(beacon_validator_generator_id);
+        let beacon_validator_generator_id = BeaconValidatorGenerator::<L, D>::id();
+        r.register_simple::<BeaconValidatorGenerator<L, D>>(beacon_validator_generator_id);
 
-        let beacon_validators_generator_id = BeaconValidatorsGenerator::<F, D>::id();
-        r.register_simple::<BeaconValidatorsGenerator<F, D>>(beacon_validators_generator_id);
+        let beacon_validators_generator_id = BeaconValidatorsGenerator::<L, D>::id();
+        r.register_simple::<BeaconValidatorsGenerator<L, D>>(beacon_validators_generator_id);
 
-        let beacon_withdrawal_generator_id = BeaconWithdrawalGenerator::<F, D>::id();
-        r.register_simple::<BeaconWithdrawalGenerator<F, D>>(beacon_withdrawal_generator_id);
+        let beacon_withdrawal_generator_id = BeaconWithdrawalGenerator::<L, D>::id();
+        r.register_simple::<BeaconWithdrawalGenerator<L, D>>(beacon_withdrawal_generator_id);
 
-        let beacon_withdrawals_generator_id = BeaconWithdrawalsGenerator::<F, D>::id();
-        r.register_simple::<BeaconWithdrawalsGenerator<F, D>>(beacon_withdrawals_generator_id);
+        let beacon_withdrawals_generator_id = BeaconWithdrawalsGenerator::<L, D>::id();
+        r.register_simple::<BeaconWithdrawalsGenerator<L, D>>(beacon_withdrawals_generator_id);
 
-        let beacon_historical_block_generator_id = BeaconHistoricalBlockGenerator::<F, D>::id();
-        r.register_simple::<BeaconHistoricalBlockGenerator<F, D>>(
+        let beacon_historical_block_generator_id =
+            BeaconHistoricalBlockGenerator::<L::Field, D>::id();
+        r.register_simple::<BeaconHistoricalBlockGenerator<L::Field, D>>(
             beacon_historical_block_generator_id,
         );
 
-        let big_uint_div_rem_generator_id = BigUintDivRemGenerator::<F, D>::id();
-        r.register_simple::<BigUintDivRemGenerator<F, D>>(big_uint_div_rem_generator_id);
+        let big_uint_div_rem_generator_id = BigUintDivRemGenerator::<L::Field, D>::id();
+        r.register_simple::<BigUintDivRemGenerator<L::Field, D>>(big_uint_div_rem_generator_id);
 
-        let u32_arithmetic_generator_id = U32ArithmeticGenerator::<F, D>::id();
-        r.register_simple::<U32ArithmeticGenerator<F, D>>(u32_arithmetic_generator_id);
+        let u32_arithmetic_generator_id = U32ArithmeticGenerator::<L::Field, D>::id();
+        r.register_simple::<U32ArithmeticGenerator<L::Field, D>>(u32_arithmetic_generator_id);
 
-        let u32_add_many_generator_id = U32AddManyGenerator::<F, D>::id();
-        r.register_simple::<U32AddManyGenerator<F, D>>(u32_add_many_generator_id);
+        let u32_add_many_generator_id = U32AddManyGenerator::<L::Field, D>::id();
+        r.register_simple::<U32AddManyGenerator<L::Field, D>>(u32_add_many_generator_id);
 
-        let comparison_generator_id = ComparisonGenerator::<F, D>::id();
-        r.register_simple::<ComparisonGenerator<F, D>>(comparison_generator_id);
+        let comparison_generator_id = ComparisonGenerator::<L::Field, D>::id();
+        r.register_simple::<ComparisonGenerator<L::Field, D>>(comparison_generator_id);
 
-        let xor3_generator_id = XOR3Generator::<F, D>::id();
-        r.register_simple::<XOR3Generator<F, D>>(xor3_generator_id);
+        let xor3_generator_id = XOR3Generator::<L::Field, D>::id();
+        r.register_simple::<XOR3Generator<L::Field, D>>(xor3_generator_id);
+
+        let sha256_hint_generator_id = SHA256HintGenerator::id();
+        r.register_simple::<SHA256HintGenerator>(sha256_hint_generator_id);
+
+        let sha256_generator = SHA256Generator::<L::Field, L::CubicParams>::id();
+        r.register_simple::<SHA256Generator<L::Field, L::CubicParams>>(sha256_generator);
+
+        let simple_stark_witness_generator_id = "SimpleStarkWitnessGenerator".to_string();
+        r.register_simple::<SimpleStarkWitnessGenerator<
+            Chip<SHA256AirParameters<L::Field, L::CubicParams>>,
+            ArithmeticGenerator<SHA256AirParameters<L::Field, L::CubicParams>>,
+            L::Field,
+            L::Config,
+            L::Field,
+            D,
+        >>(simple_stark_witness_generator_id);
 
         register_watch_generator!(
             r,
@@ -476,9 +548,9 @@ impl<F: RichField + Extendable<D>, const D: usize> WitnessGeneratorRegistry<F, D
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
-    #[allow(clippy::new_without_default)]
+impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
     /// Creates a new registry with all the default gates that are used in a Plonky2x circuit.
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let mut r = Self(SerializationRegistry::new());
 
@@ -486,22 +558,22 @@ impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
         r.register::<ArithmeticExtensionGate<D>>();
         r.register::<BaseSumGate<2>>();
         r.register::<ConstantGate>();
-        r.register::<CosetInterpolationGate<F, D>>();
-        r.register::<ExponentiationGate<F, D>>();
+        r.register::<CosetInterpolationGate<L::Field, D>>();
+        r.register::<ExponentiationGate<L::Field, D>>();
         r.register::<LookupGate>();
         r.register::<LookupTableGate>();
         r.register::<MulExtensionGate<D>>();
         r.register::<NoopGate>();
-        r.register::<PoseidonMdsGate<F, D>>();
-        r.register::<PoseidonGate<F, D>>();
+        r.register::<PoseidonMdsGate<L::Field, D>>();
+        r.register::<PoseidonGate<L::Field, D>>();
         r.register::<PublicInputGate>();
-        r.register::<RandomAccessGate<F, D>>();
+        r.register::<RandomAccessGate<L::Field, D>>();
         r.register::<ReducingExtensionGate<D>>();
         r.register::<ReducingGate<D>>();
         r.register::<XOR3Gate>();
-        r.register::<ComparisonGate<F, D>>();
-        r.register::<U32AddManyGate<F, D>>();
-        r.register::<U32ArithmeticGate<F, D>>();
+        r.register::<ComparisonGate<L::Field, D>>();
+        r.register::<U32AddManyGate<L::Field, D>>();
+        r.register::<U32ArithmeticGate<L::Field, D>>();
 
         r
     }
@@ -510,21 +582,21 @@ impl<F: RichField + Extendable<D>, const D: usize> GateRegistry<F, D> {
 #[cfg(test)]
 mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use super::*;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::CircuitBuilder;
+
+    type L = DefaultParameters;
+    type F = GoldilocksField;
+    const D: usize = 2;
 
     #[test]
     fn test_witness_serialization() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
+        let builder = CircuitBuilder::<L, D>::new();
+        let common_data = builder.build().data.common;
 
-        let builder = CircuitBuilder::<F, D>::new();
-        let common_data = builder.build::<C>().data.common;
-
-        let registry = WitnessGeneratorRegistry::<F, D>::new::<C>();
+        let registry = WitnessGeneratorRegistry::<L, D>::new();
         let raw_generator = WitnessGeneratorRef::new(ConstantGenerator::<F>::default().adapter());
 
         let mut bytes = Vec::<u8>::new();
@@ -540,14 +612,10 @@ mod tests {
 
     #[test]
     fn test_gate_serialization() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
+        let builder = CircuitBuilder::<L, D>::new();
+        let common_data = builder.build().data.common;
 
-        let builder = CircuitBuilder::<F, D>::new();
-        let common_data = builder.build::<C>().data.common;
-
-        let registry = GateRegistry::<F, D>::new();
+        let registry = GateRegistry::<L, D>::new();
 
         let raw_gate: GateRef<F, D> =
             GateRef::new(ArithmeticGate::new_from_config(&common_data.config));
