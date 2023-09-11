@@ -9,15 +9,17 @@ use clap::Parser;
 use log::info;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 pub use request::{
-    BytesRequestData, ElementsRequestData, FunctionRequest, FunctionRequestBase,
+    BytesRequestData, ElementsRequestData, ProofRequest, ProofRequestBase,
     RecursiveProofsRequestData,
+};
+pub use result::{
+    BytesResultData, ElementsResultData, ProofResult, ProofResultBase, RecursiveProofsResultData,
 };
 
 use self::cli::{BuildArgs, ProveArgs};
 use super::circuit::{GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
 use crate::backend::circuit::{Circuit, DefaultParameters};
 use crate::backend::function::cli::{Args, Commands};
-use crate::backend::function::result::FunctionResult;
 
 /// Circuits that implement `CircuitFunction` have all necessary code for end-to-end deployment.
 ///
@@ -91,7 +93,7 @@ contract FunctionVerifier is IFunctionVerifier {
         );
     }
 
-    fn prove<L: PlonkParameters<D>, const D: usize>(args: ProveArgs, request: FunctionRequest<L, D>)
+    fn prove<L: PlonkParameters<D>, const D: usize>(args: ProveArgs, request: ProofRequest<L, D>)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
@@ -106,7 +108,7 @@ contract FunctionVerifier is IFunctionVerifier {
         let (proof, output) = circuit.prove(&input);
         info!("Successfully generated proof.");
 
-        let result = FunctionResult::new(proof, output);
+        let result = ProofResult::new(proof, output);
         let json = serde_json::to_string_pretty(&result).unwrap();
         let mut file = File::create("output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
@@ -124,7 +126,7 @@ contract FunctionVerifier is IFunctionVerifier {
                 Self::compile::<L, D>(args);
             }
             Commands::Prove(args) => {
-                let request = FunctionRequest::<L, D>::load(&args.input_json);
+                let request = ProofRequest::<L, D>::load(&args.input_json);
                 Self::prove(args, request);
             }
         }
