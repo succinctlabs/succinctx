@@ -353,10 +353,10 @@ impl<L: PlonkParameters<D>, const D: usize> GateSerializer<L::Field, D> for Gate
 }
 
 macro_rules! register_watch_generator {
-    ($registry:ident, $($type:ty),*) => {
+    ($registry:ident, $l:ty, $d:ty, $($type:ty),*) => {
         $(
-            let generator_id = WatchGenerator::<$type>::id();
-            $registry.register_simple::<WatchGenerator<$type>>(generator_id);
+            let generator_id = WatchGenerator::<$l, $d, $type>::id();
+            $registry.register_simple::<WatchGenerator<$l, $d, $type>>(generator_id);
         )*
     };
 }
@@ -534,6 +534,8 @@ where
 
         register_watch_generator!(
             r,
+            L,
+            D,
             U64Variable,
             U256Variable,
             Bytes32Variable,

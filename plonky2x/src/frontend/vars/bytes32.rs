@@ -4,10 +4,9 @@ use ethers::types::H256;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{ByteVariable, CircuitVariable, EvmVariable, U256Variable, Variable};
+use super::{ByteVariable, BytesVariable, CircuitVariable, EvmVariable, U256Variable, Variable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::BytesVariable;
 
 /// A variable in the circuit representing a byte32 value.
 #[derive(Debug, Clone, Copy)]
@@ -23,6 +22,19 @@ impl Bytes32Variable {
         builder: &mut CircuitBuilder<L, D>,
     ) -> U256Variable {
         U256Variable::decode(builder, &self.0 .0)
+    }
+}
+
+impl From<[ByteVariable; 32]> for Bytes32Variable {
+    fn from(bytes: [ByteVariable; 32]) -> Self {
+        Self(BytesVariable(bytes))
+    }
+}
+
+impl From<&[ByteVariable]> for Bytes32Variable {
+    fn from(bytes: &[ByteVariable]) -> Self {
+        let bytes_fixed: [ByteVariable; 32] = bytes.try_into().unwrap();
+        Self(BytesVariable(bytes_fixed))
     }
 }
 

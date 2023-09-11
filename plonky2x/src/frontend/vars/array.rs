@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+use std::marker::PhantomData;
 use std::ops::{Index, Range};
 
 use plonky2::hash::hash_types::RichField;
@@ -7,6 +8,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 use super::{CircuitVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::eth::mpt::generators::MuxGenerator;
 
 /// A variable in the circuit representing a fixed length array of variables.
 /// We use this to avoid stack overflow arrays associated with fixed-length arrays.
@@ -93,14 +95,34 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+        assert_eq!(value.len(), N);
         for (element, value) in self.elements.iter().zip(value) {
             element.set(witness, value);
         }
     }
 }
 
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn mux<V: CircuitVariable, const N: usize>(
+        &mut self,
+        array: ArrayVariable<V, N>,
+        selector: Variable,
+    ) -> V {
+        let generator = MuxGenerator {
+            input: array,
+            select: selector,
+            output: self.init::<V>(),
+            _phantom: PhantomData::<L>,
+        };
+        self.add_simple_generator(generator.clone());
+        generator.output
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use curta::math::prelude::Field;
+
     use super::*;
     use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
@@ -125,5 +147,23 @@ mod tests {
         let circuit = builder.build();
         let proof = circuit.data.prove(pw).unwrap();
         circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_mux() {
+        type F = GoldilocksField;
+
+        let mut builder = DefaultBuilder::new();
+        let b = builder.read::<ArrayVariable<BoolVariable, 3>>();
+        let selector = builder.read::<Variable>();
+        let result = builder.mux(b, selector);
+        builder.write(result);
+
+        let circuit = builder.build();
+        let mut input = circuit.input();
+        input.write::<ArrayVariable<BoolVariable, 3>>(vec![true, false, true]);
+        input.write::<Variable>(F::from_canonical_u16(1));
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
     }
 }

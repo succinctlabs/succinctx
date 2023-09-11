@@ -95,6 +95,15 @@ impl ByteVariable {
         bits
     }
 
+    pub fn as_bool_targets(&self) -> [BoolTarget; 8] {
+        self.0
+            .iter()
+            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.0 .0))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
+    }
+
     pub fn to_nibbles<L: PlonkParameters<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<L, D>,
@@ -207,17 +216,6 @@ impl<L: PlonkParameters<D>, const D: usize> RotateRight<L, D, usize> for ByteVar
 impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for ByteVariable {
     fn zero(builder: &mut CircuitBuilder<L, D>) -> Self {
         ByteVariable(array![_ => builder.constant(false); 8])
-    }
-}
-
-impl ByteVariable {
-    pub fn as_bool_targets(&self) -> [BoolTarget; 8] {
-        self.0
-            .iter()
-            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.0 .0))
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap()
     }
 }
 
