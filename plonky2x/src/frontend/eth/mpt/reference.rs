@@ -1,4 +1,4 @@
-use ethers::types::{Bytes, H256};
+use ethers::types::H256;
 use ethers::utils::keccak256;
 
 use crate::frontend::eth::rlp::builder::{rlp_decode_bytes, rlp_decode_list_2_or_17};
@@ -32,7 +32,7 @@ pub fn assert_bytes_equal(a: &[u8], b: &[u8]) {
 // Based off of the following Solidity implementation:
 // https://github.com/ethereum-optimism/optimism/blob/6e041bcd9d678a0ea2bb92cfddf9716f8ae2336c/packages/contracts-bedrock/src/libraries/trie/MerkleTrie.sol
 #[allow(dead_code)] // We allow dead_code since it's used in the tests below
-pub(crate) fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> Vec<u8> {
+pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> Vec<u8> {
     let mut current_key_index = 0;
     let mut current_node_id = root.to_fixed_bytes().to_vec();
 
@@ -112,6 +112,8 @@ pub(crate) fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: boo
 
 #[cfg(test)]
 mod tests {
+    use ethers::types::Bytes;
+
     use super::super::utils::{read_fixture, EIP1186ProofResponse};
     use super::{get, *};
     use crate::frontend::eth::utils::u256_to_h256_be;
