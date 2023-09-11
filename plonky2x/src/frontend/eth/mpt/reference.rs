@@ -1,4 +1,4 @@
-use ethers::types::H256;
+use ethers::types::{Bytes, H256};
 use ethers::utils::keccak256;
 
 use crate::frontend::eth::rlp::rlp::{rlp_decode_bytes, rlp_decode_list_2_or_17};

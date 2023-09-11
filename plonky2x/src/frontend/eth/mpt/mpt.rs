@@ -246,12 +246,12 @@ mod tests {
     use super::super::utils::{read_fixture, EIP1186ProofResponse};
     use super::*;
     use crate::frontend::eth::utils::u256_to_h256_be;
-    use crate::prelude::{
-        CircuitVariable, DefaultBuilder, GoldilocksField, PartialWitness, PoseidonGoldilocksConfig,
-    };
+    use crate::prelude::{DefaultBuilder, GoldilocksField};
 
     #[test]
     fn test_mpt_circuit() {
+        type F = GoldilocksField;
+
         let storage_result: EIP1186ProofResponse =
             read_fixture("./src/frontend/eth/mpt/fixtures/example.json");
 
@@ -274,15 +274,19 @@ mod tests {
 
         let (proof_as_fixed, lengths_as_fixed) =
             transform_proof_to_padded::<ENCODING_LEN, PROOF_LEN>(storage_proof);
+        let len_nodes_field_elements = lengths_as_fixed
+            .iter()
+            .map(|x| F::from_canonical_usize(*x))
+            .collect::<Vec<F>>();
 
         let mut builder = DefaultBuilder::new();
         // builder.debug(77867);
-        let key_variable = builder.init::<Bytes32Variable>();
+        let key_variable = builder.read::<Bytes32Variable>();
         let proof_variable =
-            builder.init::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>();
-        let len_nodes = builder.init::<ArrayVariable<Variable, PROOF_LEN>>();
-        let root_variable = builder.init::<Bytes32Variable>();
-        let value_variable = builder.init::<Bytes32Variable>();
+            builder.read::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>();
+        let len_nodes = builder.read::<ArrayVariable<Variable, PROOF_LEN>>();
+        let root_variable = builder.read::<Bytes32Variable>();
+        let value_variable = builder.read::<Bytes32Variable>();
         builder.verify_mpt_proof::<ENCODING_LEN, PROOF_LEN>(
             key_variable,
             proof_variable.clone(),
@@ -290,30 +294,17 @@ mod tests {
             root_variable,
             value_variable,
         );
-        let circuit = builder.build::<PoseidonGoldilocksConfig>();
+        let circuit = builder.build();
 
-        let mut partial_witness: PartialWitness<GoldilocksField> = PartialWitness::new();
-        key_variable.set(&mut partial_witness, key);
-        root_variable.set(&mut partial_witness, root);
-        value_variable.set(&mut partial_witness, value_as_h256);
-        proof_variable.set(&mut partial_witness, proof_as_fixed);
-
-        // TODO: make this a macro instead of .map().iter()
-        len_nodes.set(
-            &mut partial_witness,
-            lengths_as_fixed
-                .iter()
-                .map(|x| F::from_canonical_usize(*x))
-                .collect::<Vec<F>>(),
+        let mut input = circuit.input();
+        input.write::<Bytes32Variable>(key);
+        input.write::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>(
+            proof_as_fixed,
         );
+        input.write::<ArrayVariable<Variable, PROOF_LEN>>(len_nodes_field_elements);
+        input.write::<Bytes32Variable>(root);
+        input.write::<Bytes32Variable>(value_as_h256);
 
-        // This is to generate the witness only without generating the proof
-        // TODO: turn this into a nice method on `Circuit`
-        // let prover_data = circuit.data.prover_only;
-        // let common_data = circuit.data.common;
-        // let witness = generate_partial_witness(partial_witness, &prover_data, &common_data);
-
-        let proof = circuit.data.prove(partial_witness).unwrap();
-        circuit.data.verify(proof.clone()).unwrap();
+        let (_witness, mut _output) = circuit.prove(&input);
     }
 }

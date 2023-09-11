@@ -152,16 +152,14 @@ mod tests {
     #[test]
     fn test_mux() {
         type F = GoldilocksField;
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
 
-        let mut builder = CircuitBuilder::<F, D>::new();
+        let mut builder = DefaultBuilder::new();
         let b = builder.read::<ArrayVariable<BoolVariable, 3>>();
         let selector = builder.read::<Variable>();
         let result = builder.mux(b, selector);
         builder.write(result);
 
-        let circuit = builder.build::<C>();
+        let circuit = builder.build();
         let mut input = circuit.input();
         input.write::<ArrayVariable<BoolVariable, 3>>(vec![true, false, true]);
         input.write::<Variable>(F::from_canonical_u16(1));
