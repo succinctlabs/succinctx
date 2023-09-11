@@ -703,4 +703,31 @@ pub(crate) mod tests {
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
     }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_async_witness_generator() {
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let idx = builder.constant::<U64Variable>(0.into());
+
+        for _ in 0..10 {
+            builder.beacon_get_historical_block(block_root, idx);
+        }
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
+    }
 }
