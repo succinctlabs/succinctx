@@ -103,7 +103,7 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Given an `array` of variables, and a dynamic `selector`, returns `array[selector]` as a variable.
-    pub fn select_index<V: CircuitVariable, const N: usize>(
+    pub fn select_array<V: CircuitVariable, const N: usize>(
         &mut self,
         array: ArrayVariable<V, N>,
         selector: Variable,
@@ -131,16 +131,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Given an `array` of variables, and a dynamic `selector`, returns `array[selector]` as a variable using the random access gate.
-    pub fn select_index_random_gate<V: CircuitVariable, const N: usize>(
+    /// This should only be used in cases where the CircuitVariable has a very small number of variables, otherwise the `random_access` gate will blow up
+    pub fn select_array_random_gate<V: CircuitVariable, const N: usize>(
         &mut self,
         array: ArrayVariable<V, N>,
         selector: Variable,
     ) -> V {
         let num_var_in_t = array[0].variables().len();
-
-        if num_var_in_t > 80 {
-            panic!("Cannot use random access gate with Variable composed of > 80 FieldVariables because of width of circuit");
-        }
 
         let mut selected_vars = Vec::new();
 
@@ -203,7 +200,7 @@ mod tests {
         let mut builder = DefaultBuilder::new();
         let b = builder.read::<ArrayVariable<U256Variable, INPUT_SIZE>>();
         let selector = builder.read::<Variable>();
-        let result = builder.select_index(b, selector);
+        let result = builder.select_array(b, selector);
         builder.write(result);
 
         let num_gates = builder.api.num_gates();
@@ -246,7 +243,7 @@ mod tests {
         let mut builder = DefaultBuilder::new();
         let b = builder.read::<ArrayVariable<U256Variable, INPUT_SIZE>>();
         let selector = builder.read::<Variable>();
-        let result = builder.select_index_random_gate(b, selector);
+        let result = builder.select_array_random_gate(b, selector);
         builder.write(result);
 
         let num_gates = builder.api.num_gates();
