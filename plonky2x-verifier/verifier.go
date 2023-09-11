@@ -52,9 +52,9 @@ func LoadPublicWitness(circuitPath string) (witness.Witness, error) {
 	return publicWitness, nil
 }
 
-func LoadProof(circuitPath string) (groth16.Proof, error) {
+func LoadProof() (groth16.Proof, error) {
 	log := logger.Logger()
-	proofFile, err := os.Open(circuitPath + "/proof.json")
+	proofFile, err := os.Open("/proof.json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open proof file: %w", err)
 	}

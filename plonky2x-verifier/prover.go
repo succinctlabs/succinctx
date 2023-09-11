@@ -85,12 +85,12 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	elapsed = time.Since(start)
 	log.Info().Msg("Successfully created proof, time: " + elapsed.String())
 
-	log.Info().Msg("Saving proof to " + circuitPath + "/proof.json")
+	log.Info().Msg("Saving proof to proof.json")
 	jsonProof, err := json.Marshal(proof)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to marshal proof: %w", err)
 	}
-	proofFile, err := os.Create(circuitPath + "/proof.json")
+	proofFile, err := os.Create("proof.json")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create proof file: %w", err)
 	}
@@ -106,8 +106,8 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 		return nil, nil, fmt.Errorf("failed to get public witness: %w", err)
 	}
 
-	log.Info().Msg("Saving public witness to " + circuitPath + "/public_witness.bin")
-	witnessFile, err := os.Create(circuitPath + "/public_witness.bin")
+	log.Info().Msg("Saving public witness to public_witness.bin")
+	witnessFile, err := os.Create("public_witness.bin")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create public witness file: %w", err)
 	}
