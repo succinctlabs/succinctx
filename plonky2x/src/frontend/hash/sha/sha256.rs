@@ -373,6 +373,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_empty() -> Result<()> {
         let msg = b"";
         let msg_bits = to_bits(msg.to_vec());
@@ -411,6 +412,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_small_msg() -> Result<()> {
         let msg = b"plonky2";
         let msg_bits = to_bits(msg.to_vec());
@@ -448,6 +450,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_large_msg() -> Result<()> {
         let msg = decode(
             "00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d",
@@ -492,6 +495,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_single_chunk_variable() -> Result<()> {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -539,6 +543,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_failure() {
         let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
         let msg_bits = to_bits(msg.to_vec());

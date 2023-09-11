@@ -330,6 +330,7 @@ mod tests {
     use crate::frontend::num::biguint::CircuitBuilderBiguint;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_curve_point_is_valid() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;

@@ -1,7 +1,7 @@
 use ethers::types::{Bytes, H256};
 use ethers::utils::keccak256;
 
-use crate::frontend::eth::rlp::rlp::{rlp_decode_bytes, rlp_decode_list_2_or_17};
+use crate::frontend::eth::rlp::builder::{rlp_decode_bytes, rlp_decode_list_2_or_17};
 
 const TREE_RADIX: usize = 16;
 const BRANCH_NODE_LENGTH: usize = 17;
@@ -44,10 +44,7 @@ pub(crate) fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: boo
     for i in 0..proof.len() {
         let current_node = &proof[i];
 
-        if current_key_index == 0 {
-            let hash = keccak256(current_node);
-            assert_bytes_equal(&hash[..], &current_node_id);
-        } else if current_node.len() >= 32 {
+        if current_key_index == 0 || current_node.len() >= 32 {
             let hash = keccak256(current_node);
             assert_bytes_equal(&hash[..], &current_node_id);
         } else {

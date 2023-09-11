@@ -76,8 +76,7 @@ impl<L: PlonkParameters<D>, V: CircuitVariable, const D: usize> SimpleGenerator<
         dst.write_usize(self.variables.len())?;
         self.variables
             .iter()
-            .map(|v| dst.write_target_vec(&v.targets()))
-            .collect()
+            .try_for_each(|v| dst.write_target_vec(&v.targets()))
     }
 
     #[allow(unused_variables)]

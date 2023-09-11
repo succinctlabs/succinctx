@@ -45,8 +45,8 @@ pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usi
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn le(&mut self, lhs: Variable, rhs: Variable) -> BoolVariable {
         let generator: LeGenerator<L, D> = LeGenerator {
-            lhs: lhs.clone(),
-            rhs: rhs.clone(),
+            lhs,
+            rhs,
             output: self.init::<BoolVariable>(),
             _phantom: PhantomData,
         };
@@ -56,7 +56,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
         let generator: ByteToVariableGenerator<L, D> = ByteToVariableGenerator {
-            lhs: lhs.clone(),
+            lhs,
             output: self.init::<Variable>(),
             _phantom: PhantomData,
         };
@@ -66,8 +66,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn sub_byte(&mut self, lhs: ByteVariable, rhs: ByteVariable) -> ByteVariable {
         let generator: ByteSubGenerator<L, D> = ByteSubGenerator {
-            lhs: lhs.clone(),
-            rhs: rhs.clone(),
+            lhs,
+            rhs,
             output: self.init::<ByteVariable>(),
             _phantom: PhantomData,
         };
@@ -114,9 +114,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let prefix_extension_odd = self.constant::<ByteVariable>(Self::PREFIX_EXTENSION_ODD);
         let one: Variable = self.one::<Variable>();
         let two = self.constant::<Variable>(L::Field::from_canonical_u8(2));
-        let _64 = self.constant::<Variable>(L::Field::from_canonical_u8(64));
-        let _32 = self.constant::<Variable>(L::Field::from_canonical_u8(32));
-        let _128 = self.constant::<ByteVariable>(128);
+        let const_64 = self.constant::<Variable>(L::Field::from_canonical_u8(64));
+        let const_32 = self.constant::<Variable>(L::Field::from_canonical_u8(32));
+        let const_128 = self.constant::<ByteVariable>(128);
 
         let mut current_key_idx = self.zero::<Variable>();
         let mut finished = self._false();
@@ -145,7 +145,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     current_node_hash,
                     current_node_id.as_slice()[0..32].into(),
                 );
-                let node_len_le_32 = self.le(len_nodes[i], _32);
+                let node_len_le_32 = self.le(len_nodes[i], const_32);
                 let case_len_le_32 = self.and(node_len_le_32, first_32_bytes_eq);
                 let inter = self.not(node_len_le_32);
                 let case_len_gt_32 = self.and(inter, hash_eq);
@@ -164,8 +164,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             let is_branch = self.is_equal(len_decoded_list, branch_node_length);
             let is_leaf = self.is_equal(len_decoded_list, leaf_or_extension_node_length);
-            let key_terminated = self.is_equal(current_key_idx, _64);
-            let path = self.to_nibbles(&decoded_list[0].as_slice());
+            let key_terminated = self.is_equal(current_key_idx, const_64);
+            let path = self.to_nibbles(decoded_list[0].as_slice());
             let prefix = path[0];
             let prefix_leaf_even = self.is_equal(prefix, prefix_leaf_even);
             let prefix_leaf_odd = self.is_equal(prefix, prefix_leaf_odd);
@@ -209,7 +209,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             self.assert_subarray_equal(
                 &path,
                 offset,
-                &key_path.as_slice(),
+                key_path.as_slice(),
                 current_key_idx,
                 check_length,
             );
@@ -225,9 +225,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             finished = self.or(finished, m);
         }
 
-        let current_node_len = self.sub_byte(current_node_id[0], _128);
+        let current_node_len = self.sub_byte(current_node_id[0], const_128);
         let current_node_len_as_var = self.byte_to_variable(current_node_len);
-        let lhs_offset = self.sub(_32, current_node_len_as_var);
+        let lhs_offset = self.sub(const_32, current_node_len_as_var);
 
         self.assert_subarray_equal(
             &value.as_slice(),
@@ -249,6 +249,7 @@ mod tests {
     use crate::prelude::{DefaultBuilder, GoldilocksField};
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_mpt_circuit() {
         type F = GoldilocksField;
 
