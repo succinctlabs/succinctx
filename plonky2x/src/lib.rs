@@ -25,9 +25,7 @@ pub mod prelude {
     pub use plonky2x_derive::CircuitVariable;
 
     pub use crate::backend::circuit::config::{DefaultParameters, PlonkParameters};
-    pub use crate::backend::circuit::{
-        GateRegistry, PlonkParameters, WitnessGeneratorRegistry, WitnessGeneratorRegistry,
-    };
+    pub use crate::backend::circuit::{GateRegistry, WitnessGeneratorRegistry};
     pub use crate::frontend::builder::{CircuitBuilder, DefaultBuilder};
     pub use crate::frontend::ops::*;
     pub use crate::frontend::vars::{
