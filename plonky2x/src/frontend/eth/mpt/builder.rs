@@ -167,7 +167,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let offset_even = self.mul(prefix_extension_even.0, two);
             let offset_odd = self.mul(prefix_extension_odd.0, one);
             let offset = self.add(offset_even, offset_odd);
-            let branch_key = self.mux(key_path.clone(), current_key_idx);
+            let branch_key = self.select_index(key_path.clone(), current_key_idx);
             let branch_key_variable: Variable = self.byte_to_variable(branch_key); // can be unsafe since nibbles are checked
 
             // Case 1
@@ -181,9 +181,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let c = self.add(case_1_value, case_2_value);
             let updated_current_node_id_idx = self.add(c, case_3_value); // TODO: make this more concise
 
-            let updated_current_node_id = self.mux(decoded_list, updated_current_node_id_idx);
+            let updated_current_node_id =
+                self.select_index(decoded_list, updated_current_node_id_idx);
             // If finished == 1, then we should not update the current_node_id
-            current_node_id = self.mux::<_, 2>(
+            current_node_id = self.select_index::<_, 2>(
                 vec![updated_current_node_id, current_node_id].into(),
                 finished.0,
             );
