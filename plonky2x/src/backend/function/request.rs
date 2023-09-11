@@ -43,6 +43,9 @@ pub struct FunctionRequestBase<D> {
 }
 
 /// The standard request format for running "functions".
+///
+/// Note that this is a standard enforced by the remote provers. Locally, you can just use
+/// `let (proof, output) = circuit.prove(input)` to run your circuit.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(bound = "")]

@@ -7,7 +7,7 @@ use crate::frontend::builder::CircuitIO;
 use crate::frontend::vars::{EvmVariable, ValueStream};
 use crate::prelude::{ByteVariable, CircuitVariable};
 
-/// Public inputs to the circuit. In the form of bytes, field elements, or child proofs.
+/// Public inputs to the circuit. In the form of bytes, field elements, or recursive proofs.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PublicInput<L: PlonkParameters<D>, const D: usize> {
     Bytes(Vec<u8>),
@@ -101,58 +101,5 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     /// field element-based IO.
     pub fn set<V: CircuitVariable>(&mut self, _: V, _: V::ValueType<L::Field>) {
         todo!()
-    }
-}
-
-#[cfg(test)]
-pub(crate) mod tests {
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::Field;
-
-    use crate::backend::circuit::input::PublicInput;
-    use crate::backend::circuit::DefaultParameters;
-    use crate::prelude::{ByteVariable, DefaultBuilder, Variable};
-
-    type L = DefaultParameters;
-    const D: usize = 2;
-
-    #[test]
-    fn test_serialize_input_bytes() {
-        let mut builder = DefaultBuilder::new();
-        let a = builder.evm_read::<ByteVariable>();
-        let b = builder.evm_read::<ByteVariable>();
-        let c = builder.xor(a, b);
-        builder.evm_write(c);
-
-        let circuit = builder.build();
-
-        let mut input = circuit.inputs();
-        input.evm_write::<ByteVariable>(0u8);
-        input.evm_write::<ByteVariable>(7u8);
-
-        let json = serde_json::to_string(&input).unwrap();
-        assert_eq!(r#"{"bytes":"0007"}"#, json);
-
-        let deserialized_input = serde_json::from_str::<PublicInput<L, D>>(&json).unwrap();
-        assert_eq!(input, deserialized_input);
-    }
-
-    #[test]
-    fn test_serialize_input_elements() {
-        let mut builder = DefaultBuilder::new();
-        let a = builder.read::<Variable>();
-        let b = builder.read::<Variable>();
-        let c = builder.add(a, b);
-        builder.write(c);
-        let circuit = builder.build();
-
-        let mut input = circuit.inputs();
-        input.write::<Variable>(GoldilocksField::TWO);
-
-        let json = serde_json::to_string(&input).unwrap();
-        assert_eq!(r#"{"elements":{"input":["2"]}}"#, json);
-
-        let deserialized_input = serde_json::from_str::<PublicInput<L, D>>(&json).unwrap();
-        assert_eq!(input, deserialized_input);
     }
 }

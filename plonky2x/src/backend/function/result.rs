@@ -47,6 +47,9 @@ pub struct FunctionResultBase<D> {
 }
 
 /// The standard result format for "functions".
+///
+/// Note that this is a standard enforced by the remote provers. Locally, you can just use
+/// `let (proof, output) = circuit.prove(input)`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(bound = "")]

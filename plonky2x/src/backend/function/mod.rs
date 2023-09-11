@@ -19,6 +19,15 @@ use crate::backend::circuit::{Circuit, DefaultParameters};
 use crate::backend::function::cli::{Args, Commands};
 use crate::backend::function::result::FunctionResult;
 
+/// Circuits that implement `CircuitFunction` have all necessary code for end-to-end deployment.
+///
+/// Conforming to this trait enables remote machines can generate proofs for you. In particular,
+/// this trait ensures that the circuit can be built, serialized, and deserialized.
+///
+/// You may need to override the default implementation for `generators` and `gates` if you are
+/// using custom gates or custom witness generators.
+///
+/// Look at the `plonky2x/examples` for examples of how to use this trait.
 pub trait CircuitFunction {
     /// Builds the circuit.
     fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D>;
@@ -104,7 +113,7 @@ contract FunctionVerifier is IFunctionVerifier {
         info!("Successfully saved proof to disk at output.json.");
     }
 
-    /// The entry point for the function when using CLI-based tools.
+    /// The entry point for the function when using the CLI.
     fn cli() {
         type L = DefaultParameters;
         const D: usize = 2;
