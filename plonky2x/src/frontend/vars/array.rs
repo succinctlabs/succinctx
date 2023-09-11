@@ -1,5 +1,4 @@
 use core::fmt::Debug;
-use std::marker::PhantomData;
 use std::ops::{Index, Range};
 
 use plonky2::field::types::Field;
@@ -10,7 +9,6 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 use super::{CircuitVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::mpt::generators::MuxGenerator;
 /// A variable in the circuit representing a fixed length array of variables.
 /// We use this to avoid stack overflow arrays associated with fixed-length arrays.
 #[derive(Debug, Clone)]
