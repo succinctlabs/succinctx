@@ -14,7 +14,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
 
-pub use self::config::{DefaultParameters, PlonkParameters};
+pub use self::config::{DefaultParameters, Groth16VerifierParameters, PlonkParameters};
 pub use self::input::PublicInput;
 pub use self::mock::MockCircuit;
 pub use self::output::PublicOutput;

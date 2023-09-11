@@ -15,6 +15,9 @@ pub struct ProveArgs {
 
     #[clap(long)]
     pub input_json: String,
+
+    #[arg(long, default_value = "")]
+    pub wrapper_path: String,
 }
 
 #[derive(Subcommand, Debug, Clone)]

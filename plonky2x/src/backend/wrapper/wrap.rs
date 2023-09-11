@@ -13,9 +13,8 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use serde::Serialize;
 
-use crate::backend::circuit::Circuit;
-use crate::backend::config::PlonkParameters;
-use crate::frontend::builder::CircuitBuilder;
+use crate::backend::circuit::{Circuit, PlonkParameters};
+use crate::frontend::builder::{CircuitBuilder, CircuitIO};
 use crate::frontend::hash::sha::sha256::sha256;
 use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable};
 
@@ -48,8 +47,8 @@ where
     <InnerParameters::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<InnerParameters::Field>,
 {
     pub fn build(circuit: Circuit<InnerParameters, D>) -> Self {
-        let Some(evm_io) = circuit.io.evm.as_ref() else {
-            panic!("CircuitIO must be EVM")
+        let CircuitIO::Bytes(ref evm_io) = circuit.io else {
+            panic!("CircuitIO must be Bytes")
         };
 
         // Standartize the public inputs/outputs to their hash and verify the circuit recursively
@@ -88,7 +87,7 @@ where
         hash_builder.write(circuit_digest_bytes);
 
         let num_input_targets = evm_io
-            .input_bytes
+            .input
             .iter()
             .map(|x| x.targets().len())
             .sum::<usize>();
@@ -283,7 +282,7 @@ mod tests {
     use plonky2::field::types::Field;
 
     use super::*;
-    use crate::backend::config::{DefaultParameters, Groth16VerifierParameters};
+    use crate::backend::circuit::{DefaultParameters, Groth16VerifierParameters};
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::hash::sha::sha256::sha256;
     use crate::prelude::*;
@@ -318,7 +317,6 @@ mod tests {
         let dummy_path = format!("{}/dummy/", build_path);
 
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
-        builder.init_evm_io();
         let _ = builder.constant::<Variable>(F::ONE);
 
         // Set up the dummy circuit and wrapper
@@ -339,7 +337,6 @@ mod tests {
         let digest_bits = to_bits(decode(expected_digest).unwrap());
 
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
-        // builder.init_evm_io();
         let targets = msg_bits
             .iter()
             .map(|b| builder.api.constant_bool(*b))

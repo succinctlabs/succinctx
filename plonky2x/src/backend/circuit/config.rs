@@ -8,7 +8,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 use serde::{Deserialize, Serialize};
 
-use super::wrapper::plonky2_config::PoseidonBN128GoldilocksConfig;
+use crate::backend::wrapper::plonky2_config::PoseidonBN128GoldilocksConfig;
 
 /// Parameters such as the field, hash function, etc. used for the circuit.
 pub trait PlonkParameters<const D: usize>:
@@ -34,7 +34,7 @@ impl PlonkParameters<2> for DefaultParameters {
     type Config = PoseidonGoldilocksConfig;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Groth16VerifierParameters;
 
 impl PlonkParameters<2> for Groth16VerifierParameters {
