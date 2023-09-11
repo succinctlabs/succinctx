@@ -120,6 +120,24 @@ impl ByteVariable {
     }
 }
 
+pub trait Nibbles<ByteVariable> {
+    fn to_nibbles<L: PlonkParameters<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Vec<ByteVariable>;
+}
+
+impl Nibbles<ByteVariable> for Vec<ByteVariable> {
+    fn to_nibbles<L: PlonkParameters<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Vec<ByteVariable> {
+        self.iter()
+            .flat_map(|b| b.to_nibbles(builder))
+            .collect::<Vec<ByteVariable>>()
+    }
+}
+
 impl<L: PlonkParameters<D>, const D: usize> Not<L, D> for ByteVariable {
     type Output = Self;
 

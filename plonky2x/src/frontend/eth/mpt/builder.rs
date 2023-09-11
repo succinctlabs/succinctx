@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
 use curta::math::field::Field;
-use itertools::Itertools;
 
 use super::generators::*;
+use crate::frontend::vars::Nibbles;
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, PlonkParameters,
     Variable,
@@ -75,18 +75,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         generator.output
     }
 
-    #[allow(dead_code, unused_variables)]
-    pub fn to_nibbles(&mut self, bytes: &[ByteVariable]) -> Vec<ByteVariable> {
-        let len = bytes.len() * 2;
-        let generator: NibbleGenerator<L, D> = NibbleGenerator {
-            input: bytes.to_vec(),
-            output: (0..len).map(|_| self.init::<ByteVariable>()).collect_vec(),
-            _phantom: PhantomData,
-        };
-        self.add_simple_generator(generator.clone());
-        generator.output
-    }
-
     const PREFIX_EXTENSION_EVEN: u8 = 0;
     const PREFIX_EXTENSION_ODD: u8 = 1;
     const PREFIX_LEAF_EVEN: u8 = 2;
@@ -127,8 +115,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
         let mut current_node_id = ArrayVariable::<ByteVariable, ELEMENT_LEN>::new(padded_root);
         let hash_key = self.keccak256(&key.as_bytes());
-        let key_path: ArrayVariable<ByteVariable, 64> =
-            self.to_nibbles(&hash_key.as_bytes()).try_into().unwrap();
+        let key_path: ArrayVariable<ByteVariable, 64> = hash_key
+            .as_bytes()
+            .to_vec()
+            .to_nibbles(self)
+            .try_into()
+            .unwrap();
 
         for i in 0..PROOF_LEN {
             let current_node = proof[i].clone();
@@ -165,7 +157,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let is_branch = self.is_equal(len_decoded_list, branch_node_length);
             let is_leaf = self.is_equal(len_decoded_list, leaf_or_extension_node_length);
             let key_terminated = self.is_equal(current_key_idx, const_64);
-            let path = self.to_nibbles(decoded_list[0].as_slice());
+            let path = decoded_list[0].as_slice().to_vec().to_nibbles(self);
             let prefix = path[0];
             let prefix_leaf_even = self.is_equal(prefix, prefix_leaf_even);
             let prefix_leaf_odd = self.is_equal(prefix, prefix_leaf_odd);
@@ -281,7 +273,6 @@ mod tests {
             .collect::<Vec<F>>();
 
         let mut builder = DefaultBuilder::new();
-        // builder.debug(77867);
         let key_variable = builder.read::<Bytes32Variable>();
         let proof_variable =
             builder.read::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>();
@@ -295,7 +286,7 @@ mod tests {
             root_variable,
             value_variable,
         );
-        let circuit = builder.build();
+        let circuit = builder.mock_build();
 
         let mut input = circuit.input();
         input.write::<Bytes32Variable>(key);
@@ -306,6 +297,6 @@ mod tests {
         input.write::<Bytes32Variable>(root);
         input.write::<Bytes32Variable>(value_as_h256);
 
-        let (_witness, mut _output) = circuit.prove(&input);
+        let (_witness, mut _output) = circuit.mock_prove(&input);
     }
 }
