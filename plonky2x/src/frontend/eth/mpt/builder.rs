@@ -185,7 +185,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 self.select_array(decoded_list.as_slice(), updated_current_node_id_idx);
             // If finished == 1, then we should not update the current_node_id
             current_node_id =
-                self.select_array(&vec![updated_current_node_id, current_node_id], finished.0);
+                self.select_array(&[updated_current_node_id, current_node_id], finished.0);
 
             let mut do_path_remainder_check = self.not(finished);
             do_path_remainder_check = self.and(do_path_remainder_check, is_leaf);
