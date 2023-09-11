@@ -1,7 +1,7 @@
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::Prover;
-use crate::backend::circuit::io::{CircuitInput, CircuitOutput};
+use crate::backend::circuit::input::{CircuitInput, CircuitOutput};
 use crate::backend::circuit::Circuit;
 use crate::backend::config::PlonkParameters;
 

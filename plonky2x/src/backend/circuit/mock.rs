@@ -1,16 +1,18 @@
 use std::collections::HashMap;
 
-use itertools::Itertools;
 use plonky2::iop::witness::{PartialWitness, PartitionWitness};
 use plonky2::plonk::circuit_data::MockCircuitData;
 
+use super::input::PublicInput;
+use super::output::PublicOutput;
 use super::witness::{generate_witness, GenerateWitnessError};
-use crate::backend::circuit::{CircuitInput, CircuitOutput};
 use crate::backend::config::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
-use crate::frontend::vars::CircuitVariable;
 
-/// A compiled circuit which can compute any function in the form `f(x)=y`.
+/// A mock circuit that can be used for testing.
+///
+/// Mock circuits are not meant to be used in production. It is only meant to be used for testing.
+/// It skips a bunch of time-consuming steps in .build() and .prove().
 #[derive(Debug)]
 pub struct MockCircuit<L: PlonkParameters<D>, const D: usize> {
     pub data: MockCircuitData<L::Field, L::Config, D>,
@@ -20,50 +22,32 @@ pub struct MockCircuit<L: PlonkParameters<D>, const D: usize> {
 
 impl<L: PlonkParameters<D>, const D: usize> MockCircuit<L, D> {
     /// Returns an input instance for the circuit.
-    pub fn input(&self) -> CircuitInput<L, D> {
-        CircuitInput {
-            io: self.io.clone(),
-            buffer: Vec::new(),
-        }
+    pub fn input(&self) -> PublicInput<L, D> {
+        PublicInput::new(&self.io)
     }
 
     pub fn mock_prove(
         &self,
-        input: &CircuitInput<L, D>,
-    ) -> (PartitionWitness<L::Field>, CircuitOutput<L, D>) {
-        // Get input variables from io.
-        let input_variables = self.io.input();
-        assert_eq!(input_variables.len(), input.buffer.len());
-
-        // Assign input variables.
+        input: &PublicInput<L, D>,
+    ) -> (PartitionWitness<L::Field>, PublicOutput<L, D>) {
+        // Initialize the witness.
         let mut pw = PartialWitness::new();
-        for i in 0..input_variables.len() {
-            input_variables[i].set(&mut pw, input.buffer[i]);
-        }
 
-        let result = generate_witness(pw, &self.data.prover_only, &self.data.common);
-        if let Err(e) = result {
-            match e {
-                GenerateWitnessError::GeneratorsNotRun(targets) => {
-                    panic!("generators not run: {:?}", targets)
-                }
+        // Write the input to the witness.
+        self.io.set_witness(&mut pw, input);
+
+        // Generate the rest of witness.
+        let witness = match generate_witness(pw, &self.data.prover_only, &self.data.common) {
+            Ok(witness) => witness,
+            Err(GenerateWitnessError::GeneratorsNotRun(targets)) => {
+                panic!("generators not run: {:?}", targets)
             }
         };
-        let filled_witness = result.unwrap();
 
-        let output_variables = self.io.output();
-        let output_elements = output_variables
-            .iter()
-            .map(|v| v.get(&filled_witness))
-            .collect_vec();
+        // Get the output from the witness.
+        let output = PublicOutput::from_witness(&self.io, &witness);
 
-        (
-            filled_witness,
-            CircuitOutput {
-                io: self.io.clone(),
-                buffer: output_elements,
-            },
-        )
+        (witness, output)
     }
 }
 
@@ -91,10 +75,10 @@ pub(crate) mod tests {
         input.write::<Variable>(GoldilocksField::TWO);
         input.write::<Variable>(GoldilocksField::TWO);
 
-        // // Generate a proof.
+        // Generate a proof.
         let (_witness, mut output) = mock_circuit.mock_prove(&input);
 
-        // // Read output.
+        // Read output.
         let sum = output.read::<Variable>();
         println!("{}", sum.0);
     }

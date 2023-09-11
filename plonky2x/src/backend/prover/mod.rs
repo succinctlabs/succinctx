@@ -1,6 +1,6 @@
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::circuit::io::{CircuitInput, CircuitOutput};
+use super::circuit::input::{CircuitInput, CircuitOutput};
 use super::circuit::Circuit;
 use super::config::PlonkParameters;
 

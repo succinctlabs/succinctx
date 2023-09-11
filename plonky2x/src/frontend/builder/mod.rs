@@ -114,7 +114,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             hint.register(&mut self);
         }
         match self.io {
-            CircuitIO::Evm(ref io) => {
+            CircuitIO::Bytes(ref io) => {
                 let input = io
                     .input
                     .iter()
@@ -128,7 +128,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 self.register_public_inputs(input.as_slice());
                 self.register_public_inputs(output.as_slice());
             }
-            CircuitIO::Field(ref io) => {
+            CircuitIO::Elements(ref io) => {
                 let input = io
                     .input
                     .iter()

@@ -1,7 +1,9 @@
-pub mod io;
+pub mod input;
 pub mod mock;
+pub mod output;
 pub mod serialization;
 pub mod witness;
+
 use std::fs;
 
 use itertools::Itertools;
@@ -14,15 +16,18 @@ use plonky2::util::serialization::{
     Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
 };
 
-use self::io::{CircuitInput, CircuitOutput};
+use self::input::PublicInput;
+use self::output::PublicOutput;
 use self::serialization::{GateRegistry, WitnessGeneratorRegistry};
 use super::config::PlonkParameters;
-use crate::frontend::builder::io::{EvmIO, FieldIO};
+use crate::frontend::builder::io::{BytesIO, ElementsIO};
 use crate::frontend::builder::CircuitIO;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
 use crate::utils::hex;
 
-/// A compiled circuit which can compute any function in the form `f(x)=y`.
+/// A compiled circuit.
+///
+/// It can compute a function in the form f(publicInputs, privateInputs) = publicOutputs.
 #[derive(Debug)]
 pub struct Circuit<L: PlonkParameters<D>, const D: usize> {
     pub data: CircuitData<L::Field, L::Config, D>,
@@ -31,57 +36,36 @@ pub struct Circuit<L: PlonkParameters<D>, const D: usize> {
 
 impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
     /// Returns an input instance for the circuit.
-    pub fn input(&self) -> CircuitInput<L, D> {
-        CircuitInput {
-            io: self.io.clone(),
-            buffer: Vec::new(),
-        }
+    pub fn input(&self) -> PublicInput<L, D> {
+        PublicInput::new(&self.io)
     }
 
     /// Generates a proof for the circuit. The proof can be verified using `verify`.
     pub fn prove(
         &self,
-        input: &CircuitInput<L, D>,
+        input: &PublicInput<L, D>,
     ) -> (
         ProofWithPublicInputs<L::Field, L::Config, D>,
-        CircuitOutput<L, D>,
+        PublicOutput<L, D>,
     ) {
-        // Get input variables from io.
-        let input_variables = self.io.input();
-        assert_eq!(input_variables.len(), input.buffer.len());
-
-        // Assign input variables.
         let mut pw = PartialWitness::new();
-        for i in 0..input_variables.len() {
-            input_variables[i].set(&mut pw, input.buffer[i]);
-        }
-
-        // Generate the proof.
-        let proof = self.data.prove(pw).unwrap();
-
-        // Slice the public inputs to reflect the output portion of the circuit.
-        let output = CircuitOutput {
-            io: self.io.clone(),
-            buffer: proof.public_inputs[input_variables.len()..].to_vec(),
-        };
-
-        (proof, output)
+        self.io.set_witness(&mut pw, input);
+        let proof_with_pis = self.data.prove(pw).unwrap();
+        let output = PublicOutput::from_proof_with_pis(&self.io, &proof_with_pis);
+        (proof_with_pis, output)
     }
 
     /// Verifies a proof for the circuit.
     pub fn verify(
         &self,
         proof: &ProofWithPublicInputs<L::Field, L::Config, D>,
-        input: &CircuitInput<L, D>,
-        output: &CircuitOutput<L, D>,
+        input: &PublicInput<L, D>,
+        output: &PublicOutput<L, D>,
     ) {
-        let mut public_inputs = Vec::new();
-        public_inputs.extend(input.buffer.clone());
-        public_inputs.extend(output.buffer.clone());
-        assert_eq!(public_inputs.len(), proof.public_inputs.len());
-        for i in 0..public_inputs.len() {
-            assert_eq!(public_inputs[i], proof.public_inputs[i]);
-        }
+        let expected_input = PublicInput::<L, D>::from_proof_with_pis(&self.io, proof);
+        let expected_output = PublicOutput::<L, D>::from_proof_with_pis(&self.io, proof);
+        assert_eq!(input, &expected_input);
+        assert_eq!(output, &expected_output);
         self.data.verify(proof.clone()).unwrap();
     }
 
@@ -108,7 +92,7 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
         buffer.write_usize(circuit_bytes.len())?;
         buffer.write_all(&circuit_bytes)?;
         match &self.io {
-            CircuitIO::Evm(io) => {
+            CircuitIO::Bytes(io) => {
                 buffer.write_usize(0)?;
                 buffer.write_target_vec(
                     io.input
@@ -125,7 +109,7 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
                         .as_slice(),
                 )?;
             }
-            CircuitIO::Field(io) => {
+            CircuitIO::Elements(io) => {
                 buffer.write_usize(1)?;
                 buffer.write_target_vec(io.input.iter().map(|v| v.0).collect_vec().as_slice())?;
                 buffer.write_target_vec(io.output.iter().map(|v| v.0).collect_vec().as_slice())?;
@@ -172,14 +156,14 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
             let output_bytes = (0..output_targets.len() / 8)
                 .map(|i| ByteVariable::from_targets(&output_targets[i * 8..(i + 1) * 8]))
                 .collect_vec();
-            circuit.io = CircuitIO::Evm(EvmIO {
+            circuit.io = CircuitIO::Bytes(BytesIO {
                 input: input_bytes,
                 output: output_bytes,
             });
         } else if io_type == 1 {
             let input_targets = buffer.read_target_vec()?;
             let output_targets = buffer.read_target_vec()?;
-            circuit.io = CircuitIO::Field(FieldIO {
+            circuit.io = CircuitIO::Elements(ElementsIO {
                 input: input_targets.into_iter().map(Variable).collect_vec(),
                 output: output_targets.into_iter().map(Variable).collect_vec(),
             });
