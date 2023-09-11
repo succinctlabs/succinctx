@@ -1,35 +1,40 @@
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
+use serde::{Deserialize, Serialize};
 
 use super::CircuitBuilder;
-use crate::backend::circuit::input::PublicInput;
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::{PlonkParameters, PublicInput};
 use crate::frontend::vars::EvmVariable;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
+use crate::utils::serde::{
+    deserialize_proof_with_pis_target_vec, serialize_proof_with_pis_target_vec,
+};
 
 /// A schema for a circuit that uses bytes for input and output.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BytesIO {
     pub input: Vec<ByteVariable>,
     pub output: Vec<ByteVariable>,
 }
 
 /// A schema for a circuit that uses field elements for input and output.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ElementsIO {
     pub input: Vec<Variable>,
     pub output: Vec<Variable>,
 }
 
 /// A schema for a circuit that uses recursive proofs for inputs and field elements for outputs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecursiveProofsIO<const D: usize> {
+    #[serde(serialize_with = "serialize_proof_with_pis_target_vec")]
+    #[serde(deserialize_with = "deserialize_proof_with_pis_target_vec")]
     pub input: Vec<ProofWithPublicInputsTarget<D>>,
     pub output: Vec<Variable>,
 }
 
 /// A schema for what the inputs and outputs are for a circuit.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CircuitIO<const D: usize> {
     Bytes(BytesIO),
     Elements(ElementsIO),
@@ -90,9 +95,7 @@ impl<const D: usize> CircuitIO<D> {
             CircuitIO::RecursiveProofs(_) => {
                 todo!()
             }
-            CircuitIO::None() => {
-                todo!()
-            }
+            CircuitIO::None() => {}
         }
     }
 }

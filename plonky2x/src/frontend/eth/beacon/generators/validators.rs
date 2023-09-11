@@ -9,7 +9,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::utils::eth::beacon::BeaconClient;
@@ -122,7 +122,7 @@ pub(crate) mod tests {
 
     use plonky2::iop::witness::PartialWitness;
 
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
     use crate::frontend::vars::Bytes32Variable;

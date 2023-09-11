@@ -3,8 +3,7 @@ use reqwest::Client;
 
 use super::Prover;
 use crate::backend::circuit::input::{CircuitInput, CircuitOutput};
-use crate::backend::circuit::Circuit;
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::{Circuit, PlonkParameters};
 use crate::backend::function::io::BytesInput;
 use crate::frontend::builder::CircuitIO;
 

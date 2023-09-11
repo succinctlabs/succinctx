@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::vars::{
@@ -188,7 +188,7 @@ impl SSZVariable for BeaconValidatorVariable {
 #[cfg(test)]
 pub(crate) mod tests {
 
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::beacon::vars::BeaconValidatorVariable;
     use crate::frontend::vars::{Bytes32Variable, SSZVariable};
@@ -222,7 +222,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(hash, expected_hash);
 
         let circuit = builder.build();
-        let input = circuit.input();
+        let input = circuit.inputs();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
     }
@@ -251,7 +251,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(hash, expected_hash);
 
         let circuit = builder.build();
-        let input = circuit.input();
+        let input = circuit.inputs();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
     }

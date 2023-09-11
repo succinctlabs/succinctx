@@ -17,8 +17,7 @@
 
 use std::env;
 
-use plonky2x::backend::circuit::Circuit;
-use plonky2x::backend::config::PlonkParameters;
+use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::CircuitFunction;
 use plonky2x::prelude::{CircuitBuilder, Variable};
 
@@ -56,7 +55,7 @@ mod tests {
     #[test]
     fn test_circuit_function_field() {
         let circuit = Function::build::<L, D>();
-        let mut input = circuit.input();
+        let mut input = circuit.inputs();
         input.write::<Variable>(F::from_canonical_u64(1));
         input.write::<Variable>(F::from_canonical_u64(2));
         let (proof, output) = circuit.prove(&input);

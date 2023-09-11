@@ -6,7 +6,7 @@ use plonky2::plonk::circuit_data::MockCircuitData;
 use super::input::PublicInput;
 use super::output::PublicOutput;
 use super::witness::{generate_witness, GenerateWitnessError};
-use crate::backend::config::PlonkParameters;
+use super::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
 
 /// A mock circuit that can be used for testing.
@@ -61,7 +61,7 @@ pub(crate) mod tests {
     #[test]
     fn test_mock_circuit_with_field_io() {
         // Define your circuit.
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         let a = builder.read::<Variable>();
         let b = builder.read::<Variable>();
         let c = builder.add(a, b);
@@ -86,7 +86,7 @@ pub(crate) mod tests {
     #[test]
     fn test_simple_circuit_with_evm_io() {
         // Define your circuit.
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         let a = builder.evm_read::<ByteVariable>();
         let b = builder.evm_read::<ByteVariable>();
         let c = builder.xor(a, b);

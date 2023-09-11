@@ -17,8 +17,7 @@
 
 use std::env;
 
-use plonky2x::backend::circuit::Circuit;
-use plonky2x::backend::config::PlonkParameters;
+use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::CircuitFunction;
 use plonky2x::frontend::vars::ByteVariable;
 use plonky2x::prelude::CircuitBuilder;
@@ -57,7 +56,7 @@ mod tests {
     #[test]
     fn test_circuit_function_evm() {
         let circuit = Function::build::<L, D>();
-        let mut input = circuit.input();
+        let mut input = circuit.inputs();
         input.evm_write::<ByteVariable>(0u8);
         input.evm_write::<ByteVariable>(1u8);
         let (proof, mut output) = circuit.prove(&input);

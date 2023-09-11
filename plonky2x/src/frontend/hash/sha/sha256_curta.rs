@@ -4,7 +4,7 @@ use curta::math::field::Field;
 use itertools::Itertools;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::hash::bit_operations::util::u64_to_bits;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable};
@@ -97,7 +97,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 #[cfg(test)]
 mod tests {
 
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::{ByteVariable, CircuitBuilder};
 
     type L = DefaultParameters;
@@ -116,7 +116,7 @@ mod tests {
         builder.constraint_sha256_curta();
 
         let circuit = builder.build();
-        let input = circuit.input();
+        let input = circuit.inputs();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();

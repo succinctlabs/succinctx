@@ -2,8 +2,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::Prover;
 use crate::backend::circuit::input::{CircuitInput, CircuitOutput};
-use crate::backend::circuit::Circuit;
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::{Circuit, PlonkParameters};
 
 /// A prover that generates proofs locally.
 pub struct LocalProver;

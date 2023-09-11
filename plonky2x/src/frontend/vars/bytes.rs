@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, EvmVariable, Variable};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 use crate::frontend::vars::ByteVariable;
@@ -263,7 +263,7 @@ impl<const N: usize> BytesVariable<N> {
 mod tests {
     use rand::{thread_rng, Rng};
 
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
 
     type L = DefaultParameters;

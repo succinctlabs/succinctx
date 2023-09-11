@@ -2,8 +2,7 @@ use core::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
-use crate::backend::circuit::input::{BytesInput, ElementsInput, RecursiveProofsInput};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::{BytesInput, ElementsInput, PlonkParameters, RecursiveProofsInput};
 
 /// Common fields in all `FunctionRequest` types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,9 +30,9 @@ pub(crate) mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::backend::function::io::FunctionRequest;
-    use crate::prelude::{CircuitBuilderX, Variable};
+    use crate::prelude::{DefaultBuilder, Variable};
 
     type L = DefaultParameters;
     const D: usize = 2;
@@ -70,7 +69,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_deserialize_function_request_recursive_proofs() {
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         let a = builder.read::<Variable>();
         let b = builder.read::<Variable>();
         let c = builder.add(a, b);
@@ -78,7 +77,7 @@ pub(crate) mod tests {
 
         let circuit = builder.build();
 
-        let mut input = circuit.input();
+        let mut input = circuit.inputs();
         input.write::<Variable>(GoldilocksField::TWO);
         input.write::<Variable>(GoldilocksField::TWO);
 

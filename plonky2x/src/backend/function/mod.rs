@@ -2,22 +2,18 @@ pub mod cli;
 pub mod io;
 pub mod request;
 pub mod result;
-
 use std::fs::File;
 use std::io::{Read, Write};
 
 use clap::Parser;
 use log::{info, warn};
-use plonky2::field::types::Field;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use self::cli::{BuildArgs, ProveArgs};
-use super::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
-use super::config::PlonkParameters;
-use crate::backend::circuit::Circuit;
-use crate::backend::config::DefaultParameters;
+use self::io::FunctionRequest;
+use super::circuit::{GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
+use crate::backend::circuit::{Circuit, DefaultParameters};
 use crate::backend::function::cli::{Args, Commands};
-use crate::backend::function::request::FunctionRequest;
 use crate::backend::function::result::{
     BytesResult, ElementsResult, FunctionResult, FunctionResultWrapper,
 };
@@ -94,7 +90,7 @@ contract FunctionVerifier is IFunctionVerifier {
                 .unwrap();
         info!("Successfully loaded circuit.");
 
-        let mut input = circuit.input();
+        let mut input = circuit.inputs();
         input.evm_write_all(&bytes);
 
         info!("Generating proof...");
@@ -134,7 +130,7 @@ contract FunctionVerifier is IFunctionVerifier {
                 .unwrap();
         info!("Successfully loaded circuit.");
 
-        let mut input = circuit.input();
+        let mut input = circuit.inputs();
         input.write_all(&elements);
 
         info!("Generating proof...");
@@ -160,7 +156,9 @@ contract FunctionVerifier is IFunctionVerifier {
     }
 
     /// Reads the function input from a JSON file path.
-    fn read_function_input(input_json: String) -> FunctionRequest {
+    fn read_function_input<L: PlonkParameters<D>, const D: usize>(
+        input_json: String,
+    ) -> FunctionRequest<L, D> {
         let mut file = File::open(input_json).unwrap();
         let mut data = String::new();
         file.read_to_string(&mut data).unwrap();
@@ -178,28 +176,13 @@ contract FunctionVerifier is IFunctionVerifier {
                 Self::compile::<L, D>(args);
             }
             Commands::Prove(args) => {
-                let input = Self::read_function_input(args.clone().input_json);
+                let input = Self::read_function_input::<L, D>(args.clone().input_json);
                 match input {
                     FunctionRequest::Bytes(input) => {
-                        Self::prove_with_evm_io::<L, D>(
-                            args,
-                            hex::decode(input.data.input).expect("failed to decode input bytes"),
-                        );
+                        Self::prove_with_evm_io::<L, D>(args, input.data.input);
                     }
                     FunctionRequest::Elements(input) => {
-                        Self::prove_with_field_io::<L, D>(
-                            args,
-                            input
-                                .data
-                                .input
-                                .iter()
-                                .map(|e| {
-                                    <L as PlonkParameters<D>>::Field::from_canonical_u64(
-                                        e.parse::<u64>().unwrap(),
-                                    )
-                                })
-                                .collect(),
-                        );
+                        Self::prove_with_field_io::<L, D>(args, input.data.input);
                     }
                     _ => {
                         warn!("No input bytes or elements found in input.json.");
@@ -221,28 +204,13 @@ contract FunctionVerifier is IFunctionVerifier {
             build_dir: "./build".to_string(),
             input_json: input_json.clone(),
         };
-        let input = Self::read_function_input(input_json);
+        let input = Self::read_function_input::<L, D>(input_json);
         match input {
             FunctionRequest::Bytes(input) => {
-                Self::prove_with_evm_io::<L, D>(
-                    prove_args,
-                    hex::decode(input.data.input).expect("failed to decode input bytes"),
-                );
+                Self::prove_with_evm_io::<L, D>(prove_args, input.data.input);
             }
             FunctionRequest::Elements(input) => {
-                Self::prove_with_field_io::<L, D>(
-                    prove_args,
-                    input
-                        .data
-                        .input
-                        .iter()
-                        .map(|e| {
-                            <L as PlonkParameters<D>>::Field::from_canonical_u64(
-                                e.parse::<u64>().unwrap(),
-                            )
-                        })
-                        .collect(),
-                );
+                Self::prove_with_field_io::<L, D>(prove_args, input.data.input);
             }
             _ => {
                 warn!("No input bytes or elements found in input.json.");

@@ -35,23 +35,3 @@ pub enum FunctionResult {
     #[serde(rename = "res_recursiveProofs")]
     RecursiveProofs(FunctionResultWrapper<RecursiveProofsResult>),
 }
-
-#[cfg(test)]
-pub(crate) mod tests {
-    use crate::backend::function::result::FunctionResult;
-
-    #[test]
-    fn test_function_request_deserialize() {
-        let json_str = r#"
-        {
-            "type": "res_recursiveProofs",
-            "data": {
-                "proof": "ab",
-                "output": ["1", "2"]
-            }
-        }
-        "#;
-        let deserialized: FunctionResult = serde_json::from_str(json_str).unwrap();
-        println!("{:?}", deserialized);
-    }
-}

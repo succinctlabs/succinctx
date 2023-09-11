@@ -6,7 +6,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 use serde::{Deserialize, Serialize};
 
 use super::CircuitVariable;
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
 

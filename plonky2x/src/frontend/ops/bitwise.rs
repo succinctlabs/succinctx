@@ -1,6 +1,6 @@
 //! Circuit builder interfaces for bitwise operations.
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 /// The bitwise AND operation.

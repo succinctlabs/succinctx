@@ -2,22 +2,7 @@ use core::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BytesInput {
-    pub input: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ElementsInput {
-    pub input: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RecursiveProofsInput {
-    pub subfunction: Option<String>,
-    pub input: Vec<String>,
-    pub proofs: Vec<String>,
-}
+use crate::backend::circuit::{BytesInput, ElementsInput, PlonkParameters, RecursiveProofsInput};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionRequestWrapper<D> {
@@ -28,33 +13,11 @@ pub struct FunctionRequestWrapper<D> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
-pub enum FunctionRequest {
+pub enum FunctionRequest<L: PlonkParameters<D>, const D: usize> {
     #[serde(rename = "req_bytes")]
     Bytes(FunctionRequestWrapper<BytesInput>),
     #[serde(rename = "req_elements")]
-    Elements(FunctionRequestWrapper<ElementsInput>),
+    Elements(FunctionRequestWrapper<ElementsInput<L, D>>),
     #[serde(rename = "req_recursiveProofs")]
-    RecursiveProofs(FunctionRequestWrapper<RecursiveProofsInput>),
-}
-
-#[cfg(test)]
-pub(crate) mod tests {
-    use crate::backend::function::request::FunctionRequest;
-
-    #[test]
-    fn test_function_request_deserialize() {
-        let json_str = r#"
-        {
-            "type": "req_recursiveProofs",
-            "releaseId": "some_release_id",
-            "data": {
-                "subfunction?": "main",
-                "proofs": ["proof1", "proof2"],
-                "input": ["input1", "input2"]
-            }
-        }
-        "#;
-        let deserialized: FunctionRequest = serde_json::from_str(json_str).unwrap();
-        println!("{:?}", deserialized);
-    }
+    RecursiveProofs(FunctionRequestWrapper<RecursiveProofsInput<L, D>>),
 }

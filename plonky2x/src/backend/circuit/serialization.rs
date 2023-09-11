@@ -47,22 +47,19 @@ use plonky2::util::serialization::{
     Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
 };
 
-use crate::backend::config::PlonkParameters;
+use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
-use crate::frontend::eth::beacon::generators::balance::BeaconBalanceGenerator;
-use crate::frontend::eth::beacon::generators::balances::BeaconBalancesGenerator;
-use crate::frontend::eth::beacon::generators::historical::BeaconHistoricalBlockGenerator;
-use crate::frontend::eth::beacon::generators::validator::BeaconValidatorGenerator;
-use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
-use crate::frontend::eth::beacon::generators::withdrawal::BeaconWithdrawalGenerator;
-use crate::frontend::eth::beacon::generators::withdrawals::BeaconWithdrawalsGenerator;
+use crate::frontend::eth::beacon::generators::{
+    BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
+    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
+    BeaconWithdrawalsGenerator,
+};
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
     BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
-use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
-use crate::frontend::eth::storage::generators::storage::{
-    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+use crate::frontend::eth::storage::generators::{
+    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
 use crate::frontend::generator::hint::{Hint, HintSerializer};
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
@@ -94,7 +91,9 @@ pub struct GateRegistry<L: PlonkParameters<D>, const D: usize>(
 
 #[derive(Debug, Clone)]
 pub enum GeneratorID {
+    #[allow(dead_code)]
     Name(String),
+    #[allow(dead_code)]
     Type(TypeId, String),
 }
 
@@ -585,7 +584,7 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
 
     use super::*;
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::CircuitBuilder;
 
     type L = DefaultParameters;

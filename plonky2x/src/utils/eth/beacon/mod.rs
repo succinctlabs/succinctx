@@ -7,7 +7,7 @@ use serde_json::Value;
 use serde_with::serde_as;
 use tokio::runtime::Runtime;
 
-use crate::utils::deserialize::deserialize_bigint;
+use crate::utils::serde::deserialize_bigint;
 
 /// A client used for connecting and querying a beacon node.
 #[derive(Debug, Clone)]

@@ -4,7 +4,7 @@ use ethers::types::{H160, U256, U64};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint256::U256Variable;
