@@ -9,7 +9,6 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::prelude::Variable;
 
-
 /// The container which holds all beacon validators at specific block root as variable in the
 /// circuit. Note that under the hood, we only store the commitment to the validators. To access
 /// the underlying data, we witness merkle proofs.

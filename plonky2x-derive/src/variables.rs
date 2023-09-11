@@ -22,9 +22,9 @@ pub(crate) fn variables(data: &StructData) -> TokenStream {
 pub(crate) fn from_variables(data: &StructData) -> TokenStream {
     let value_recurse = data.fields.iter().map(|(name, ty, _)| {
         quote! {
-            let size = <#ty as CircuitVariable>::nb_elements();
-            let #name = <#ty as CircuitVariable>::from_variables(&variables[index..index+size]);
-            index += size;
+            let cv_derive_imple_size = <#ty as CircuitVariable>::nb_elements();
+            let #name = <#ty as CircuitVariable>::from_variables(&variables[cv_derive_impl_index..cv_derive_impl_index+cv_derive_imple_size]);
+            cv_derive_impl_index += cv_derive_imple_size;
         }
     });
 
@@ -34,7 +34,7 @@ pub(crate) fn from_variables(data: &StructData) -> TokenStream {
         }
     });
     quote! {
-        let mut index = 0;
+        let mut cv_derive_impl_index = 0;
         #(#value_recurse)*
 
         Self {

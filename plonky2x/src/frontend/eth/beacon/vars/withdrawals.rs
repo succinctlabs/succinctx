@@ -9,11 +9,9 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::prelude::Variable;
 
-
 #[derive(Debug, Clone, Copy, CircuitVariable)]
 #[value_name(BeaconWithdrawalsValue)]
 pub struct BeaconWithdrawalsVariable {
     pub block_root: Bytes32Variable,
     pub withdrawals_root: Bytes32Variable,
 }
-
