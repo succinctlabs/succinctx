@@ -222,7 +222,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(hash, expected_hash);
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
     }
@@ -251,7 +251,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(hash, expected_hash);
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
     }

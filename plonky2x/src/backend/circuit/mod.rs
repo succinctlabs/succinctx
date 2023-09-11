@@ -34,7 +34,7 @@ pub struct Circuit<L: PlonkParameters<D>, const D: usize> {
 
 impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
     /// Returns a public inputs instance for the circuit.
-    pub fn inputs(&self) -> PublicInput<L, D> {
+    pub fn input(&self) -> PublicInput<L, D> {
         PublicInput::new(&self.io)
     }
 
@@ -197,7 +197,7 @@ pub(crate) mod tests {
         let circuit = builder.build();
 
         // Write to the circuit input.
-        let mut input = circuit.inputs();
+        let mut input = circuit.input();
         input.write::<Variable>(GoldilocksField::TWO);
         input.write::<Variable>(GoldilocksField::TWO);
 
@@ -251,7 +251,7 @@ pub(crate) mod tests {
         let circuit = builder.build();
 
         // Write to the circuit input.
-        let mut input = circuit.inputs();
+        let mut input = circuit.input();
         input.evm_write::<ByteVariable>(0u8);
         input.evm_write::<ByteVariable>(1u8);
 

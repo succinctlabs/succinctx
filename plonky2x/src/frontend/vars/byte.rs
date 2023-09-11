@@ -320,7 +320,7 @@ mod tests {
         let circuit = builder.build();
 
         let value = rand::random::<u8>();
-        let mut inputs = circuit.inputs();
+        let mut inputs = circuit.input();
         inputs.write::<ByteVariable>(value);
 
         let (proof, mut output) = circuit.prove(&inputs);

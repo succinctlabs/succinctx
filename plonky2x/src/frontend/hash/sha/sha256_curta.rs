@@ -116,7 +116,7 @@ mod tests {
         builder.constraint_sha256_curta();
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();

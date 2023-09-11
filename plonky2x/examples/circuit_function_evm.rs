@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn test_circuit_function_evm() {
         let circuit = Function::build::<L, D>();
-        let mut input = circuit.inputs();
+        let mut input = circuit.input();
         input.evm_write::<ByteVariable>(0u8);
         input.evm_write::<ByteVariable>(1u8);
         let (proof, mut output) = circuit.prove(&input);

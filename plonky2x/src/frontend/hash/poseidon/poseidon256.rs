@@ -93,7 +93,7 @@ mod tests {
         let circuit = builder.build();
 
         // Write to the circuit input.
-        let input = circuit.inputs();
+        let input = circuit.input();
 
         // Generate a proof.
         let (proof, output) = circuit.prove(&input);

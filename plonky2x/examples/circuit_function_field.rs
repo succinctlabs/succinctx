@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn test_circuit_function_field() {
         let circuit = Function::build::<L, D>();
-        let mut input = circuit.inputs();
+        let mut input = circuit.input();
         input.write::<Variable>(F::from_canonical_u64(1));
         input.write::<Variable>(F::from_canonical_u64(2));
         let (proof, output) = circuit.prove(&input);

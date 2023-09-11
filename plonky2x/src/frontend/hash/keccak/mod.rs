@@ -44,7 +44,7 @@ mod tests {
         builder.watch(&hash, "hi");
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (_, _) = circuit.prove(&input);
     }
 }

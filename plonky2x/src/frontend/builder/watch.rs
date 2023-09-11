@@ -99,7 +99,7 @@ mod tests {
         let circuit = builder.build();
 
         // Write to the circuit input.
-        let mut input = circuit.inputs();
+        let mut input = circuit.input();
         input.write::<Variable>(GoldilocksField::TWO);
         input.write::<Variable>(GoldilocksField::TWO);
 

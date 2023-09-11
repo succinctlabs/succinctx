@@ -357,7 +357,7 @@ pub(crate) mod tests {
         builder.watch(&validators, "validators");
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -386,7 +386,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(validator.pubkey, expected_validator_pubkey);
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -414,7 +414,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(validator.pubkey, expected_validator_pubkey);
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -442,7 +442,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(validator.pubkey, pubkey);
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -466,7 +466,7 @@ pub(crate) mod tests {
         builder.watch(&balances, "balances");
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -492,7 +492,7 @@ pub(crate) mod tests {
         builder.watch(&balance, "balance");
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -516,7 +516,7 @@ pub(crate) mod tests {
         builder.watch(&withdrawals.withdrawals_root, "withdrawals_root");
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -542,7 +542,7 @@ pub(crate) mod tests {
         builder.watch(&withdrawal, "withdrawal");
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -567,7 +567,7 @@ pub(crate) mod tests {
         builder.watch(&historical_block, "historical_block");
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -600,7 +600,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(expected_root, computed_root);
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -633,7 +633,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(expected_root, computed_root);
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -665,7 +665,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(expected_root, computed_root);
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
@@ -698,7 +698,7 @@ pub(crate) mod tests {
         builder.assert_is_equal(expected_root, computed_root);
 
         let circuit = builder.build();
-        let input = circuit.inputs();
+        let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
