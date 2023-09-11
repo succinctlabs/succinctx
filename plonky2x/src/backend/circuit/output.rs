@@ -7,43 +7,13 @@ use super::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
 use crate::frontend::vars::{EvmVariable, ValueStream};
 use crate::prelude::{ByteVariable, CircuitVariable};
-use crate::utils::serde::{
-    deserialize_elements, deserialize_hex, serialize_elements, serialize_hex,
-};
 
-/// An output to the circuit in the form of bytes.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct BytesOutput {
-    #[serde(serialize_with = "serialize_hex")]
-    #[serde(deserialize_with = "deserialize_hex")]
-    pub output: Vec<u8>,
-}
-
-/// An output to the circuit in the form of field elements.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ElementsOutput<L: PlonkParameters<D>, const D: usize> {
-    #[serde(serialize_with = "serialize_elements")]
-    #[serde(deserialize_with = "deserialize_elements")]
-    pub output: Vec<L::Field>,
-}
-
-/// An input to the circuit in the form of field elements and child proofs.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RecursiveProofsOutput<L: PlonkParameters<D>, const D: usize> {
-    #[serde(serialize_with = "serialize_elements")]
-    #[serde(deserialize_with = "deserialize_elements")]
-    pub output: Vec<L::Field>,
-}
-
-/// An output from the circuit. Can either be in the form of bytes, field elements, or child proofs.
+/// An output from the circuit. Can either be in the form of bytes, field elements, or proofs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PublicOutput<L: PlonkParameters<D>, const D: usize> {
-    #[serde(rename = "bytes")]
-    Bytes(BytesOutput),
-    #[serde(rename = "elements")]
-    Elements(ElementsOutput<L, D>),
-    #[serde(rename = "recursiveProofs")]
-    RecursiveProofs(RecursiveProofsOutput<L, D>),
+    Bytes(Vec<u8>),
+    Elements(Vec<L::Field>),
+    Proofs(Vec<L::Field>),
     None(),
 }
 
@@ -61,12 +31,12 @@ impl<L: PlonkParameters<D>, const D: usize> PublicOutput<L, D> {
                 let bytes = (0..io.output.len())
                     .map(|_| stream.read_value::<ByteVariable>())
                     .collect_vec();
-                PublicOutput::Bytes(BytesOutput { output: bytes })
+                PublicOutput::Bytes(bytes)
             }
             CircuitIO::Elements(io) => {
                 let offset = io.input.len();
                 let elements = proof_with_pis.public_inputs[offset..].to_vec();
-                PublicOutput::Elements(ElementsOutput { output: elements })
+                PublicOutput::Elements(elements)
             }
             CircuitIO::RecursiveProofs(_) => {
                 todo!()
@@ -80,11 +50,11 @@ impl<L: PlonkParameters<D>, const D: usize> PublicOutput<L, D> {
         match io {
             CircuitIO::Bytes(io) => {
                 let output = io.output.iter().map(|b| b.get(witness)).collect_vec();
-                PublicOutput::Bytes(BytesOutput { output })
+                PublicOutput::Bytes(output)
             }
             CircuitIO::Elements(io) => {
                 let output = io.output.iter().map(|v| v.get(witness)).collect_vec();
-                PublicOutput::Elements(ElementsOutput { output })
+                PublicOutput::Elements(output)
             }
             CircuitIO::RecursiveProofs(_) => todo!(),
             CircuitIO::None() => PublicOutput::None(),
@@ -94,8 +64,8 @@ impl<L: PlonkParameters<D>, const D: usize> PublicOutput<L, D> {
     /// Reads a value from the public circuit output using field-based serialization.
     pub fn read<V: CircuitVariable>(&mut self) -> V::ValueType<L::Field> {
         match self {
-            PublicOutput::Elements(c) => {
-                let elements = c.output.drain(0..V::nb_elements()).collect_vec();
+            PublicOutput::Elements(output) => {
+                let elements = output.drain(0..V::nb_elements()).collect_vec();
                 V::from_elements::<L, D>(&elements)
             }
             _ => panic!("field io is not enabled"),
@@ -105,7 +75,7 @@ impl<L: PlonkParameters<D>, const D: usize> PublicOutput<L, D> {
     /// Reads the entire stream of field elements from the public circuit output.
     pub fn read_all(&self) -> Vec<L::Field> {
         match self {
-            PublicOutput::Elements(c) => c.output.clone(),
+            PublicOutput::Elements(output) => output.clone(),
             _ => panic!("field io is not enabled"),
         }
     }
@@ -113,9 +83,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicOutput<L, D> {
     /// Reads a value from the public circuit output using byte-based serialization.
     pub fn evm_read<V: EvmVariable>(&mut self) -> V::ValueType<L::Field> {
         match self {
-            PublicOutput::Bytes(c) => {
+            PublicOutput::Bytes(output) => {
                 let nb_bytes = V::nb_bytes::<L, D>();
-                let bytes = c.output.drain(0..nb_bytes).collect_vec();
+                let bytes = output.drain(0..nb_bytes).collect_vec();
                 V::decode_value(bytes.as_slice())
             }
             _ => panic!("evm io is not enabled"),
@@ -125,7 +95,7 @@ impl<L: PlonkParameters<D>, const D: usize> PublicOutput<L, D> {
     /// Reads the entire stream of bytes from the public circuit output.
     pub fn evm_read_all(&self) -> Vec<u8> {
         match self {
-            PublicOutput::Bytes(c) => c.output.clone(),
+            PublicOutput::Bytes(output) => output.clone(),
             _ => panic!("evm io is not enabled"),
         }
     }

@@ -6,48 +6,13 @@ use super::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
 use crate::frontend::vars::{EvmVariable, ValueStream};
 use crate::prelude::{ByteVariable, CircuitVariable};
-use crate::utils::serde::{
-    deserialize_elements, deserialize_hex, deserialize_proof_with_pis_vec, serialize_elements,
-    serialize_hex, serialize_proof_with_pis_vec,
-};
-
-/// An input to the circuit in the form of bytes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BytesInput {
-    #[serde(serialize_with = "serialize_hex")]
-    #[serde(deserialize_with = "deserialize_hex")]
-    pub input: Vec<u8>,
-}
-
-/// An input to the circuit in the form of field elements.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ElementsInput<L: PlonkParameters<D>, const D: usize> {
-    #[serde(serialize_with = "serialize_elements")]
-    #[serde(deserialize_with = "deserialize_elements")]
-    pub input: Vec<L::Field>,
-}
-
-/// An input to the circuit in the form of field elements and child proofs.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RecursiveProofsInput<L: PlonkParameters<D>, const D: usize> {
-    pub subfunction: Option<String>,
-    #[serde(serialize_with = "serialize_elements")]
-    #[serde(deserialize_with = "deserialize_elements")]
-    pub input: Vec<L::Field>,
-    #[serde(serialize_with = "serialize_proof_with_pis_vec")]
-    #[serde(deserialize_with = "deserialize_proof_with_pis_vec")]
-    pub proofs: Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
-}
 
 /// Public inputs to the circuit. In the form of bytes, field elements, or child proofs.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PublicInput<L: PlonkParameters<D>, const D: usize> {
-    #[serde(rename = "bytes")]
-    Bytes(BytesInput),
-    #[serde(rename = "elements")]
-    Elements(ElementsInput<L, D>),
-    #[serde(rename = "recursiveProofs")]
-    RecursiveProofs(RecursiveProofsInput<L, D>),
+    Bytes(Vec<u8>),
+    Elements(Vec<L::Field>),
+    RecursiveProofs(Vec<ProofWithPublicInputs<L::Field, L::Config, D>>),
     None(),
 }
 
@@ -55,13 +20,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     /// Creates an empty public input instance.
     pub fn new(io: &CircuitIO<D>) -> Self {
         match io {
-            CircuitIO::Bytes(_) => PublicInput::Bytes(BytesInput { input: vec![] }),
-            CircuitIO::Elements(_) => PublicInput::Elements(ElementsInput { input: vec![] }),
-            CircuitIO::RecursiveProofs(_) => PublicInput::RecursiveProofs(RecursiveProofsInput {
-                subfunction: None,
-                input: vec![],
-                proofs: vec![],
-            }),
+            CircuitIO::Bytes(_) => PublicInput::Bytes(vec![]),
+            CircuitIO::Elements(_) => PublicInput::Elements(vec![]),
+            CircuitIO::RecursiveProofs(_) => PublicInput::RecursiveProofs(vec![]),
             CircuitIO::None() => PublicInput::None(),
         }
     }
@@ -79,12 +40,12 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
                 let bytes = (0..io.input.len())
                     .map(|_| stream.read_value::<ByteVariable>())
                     .collect_vec();
-                PublicInput::Bytes(BytesInput { input: bytes })
+                PublicInput::Bytes(bytes)
             }
             CircuitIO::Elements(io) => {
                 let offset = io.input.len();
                 let elements = proof_with_pis.public_inputs[..offset].to_vec();
-                PublicInput::Elements(ElementsInput { input: elements })
+                PublicInput::Elements(elements)
             }
             CircuitIO::RecursiveProofs(_) => {
                 todo!()
@@ -96,8 +57,8 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     /// Writes a value to the public circuit input using field-based serialization.
     pub fn write<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) {
         match self {
-            PublicInput::Elements(c) => {
-                c.input.extend(V::elements::<L, D>(value));
+            PublicInput::Elements(input) => {
+                input.extend(V::elements::<L, D>(value));
             }
             _ => panic!("field io is not enabled"),
         };
@@ -106,8 +67,8 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     /// Writes a slice of field elements to the public circuit input.
     pub fn write_all(&mut self, value: &[L::Field]) {
         match self {
-            PublicInput::Elements(c) => {
-                c.input.extend(value);
+            PublicInput::Elements(input) => {
+                input.extend(value);
             }
             _ => panic!("field io is not enabled"),
         };
@@ -117,9 +78,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     /// encoded types).
     pub fn evm_write<V: EvmVariable>(&mut self, value: V::ValueType<L::Field>) {
         match self {
-            PublicInput::Bytes(c) => {
+            PublicInput::Bytes(input) => {
                 let bytes = V::encode_value(value);
-                c.input.extend(bytes);
+                input.extend(bytes);
             }
             _ => panic!("evm io is not enabled"),
         };
@@ -129,8 +90,8 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     /// properly deserialized.
     pub fn evm_write_all(&mut self, bytes: &[u8]) {
         match self {
-            PublicInput::Bytes(c) => {
-                c.input.extend(bytes);
+            PublicInput::Bytes(input) => {
+                input.extend(bytes);
             }
             _ => panic!("evm io is not enabled"),
         };
@@ -170,7 +131,7 @@ pub(crate) mod tests {
         input.evm_write::<ByteVariable>(7u8);
 
         let json = serde_json::to_string(&input).unwrap();
-        assert_eq!(r#"{"bytes":{"input":"0007"}}"#, json);
+        assert_eq!(r#"{"bytes":"0007"}"#, json);
 
         let deserialized_input = serde_json::from_str::<PublicInput<L, D>>(&json).unwrap();
         assert_eq!(input, deserialized_input);

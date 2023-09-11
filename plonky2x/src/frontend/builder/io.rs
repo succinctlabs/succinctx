@@ -76,7 +76,7 @@ impl<const D: usize> CircuitIO<D> {
                 let variables = &io.input;
                 if let PublicInput::Bytes(input) = input {
                     for i in 0..variables.len() {
-                        variables[i].set(pw, input.input[i]);
+                        variables[i].set(pw, input[i]);
                     }
                 } else {
                     panic!("circuit io type is bytes but circuit input is not")
@@ -86,7 +86,7 @@ impl<const D: usize> CircuitIO<D> {
                 let variables = &io.input;
                 if let PublicInput::Elements(input) = input {
                     for i in 0..variables.len() {
-                        variables[i].set(pw, input.input[i]);
+                        variables[i].set(pw, input[i]);
                     }
                 } else {
                     panic!("circuit io type is elements but circuit input is not")
