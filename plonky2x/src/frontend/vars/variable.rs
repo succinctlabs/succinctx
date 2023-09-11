@@ -1,10 +1,5 @@
 use std::fmt::Debug;
 
-<<<<<<< HEAD
-use backtrace::Backtrace;
-use plonky2::field::extension::Extendable;
-=======
->>>>>>> main
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};

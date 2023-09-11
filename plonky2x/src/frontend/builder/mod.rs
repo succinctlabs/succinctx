@@ -1,6 +1,5 @@
 mod boolean;
 pub mod io;
-pub mod mux;
 mod proof;
 pub mod watch;
 
@@ -58,7 +57,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             constants: HashMap::new(),
             beacon_client: None,
             execution_client: None,
-            debug_variables: HashMap::new(),
             chain_id: None,
             debug: false,
             debug_variables: HashMap::new(),
@@ -104,10 +102,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn set_beacon_client(&mut self, client: BeaconClient) {
         self.beacon_client = Some(client);
-    }
-
-    pub fn debug(&mut self, index: usize) {
-        self.debug_variables.insert(index, "".to_string());
     }
 
     /// Build the circuit.
@@ -233,7 +227,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.api.is_equal(i1.0, zero).target.into()
     }
 
-    /// TODO: should we change to `assert_eq`?
     /// Fails if i1 != i2.
     pub fn assert_is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) {
         assert_eq!(i1.targets().len(), i2.targets().len());

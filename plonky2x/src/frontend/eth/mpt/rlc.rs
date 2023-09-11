@@ -1,10 +1,7 @@
 use std::marker::PhantomData;
 
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-
 use super::generators::SubarrayEqualGenerator;
-use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, Variable};
+use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, PlonkParameters, Variable};
 
 // Checks that a[a_offset:a_offset+len] = b[b_offset:b_offset+len]
 pub fn subarray_equal(a: &[u8], a_offset: usize, b: &[u8], b_offset: usize, len: usize) -> u8 {
@@ -16,7 +13,7 @@ pub fn subarray_equal(a: &[u8], a_offset: usize, b: &[u8], b_offset: usize, len:
     1
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     #[allow(unused_variables, dead_code)]
     pub fn subarray_equal(
         &mut self,
@@ -39,15 +36,15 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         len: Variable,
     ) {
         // TODO: implement
-        let generator = SubarrayEqualGenerator {
+        let generator: SubarrayEqualGenerator<L, D> = SubarrayEqualGenerator {
             a: a.to_vec(),
             a_offset,
             b: b.to_vec(),
             b_offset,
             len,
-            _phantom: PhantomData,
+            _phantom: PhantomData::<L>,
         };
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator);
     }
 }
 

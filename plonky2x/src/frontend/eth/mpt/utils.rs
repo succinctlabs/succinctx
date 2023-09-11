@@ -7,6 +7,8 @@ use tokio::runtime::Runtime;
 
 use crate::utils::{address, bytes32};
 
+// TODO: figure out a better way to do fixtures below
+#[allow(dead_code)] // We allow dead_code since this is just used for fixture generation
 fn generate_fixtures() {
     // TODO: don't have mainnet RPC url here, read from a .env
     let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
@@ -37,6 +39,7 @@ fn generate_fixtures() {
     // TODO: save this to fixtures/example.json programatically instead of copy-paste
 }
 
+#[allow(dead_code)] // We allow dead_code since this is used in tests
 pub(crate) fn read_fixture(filename: &str) -> EIP1186ProofResponse {
     let mut file = File::open(filename).unwrap();
     let mut context = String::new();

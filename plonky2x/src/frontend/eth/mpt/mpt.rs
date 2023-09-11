@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
 
+use curta::math::field::Field;
 use itertools::Itertools;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 
 use super::generators::*;
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, Variable,
+    ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, PlonkParameters,
+    Variable,
 };
 
 pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usize>(
@@ -42,48 +42,48 @@ pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usi
     (padded_elements, lengths)
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn le(&mut self, lhs: Variable, rhs: Variable) -> BoolVariable {
-        let generator = LeGenerator {
+        let generator: LeGenerator<L, D> = LeGenerator {
             lhs: lhs.clone(),
             rhs: rhs.clone(),
             output: self.init::<BoolVariable>(),
             _phantom: PhantomData,
         };
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         generator.output
     }
 
     pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
-        let generator = ByteToVariableGenerator {
+        let generator: ByteToVariableGenerator<L, D> = ByteToVariableGenerator {
             lhs: lhs.clone(),
             output: self.init::<Variable>(),
             _phantom: PhantomData,
         };
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         generator.output
     }
 
     pub fn sub_byte(&mut self, lhs: ByteVariable, rhs: ByteVariable) -> ByteVariable {
-        let generator = ByteSubGenerator {
+        let generator: ByteSubGenerator<L, D> = ByteSubGenerator {
             lhs: lhs.clone(),
             rhs: rhs.clone(),
             output: self.init::<ByteVariable>(),
             _phantom: PhantomData,
         };
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         generator.output
     }
 
     #[allow(dead_code, unused_variables)]
     pub fn to_nibbles(&mut self, bytes: &[ByteVariable]) -> Vec<ByteVariable> {
         let len = bytes.len() * 2;
-        let generator = NibbleGenerator {
+        let generator: NibbleGenerator<L, D> = NibbleGenerator {
             input: bytes.to_vec(),
             output: (0..len).map(|_| self.init::<ByteVariable>()).collect_vec(),
             _phantom: PhantomData,
         };
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         generator.output
     }
 
@@ -104,17 +104,18 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         const ELEMENT_LEN: usize = 34; // Maximum size of list element
         const LIST_LEN: usize = 17; // Maximum length of the list for each proof element
 
-        let tree_radix = self.constant::<Variable>(F::from_canonical_u8(16u8));
-        let branch_node_length = self.constant::<Variable>(F::from_canonical_u8(17u8));
-        let leaf_or_extension_node_length = self.constant::<Variable>(F::from_canonical_u8(2u8));
+        let tree_radix = self.constant::<Variable>(L::Field::from_canonical_u8(16u8));
+        let branch_node_length = self.constant::<Variable>(L::Field::from_canonical_u8(17u8));
+        let leaf_or_extension_node_length =
+            self.constant::<Variable>(L::Field::from_canonical_u8(2u8));
         let prefix_leaf_even = self.constant::<ByteVariable>(Self::PREFIX_LEAF_EVEN);
         let prefix_leaf_odd = self.constant::<ByteVariable>(Self::PREFIX_LEAF_ODD);
         let prefix_extension_even = self.constant::<ByteVariable>(Self::PREFIX_EXTENSION_EVEN);
         let prefix_extension_odd = self.constant::<ByteVariable>(Self::PREFIX_EXTENSION_ODD);
         let one: Variable = self.one::<Variable>();
-        let two = self.constant::<Variable>(F::from_canonical_u8(2));
-        let _64 = self.constant::<Variable>(F::from_canonical_u8(64));
-        let _32 = self.constant::<Variable>(F::from_canonical_u8(32));
+        let two = self.constant::<Variable>(L::Field::from_canonical_u8(2));
+        let _64 = self.constant::<Variable>(L::Field::from_canonical_u8(64));
+        let _32 = self.constant::<Variable>(L::Field::from_canonical_u8(32));
         let _128 = self.constant::<ByteVariable>(128);
 
         let mut current_key_idx = self.zero::<Variable>();
@@ -144,8 +145,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
                     current_node_hash,
                     current_node_id.as_slice()[0..32].into(),
                 );
-                let a = self.constant::<Variable>(F::from_canonical_u8(32u8));
-                let node_len_le_32 = self.le(len_nodes[i], a);
+                let node_len_le_32 = self.le(len_nodes[i], _32);
                 let case_len_le_32 = self.and(node_len_le_32, first_32_bytes_eq);
                 let inter = self.not(node_len_le_32);
                 let case_len_gt_32 = self.and(inter, hash_eq);
@@ -247,7 +247,7 @@ mod tests {
     use super::*;
     use crate::frontend::eth::utils::u256_to_h256_be;
     use crate::prelude::{
-        CircuitBuilderX, CircuitVariable, GoldilocksField, PartialWitness, PoseidonGoldilocksConfig,
+        CircuitVariable, DefaultBuilder, GoldilocksField, PartialWitness, PoseidonGoldilocksConfig,
     };
 
     #[test]
@@ -275,8 +275,7 @@ mod tests {
         let (proof_as_fixed, lengths_as_fixed) =
             transform_proof_to_padded::<ENCODING_LEN, PROOF_LEN>(storage_proof);
 
-        type F = GoldilocksField;
-        let mut builder: CircuitBuilder<GoldilocksField, 2> = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         // builder.debug(77867);
         let key_variable = builder.init::<Bytes32Variable>();
         let proof_variable =

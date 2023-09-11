@@ -1,5 +1,7 @@
 //! An implementation of the keccak256 hash functions in a plonky2 circuit
 
+use core::marker::PhantomData;
+
 use self::keccak256::Keccak256Generator;
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::Bytes32Variable;
@@ -13,10 +15,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             input: bytes.to_vec(),
             output: self.init(),
             length: None,
-            _phantom: Default::default(),
+            _phantom: PhantomData::<L>,
         };
         let output = generator.output;
-        self.add_simple_generator(generator);
+        self.add_simple_generator(generator.clone());
         output
     }
 
@@ -29,9 +31,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             input: bytes.to_vec(),
             output: self.init(),
             length: Some(length),
-            _phantom: Default::default(),
+            _phantom: PhantomData::<L>,
         };
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         generator.output
     }
 }

@@ -1,11 +1,10 @@
 use std::marker::PhantomData;
 
+use curta::math::field::Field;
 use curta::math::prelude::PrimeField64;
-use ethers::types::{Bytes, H256};
+use ethers::types::Bytes;
 use num::bigint::ToBigInt;
 use num::BigInt;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
@@ -13,7 +12,8 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, Variable,
+    ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
+    Variable,
 };
 
 pub fn bool_to_u32(b: bool) -> u32 {
@@ -181,7 +181,7 @@ pub fn verify_decoded_list<const L: usize, const M: usize>(
 
 #[derive(Debug, Clone)]
 pub struct RLPDecodeListGenerator<
-    F: RichField + Extendable<D>,
+    L: PlonkParameters<D>,
     const D: usize,
     const ENCODING_LEN: usize,
     const LIST_LEN: usize,
@@ -193,19 +193,19 @@ pub struct RLPDecodeListGenerator<
     pub decoded_list: ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>,
     pub decoded_element_lens: ArrayVariable<Variable, LIST_LEN>,
     pub len_decoded_list: Variable,
-    _phantom: PhantomData<F>,
+    _phantom: PhantomData<L>,
 }
 
 impl<
-        F: RichField + Extendable<D>,
+        L: PlonkParameters<D>,
         const D: usize,
         const ENCODING_LEN: usize,
         const LIST_LEN: usize,
         const ELEMENT_LEN: usize,
-    > RLPDecodeListGenerator<F, D, ENCODING_LEN, LIST_LEN, ELEMENT_LEN>
+    > RLPDecodeListGenerator<L, D, ENCODING_LEN, LIST_LEN, ELEMENT_LEN>
 {
     pub fn new(
-        builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<L, D>,
         encoding: ArrayVariable<ByteVariable, ENCODING_LEN>,
         length: Variable,
         finish: BoolVariable,
@@ -227,12 +227,13 @@ impl<
 }
 
 impl<
-        F: RichField + Extendable<D>,
+        L: PlonkParameters<D>,
         const D: usize,
         const ENCODING_LEN: usize,
         const LIST_LEN: usize,
         const ELEMENT_LEN: usize,
-    > SimpleGenerator<F, D> for RLPDecodeListGenerator<F, D, ENCODING_LEN, LIST_LEN, ELEMENT_LEN>
+    > SimpleGenerator<L::Field, D>
+    for RLPDecodeListGenerator<L, D, ENCODING_LEN, LIST_LEN, ELEMENT_LEN>
 {
     fn id(&self) -> String {
         "RLPDecodeListGenerator".to_string()
@@ -246,7 +247,11 @@ impl<
         targets
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+    fn run_once(
+        &self,
+        witness: &PartitionWitness<L::Field>,
+        out_buffer: &mut GeneratedValues<L::Field>,
+    ) {
         let finish = self.finish.get(witness);
         let encoding = self.encoding.get(witness);
         let length = self.length.get(witness).as_canonical_u64() as usize;
@@ -259,25 +264,32 @@ impl<
             out_buffer,
             decoded_list_lens
                 .iter()
-                .map(|x| F::from_canonical_usize(*x))
+                .map(|x| L::Field::from_canonical_usize(*x))
                 .collect(),
         );
         self.len_decoded_list
-            .set(out_buffer, F::from_canonical_usize(len_decoded_list));
+            .set(out_buffer, L::Field::from_canonical_usize(len_decoded_list));
     }
 
     #[allow(unused_variables)]
-    fn serialize(&self, dst: &mut Vec<u8>, common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
+    fn serialize(
+        &self,
+        dst: &mut Vec<u8>,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<()> {
         todo!()
     }
 
     #[allow(unused_variables)]
-    fn deserialize(src: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
+    fn deserialize(
+        src: &mut Buffer,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<Self> {
         todo!()
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn decode_element_as_list<
         const ENCODING_LEN: usize,
         const LIST_LEN: usize,
@@ -293,7 +305,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         Variable,
     ) {
         let generator = RLPDecodeListGenerator::new(self, encoded, len, finish);
-        self.add_simple_generator(&generator);
+        self.add_simple_generator(generator.clone());
         // TODO: here add verification logic constraints using `builder` to check that the decoded list is correct
         (
             generator.decoded_list,
@@ -306,13 +318,10 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 #[cfg(test)]
 mod tests {
 
-    use curta::math::field::Field;
     use plonky2::iop::generator::generate_partial_witness;
 
     use super::*;
-    use crate::prelude::{
-        CircuitBuilderX, GoldilocksField, PartialWitness, PoseidonGoldilocksConfig,
-    };
+    use crate::prelude::{DefaultBuilder, PartialWitness, PoseidonGoldilocksConfig};
     use crate::utils::bytes;
 
     #[test]
@@ -348,8 +357,7 @@ mod tests {
 
     #[test]
     fn test_rlp_decode_list_generator() {
-        type F = GoldilocksField;
-        let mut builder: CircuitBuilder<GoldilocksField, 2> = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         const ENCODING_LEN: usize = 600;
         const LIST_LEN: usize = 17;
         const ELEMENT_LEN: usize = 34;
