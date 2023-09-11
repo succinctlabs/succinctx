@@ -52,6 +52,7 @@ pub fn sha256_pad_variable_length<
     const MAX_NUM_CHUNKS: usize,
 >(
     builder: &mut CircuitBuilder<L, D>,
+    // input should be of length MAX_NUM_CHUNKS * 64 - 9
     input: &[ByteVariable],
     last_chunk: U32Variable,
     input_byte_length: U32Variable,
@@ -67,7 +68,9 @@ pub fn sha256_pad_variable_length<
         let add_length_selector = builder.is_equal(curr_chunk, last_chunk);
 
         // Convert length_bytes into u64
-        let mut length_bits = builder.api.split_le(input_byte_length.targets()[0], 64);
+        let bits_per_byte = builder.constant::<U32Variable>(8);
+        let input_bit_length = builder.mul(input_byte_length, bits_per_byte);
+        let mut length_bits = builder.api.split_le(input_bit_length.0 .0, 64);
         length_bits.reverse();
         // Convert length_bits into [ByteVariable; 8]
         let length_bytes = length_bits
@@ -82,6 +85,8 @@ pub fn sha256_pad_variable_length<
             let idx = chunk_offset + j;
             let idx_t = builder.constant::<U32Variable>(idx as u32);
             let idx_length_eq = builder.is_equal(idx_t, input_byte_length);
+            // builder.watch(&idx_t, "idx");
+            // builder.watch(&idx_length_eq, "idx_length_eq");
 
             let not_idx_length_eq = builder.not(idx_length_eq);
             message_byte_selector = builder.select(
@@ -93,13 +98,14 @@ pub fn sha256_pad_variable_length<
             let padding_start_byte = builder.constant::<ByteVariable>(0x80);
             let zero_byte = builder.constant::<ByteVariable>(0x00);
 
-            let mut byte = builder.select(idx_length_eq, padding_start_byte, input[idx]);
+            let mut byte = builder.select(message_byte_selector, input[idx], zero_byte);
 
             // If message_byte_selector is true, then we want to select the message byte.
             // If neither, then we want to select 0 byte.
-            byte = builder.select(message_byte_selector, byte, zero_byte);
+            byte = builder.select(idx_length_eq, padding_start_byte, byte);
 
             if j >= 64 - 8 {
+                builder.watch(&length_bytes[j % 8], "length_byte");
                 // If add_length_selector is true, then we want to select the length byte.
                 byte = builder.select(add_length_selector, length_bytes[j % 8], byte);
             }
@@ -132,7 +138,9 @@ pub fn bytes_to_target<L: PlonkParameters<D>, const D: usize>(
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    /// Executes a SHA256 hash on the given input. Assumes the message is already padded.
+    /// Executes a SHA256 hash on the given input.
+    /// input should be of length MAX_NUM_CHUNKS * 64.
+    /// input_byte_length should be at most MAX_NUM_CHUNKS * 64 - 9.
     pub fn sha256_curta_variable<const MAX_NUM_CHUNKS: usize>(
         &mut self,
         input: &[ByteVariable],
@@ -283,7 +291,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 mod tests {
 
     use crate::backend::config::DefaultParameters;
-    use crate::prelude::{ByteVariable, CircuitBuilder};
+    use crate::frontend::uint::uint32::U32Variable;
+    use crate::frontend::vars::Bytes32Variable;
+    use crate::prelude::{ByteVariable, BytesVariable, CircuitBuilder};
+    use crate::utils::{bytes, bytes32};
 
     type L = DefaultParameters;
     const D: usize = 2;
@@ -306,5 +317,38 @@ mod tests {
         circuit.verify(&proof, &input, &output);
         // TODO: Add back once curta serializes as intended.
         // circuit.test_default_serializers();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha256_curta_variable_single() {
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+
+        let msg = builder.constant::<BytesVariable<64>>(bytes!(
+            "00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d00000000000000000000000000000000000000000000000000"
+        ));
+
+        let bytes_length = builder.constant::<U32Variable>(39);
+
+        let expected_digest =
+            bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
+        let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
+
+        let last_chunk = builder.constant::<U32Variable>(0);
+
+        let msg_hash = builder.sha256_curta_variable::<1>(&msg.0, last_chunk, bytes_length);
+        builder.watch(&msg_hash, "msg_hash");
+
+        builder.assert_is_equal(msg_hash, expected_digest);
+
+        builder.constraint_sha256_curta();
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
     }
 }
