@@ -56,7 +56,7 @@ pub fn sha256_pad_variable_length<
     last_chunk: U32Variable,
     input_byte_length: U32Variable,
 ) -> Vec<ByteVariable> {
-    // TODO: This should be ArrayVariable<ByteVariable, MAX_NUM_CHUNKS * 64>
+    // TODO: Should be ArrayVariable<ByteVariable, MAX_NUM_CHUNKS * 64>
     let mut padded_bytes = Vec::new();
 
     let mut message_byte_selector = builder.constant::<BoolVariable>(true);
@@ -133,14 +133,17 @@ pub fn bytes_to_target<L: PlonkParameters<D>, const D: usize>(
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Executes a SHA256 hash on the given input. Assumes the message is already padded.
-    /// TODO: Currently, Curta does not support no-ops over SHA chunks. This means that last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
     pub fn sha256_curta_variable<const MAX_NUM_CHUNKS: usize>(
         &mut self,
         input: &[ByteVariable],
         last_chunk: U32Variable,
         input_byte_length: U32Variable,
     ) -> Bytes32Variable {
-        assert!(input.len() % 64 == 0);
+        let expected_last_chunk = self.constant::<U32Variable>((MAX_NUM_CHUNKS - 1) as u32);
+        // TODO: Currently, Curta does not support no-ops over SHA chunks.
+        // Until Curta SHA-256 has no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
+        self.assert_is_equal(expected_last_chunk, last_chunk);
+
         let padded_input = sha256_pad_variable_length::<L, D, MAX_NUM_CHUNKS>(
             self,
             input,
