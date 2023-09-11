@@ -36,7 +36,7 @@ pub struct RecursiveProofsRequestData<L: PlonkParameters<D>, const D: usize> {
 
 /// Common fields for all function requests.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FunctionRequestBase<D> {
+pub struct ProofRequestBase<D> {
     #[serde(rename = "releaseId")]
     pub release_id: String,
     pub data: D,
@@ -49,34 +49,38 @@ pub struct FunctionRequestBase<D> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(bound = "")]
-pub enum FunctionRequest<L: PlonkParameters<D>, const D: usize> {
+pub enum ProofRequest<L: PlonkParameters<D>, const D: usize> {
     #[serde(rename = "req_bytes")]
-    Bytes(FunctionRequestBase<BytesRequestData>),
+    Bytes(ProofRequestBase<BytesRequestData>),
     #[serde(rename = "req_elements")]
-    Elements(FunctionRequestBase<ElementsRequestData<L, D>>),
+    Elements(ProofRequestBase<ElementsRequestData<L, D>>),
     #[serde(rename = "req_recursiveProofs")]
-    RecursiveProofs(FunctionRequestBase<RecursiveProofsRequestData<L, D>>),
+    RecursiveProofs(ProofRequestBase<RecursiveProofsRequestData<L, D>>),
 }
 
-impl<L: PlonkParameters<D>, const D: usize> FunctionRequest<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
     /// Creates a new function request from a circuit and public input.
-    pub fn new(circuit: &Circuit<L, D>, input: PublicInput<L, D>) -> Self {
+    pub fn new(circuit: &Circuit<L, D>, input: &PublicInput<L, D>) -> Self {
         let release_id = circuit.id();
         match input {
-            PublicInput::Bytes(input) => FunctionRequest::Bytes(FunctionRequestBase {
+            PublicInput::Bytes(input) => ProofRequest::Bytes(ProofRequestBase {
                 release_id,
-                data: BytesRequestData { input },
+                data: BytesRequestData {
+                    input: input.clone(),
+                },
             }),
-            PublicInput::Elements(input) => FunctionRequest::Elements(FunctionRequestBase {
+            PublicInput::Elements(input) => ProofRequest::Elements(ProofRequestBase {
                 release_id,
-                data: ElementsRequestData { input },
+                data: ElementsRequestData {
+                    input: input.clone(),
+                },
             }),
             PublicInput::RecursiveProofs(input) => {
-                FunctionRequest::RecursiveProofs(FunctionRequestBase {
+                ProofRequest::RecursiveProofs(ProofRequestBase {
                     release_id,
                     data: RecursiveProofsRequestData {
                         subfunction: None,
-                        input,
+                        input: input.clone(),
                     },
                 })
             }
@@ -94,13 +98,13 @@ impl<L: PlonkParameters<D>, const D: usize> FunctionRequest<L, D> {
     /// Gets the public input from the function request.
     pub fn input(&self) -> PublicInput<L, D> {
         match self {
-            FunctionRequest::Bytes(FunctionRequestBase { data, .. }) => {
+            ProofRequest::Bytes(ProofRequestBase { data, .. }) => {
                 PublicInput::Bytes(data.input.clone())
             }
-            FunctionRequest::Elements(FunctionRequestBase { data, .. }) => {
+            ProofRequest::Elements(ProofRequestBase { data, .. }) => {
                 PublicInput::Elements(data.input.clone())
             }
-            FunctionRequest::RecursiveProofs(FunctionRequestBase { data, .. }) => {
+            ProofRequest::RecursiveProofs(ProofRequestBase { data, .. }) => {
                 PublicInput::RecursiveProofs(data.input.clone())
             }
         }

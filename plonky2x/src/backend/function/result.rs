@@ -42,7 +42,7 @@ pub struct RecursiveProofsResultData<L: PlonkParameters<D>, const D: usize> {
 
 /// Common fields for all function results.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FunctionResultBase<D> {
+pub struct ProofResultBase<D> {
     pub data: D,
 }
 
@@ -53,16 +53,16 @@ pub struct FunctionResultBase<D> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(bound = "")]
-pub enum FunctionResult<L: PlonkParameters<D>, const D: usize> {
+pub enum ProofResult<L: PlonkParameters<D>, const D: usize> {
     #[serde(rename = "res_bytes")]
-    Bytes(FunctionResultBase<BytesResultData<L, D>>),
+    Bytes(ProofResultBase<BytesResultData<L, D>>),
     #[serde(rename = "res_elements")]
-    Elements(FunctionResultBase<ElementsResultData<L, D>>),
+    Elements(ProofResultBase<ElementsResultData<L, D>>),
     #[serde(rename = "res_recursiveProofs")]
-    RecursiveProofs(FunctionResultBase<RecursiveProofsResultData<L, D>>),
+    RecursiveProofs(ProofResultBase<RecursiveProofsResultData<L, D>>),
 }
 
-impl<L: PlonkParameters<D>, const D: usize> FunctionResult<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> ProofResult<L, D> {
     /// Creates a new function result from a proof and output.
     pub fn new(
         proof: ProofWithPublicInputs<L::Field, L::Config, D>,
@@ -71,17 +71,42 @@ impl<L: PlonkParameters<D>, const D: usize> FunctionResult<L, D> {
         match output {
             PublicOutput::Bytes(output) => {
                 let data = BytesResultData { output, proof };
-                FunctionResult::Bytes(FunctionResultBase { data })
+                ProofResult::Bytes(ProofResultBase { data })
             }
             PublicOutput::Elements(output) => {
                 let data = ElementsResultData { output, proof };
-                FunctionResult::Elements(FunctionResultBase { data })
+                ProofResult::Elements(ProofResultBase { data })
             }
             PublicOutput::Proofs(output) => {
                 let data = RecursiveProofsResultData { output, proof };
-                FunctionResult::RecursiveProofs(FunctionResultBase { data })
+                ProofResult::RecursiveProofs(ProofResultBase { data })
             }
             PublicOutput::None() => todo!(),
+        }
+    }
+
+    pub fn as_proof_and_output(
+        &self,
+    ) -> (
+        ProofWithPublicInputs<L::Field, L::Config, D>,
+        PublicOutput<L, D>,
+    ) {
+        match self {
+            ProofResult::Bytes(result) => {
+                let proof = &result.data.proof;
+                let output = PublicOutput::Bytes(result.data.output.clone());
+                (proof.clone(), output)
+            }
+            ProofResult::Elements(result) => {
+                let proof = &result.data.proof;
+                let output = PublicOutput::Elements(result.data.output.clone());
+                (proof.clone(), output)
+            }
+            ProofResult::RecursiveProofs(result) => {
+                let proof = &result.data.proof;
+                let output = PublicOutput::Proofs(result.data.output.clone());
+                (proof.clone(), output)
+            }
         }
     }
 }
