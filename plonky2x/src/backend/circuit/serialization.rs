@@ -64,7 +64,6 @@ use crate::frontend::eth::storage::generators::block::EthBlockGenerator;
 use crate::frontend::eth::storage::generators::storage::{
     EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
-use crate::frontend::generator::hint::{Hint, HintSerializer};
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
@@ -74,6 +73,8 @@ use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGen
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
+use crate::frontend::witness::hint::{Hint, HintSerializer};
+use crate::frontend::witness::simple::{SimpleAsHint, SimpleHint};
 
 /// A registry to store serializers for witness generators.
 ///
@@ -250,6 +251,11 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
         self.0.identifiers.push(id.clone());
         self.0.index.insert(id, self.0.current_index);
         self.0.current_index += 1;
+    }
+
+    pub fn register_simple_hint<H: SimpleHint<L, D>>(&mut self, simple_hint: H) {
+        let hint = SimpleAsHint { inner: simple_hint };
+        self.register_hint(hint)
     }
 }
 

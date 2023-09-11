@@ -26,7 +26,7 @@ use crate::frontend::builder::CircuitBuilder;
 
 pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     /// The underlying type of the variable if it were not in a circuit.
-    type ValueType<F: RichField>: Debug;
+    type ValueType<F: RichField>: Debug + Clone;
 
     /// Initializes the variable with no value in the circuit.
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self;
