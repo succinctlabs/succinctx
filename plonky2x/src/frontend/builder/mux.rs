@@ -7,6 +7,8 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::mpt::generators::MuxGenerator;
 use crate::frontend::vars::{ArrayVariable, CircuitVariable, Variable};
 
+/// Given an ArrayVariable and a selector that is a Variable, returns the
+/// `selector` element of the `array`.
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     pub fn mux<V: CircuitVariable, const N: usize>(
         &mut self,

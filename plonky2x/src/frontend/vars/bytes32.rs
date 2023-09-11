@@ -13,10 +13,6 @@ use crate::frontend::builder::CircuitBuilder;
 pub struct Bytes32Variable(pub BytesVariable<32>);
 
 impl Bytes32Variable {
-    pub fn as_slice(&self) -> [ByteVariable; 32] {
-        self.0 .0
-    }
-
     pub fn as_bytes(&self) -> [ByteVariable; 32] {
         self.0 .0
     }

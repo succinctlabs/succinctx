@@ -121,18 +121,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut current_key_idx = self.zero::<Variable>();
         let mut finished = self._false();
 
-        let mut padded_root = root.as_slice().to_vec();
+        let mut padded_root = root.as_bytes().to_vec();
         while padded_root.len() < ELEMENT_LEN {
             padded_root.push(self.constant::<ByteVariable>(0));
         }
         let mut current_node_id = ArrayVariable::<ByteVariable, ELEMENT_LEN>::new(padded_root);
-        let hash_key = self.keccak256(&key.as_slice());
+        let hash_key = self.keccak256(&key.as_bytes());
         let key_path: ArrayVariable<ByteVariable, 64> =
-            self.to_nibbles(&hash_key.as_slice()).try_into().unwrap();
+            self.to_nibbles(&hash_key.as_bytes()).try_into().unwrap();
 
         for i in 0..PROOF_LEN {
             let current_node = proof[i].clone();
-            let current_node_hash = self.keccak256_variable(&current_node.as_slice(), len_nodes[i]);
+            let current_node_hash = self.keccak256_variable(current_node.as_slice(), len_nodes[i]);
 
             if i == 0 {
                 self.assert_is_equal(current_node_hash, root);
@@ -230,7 +230,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let lhs_offset = self.sub(const_32, current_node_len_as_var);
 
         self.assert_subarray_equal(
-            &value.as_slice(),
+            &value.as_bytes(),
             lhs_offset,
             current_node_id.as_slice(),
             one,
