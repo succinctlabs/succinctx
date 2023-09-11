@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, Variable};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a fixed length array of variables.
@@ -102,7 +102,7 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
 
     type L = DefaultParameters;

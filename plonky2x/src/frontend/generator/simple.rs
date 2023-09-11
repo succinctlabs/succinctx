@@ -10,7 +10,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoError, IoResult, Write};
 use serde::{Deserialize, Serialize};
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::Variable;
 use crate::prelude::CircuitBuilder;
 

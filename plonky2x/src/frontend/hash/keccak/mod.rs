@@ -1,7 +1,7 @@
 //! An implementation of the keccak256 hash functions in a plonky2 circuit
 
 use self::keccak256::Keccak256Generator;
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{ByteVariable, CircuitBuilder};
 
@@ -25,7 +25,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 mod tests {
 
     use super::*;
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::CircuitBuilder;
     use crate::utils::bytes32;
 

@@ -3,14 +3,15 @@ use std::fmt::Debug;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
+use serde::{Deserialize, Serialize};
 
 use super::CircuitVariable;
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
 
 /// A variable in the circuit. It represents a value between `[0, 2**64 - 2**32 + 1)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Variable(pub Target);
 
 impl CircuitVariable for Variable {

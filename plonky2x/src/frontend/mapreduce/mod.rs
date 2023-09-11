@@ -1,7 +1,3 @@
-#[macro_use]
-pub mod utils;
-pub mod serialize;
-
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
@@ -17,10 +13,9 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
-use crate::builder::CircuitBuilder;
-use crate::mapreduce::serialize::CircuitDataSerializable;
-use crate::prover::enviroment::EnviromentProver;
-use crate::prover::Prover;
+use crate::backend::prover::enviroment::EnviromentProver;
+use crate::backend::prover::Prover;
+use crate::frontend::builder::CircuitBuilder;
 use crate::vars::CircuitVariable;
 
 #[derive(Debug, Clone)]

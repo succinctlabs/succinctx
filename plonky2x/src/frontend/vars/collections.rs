@@ -3,7 +3,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, Variable};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 impl<const N: usize, V: CircuitVariable> CircuitVariable for [V; N] {

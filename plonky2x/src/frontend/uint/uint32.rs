@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
@@ -183,7 +183,7 @@ mod tests {
     use rand::Rng;
 
     use super::U32Variable;
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 

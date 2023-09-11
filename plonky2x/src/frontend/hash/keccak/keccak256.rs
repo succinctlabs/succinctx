@@ -9,7 +9,7 @@ use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, Variable};
 
 #[derive(Debug, Clone)]

@@ -1,16 +1,14 @@
-use super::generators::balance::BeaconBalanceGenerator;
-use super::generators::balances::BeaconBalancesGenerator;
-use super::generators::historical::BeaconHistoricalBlockGenerator;
-use super::generators::validator::BeaconValidatorGenerator;
-use super::generators::withdrawal::BeaconWithdrawalGenerator;
-use super::generators::withdrawals::BeaconWithdrawalsGenerator;
+use super::generators::{
+    BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
+    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
+    BeaconWithdrawalsGenerator,
+};
 use super::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
     BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable};
@@ -330,7 +328,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 pub(crate) mod tests {
     use std::env;
 
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::vars::BLSPubkeyVariable;
     use crate::frontend::uint::uint64::U64Variable;

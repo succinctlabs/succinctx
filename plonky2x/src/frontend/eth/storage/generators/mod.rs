@@ -1,2 +1,5 @@
-pub mod block;
-pub mod storage;
+mod block;
+mod storage;
+
+pub use block::EthBlockGenerator;
+pub use storage::{EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator};

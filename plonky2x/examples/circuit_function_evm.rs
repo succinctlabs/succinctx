@@ -17,8 +17,7 @@
 
 use std::env;
 
-use plonky2x::backend::circuit::Circuit;
-use plonky2x::backend::config::PlonkParameters;
+use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::CircuitFunction;
 use plonky2x::frontend::vars::ByteVariable;
 use plonky2x::prelude::CircuitBuilder;
