@@ -3,7 +3,7 @@ pub mod ecc;
 pub mod eth;
 pub mod generator;
 pub mod hash;
-// pub mod mapreduce;
+pub mod mapreduce;
 pub mod num;
 pub mod ops;
 pub mod uint;

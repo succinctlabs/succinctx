@@ -2,28 +2,27 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 
 use itertools::Itertools;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
-use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData};
+use plonky2::iop::witness::PartitionWitness;
+use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use tokio::runtime::Runtime;
 
-use crate::backend::prover::enviroment::EnviromentProver;
-use crate::backend::prover::Prover;
+use crate::backend::circuit::Circuit;
+use crate::backend::prover::{EnvProver, Prover};
 use crate::frontend::builder::CircuitBuilder;
-use crate::vars::CircuitVariable;
+use crate::frontend::vars::CircuitVariable;
+use crate::prelude::{GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
 
 #[derive(Debug, Clone)]
-pub struct MapReduceRecursiveProofGenerator<F, C, I, O, const D: usize>
+pub struct MapReduceRecursiveProofGenerator<L, I, O, const D: usize>
 where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static,
-    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+    L: PlonkParameters<D>,
+    <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
+    <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     I: CircuitVariable,
     O: CircuitVariable,
 {
@@ -40,17 +39,16 @@ where
     pub proof: ProofWithPublicInputsTarget<D>,
 
     /// Phantom data.
-    pub _phantom1: PhantomData<F>,
-    pub _phantom2: PhantomData<C>,
-    pub _phantom3: PhantomData<O>,
+    pub _phantom1: PhantomData<L>,
+    pub _phantom2: PhantomData<O>,
 }
 
-impl<F, C, I, O, const D: usize> SimpleGenerator<F, D>
-    for MapReduceRecursiveProofGenerator<F, C, I, O, D>
+impl<L, I, O, const D: usize> SimpleGenerator<L::Field, D>
+    for MapReduceRecursiveProofGenerator<L, I, O, D>
 where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static,
-    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
+    L: PlonkParameters<D>,
+    <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
+    <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     I: CircuitVariable,
     O: CircuitVariable,
 {
@@ -66,31 +64,50 @@ where
         targets
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+    fn run_once(
+        &self,
+        witness: &PartitionWitness<L::Field>,
+        out_buffer: &mut GeneratedValues<L::Field>,
+    ) {
+        // The gate and witness generator serializers.
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
         // Create the prover and the async runtime.
-        let prover = EnviromentProver::new();
+        let prover = EnvProver::new();
         let rt = Runtime::new().expect("failed to create tokio runtime");
 
         // Load the map circuit from disk & generate the proofs.
         let map_circuit_path = format!("./build/{}.circuit", self.map_circuit_id);
-        let (map_circuit, map_circuit_input) = CircuitData::<F, C, D>::load::<I>(map_circuit_path);
-        let targets = map_circuit_input.targets().into();
-        let values = self
-            .inputs
-            .iter()
-            .map(|x| witness.get_targets(x.targets().as_slice()).into())
-            .collect_vec();
-        let mut proofs =
-            rt.block_on(async { prover.prove_batch(&map_circuit, targets, values).await });
+        let map_circuit =
+            Circuit::<L, D>::load(&map_circuit_path, &gate_serializer, &generator_serializer)
+                .unwrap();
+
+        // Calculate the inputs to the map.
+        let map_input_values = self.inputs.iter().map(|x| x.get(witness)).collect_vec();
+        let map_inputs = Vec::new();
+        for map_input_value in map_input_values {
+            let map_input = map_circuit.input();
+            map_input.write::<I>(map_input_value);
+            map_inputs.push(map_input)
+        }
+
+        // Generate the proofs for the map layer.
+        let mut proofs = rt.block_on(async { prover.batch_prove(&map_circuit, &map_inputs).await });
 
         // Each reduce layer takes N leave proofs and produces N / 2 proofs using a simple
         // linear and binary reduction strategy.
         let nb_reduce_layers = (self.inputs.len() as f64).log2().ceil() as usize;
         for i in 0..nb_reduce_layers {
             let reduce_circuit_path = format!("./build/{}.circuit", self.reduce_circuit_ids[i]);
-            let (reduce_circuit, _, reduce_circuit_inputs) =
-                CircuitData::<F, C, D>::load_with_proof_targets(reduce_circuit_path);
+            let reduce_circuit = Circuit::<L, D>::load(
+                &reduce_circuit_path,
+                &gate_serializer,
+                &generator_serializer,
+            )
+            .unwrap();
             let nb_proofs = self.inputs.len() / (2usize.pow((i + 1) as u32));
+
             let targets = reduce_circuit_inputs.into();
             let mut values = Vec::new();
             for j in 0..nb_proofs {
@@ -168,114 +185,116 @@ where
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    fn build_map_circuit<I, O, C, M>(&mut self, m: &M) -> (CircuitData<F, C, D>, I)
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    fn build_map<I, O, M>(&mut self, map_fn: &M) -> Circuit<L, D>
     where
         I: CircuitVariable,
         O: CircuitVariable,
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-        M: Fn(I, &mut CircuitBuilder<F, D>) -> O,
+        M: Fn(I, &mut CircuitBuilder<L, D>) -> O,
     {
-        let mut builder = CircuitBuilder::<F, D>::new();
-        let input = builder.init::<I>();
-        let output = m(input.clone(), &mut builder);
-        builder.register_public_inputs(output.targets().as_slice());
-        (builder.build::<C>(), input)
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let input = builder.read::<I>();
+        let output = map_fn(input.clone(), &mut builder);
+        builder.write(output);
+        builder.build()
     }
 
-    fn build_reduce_circuit<I, O, C, R>(
+    fn build_reduce<I, O, R>(
         &mut self,
-        cd: &CircuitData<F, C, D>,
-        r: &R,
-    ) -> (CircuitData<F, C, D>, Vec<ProofWithPublicInputsTarget<D>>)
+        child_circuit: &Circuit<L, D>,
+        reduce_fn: &R,
+    ) -> Circuit<L, D>
     where
         I: CircuitVariable,
         O: CircuitVariable,
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-        R: Fn(O, O, &mut CircuitBuilder<F, D>) -> O,
+        R: Fn(O, O, &mut CircuitBuilder<L, D>) -> O,
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        let mut builder = CircuitBuilder::<F, D>::new();
-        let vd = builder.constant_verifier_data(&cd);
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let verifier_data = builder.constant_verifier_data(&child_circuit.data);
 
-        let proof_left = builder.add_virtual_proof_with_pis(&cd.common);
-        let proof_right = builder.add_virtual_proof_with_pis(&cd.common);
+        let proof_left = builder.proof_read(child_circuit);
+        let proof_right = builder.proof_read(child_circuit);
 
-        builder.verify_proof::<C>(&proof_left, &vd, &cd.common);
-        builder.verify_proof::<C>(&proof_right, &vd, &cd.common);
+        builder.verify_proof(&proof_left, &verifier_data, &child_circuit.data.common);
+        builder.verify_proof(&proof_right, &verifier_data, &child_circuit.data.common);
 
         let input_left = O::from_targets(&proof_left.public_inputs);
         let input_right = O::from_targets(&proof_right.public_inputs);
-        let output = r(input_left.clone(), input_right.clone(), &mut builder);
+        let output = reduce_fn(input_left.clone(), input_right.clone(), &mut builder);
 
-        builder.register_public_inputs(output.targets().as_slice());
-        (builder.build::<C>(), vec![proof_left, proof_right])
+        builder.build()
     }
 
-    pub fn mapreduce<I, O, C, M, R>(&mut self, inputs: Vec<I>, m: M, r: R) -> O
+    pub fn mapreduce<I, O, M, R>(&mut self, inputs: Vec<I>, map_fn: M, reduce_fn: R) -> O
     where
         I: CircuitVariable,
         O: CircuitVariable,
-        C: GenericConfig<D, F = F> + 'static,
-        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
-        M: Fn(I, &mut CircuitBuilder<F, D>) -> O,
-        R: Fn(O, O, &mut CircuitBuilder<F, D>) -> O,
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+        M: Fn(I, &mut CircuitBuilder<L, D>) -> O,
+        R: Fn(O, O, &mut CircuitBuilder<L, D>) -> O,
     {
+        // The gate and witness generator serializers.
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+
         // Build a map circuit which maps from I -> O using the closure `m`.
-        let (map_circuit, map_circuit_input) = self.build_map_circuit(&m);
+        let map_circuit = self.build_map(&map_fn);
 
         // Save map circuit and map circuit input target to build folder.
         let map_circuit_id = map_circuit.id();
         let map_circuit_path = format!("./build/{}.circuit", map_circuit_id);
-        map_circuit.save(map_circuit_input, map_circuit_path);
+        map_circuit.save(&map_circuit_path, &gate_serializer, &generator_serializer);
 
-        // For each reduce layer, we need to build a reduce circuit which reduces two input proofs
+        // For each reduce layer, we build a reduce circuit which reduces two input proofs
         // to an output O.
         let nb_reduce_layers = (inputs.len() as f64).log2().ceil() as usize;
         let mut reduce_circuits = Vec::new();
         for i in 0..nb_reduce_layers {
-            // Build a reduce circuit which maps f(Proof[O], Proof[O]) -> O using the closure `r`.
-            let child_circuit_data = if i == 0 {
+            let child_circuit = if i == 0 {
                 &map_circuit
             } else {
                 &reduce_circuits[i - 1]
             };
-            let (reduce_circuit, reduce_circuit_inputs) =
-                self.build_reduce_circuit::<I, O, C, R>(child_circuit_data, &r);
-
-            // Save reduce circuit and reduce circuit input proofs to build folder.
+            let reduce_circuit = self.build_reduce::<I, O, R>(child_circuit, &reduce_fn);
             let reduce_circuit_id = reduce_circuit.id();
             let reduce_circuit_path = format!("./build/{}.circuit", reduce_circuit_id);
-            reduce_circuit.save_with_proof_targets(
-                child_circuit_data,
-                &reduce_circuit_inputs,
-                reduce_circuit_path,
+            reduce_circuit.save(
+                &reduce_circuit_path,
+                &gate_serializer,
+                &generator_serializer,
             );
             reduce_circuits.push(reduce_circuit);
         }
 
         // Create generator to generate map and reduce proofs for each layer.
         let reduce_circuit_ids = reduce_circuits.iter().map(|c| c.id()).collect_vec();
-        let last_reduce_circuit = &reduce_circuits[reduce_circuits.len() - 1];
-        let proof = self.add_virtual_proof_with_pis(&last_reduce_circuit.common);
-        let generator = MapReduceRecursiveProofGenerator::<F, C, I, O, D> {
-            map_circuit_id,
-            reduce_circuit_ids,
-            inputs: inputs.clone(),
-            proof: proof.clone(),
-            _phantom1: PhantomData::<F>,
-            _phantom2: PhantomData::<C>,
-            _phantom3: PhantomData::<O>,
-        };
-        self.add_simple_generator(&generator);
+        let final_circuit = &reduce_circuits[reduce_circuits.len() - 1];
+        let final_proof = self.add_virtual_proof_with_pis(&final_circuit.data.common);
+
+        // let generator = MapReduceRecursiveProofGenerator::<F, C, I, O, D> {
+        //     map_circuit_id,
+        //     reduce_circuit_ids,
+        //     inputs: inputs.clone(),
+        //     proof: proof.clone(),
+        //     _phantom1: PhantomData::<F>,
+        //     _phantom2: PhantomData::<C>,
+        //     _phantom3: PhantomData::<O>,
+        // };
+        // self.add_simple_generator(&generator);
 
         // Verify the final proof.
-        let vd = self.constant_verifier_data(last_reduce_circuit);
-        self.verify_proof::<C>(&proof, &vd, &last_reduce_circuit.common);
+        let final_verifier_data = self.constant_verifier_data(&final_circuit.data);
+        self.verify_proof(
+            &final_proof,
+            &final_verifier_data,
+            &final_circuit.data.common,
+        );
 
         // Deserialize the output from the final proof.
-        O::from_targets(generator.proof.public_inputs.as_slice())
+        O::from_targets(final_proof.public_inputs.as_slice())
     }
 }
 
@@ -283,27 +302,23 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 pub(crate) mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
-    use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
-    use crate::builder::CircuitBuilder;
-    use crate::vars::{CircuitVariable, Variable};
+    use crate::prelude::{CircuitBuilder, DefaultParameters, Variable};
+
+    type F = GoldilocksField;
+    type L = DefaultParameters;
+    const D: usize = 2;
 
     #[test]
     fn test_simple_mapreduce_circuit() {
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
-
-        let mut builder = CircuitBuilder::<F, D>::new();
-
+        let mut builder = CircuitBuilder::<L, D>::new();
         let a = builder.constant::<Variable>(F::from_canonical_u64(0));
         let b = builder.constant::<Variable>(F::from_canonical_u64(1));
         let c = builder.constant::<Variable>(F::from_canonical_u64(3));
         let d = builder.constant::<Variable>(F::from_canonical_u64(4));
 
         let inputs = vec![a, b, c, d];
-        let output = builder.mapreduce::<Variable, Variable, C, _, _>(
+        let output = builder.mapreduce::<Variable, Variable, _, _>(
             inputs,
             |input, builder| {
                 let constant = builder.constant::<Variable>(F::ONE);
@@ -315,16 +330,10 @@ pub(crate) mod tests {
                 sum
             },
         );
-        builder.register_public_inputs(output.targets().as_slice());
 
-        println!("compiling outer circuit");
-        let data = builder.build::<C>();
-
-        println!("proving outer circuit");
-        let pw = PartialWitness::new();
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof.clone()).unwrap();
-
-        println!("result: {:?}", proof.public_inputs);
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
     }
 }

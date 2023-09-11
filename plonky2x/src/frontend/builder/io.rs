@@ -3,7 +3,7 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use serde::{Deserialize, Serialize};
 
 use super::CircuitBuilder;
-use crate::backend::circuit::{PlonkParameters, PublicInput};
+use crate::backend::circuit::{Circuit, PlonkParameters, PublicInput};
 use crate::frontend::vars::EvmVariable;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
 use crate::utils::serde::{
@@ -127,6 +127,19 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         };
     }
 
+    fn try_init_proof_io(&mut self) {
+        match self.io {
+            CircuitIO::None() => {
+                self.io = CircuitIO::RecursiveProofs(RecursiveProofsIO {
+                    input: Vec::new(),
+                    output: Vec::new(),
+                })
+            }
+            CircuitIO::RecursiveProofs(_) => {}
+            _ => panic!("already set io type"),
+        };
+    }
+
     pub fn read<V: CircuitVariable>(&mut self) -> V {
         self.try_init_field_io();
         let variable = self.init::<V>();
@@ -150,6 +163,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             _ => panic!("evm io is not enabled"),
         }
         variable
+    }
+
+    pub fn proof_read(&mut self, child_circuit: &Circuit<L, D>) -> ProofWithPublicInputsTarget<D> {
+        self.try_init_proof_io();
+        let proof = self.add_virtual_proof_with_pis(&child_circuit.data.common);
+        match self.io {
+            CircuitIO::RecursiveProofs(ref mut io) => io.input.push(proof),
+            _ => panic!("proof io is not enabled"),
+        }
+        proof
     }
 
     pub fn write<V: CircuitVariable>(&mut self, variable: V) {
