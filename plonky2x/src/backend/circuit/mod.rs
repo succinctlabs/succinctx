@@ -17,7 +17,7 @@ use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGene
 pub use self::config::{DefaultParameters, PlonkParameters};
 pub use self::input::{BytesInput, ElementsInput, PublicInput, RecursiveProofsInput};
 pub use self::mock::MockCircuit;
-pub use self::output::PublicOutput;
+pub use self::output::{BytesOutput, ElementsOutput, PublicOutput, RecursiveProofsOutput};
 pub use self::serialization::{GateRegistry, Serializer, WitnessGeneratorRegistry};
 use crate::frontend::builder::CircuitIO;
 use crate::utils::hex;
