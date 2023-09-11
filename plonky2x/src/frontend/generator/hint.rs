@@ -8,8 +8,7 @@ use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
-use crate::backend::circuit::serialization::Serializer;
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::{PlonkParameters, Serializer};
 use crate::frontend::vars::{OutputVariableStream, ValueStream, VariableStream};
 use crate::prelude::{CircuitBuilder, CircuitVariable};
 
@@ -211,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_hint_serialization() {
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
 
         let a = builder.read::<ByteVariable>();
 

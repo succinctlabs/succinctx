@@ -2,7 +2,7 @@ use array_macro::array;
 use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::config::AlgebraicHasher;
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable};
@@ -58,7 +58,7 @@ mod tests {
     use anyhow::Result;
     use plonky2::plonk::config::GenericConfig;
 
-    use crate::backend::config::{DefaultParameters, PlonkParameters};
+    use crate::backend::circuit::{DefaultParameters, PlonkParameters};
     use crate::frontend::vars::Bytes32Variable;
     use crate::prelude::CircuitBuilder;
     use crate::utils::{bytes32, setup_logger};

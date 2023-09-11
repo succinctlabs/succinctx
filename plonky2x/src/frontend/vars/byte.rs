@@ -4,15 +4,16 @@ use array_macro::array;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
+use serde::{Deserialize, Serialize};
 
 use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ByteVariable(pub [BoolVariable; 8]);
 
 impl CircuitVariable for ByteVariable {
@@ -228,7 +229,7 @@ impl ByteVariable {
 mod tests {
     use itertools::Itertools;
 
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
 
     type L = DefaultParameters;

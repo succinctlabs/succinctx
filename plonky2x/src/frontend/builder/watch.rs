@@ -8,7 +8,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{IoResult, Read, Write};
 
 use super::CircuitBuilder;
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::prelude::CircuitVariable;
 
 #[derive(Debug, Clone)]
@@ -80,7 +80,7 @@ impl<F: RichField + Extendable<D>, V: CircuitVariable, const D: usize> SimpleGen
 mod tests {
     use plonky2::field::types::Field;
 
-    use crate::frontend::builder::CircuitBuilderX;
+    use crate::frontend::builder::DefaultBuilder;
     use crate::prelude::*;
     use crate::utils::setup_logger;
 
@@ -88,7 +88,7 @@ mod tests {
     fn test_watcher() {
         setup_logger();
 
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         let a = builder.read::<Variable>();
         let b = builder.read::<Variable>();
         let c = builder.add(a, b);

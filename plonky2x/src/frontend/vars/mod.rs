@@ -21,7 +21,7 @@ pub use variable::*;
 
 pub use super::uint::uint256::*;
 pub use super::uint::uint32::*;
-use crate::backend::config::{DefaultParameters, PlonkParameters};
+use crate::backend::circuit::{DefaultParameters, PlonkParameters};
 use crate::frontend::builder::CircuitBuilder;
 
 pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {

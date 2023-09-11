@@ -2,7 +2,7 @@ use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData, VerifierCircu
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {

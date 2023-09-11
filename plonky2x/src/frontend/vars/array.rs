@@ -1,10 +1,11 @@
 use core::fmt::Debug;
+use std::ops::{Index, Range};
 
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, Variable};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a fixed length array of variables.
@@ -26,6 +27,28 @@ impl<V: CircuitVariable, const N: usize> ArrayVariable<V, N> {
 
     pub fn as_vec(&self) -> Vec<V> {
         self.elements.clone()
+    }
+}
+
+impl<V: CircuitVariable, const N: usize> Index<usize> for ArrayVariable<V, N> {
+    type Output = V;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.elements[index]
+    }
+}
+
+impl<V: CircuitVariable, const N: usize> Index<Range<usize>> for ArrayVariable<V, N> {
+    type Output = [V];
+
+    fn index(&self, range: Range<usize>) -> &Self::Output {
+        &self.elements[range]
+    }
+}
+
+impl<V: CircuitVariable, const N: usize> From<Vec<V>> for ArrayVariable<V, N> {
+    fn from(elements: Vec<V>) -> Self {
+        ArrayVariable::new(elements)
     }
 }
 
@@ -79,7 +102,7 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
 
     type L = DefaultParameters;

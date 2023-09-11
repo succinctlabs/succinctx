@@ -11,7 +11,7 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use sha2::Digest;
 use tokio::runtime::Runtime;
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::storage::utils::get_map_storage_location;
 use crate::frontend::eth::storage::vars::{EthLog, EthLogVariable};
@@ -98,11 +98,11 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
     ) -> IoResult<()> {
         let chain_id_bytes = self.chain_id.to_be_bytes();
         dst.write_all(&chain_id_bytes)?;
-
         dst.write_target_vec(&self.block_hash.targets())?;
         dst.write_target_vec(&self.address.targets())?;
         dst.write_target_vec(&self.storage_key.targets())?;
-        dst.write_target_vec(&self.value.targets())
+        dst.write_target_vec(&self.value.targets())?;
+        Ok(())
     }
 
     #[allow(unused_variables)]
