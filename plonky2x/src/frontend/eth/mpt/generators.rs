@@ -8,7 +8,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, CircuitVariable, PlonkParameters, Target, Variable,
+    BoolVariable, ByteVariable, CircuitVariable, PlonkParameters, Target, Variable,
 };
 
 #[derive(Debug, Clone)]
