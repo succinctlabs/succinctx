@@ -167,7 +167,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let offset_even = self.mul(prefix_extension_even.0, two);
             let offset_odd = self.mul(prefix_extension_odd.0, one);
             let offset = self.add(offset_even, offset_odd);
-            let branch_key = self.select_array(key_path.clone(), current_key_idx);
+            let branch_key = self.select_array(key_path.clone().as_slice(), current_key_idx);
             let branch_key_variable: Variable = self.byte_to_variable(branch_key); // can be unsafe since nibbles are checked
 
             // Case 1
@@ -182,12 +182,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let updated_current_node_id_idx = self.add(c, case_3_value); // TODO: make this more concise
 
             let updated_current_node_id =
-                self.select_array(decoded_list, updated_current_node_id_idx);
+                self.select_array(decoded_list.as_slice(), updated_current_node_id_idx);
             // If finished == 1, then we should not update the current_node_id
-            current_node_id = self.select_array::<_, 2>(
-                vec![updated_current_node_id, current_node_id].into(),
-                finished.0,
-            );
+            current_node_id =
+                self.select_array(&vec![updated_current_node_id, current_node_id], finished.0);
 
             let mut do_path_remainder_check = self.not(finished);
             do_path_remainder_check = self.and(do_path_remainder_check, is_leaf);

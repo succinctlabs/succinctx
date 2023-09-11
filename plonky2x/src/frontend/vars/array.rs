@@ -3,7 +3,7 @@ use std::ops::{Index, Range};
 
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::{BoolTarget, Target};
+use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, Variable};
@@ -103,38 +103,27 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Given an `array` of variables, and a dynamic `selector`, returns `array[selector]` as a variable.
-    pub fn select_array<V: CircuitVariable, const N: usize>(
-        &mut self,
-        array: ArrayVariable<V, N>,
-        selector: Variable,
-    ) -> V {
-        // The accumulator holds a Vec<Variable> corresponding the variables of the selected result
-        let mut accumulator = array[0].variables();
+    pub fn select_array<V: CircuitVariable>(&mut self, array: &[V], selector: Variable) -> V {
+        // The accumulator holds the variable of the selected result
+        let mut accumulator = array[0].clone();
 
-        for i in 0..N {
+        for i in 0..array.len() {
             // Whether the accumulator should be set to the i-th element (if selector_enabled=true)
             // Or should be set to the previous value (if selector_enabled=false)
             let target_i = self.constant::<Variable>(L::Field::from_canonical_usize(i));
             let selector_enabled = self.is_equal(target_i, selector);
-
-            for (accum_var, arr_var) in accumulator.iter_mut().zip(array[i].variables()) {
-                // If selector_enabled, then accum_var gets set to arr_var, otherwise it stays the same
-                *accum_var = Variable(self.api.select(
-                    BoolTarget::new_unsafe(selector_enabled.0 .0),
-                    arr_var.0,
-                    accum_var.0,
-                ));
-            }
+            // If selector_enabled, then accum_var gets set to arr_var, otherwise it stays the same
+            accumulator = self.select(selector_enabled, array[i].clone(), accumulator);
         }
 
-        V::from_variables(&accumulator)
+        accumulator
     }
 
     /// Given an `array` of variables, and a dynamic `selector`, returns `array[selector]` as a variable using the random access gate.
     /// This should only be used in cases where the CircuitVariable has a very small number of variables, otherwise the `random_access` gate will blow up
-    pub fn select_array_random_gate<V: CircuitVariable, const N: usize>(
+    pub fn select_array_random_gate<V: CircuitVariable>(
         &mut self,
-        array: ArrayVariable<V, N>,
+        array: &[V],
         selector: Variable,
     ) -> V {
         let num_var_in_t = array[0].variables().len();
@@ -143,8 +132,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         for i in 0..num_var_in_t {
             // For each array entry, get the i-th variable
-            let mut pos_i_targets: Vec<Target> =
-                (0..N).map(|j| array[j].variables()[i].0).collect();
+            let mut pos_i_targets: Vec<Target> = (0..array.len())
+                .map(|j| array[j].variables()[i].0)
+                .collect();
             // Pad the length of pos_vars to the nearest power of 2, random_access constrain len of selected vec to be power of 2
             let padded_len = pos_i_targets.len().next_power_of_two();
             pos_i_targets.resize_with(padded_len, Default::default);
@@ -200,7 +190,7 @@ mod tests {
         let mut builder = DefaultBuilder::new();
         let b = builder.read::<ArrayVariable<U256Variable, INPUT_SIZE>>();
         let selector = builder.read::<Variable>();
-        let result = builder.select_array(b, selector);
+        let result = builder.select_array(b.as_slice(), selector);
         builder.write(result);
 
         let num_gates = builder.api.num_gates();
@@ -243,7 +233,7 @@ mod tests {
         let mut builder = DefaultBuilder::new();
         let b = builder.read::<ArrayVariable<U256Variable, INPUT_SIZE>>();
         let selector = builder.read::<Variable>();
-        let result = builder.select_array_random_gate(b, selector);
+        let result = builder.select_array_random_gate(b.as_slice(), selector);
         builder.write(result);
 
         let num_gates = builder.api.num_gates();
