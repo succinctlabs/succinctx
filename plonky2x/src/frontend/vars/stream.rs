@@ -4,7 +4,7 @@ use plonky2::util::serialization::{IoResult, Read, Write};
 use serde::{Deserialize, Serialize};
 
 use super::{CircuitVariable, Variable};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::prelude::CircuitBuilder;
 use crate::utils::stream::Stream;
 

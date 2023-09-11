@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{ByteVariable, CircuitVariable, EvmVariable, U256Variable, Variable};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::BytesVariable;
 
@@ -92,12 +92,12 @@ mod test {
 
     use super::Bytes32Variable;
     use crate::frontend::uint::uint256::U256Variable;
-    use crate::prelude::{CircuitBuilderX, CircuitVariable};
+    use crate::prelude::{CircuitVariable, DefaultBuilder};
     use crate::utils::bytes32;
 
     #[test]
     fn test_bytes32_as_u256() {
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
 
         let b32 = Bytes32Variable::constant(
             &mut builder,

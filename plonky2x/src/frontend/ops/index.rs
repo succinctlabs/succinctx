@@ -1,4 +1,4 @@
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 /// Interface for random access over a generic index type.

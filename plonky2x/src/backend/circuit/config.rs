@@ -6,8 +6,12 @@ use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+use serde::{Deserialize, Serialize};
 
-pub trait PlonkParameters<const D: usize>: Debug + Clone + Sync + Send + 'static {
+/// Parameters such as the field, hash function, etc. used for the circuit.
+pub trait PlonkParameters<const D: usize>:
+    Debug + Clone + PartialEq + Sync + Send + 'static
+{
     type Field: RichField + Extendable<D>;
 
     type Config: GenericConfig<D, F = Self::Field, FE = <Self::Field as Extendable<D>>::Extension>
@@ -16,7 +20,8 @@ pub trait PlonkParameters<const D: usize>: Debug + Clone + Sync + Send + 'static
     type CubicParams: CubicParameters<Self::Field>;
 }
 
-#[derive(Debug, Clone)]
+/// Default parameters for the circuit. Uses the `PoseidonGoldilocksConfig` in Plonky2.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DefaultParameters;
 
 impl PlonkParameters<2> for DefaultParameters {

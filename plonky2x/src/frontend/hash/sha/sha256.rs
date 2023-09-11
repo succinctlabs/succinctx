@@ -4,7 +4,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder as Plonky2xCircuitBuilder;
 use crate::frontend::hash::bit_operations::util::{_right_rotate, _shr, uint32_to_bits};
 use crate::frontend::hash::bit_operations::{

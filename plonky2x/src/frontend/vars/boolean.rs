@@ -1,17 +1,18 @@
 use std::fmt::Debug;
 
-use curta::math::field::Field;
+use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
+use serde::{Deserialize, Serialize};
 
 use super::{CircuitVariable, Variable};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not};
 
 /// A variable in the circuit representing a boolean value.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct BoolVariable(pub Variable);
 
 impl CircuitVariable for BoolVariable {
@@ -101,7 +102,7 @@ impl<L: PlonkParameters<D>, const D: usize> Not<L, D> for BoolVariable {
 
 #[cfg(test)]
 mod tests {
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
 
     type L = DefaultParameters;
