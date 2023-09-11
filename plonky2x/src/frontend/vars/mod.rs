@@ -3,6 +3,7 @@ mod boolean;
 mod byte;
 mod bytes;
 mod bytes32;
+mod collections;
 mod stream;
 mod variable;
 use std::fmt::Debug;
@@ -26,7 +27,7 @@ use crate::frontend::builder::CircuitBuilder;
 
 pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     /// The underlying type of the variable if it were not in a circuit.
-    type ValueType<F: RichField>: Debug;
+    type ValueType<F: RichField>: Debug + Clone;
 
     /// Initializes the variable with no value in the circuit.
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self;
@@ -36,16 +37,6 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
         builder: &mut CircuitBuilder<L, D>,
         value: Self::ValueType<L::Field>,
     ) -> Self;
-
-    /// Serializes the circuit variable to targets.
-    fn targets(&self) -> Vec<Target> {
-        self.variables().into_iter().map(|v| v.0).collect()
-    }
-
-    /// Deserializes a variable from a list of targets.
-    fn from_targets(targets: &[Target]) -> Self {
-        Self::from_variables(&targets.iter().map(|t| Variable(*t)).collect_vec())
-    }
 
     /// Serializes the circuit variable to variables.
     fn variables(&self) -> Vec<Variable>;
@@ -58,6 +49,16 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
 
     /// Sets the value of the variable in the witness.
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>);
+
+    /// Serializes the circuit variable to targets.
+    fn targets(&self) -> Vec<Target> {
+        self.variables().into_iter().map(|v| v.0).collect()
+    }
+
+    /// Deserializes a variable from a list of targets.
+    fn from_targets(targets: &[Target]) -> Self {
+        Self::from_variables(&targets.iter().map(|t| Variable(*t)).collect_vec())
+    }
 
     /// The number of field elements it takes to represent this variable.
     fn nb_elements() -> usize {
@@ -159,4 +160,86 @@ pub trait SSZVariable: CircuitVariable {
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) -> Bytes32Variable;
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::frontend::vars::ArrayVariable;
+    use crate::prelude::*;
+
+    #[test]
+    fn test_derive_struct() {
+        #[derive(Debug, Clone, CircuitVariable)]
+        #[value_name(MyPoint)]
+        struct Point<V: CircuitVariable, U, const N: usize> {
+            pub x: ArrayVariable<V, N>,
+            y: U,
+            z: (Variable, Variable),
+        }
+
+        type TestPoint = Point<Variable, ByteVariable, 1>;
+
+        let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
+
+        let point = builder.read::<TestPoint>();
+
+        let constant_point = builder.constant::<TestPoint>(MyPoint {
+            x: vec![GoldilocksField::ONE],
+            y: 1u8,
+            z: (GoldilocksField::ZERO, GoldilocksField::ONE),
+        });
+
+        builder.assert_is_equal(point.clone(), constant_point.clone());
+
+        let variables = point.variables();
+        let point_back = TestPoint::from_variables(&variables);
+        assert_eq!(point.variables(), point_back.variables());
+
+        builder.write::<TestPoint>(constant_point);
+
+        let circuit = builder.build();
+        let mut input = circuit.input();
+        input.write::<TestPoint>(MyPoint {
+            x: vec![GoldilocksField::ONE],
+            y: 1u8,
+            z: (GoldilocksField::ZERO, GoldilocksField::ONE),
+        });
+    }
+
+    #[test]
+    fn test_value_derive_struct() {
+        #[derive(Debug, Clone, CircuitVariable)]
+        #[value_name(MyPoint)]
+        #[value_derive(PartialEq, Eq)]
+        struct Point {
+            x: ArrayVariable<Variable, 2>,
+            y: Variable,
+        }
+
+        let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
+
+        type TestPoint = Point;
+
+        let point = builder.read::<TestPoint>();
+
+        let constant_point = builder.constant::<TestPoint>(MyPoint {
+            x: vec![GoldilocksField::ONE, GoldilocksField::ZERO],
+            y: GoldilocksField::ZERO,
+        });
+
+        builder.assert_is_equal(point.clone(), constant_point.clone());
+
+        let variables = point.variables();
+        let point_back = TestPoint::from_variables(&variables);
+        assert_eq!(point.variables(), point_back.variables());
+
+        builder.write::<TestPoint>(constant_point);
+
+        let circuit = builder.build();
+        let mut input = circuit.input();
+        input.write::<TestPoint>(MyPoint {
+            x: vec![GoldilocksField::ONE, GoldilocksField::ZERO],
+            y: GoldilocksField::ZERO,
+        });
+    }
 }

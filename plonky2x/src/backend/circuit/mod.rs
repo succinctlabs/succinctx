@@ -1,4 +1,4 @@
-mod config;
+pub mod config;
 mod input;
 mod mock;
 mod output;
