@@ -229,7 +229,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Fails if i1 != i2.
     pub fn assert_is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) {
-        assert_eq!(i1.targets().len(), i2.targets().len());
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
             self.api.connect(*t1, *t2);
         }
@@ -237,7 +236,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Returns 1 if i1 == i2 and 0 otherwise as a BoolVariable
     pub fn is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) -> BoolVariable {
-        assert_eq!(i1.targets().len(), i2.targets().len());
         let mut result = self._true();
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
             let target_eq = BoolVariable(Variable(self.api.is_equal(*t1, *t2).target));
