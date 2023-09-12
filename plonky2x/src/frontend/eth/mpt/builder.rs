@@ -55,7 +55,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         const NUM_LIMBS: usize = 64;
         // FIXME: overflow? potentially
         // might have to use a zipped iterator and compute lt
-        let max = self.constant(L::Field::from_canonical_u64(1 << NUM_LIMBS));
+        let max = self.constant(L::Field::from_canonical_u64(1 << (NUM_LIMBS - 1)));
         let _one: Variable = self.constant(L::Field::from_canonical_u64(1));
         // from circomlib: https://github.com/iden3/circomlib/blob/master/circuits/comparators.circom#L89
         let tmp = self.add(lhs, max);
