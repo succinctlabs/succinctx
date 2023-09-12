@@ -3,7 +3,8 @@ mod request;
 mod result;
 
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufReader, Write};
+use std::path;
 
 use clap::Parser;
 use log::info;
@@ -12,12 +13,16 @@ pub use request::{
     BytesRequestData, ElementsRequestData, FunctionRequest, FunctionRequestBase,
     RecursiveProofsRequestData,
 };
+use serde::Serialize;
 
-use self::cli::{BuildArgs, ProveArgs};
+use self::cli::{BuildArgs, ProveArgs, ProveWrappedArgs};
 use super::circuit::{GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
-use crate::backend::circuit::{Circuit, DefaultParameters};
+use crate::backend::circuit::{
+    Circuit, DefaultParameters, Groth16VerifierParameters, PublicOutput,
+};
 use crate::backend::function::cli::{Args, Commands};
-use crate::backend::function::result::FunctionResult;
+use crate::backend::function::result::{BytesResultData, FunctionResult};
+use crate::backend::wrapper::wrap::WrappedCircuit;
 
 /// Circuits that implement `CircuitFunction` have all necessary code for end-to-end deployment.
 ///
@@ -106,11 +111,79 @@ contract FunctionVerifier is IFunctionVerifier {
         let (proof, output) = circuit.prove(&input);
         info!("Successfully generated proof.");
 
-        let result = FunctionResult::new(proof, output);
+        let result = FunctionResult::from_proof_output(proof, output);
         let json = serde_json::to_string_pretty(&result).unwrap();
-        let mut file = File::create("output.json").unwrap();
+        let mut file = File::create("plonky2x_output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
-        info!("Successfully saved proof to disk at output.json.");
+        info!("Successfully saved proof to disk at plonky2x_output.json.");
+    }
+
+    fn prove_wrapped<
+        InnerParameters: PlonkParameters<D>,
+        OuterParameters: PlonkParameters<D, Field = InnerParameters::Field>,
+        const D: usize,
+    >(
+        args: ProveWrappedArgs,
+        request: FunctionRequest<InnerParameters, D>,
+    ) where
+        <<InnerParameters as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<InnerParameters::Field>,
+        OuterParameters::Config: Serialize,
+    {
+        let path = format!("{}/main.circuit", args.build_dir);
+        info!("Loading circuit from {}...", path);
+        let gates = Self::gates::<InnerParameters, D>();
+        let generators = Self::generators::<InnerParameters, D>();
+        let circuit = Circuit::<InnerParameters, D>::load(&path, &gates, &generators).unwrap();
+        info!("Successfully loaded circuit.");
+
+        let input = request.input();
+        let (proof, output) = circuit.prove(&input);
+        info!(
+            "Successfully generated proof, wrapping proof with {}",
+            args.wrapper_path
+        );
+
+        if let PublicOutput::Bytes(output_bytes) = output {
+            let wrapped_circuit =
+                WrappedCircuit::<InnerParameters, OuterParameters, D>::build(circuit);
+            let wrapped_proof = wrapped_circuit.prove(&proof).expect("failed to wrap proof");
+            wrapped_proof
+                .save("wrapped")
+                .expect("failed to save wrapped proof");
+
+            // Call go wrapper
+            let verifier_output =
+                std::process::Command::new(path::Path::new(&args.wrapper_path).join("verifier"))
+                    .arg("-prove")
+                    .arg("-circuit")
+                    .arg("wrapped")
+                    .arg("-data")
+                    .arg(path::Path::new(&args.wrapper_path))
+                    .stdout(std::process::Stdio::inherit())
+                    .output()
+                    .expect("failed to execute process");
+
+            if !verifier_output.status.success() {
+                panic!("verifier failed");
+            }
+
+            // Read result from gnark verifier
+            let file = std::fs::File::open("proof.json").unwrap();
+            let rdr = std::io::BufReader::new(file);
+            let result_data =
+                serde_json::from_reader::<BufReader<File>, BytesResultData>(rdr).unwrap();
+
+            // Write full result with output bytes to output.json
+            let result: FunctionResult<OuterParameters, D> =
+                FunctionResult::from_bytes(result_data.proof, output_bytes);
+            let json = serde_json::to_string_pretty(&result).unwrap();
+            let mut file = File::create("output.json").unwrap();
+            file.write_all(json.as_bytes()).unwrap();
+            info!("Successfully saved full result to disk at output.json.");
+        } else {
+            panic!("output is not bytes")
+        }
     }
 
     /// The entry point for the function when using the CLI.
@@ -126,6 +199,10 @@ contract FunctionVerifier is IFunctionVerifier {
             Commands::Prove(args) => {
                 let request = FunctionRequest::<L, D>::load(&args.input_json);
                 Self::prove(args, request);
+            }
+            Commands::ProveWrapped(args) => {
+                let request = FunctionRequest::<L, D>::load(&args.input_json);
+                Self::prove_wrapped::<L, Groth16VerifierParameters, D>(args, request);
             }
         }
     }

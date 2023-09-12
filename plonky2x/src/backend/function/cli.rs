@@ -20,10 +20,26 @@ pub struct ProveArgs {
     pub wrapper_path: String,
 }
 
+#[derive(Parser, Debug, Clone)]
+#[command(
+    about = "Generate a wrapped proof for a circuit. The output is meant for use with the gnark verifier."
+)]
+pub struct ProveWrappedArgs {
+    #[arg(long, default_value = "./build")]
+    pub build_dir: String,
+
+    #[clap(long)]
+    pub input_json: String,
+
+    #[arg(long)]
+    pub wrapper_path: String,
+}
+
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     Build(BuildArgs),
     Prove(ProveArgs),
+    ProveWrapped(ProveWrappedArgs),
 }
 
 #[derive(Parser, Debug, Clone)]

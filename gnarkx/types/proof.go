@@ -13,8 +13,8 @@ type Groth16Proof struct {
 	A      [2]*big.Int    `json:"a"`
 	B      [2][2]*big.Int `json:"b"`
 	C      [2]*big.Int    `json:"c"`
-	Input  hexutil.Bytes  `json:"input"`
-	Output hexutil.Bytes  `json:"output"`
+	Input  hexutil.Bytes  `json:"input,omitempty"`
+	Output hexutil.Bytes  `json:"output,omitempty"`
 }
 
 // Export saves the proof to a file.
@@ -41,4 +41,9 @@ func (g *Groth16Proof) Export(file string) error {
 	}
 
 	return nil
+}
+
+type FunctionResult struct {
+	Proof  hexutil.Bytes `json:"proof"`
+	Output hexutil.Bytes `json:"output"`
 }

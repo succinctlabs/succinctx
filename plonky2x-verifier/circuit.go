@@ -158,7 +158,7 @@ func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth
 	elapsed = time.Since(start)
 	log.Debug().Msg("Successfully saved proving key, time: " + elapsed.String())
 
-	log.Info().Msg("Saving verifying key to" + path + "/vk.bin")
+	log.Info().Msg("Saving verifying key to " + path + "/vk.bin")
 	vkFile, err := os.Create(path + "/vk.bin")
 	if err != nil {
 		return fmt.Errorf("failed to create vk file: %w", err)
