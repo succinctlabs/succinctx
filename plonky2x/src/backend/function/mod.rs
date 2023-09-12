@@ -2,7 +2,6 @@ mod cli;
 mod request;
 mod result;
 
-use std::env;
 use std::fs::File;
 use std::io::Write;
 
@@ -26,7 +25,7 @@ pub struct VerifiableFunction<C: Circuit> {
     _phantom: std::marker::PhantomData<C>,
 }
 
-/// Circuits that implement `CircuitFunction` have all necessary code for end-to-end deployment.
+/// Circuits that implement `VerifiableFunction` have all necessary code for end-to-end deployment.
 ///
 /// Conforming to this trait enables remote machines can generate proofs for you. In particular,
 /// this trait ensures that the circuit can be built, serialized, and deserialized.
