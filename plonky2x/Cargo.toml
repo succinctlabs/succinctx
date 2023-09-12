@@ -15,7 +15,7 @@ ci = []
 [dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false }
 curta = { git = "https://github.com/succinctlabs/curta.git", branch = "john/nightly" }
-plonky2x-derive = "0.1.0"
+plonky2x-derive = { path = "../plonky2x-derive" }
 
 num = { version = "0.4", default-features = false }
 sha2 = "0.10.7"
@@ -38,7 +38,7 @@ num-bigint = { version = "0.4", features = ["rand"] }
 base64 = "0.13"
 futures = "0.3.28"
 lazy_static = "1.4.0"
-ff = {package="ff" , version="0.13", features = ["derive"]}
+ff = { package = "ff", version = "0.13", features = ["derive"] }
 backtrace = "0.3"
 env_logger = "0.10.0"
 clap = { version = "4.4.0", features = ["derive"] }
