@@ -262,15 +262,15 @@ impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for ByteVariable {
     fn add(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let mut bits = array![_ => builder.init::<BoolVariable>(); 8];
         let mut carry = builder.constant(false);
-        for i in 0..8 {
+        for i in (0..8).rev() {
             let l_xor_r = builder.xor(self.0[i], rhs.0[i]);
             let l_and_r = builder.and(self.0[i], rhs.0[i]);
-            let carry_tmp = builder.and(l_xor_r, carry);
+            let carry_and_l_xor_r = builder.and(carry, l_xor_r);
             bits[i] = builder.xor(l_xor_r, carry);
-            carry = builder.or(carry_tmp, l_and_r);
+            carry = builder.or(carry_and_l_xor_r, l_and_r);
         }
         ByteVariable(bits)
-    }
+    }       
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for ByteVariable {
@@ -279,7 +279,7 @@ impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for ByteVariable {
     fn sub(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let mut bits = array![_ => builder.init::<BoolVariable>(); 8];
         let mut borrow = builder.constant(false);
-        for i in 0..8 {
+        for i in (0..8).rev() {
             let l_xor_r = builder.xor(self.0[i], rhs.0[i]);
             let not_r = builder.not(rhs.0[i]);
             let l_and_not_r = builder.and(self.0[i], not_r);
@@ -404,5 +404,56 @@ mod tests {
 
         assert_eq!(left_nibble, expected_left_nibble);
         assert_eq!(right_nibble, expected_right_nibble);
+    }
+
+    #[test]
+    fn test_add() {
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let lhs = builder.read::<ByteVariable>();
+        let rhs = builder.read::<ByteVariable>();
+        let sum = builder.add(lhs, rhs);
+        builder.write(sum);
+
+        let circuit = builder.build();
+
+        let rand_lhs = rand::random::<u8>();
+        let rand_rhs = rand::random::<u8>();
+        let mut inputs = circuit.input();
+        inputs.write::<ByteVariable>(rand_lhs);
+        inputs.write::<ByteVariable>(rand_rhs);
+
+        let (proof, mut output) = circuit.prove(&inputs);
+        circuit.verify(&proof, &inputs, &output);
+        
+        let expected_sum = rand_lhs + rand_rhs;
+        let proof_sum = output.read::<ByteVariable>();
+
+        assert_eq!(expected_sum, proof_sum);
+    }
+
+    #[test]
+    fn test_sub() {
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let lhs = builder.read::<ByteVariable>();
+        let rhs = builder.read::<ByteVariable>();
+        let diff = builder.sub(lhs, rhs);
+        builder.write(diff);
+
+        let circuit = builder.build();
+
+        let rand_lhs = rand::random::<u8>();
+        let rand_rhs = rand::random::<u8>();
+        println!("LHS is {}, RHS is {}", rand_lhs, rand_rhs);
+        let mut inputs = circuit.input();
+        inputs.write::<ByteVariable>(rand_lhs);
+        inputs.write::<ByteVariable>(rand_rhs);
+
+        let (proof, mut output) = circuit.prove(&inputs);
+        circuit.verify(&proof, &inputs, &output);
+        
+        let expected_diff = rand_lhs - rand_rhs;
+        let proof_diff = output.read::<ByteVariable>();
+
+        assert_eq!(expected_diff, proof_diff);
     }
 }
