@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use futures::future::join_all;
 use itertools::Itertools;
 use log::debug;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use reqwest::Client;
 use tokio::time::sleep;
@@ -34,7 +35,11 @@ impl Prover for RemoteProver {
     ) -> Result<(
         ProofWithPublicInputs<L::Field, L::Config, D>,
         PublicOutput<L, D>,
-    )> {
+    )>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
         debug!("prove: circuit_id={}", circuit.id());
 
         // Initialize the proof service.
@@ -83,7 +88,11 @@ impl Prover for RemoteProver {
     ) -> Result<(
         Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
         Vec<PublicOutput<L, D>>,
-    )> {
+    )>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
         debug!(
             "batch_prove: circuit_id={}, nb_inputs={}",
             circuit.id(),

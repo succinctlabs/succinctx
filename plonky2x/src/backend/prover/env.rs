@@ -1,6 +1,7 @@
 use std::env;
 
 use anyhow::Result;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::local::LocalProver;
@@ -24,7 +25,11 @@ impl Prover for EnvProver {
     ) -> Result<(
         ProofWithPublicInputs<L::Field, L::Config, D>,
         PublicOutput<L, D>,
-    )> {
+    )>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
         if env::var("PROVER").unwrap() == "remote" {
             RemoteProver::new().prove(circuit, input).await
         } else {
@@ -39,7 +44,11 @@ impl Prover for EnvProver {
     ) -> Result<(
         Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
         Vec<PublicOutput<L, D>>,
-    )> {
+    )>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
         if env::var("PROVER").unwrap() == "remote" {
             RemoteProver::new().batch_prove(circuit, inputs).await
         } else {

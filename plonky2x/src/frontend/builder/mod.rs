@@ -139,8 +139,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 self.register_public_inputs(input.as_slice());
                 self.register_public_inputs(output.as_slice());
             }
+            CircuitIO::RecursiveProofs(ref io) => {
+                let output = io
+                    .output
+                    .iter()
+                    .flat_map(|b| b.targets())
+                    .collect::<Vec<_>>();
+                self.register_public_inputs(output.as_slice());
+            }
             CircuitIO::None() => {}
-            _ => panic!("unsupported io type"),
         };
 
         let data = self.api.build();

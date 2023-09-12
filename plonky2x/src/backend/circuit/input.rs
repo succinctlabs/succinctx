@@ -97,6 +97,16 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
         };
     }
 
+    /// Writes a proof to the public circuit input.
+    pub fn proof_write(&mut self, proof: ProofWithPublicInputs<L::Field, L::Config, D>) {
+        match self {
+            PublicInput::RecursiveProofs(input) => {
+                input.push(proof);
+            }
+            _ => panic!("proof io is not enabled"),
+        };
+    }
+
     /// Sets a value to the circuit input. This method only works if the circuit is using
     /// field element-based IO.
     pub fn set<V: CircuitVariable>(&mut self, _: V, _: V::ValueType<L::Field>) {

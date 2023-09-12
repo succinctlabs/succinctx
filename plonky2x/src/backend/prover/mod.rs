@@ -6,6 +6,7 @@ mod service;
 use anyhow::Result;
 pub use env::EnvProver;
 pub use local::LocalProver;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 pub use remote::RemoteProver;
 pub use service::ProofService;
@@ -25,7 +26,10 @@ pub trait Prover {
     ) -> Result<(
         ProofWithPublicInputs<L::Field, L::Config, D>,
         PublicOutput<L, D>,
-    )>;
+    )>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>;
 
     /// Generates a batch of proofs with the given input.
     async fn batch_prove<L: PlonkParameters<D>, const D: usize>(
@@ -35,7 +39,11 @@ pub trait Prover {
     ) -> Result<(
         Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
         Vec<PublicOutput<L, D>>,
-    )> {
+    )>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
         let mut proofs = Vec::new();
         let mut outputs = Vec::new();
         for input in inputs {

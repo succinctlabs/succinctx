@@ -1,4 +1,5 @@
-use plonky2::iop::witness::PartialWitness;
+use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use serde::{Deserialize, Serialize};
 
@@ -70,7 +71,10 @@ impl<const D: usize> CircuitIO<D> {
         &self,
         pw: &mut PartialWitness<L::Field>,
         input: &PublicInput<L, D>,
-    ) {
+    ) where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
         match self {
             CircuitIO::Bytes(io) => {
                 let variables = &io.input;
@@ -92,8 +96,15 @@ impl<const D: usize> CircuitIO<D> {
                     panic!("circuit io type is elements but circuit input is not")
                 }
             }
-            CircuitIO::RecursiveProofs(_) => {
-                todo!()
+            CircuitIO::RecursiveProofs(io) => {
+                let proof_with_pis_targets = &io.input;
+                if let PublicInput::RecursiveProofs(input) = input {
+                    for i in 0..proof_with_pis_targets.len() {
+                        pw.set_proof_with_pis_target(&proof_with_pis_targets[i], &input[i]);
+                    }
+                } else {
+                    panic!("circuit io type is recursive proofs but circuit input is not")
+                }
             }
             CircuitIO::None() => {}
         }
@@ -169,7 +180,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.try_init_proof_io();
         let proof = self.add_virtual_proof_with_pis(&child_circuit.data.common);
         match self.io {
-            CircuitIO::RecursiveProofs(ref mut io) => io.input.push(proof),
+            CircuitIO::RecursiveProofs(ref mut io) => io.input.push(proof.clone()),
             _ => panic!("proof io is not enabled"),
         }
         proof
@@ -189,6 +200,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         match self.io {
             CircuitIO::Bytes(ref mut io) => io.output.extend(bytes),
             _ => panic!("evm io is not enabled"),
+        }
+    }
+
+    pub fn proof_write<V: CircuitVariable>(&mut self, variable: V) {
+        self.try_init_proof_io();
+        match self.io {
+            CircuitIO::RecursiveProofs(ref mut io) => io.output.extend(variable.variables()),
+            _ => panic!("proof io is not enabled"),
         }
     }
 }

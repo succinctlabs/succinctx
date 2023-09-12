@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use plonky2::iop::witness::{PartialWitness, PartitionWitness};
 use plonky2::plonk::circuit_data::MockCircuitData;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use super::input::PublicInput;
 use super::output::PublicOutput;
@@ -29,7 +30,11 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuit<L, D> {
     pub fn mock_prove(
         &self,
         input: &PublicInput<L, D>,
-    ) -> (PartitionWitness<L::Field>, PublicOutput<L, D>) {
+    ) -> (PartitionWitness<L::Field>, PublicOutput<L, D>)
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
         // Initialize the witness.
         let mut pw = PartialWitness::new();
 

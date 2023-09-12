@@ -45,7 +45,11 @@ impl<L: PlonkParameters<D>, const D: usize> Circuit<L, D> {
     ) -> (
         ProofWithPublicInputs<L::Field, L::Config, D>,
         PublicOutput<L, D>,
-    ) {
+    )
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
         let proof_with_pis = self.data.prove(pw).unwrap();
