@@ -2,6 +2,7 @@ mod cli;
 mod request;
 mod result;
 
+use std::env;
 use std::fs::File;
 use std::io::Write;
 
@@ -108,6 +109,8 @@ contract FunctionVerifier is IFunctionVerifier {
     pub fn entrypoint() {
         type L = DefaultParameters;
         const D: usize = 2;
+
+        env_logger::try_init().unwrap_or_default();
 
         let args = Args::parse();
         match args.command {

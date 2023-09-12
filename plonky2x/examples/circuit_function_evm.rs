@@ -15,8 +15,6 @@
 //!
 //! Note that this circuit will not work with field-based io.
 
-use std::env;
-
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::VerifiableFunction;
 use plonky2x::frontend::vars::ByteVariable;
@@ -34,8 +32,6 @@ impl Circuit for SimpleAdditionCircuit {
 }
 
 fn main() {
-    env::set_var("RUST_LOG", "info");
-    env_logger::try_init().unwrap_or_default();
     VerifiableFunction::<SimpleAdditionCircuit>::entrypoint();
 }
 
