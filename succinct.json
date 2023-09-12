@@ -1,5 +1,5 @@
 {
     "preset": "plonky2",
-    "build_command": "mkdir build && cargo run --example circuit_function_evm --release build && mv ./target/release/examples/circuit_function_evm ./build/circuit_function_evm",
+    "build_command": "mkdir -p build && cargo run --example circuit_function_evm -vvvvv --release build && mv ./target/release/examples/circuit_function_evm ./build/circuit_function_evm",
     "prove_command": "./build/circuit_function_evm prove-wrapped --input-json input.json --wrapper-path /verifier-build"
 }
