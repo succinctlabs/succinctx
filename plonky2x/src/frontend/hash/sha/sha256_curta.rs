@@ -12,7 +12,7 @@ use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable};
 
 /// Pad the given input according to the SHA-256 spec.
-pub fn sha256_pad<L: PlonkParameters<D>, const D: usize>(
+pub fn sha256_curta_pad<L: PlonkParameters<D>, const D: usize>(
     builder: &mut CircuitBuilder<L, D>,
     input: &[ByteVariable],
 ) -> Vec<ByteVariable> {
@@ -45,7 +45,7 @@ pub fn sha256_pad<L: PlonkParameters<D>, const D: usize>(
 }
 
 /// Pad the given variable length input according to the SHA-256 spec.
-pub fn sha256_pad_variable_length<
+pub fn sha256_curta_pad_variable_length<
     L: PlonkParameters<D>,
     const D: usize,
     // Maximum number of output chunks that this function will pad.
@@ -145,7 +145,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let expected_last_chunk = self.constant::<U32Variable>((MAX_NUM_CHUNKS - 1) as u32);
         self.assert_is_equal(expected_last_chunk, last_chunk);
 
-        let padded_input = sha256_pad_variable_length::<L, D, MAX_NUM_CHUNKS>(
+        let padded_input = sha256_curta_pad_variable_length::<L, D, MAX_NUM_CHUNKS>(
             self,
             input,
             last_chunk,
@@ -176,7 +176,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Executes a SHA256 hash on the given input. (Assumes it's not padded)
     pub fn sha256_curta(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
-        let padded_input = sha256_pad(self, input);
+        let padded_input = sha256_curta_pad(self, input);
 
         let bytes = bytes_to_target(self, &padded_input);
 
@@ -223,7 +223,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             // If curr_rq crosses over the 1024-chunk boundary, insert dummy chunks.
             if (temp_nb_chunks / 1024 != nb_chunks / 1024) && temp_nb_chunks % 1024 != 0 {
                 while nb_chunks % 1024 != 0 {
-                    let padded_input = sha256_pad(self, &zero_chunk);
+                    let padded_input = sha256_curta_pad(self, &zero_chunk);
                     let bytes = bytes_to_target(self, &padded_input);
 
                     // Insert a dummy request and response.
