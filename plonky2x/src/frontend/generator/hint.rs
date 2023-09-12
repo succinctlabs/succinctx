@@ -2,62 +2,37 @@ use core::any::TypeId;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef};
-use plonky2::iop::target::Target;
-use plonky2::iop::witness::PartitionWitness;
+use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
+use plonky2::util::serialization::{Buffer, IoError, IoResult};
+use serde::de::DeserializeOwned;
 
+use super::general::{HintGenerator, HintSerializer, HintSimpleGenerator};
 use crate::backend::circuit::{PlonkParameters, Serializer};
 use crate::frontend::vars::{OutputVariableStream, ValueStream, VariableStream};
-use crate::prelude::{CircuitBuilder, CircuitVariable};
+use crate::prelude::CircuitBuilder;
 
 pub trait Hint<L: PlonkParameters<D>, const D: usize>:
-    'static + Debug + Clone + Send + Sync
+    'static + Debug + Clone + Send + Sync + serde::Serialize + DeserializeOwned
 {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>);
 }
 
-impl<L: PlonkParameters<D>, const D: usize, F> Hint<L, D> for F
-where
-    F: Fn(&mut ValueStream<L, D>, &mut ValueStream<L, D>) + 'static + Debug + Clone + Send + Sync,
-{
-    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
-        self(input_stream, output_stream)
-    }
-}
+#[derive(Debug, Clone)]
+pub struct StatefulHint<H>(pub H);
 
 #[derive(Debug, Clone)]
-pub struct HintFn<L: PlonkParameters<D>, const D: usize>(
-    pub fn(&mut ValueStream<L, D>, &mut ValueStream<L, D>),
-);
+pub struct SateHintSerializer<L, H>(PhantomData<L>, PhantomData<H>);
 
-impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for HintFn<L, D> {
-    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
-        (self.0)(input_stream, output_stream)
+impl<L, H> SateHintSerializer<L, H> {
+    pub fn new() -> Self {
+        Self(PhantomData, PhantomData)
     }
 }
 
-pub trait HintRef<L: PlonkParameters<D>, const D: usize> {
-    fn output_stream(&mut self) -> &mut VariableStream;
-    fn register(&self, builder: &mut CircuitBuilder<L, D>);
-}
-
-#[derive(Debug, Clone)]
-pub struct HintGenerator<L, H> {
-    pub(crate) input_stream: VariableStream,
-    pub(crate) output_stream: VariableStream,
-    hint: H,
-    _marker: PhantomData<L>,
-}
-
-impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> HintRef<L, D> for HintGenerator<L, H> {
-    fn output_stream(&mut self) -> &mut VariableStream {
-        &mut self.output_stream
-    }
-
-    fn register(&self, builder: &mut CircuitBuilder<L, D>) {
-        builder.add_simple_generator(self.clone())
+impl<L, H> Default for SateHintSerializer<L, H> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -67,104 +42,24 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input_stream: VariableStream,
         hint: H,
     ) -> OutputVariableStream<L, D> {
-        let output_stream = VariableStream::new();
-
-        let hint = HintGenerator::<L, H> {
-            input_stream,
-            output_stream,
-            hint,
-            _marker: PhantomData,
-        };
-        let hint_id = self.hints.len();
-        self.hints.push(Box::new(hint));
-
-        OutputVariableStream::new(hint_id)
+        self.hint_generator(input_stream, StatefulHint(hint))
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> SimpleGenerator<L::Field, D>
-    for HintGenerator<L, H>
-{
-    fn id(&self) -> String {
-        let hint_serializer = HintSerializer::<L, H>::new(self.hint.clone());
-        hint_serializer.id()
+impl<L: PlonkParameters<D>, H: Hint<L, D>, const D: usize> HintGenerator<L, D> for StatefulHint<H> {
+    type Serializer = SateHintSerializer<L, H>;
+
+    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
+        self.0.hint(input_stream, output_stream)
     }
 
-    fn dependencies(&self) -> Vec<Target> {
-        self.input_stream.real_all().iter().map(|v| v.0).collect()
-    }
-
-    fn run_once(
-        &self,
-        witness: &PartitionWitness<L::Field>,
-        out_buffer: &mut GeneratedValues<L::Field>,
-    ) {
-        let input_values = self
-            .input_stream
-            .real_all()
-            .iter()
-            .map(|v| v.get(witness))
-            .collect::<Vec<_>>();
-        let mut input_stream = ValueStream::from_values(input_values);
-        let mut output_stream = ValueStream::new();
-
-        self.hint.hint(&mut input_stream, &mut output_stream);
-
-        let output_values = output_stream.read_all();
-        let output_vars = self.output_stream.real_all();
-        assert_eq!(output_values.len(), output_vars.len());
-
-        for (var, val) in output_vars.iter().zip(output_values) {
-            var.set(out_buffer, *val)
-        }
-    }
-
-    fn serialize(
-        &self,
-        dst: &mut Vec<u8>,
-        _common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<()> {
-        self.input_stream.serialize_to_writer(dst)?;
-        self.output_stream.serialize_to_writer(dst)
-    }
-
-    fn deserialize(
-        _src: &mut Buffer,
-        _common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<Self>
-    where
-        Self: Sized,
-    {
-        unimplemented!("Hint functions are not deserializable through the plonky2 crate, only directly through the witness registry")
+    fn serializer(&self) -> Self::Serializer {
+        Self::Serializer::new()
     }
 }
 
-#[derive(Debug)]
-pub struct HintSerializer<L, H> {
-    pub hint: H,
-    _marker: PhantomData<L>,
-}
-
-impl<L: 'static, H: 'static> HintSerializer<L, H> {
-    pub fn new(hint: H) -> Self {
-        Self {
-            hint,
-            _marker: PhantomData,
-        }
-    }
-
-    pub fn id(&self) -> String {
-        format!(
-            "--Hint, name:{:?}, id: {:?}",
-            core::any::type_name::<H>(),
-            TypeId::of::<H>()
-        )
-        .to_string()
-    }
-}
-
-impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>>
-    Serializer<L::Field, WitnessGeneratorRef<L::Field, D>, D> for HintSerializer<L, H>
+impl<L: PlonkParameters<D>, H: Hint<L, D>, const D: usize>
+    Serializer<L::Field, WitnessGeneratorRef<L::Field, D>, D> for SateHintSerializer<L, H>
 {
     fn read(
         &self,
@@ -174,14 +69,14 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>>
         let input_stream = VariableStream::deserialize_from_reader(buf)?;
         let output_stream = VariableStream::deserialize_from_reader(buf)?;
 
-        let hint = HintGenerator::<L, H> {
+        let hint: H = bincode::deserialize(buf.bytes()).map_err(|_| IoError)?;
+        let hint_generator = HintSimpleGenerator::<L, StatefulHint<H>>::new(
             input_stream,
             output_stream,
-            hint: self.hint.clone(),
-            _marker: PhantomData,
-        };
+            StatefulHint(hint),
+        );
 
-        Ok(WitnessGeneratorRef::new(hint.adapter()))
+        Ok(WitnessGeneratorRef::new(hint_generator.adapter()))
     }
 
     fn write(
@@ -194,22 +89,41 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>>
     }
 }
 
+impl<L: PlonkParameters<D>, H: Hint<L, D>, const D: usize> HintSerializer<L, D>
+    for SateHintSerializer<L, H>
+{
+    fn id(&self) -> String {
+        format!("--pure fn hint: {:?}", TypeId::of::<H>())
+    }
+}
+
 #[cfg(test)]
 mod tests {
+
+    use serde::{Deserialize, Serialize};
+
     use super::*;
     use crate::prelude::*;
 
-    fn plus_one<L: PlonkParameters<D>, const D: usize>(
-        input_stream: &mut ValueStream<L, D>,
-        output_stream: &mut ValueStream<L, D>,
-    ) {
-        let byte: u8 = input_stream.read_value::<ByteVariable>();
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct AddSome {
+        amount: u8,
+    }
 
-        output_stream.write_value::<ByteVariable>(byte + 1)
+    impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for AddSome {
+        fn hint(
+            &self,
+            input_stream: &mut ValueStream<L, D>,
+            output_stream: &mut ValueStream<L, D>,
+        ) {
+            let a = input_stream.read_value::<ByteVariable>();
+
+            output_stream.write_value::<ByteVariable>(a + self.amount)
+        }
     }
 
     #[test]
-    fn test_hint_serialization() {
+    fn test_hint() {
         let mut builder = DefaultBuilder::new();
 
         let a = builder.read::<ByteVariable>();
@@ -217,7 +131,8 @@ mod tests {
         let mut input_stream = VariableStream::new();
         input_stream.write(&a);
 
-        let output_stream = builder.hint(input_stream, HintFn(plus_one));
+        let hint = AddSome { amount: 1 };
+        let output_stream = builder.hint(input_stream, hint);
         let b = output_stream.read::<ByteVariable>(&mut builder);
         builder.write(b);
 
@@ -240,7 +155,7 @@ mod tests {
         // Test the serialization
         let gate_serializer = GateRegistry::new();
         let mut generator_serializer = WitnessGeneratorRegistry::new();
-        generator_serializer.register_hint(HintFn(plus_one));
+        generator_serializer.register_hint::<AddSome>();
         circuit.test_serializers(&gate_serializer, &generator_serializer);
     }
 }

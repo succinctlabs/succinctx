@@ -15,7 +15,7 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
-use super::generator::hint::HintRef;
+use super::generator::general::HintRef;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{Circuit, DefaultParameters, MockCircuit, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
