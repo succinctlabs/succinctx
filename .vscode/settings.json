@@ -23,4 +23,7 @@
     "rust-analyzer.runnables.extraArgs": [
         "--release"
     ],
+    "rust-analyzer.diagnostics.disabled": [
+        "unresolved-proc-macro"
+    ],
 }
