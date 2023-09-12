@@ -4,12 +4,15 @@ use array_macro::array;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
+use plonky2::field::types::Field;
 use serde::{Deserialize, Serialize};
 
 use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero, Add, Sub};
+use crate::frontend::ops::{
+    Add, BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Sub, Zero,
+};
 
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.
@@ -117,6 +120,22 @@ impl ByteVariable {
         right_nibble[4..].copy_from_slice(&bits[4..8]);
 
         [ByteVariable(left_nibble), ByteVariable(right_nibble)]
+    }
+
+    pub fn to_variable<L: PlonkParameters<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Variable {
+        let _two = builder.constant::<Variable>(L::Field::from_canonical_u8(2));
+        let mut acc = builder.zero::<Variable>();
+        let mut pow = builder.one::<Variable>();
+        for i in 0..8 {
+            let curr = self.0[i].0;
+            let tmp = builder.mul(acc, pow);
+            acc = builder.add(tmp, curr);
+            pow = builder.mul(pow, _two);
+        }
+        acc
     }
 }
 

@@ -73,29 +73,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         output
     }
 
-    pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
-        let generator: ByteToVariableGenerator<L, D> = ByteToVariableGenerator {
-            lhs,
-            output: self.init::<Variable>(),
-            _phantom: PhantomData,
-        };
-        self.add_simple_generator(generator.clone());
-        let output = generator.output;
-
-        let _two = self.constant::<Variable>(L::Field::from_canonical_u8(2));
-        let mut acc = self.zero::<Variable>();
-        let mut pow = self.one::<Variable>();
-        for i in 0..8 {
-            let curr = lhs.0[i].0;
-            let tmp = self.mul(acc, pow);
-            acc = self.add(tmp, curr);
-            pow = self.mul(pow, _two);
-        }
-        self.assert_is_equal(output, acc);
-
-        output
-    }
-
     const PREFIX_EXTENSION_EVEN: u8 = 0;
     const PREFIX_EXTENSION_ODD: u8 = 1;
     const PREFIX_LEAF_EVEN: u8 = 2;
@@ -189,7 +166,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let offset_odd = self.mul(prefix_extension_odd.0, one);
             let offset = self.add(offset_even, offset_odd);
             let branch_key = self.select_array(key_path.clone().as_slice(), current_key_idx);
-            let branch_key_variable: Variable = self.byte_to_variable(branch_key); // can be unsafe since nibbles are checked
+            let branch_key_variable: Variable = branch_key.to_variable(self); // can be unsafe since nibbles are checked
 
             // Case 1
             let is_branch_and_key_terminated = self.and(is_branch, key_terminated);
@@ -238,7 +215,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let current_node_len = self.sub(current_node_id[0], const_128);
-        let current_node_len_as_var = self.byte_to_variable(current_node_len);
+        let current_node_len_as_var = current_node_len.to_variable(self);
         let lhs_offset = self.sub(const_32, current_node_len_as_var);
 
         self.assert_subarray_equal(
