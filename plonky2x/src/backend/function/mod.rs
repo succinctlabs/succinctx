@@ -17,10 +17,14 @@ pub use result::{
 };
 
 use self::cli::{BuildArgs, ProveArgs};
-use crate::backend::circuit::Circuit;
+use crate::backend::circuit::{Circuit, CircuitBuild, DefaultParameters, PlonkParameters};
 use crate::backend::function::cli::{Args, Commands};
+use crate::prelude::CircuitBuilder;
 
-struct VerifiableFunction<C: Circuit> {}
+pub struct VerifiableFunction<C: Circuit> {
+    _phantom: std::marker::PhantomData<C>,
+}
+
 /// Circuits that implement `CircuitFunction` have all necessary code for end-to-end deployment.
 ///
 /// Conforming to this trait enables remote machines can generate proofs for you. In particular,
@@ -32,18 +36,20 @@ struct VerifiableFunction<C: Circuit> {}
 /// Look at the `plonky2x/examples` for examples of how to use this trait.
 impl<C: Circuit> VerifiableFunction<C> {
     /// Builds the circuit and saves it to disk.
-    fn compile<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
+    pub fn compile<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         info!("Building circuit...");
-        let circuit = C::define::<L, D>();
+        let mut builder = CircuitBuilder::<L, D>::new();
+        C::define::<L, D>(&mut builder);
+        let circuit = builder.build();
         info!("Successfully built circuit.");
         info!("> Circuit: {}", circuit.id());
         info!("> Degree: {}", circuit.data.common.degree());
         info!("> Number of Gates: {}", circuit.data.common.gates.len());
         let path = format!("{}/main.circuit", args.build_dir);
-        circuit.save(&path, &Self::gates::<L, D>(), &Self::generators::<L, D>());
+        circuit.save(&path, &C::gates::<L, D>(), &C::generators::<L, D>());
         info!("Successfully saved circuit to disk at {}.", path);
 
         info!("Building verifier contract...");
@@ -74,14 +80,16 @@ contract FunctionVerifier is IFunctionVerifier {
         );
     }
 
-    fn prove<L: PlonkParameters<D>, const D: usize>(args: ProveArgs, request: ProofRequest<L, D>)
-    where
+    pub fn prove<L: PlonkParameters<D>, const D: usize>(
+        args: ProveArgs,
+        request: ProofRequest<L, D>,
+    ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let gates = Self::gates::<L, D>();
-        let generators = Self::generators::<L, D>();
+        let gates = C::gates::<L, D>();
+        let generators = C::generators::<L, D>();
         let circuit = CircuitBuild::<L, D>::load(&path, &gates, &generators).unwrap();
         info!("Successfully loaded circuit.");
 
@@ -97,7 +105,7 @@ contract FunctionVerifier is IFunctionVerifier {
     }
 
     /// The entry point for the function when using the CLI.
-    fn entrypoint() {
+    pub fn entrypoint() {
         type L = DefaultParameters;
         const D: usize = 2;
 

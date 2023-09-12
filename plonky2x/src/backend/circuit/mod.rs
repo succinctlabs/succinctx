@@ -1,23 +1,24 @@
+mod build;
 pub mod config;
 mod input;
 mod mock;
 mod output;
 mod serialization;
 mod witness;
-mod build;
 
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+
+pub use self::build::CircuitBuild;
 pub use self::config::{DefaultParameters, PlonkParameters};
 pub use self::input::PublicInput;
 pub use self::mock::MockCircuitBuild;
 pub use self::output::PublicOutput;
 pub use self::serialization::{GateRegistry, Serializer, WitnessGeneratorRegistry};
-pub use self::build::CircuitBuild;
-
-use crate::{backend::circuit::{CircuitBuild, DefaultParameters}, prelude::CircuitBuilder};
+use crate::prelude::CircuitBuilder;
 
 pub trait Circuit {
     /// Takes in an empty builder and defines the circuit.
-    fn define<L: PlonkParameters<D>, const D: usize>(&mut CircuitBuilder<L, D>);
+    fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>);
 
     /// Generates the witness registry.
     fn generators<L: PlonkParameters<D>, const D: usize>() -> WitnessGeneratorRegistry<L, D>

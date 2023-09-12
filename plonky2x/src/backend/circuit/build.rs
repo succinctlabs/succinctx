@@ -7,6 +7,10 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
 
+pub use super::config::{DefaultParameters, PlonkParameters};
+pub use super::input::PublicInput;
+use super::output::PublicOutput;
+use super::serialization::{GateRegistry, WitnessGeneratorRegistry};
 use crate::frontend::builder::CircuitIO;
 use crate::utils::hex;
 use crate::utils::serde::{BufferRead, BufferWrite};

@@ -17,27 +17,25 @@
 
 use std::env;
 
-use plonky2x::backend::circuit::{CircuitBuild, PlonkParameters};
-use plonky2x::backend::function::CircuitFunction;
+use plonky2x::backend::circuit::{Circuit, PlonkParameters};
+use plonky2x::backend::function::VerifiableFunction;
 use plonky2x::prelude::{CircuitBuilder, Variable};
 
-struct Function {}
+struct SimpleCircuit {}
 
-impl CircuitFunction for Function {
-    fn build<L: PlonkParameters<D>, const D: usize>() -> CircuitBuild<L, D> {
-        let mut builder = CircuitBuilder::<L, D>::new();
+impl Circuit for SimpleCircuit {
+    fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) {
         let a = builder.read::<Variable>();
         let b = builder.read::<Variable>();
         let c = builder.add(a, b);
         builder.write(c);
-        builder.build()
     }
 }
 
 fn main() {
     env::set_var("RUST_LOG", "info");
     env_logger::try_init().unwrap_or_default();
-    Function::cli();
+    VerifiableFunction::<SimpleCircuit>::entrypoint();
 }
 
 #[cfg(test)]
@@ -54,7 +52,9 @@ mod tests {
 
     #[test]
     fn test_circuit_function_field() {
-        let circuit = Function::build::<L, D>();
+        let mut builder = CircuitBuilder::<L, D>::new();
+        SimpleCircuit::define(&mut builder);
+        let circuit = builder.build();
         let mut input = circuit.input();
         input.write::<Variable>(F::from_canonical_u64(1));
         input.write::<Variable>(F::from_canonical_u64(2));
