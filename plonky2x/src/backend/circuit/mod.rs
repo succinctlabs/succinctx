@@ -20,19 +20,18 @@ pub trait Circuit {
     /// Takes in an empty builder and defines the circuit.
     fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>);
 
-    /// Generates the witness registry.
-    fn generators<L: PlonkParameters<D>, const D: usize>() -> WitnessGeneratorRegistry<L, D>
-    where
+    /// Add generators to the generator_registry
+    fn add_generators<L: PlonkParameters<D>, const D: usize>(
+        _generator_registry: &mut WitnessGeneratorRegistry<L, D>,
+    ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        WitnessGeneratorRegistry::<L, D>::new()
     }
 
-    /// Geneates the gate registry.
-    fn gates<L: PlonkParameters<D>, const D: usize>() -> GateRegistry<L, D>
+    /// Add gates to the gate_registry
+    fn add_gates<L: PlonkParameters<D>, const D: usize>(_gate_registry: &mut GateRegistry<L, D>)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        GateRegistry::<L, D>::new()
     }
 }

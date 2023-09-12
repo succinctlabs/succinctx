@@ -19,7 +19,7 @@ pub use result::{
 use self::cli::{BuildArgs, ProveArgs};
 use crate::backend::circuit::{Circuit, CircuitBuild, DefaultParameters, PlonkParameters};
 use crate::backend::function::cli::{Args, Commands};
-use crate::prelude::CircuitBuilder;
+use crate::prelude::{CircuitBuilder, GateRegistry, WitnessGeneratorRegistry};
 
 pub struct VerifiableFunction<C: Circuit> {
     _phantom: std::marker::PhantomData<C>,
@@ -49,7 +49,11 @@ impl<C: Circuit> VerifiableFunction<C> {
         info!("> Degree: {}", circuit.data.common.degree());
         info!("> Number of Gates: {}", circuit.data.common.gates.len());
         let path = format!("{}/main.circuit", args.build_dir);
-        circuit.save(&path, &C::gates::<L, D>(), &C::generators::<L, D>());
+        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut gate_registry = GateRegistry::new();
+        C::add_generators::<L, D>(&mut generator_registry);
+        C::add_gates::<L, D>(&mut gate_registry);
+        circuit.save(&path, &gate_registry, &generator_registry);
         info!("Successfully saved circuit to disk at {}.", path);
 
         info!("Building verifier contract...");
@@ -88,9 +92,12 @@ contract FunctionVerifier is IFunctionVerifier {
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let gates = C::gates::<L, D>();
-        let generators = C::generators::<L, D>();
-        let circuit = CircuitBuild::<L, D>::load(&path, &gates, &generators).unwrap();
+        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut gate_registry = GateRegistry::new();
+        C::add_generators::<L, D>(&mut generator_registry);
+        C::add_gates::<L, D>(&mut gate_registry);
+        let circuit =
+            CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap();
         info!("Successfully loaded circuit.");
 
         let input = request.input();
