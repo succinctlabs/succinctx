@@ -154,7 +154,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         )
     }
 
-    /// Executes a SHA256 hash on the given input. Note: input should be length MAX_NUM_CHUNKS * 64 and input_byte_length should be at most MAX_NUM_CHUNKS * 64 - 9.
+    /// Executes a SHA256 hash on the given input. Note: input should be length MAX_NUM_CHUNKS * 64.
     pub fn curta_sha256_variable<const MAX_NUM_CHUNKS: usize>(
         &mut self,
         input: &[ByteVariable],
