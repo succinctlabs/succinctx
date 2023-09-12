@@ -1,9 +1,11 @@
 //! An implementation of the keccak256 hash functions in a plonky2 circuit
 
+use core::marker::PhantomData;
+
 use self::keccak256::Keccak256Generator;
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{ByteVariable, CircuitBuilder};
+use crate::prelude::{ByteVariable, CircuitBuilder, Variable};
 
 pub mod keccak256;
 
@@ -13,11 +15,26 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             input: bytes.to_vec(),
             output: self.init(),
             length: None,
-            _phantom: Default::default(),
+            _phantom: PhantomData::<L>,
         };
         let output = generator.output;
-        self.add_simple_generator(generator);
+        self.add_simple_generator(generator.clone());
         output
+    }
+
+    pub fn keccak256_variable(
+        &mut self,
+        bytes: &[ByteVariable],
+        length: Variable,
+    ) -> Bytes32Variable {
+        let generator = Keccak256Generator {
+            input: bytes.to_vec(),
+            output: self.init(),
+            length: Some(length),
+            _phantom: PhantomData::<L>,
+        };
+        self.add_simple_generator(generator.clone());
+        generator.output
     }
 }
 
@@ -25,7 +42,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 mod tests {
 
     use super::*;
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::CircuitBuilder;
     use crate::utils::bytes32;
 

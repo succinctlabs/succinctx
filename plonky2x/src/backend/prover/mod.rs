@@ -1,41 +1,48 @@
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::circuit_data::CircuitData;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+mod env;
+mod local;
+mod remote;
+mod service;
+
+use anyhow::Result;
+pub use env::EnvProver;
+pub use local::LocalProver;
 use plonky2::plonk::proof::ProofWithPublicInputs;
+pub use remote::RemoteProver;
+pub use service::ProofService;
 
-pub mod enviroment;
-pub mod local;
-pub mod remote;
-pub mod service;
+use super::circuit::{Circuit, PlonkParameters, PublicInput, PublicOutput};
 
-/// Basic methods for proving circuits that are shared between both local and remote
-/// implementations.
+/// Basic methods for generating proofs from circuits.
 pub trait Prover {
     /// Creates a new instance of the prover.
     fn new() -> Self;
 
     /// Generates a proof with the given input.
-    async fn prove<F, C, const D: usize>(
+    async fn prove<L: PlonkParameters<D>, const D: usize>(
         &self,
-        circuit: &CircuitData<F, C, D>,
-        targets: ProverInputTargets<D>,
-        values: ProverInputValues<F, C, D>,
-    ) -> ProofWithPublicInputs<F, C, D>
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F> + 'static,
-        C::Hasher: AlgebraicHasher<F>;
+        circuit: &Circuit<L, D>,
+        input: &PublicInput<L, D>,
+    ) -> Result<(
+        ProofWithPublicInputs<L::Field, L::Config, D>,
+        PublicOutput<L, D>,
+    )>;
 
     /// Generates a batch of proofs with the given input.
-    async fn prove_batch<F, C, const D: usize>(
+    async fn batch_prove<L: PlonkParameters<D>, const D: usize>(
         &self,
-        circuit: &CircuitData<F, C, D>,
-        targets: ProverInputTargets<D>,
-        values: Vec<ProverInputValues<F, C, D>>,
-    ) -> Vec<ProofWithPublicInputs<F, C, D>>
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F> + 'static,
-        C::Hasher: AlgebraicHasher<F>;
+        circuit: &Circuit<L, D>,
+        inputs: &[PublicInput<L, D>],
+    ) -> Result<(
+        Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
+        Vec<PublicOutput<L, D>>,
+    )> {
+        let mut proofs = Vec::new();
+        let mut outputs = Vec::new();
+        for input in inputs {
+            let (proof, output) = self.prove(circuit, input).await?;
+            proofs.push(proof);
+            outputs.push(output);
+        }
+        Ok((proofs, outputs))
+    }
 }

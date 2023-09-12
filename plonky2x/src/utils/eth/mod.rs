@@ -5,7 +5,6 @@ use std::env;
 use ethers::providers::{Http, Provider};
 
 pub mod beacon;
-pub mod deserialize_bigint;
 
 #[derive(Debug, Clone)]
 pub struct Address(pub [u8; 20]);

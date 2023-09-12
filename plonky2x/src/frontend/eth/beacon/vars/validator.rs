@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::vars::{
@@ -188,7 +188,7 @@ impl SSZVariable for BeaconValidatorVariable {
 #[cfg(test)]
 pub(crate) mod tests {
 
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::eth::beacon::vars::BeaconValidatorVariable;
     use crate::frontend::vars::{Bytes32Variable, SSZVariable};
@@ -199,6 +199,7 @@ pub(crate) mod tests {
     const D: usize = 2;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_validator_hash_tree_root_1() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
@@ -228,6 +229,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_validator_hash_tree_root_2() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();

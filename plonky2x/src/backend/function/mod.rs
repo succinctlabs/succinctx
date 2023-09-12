@@ -1,31 +1,40 @@
 mod cli;
-mod io;
 mod request;
 mod result;
 
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Write;
 
 use clap::Parser;
-use log::{info, warn};
-use plonky2::field::types::Field;
+use log::info;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-
-use self::cli::{BuildArgs, ProveArgs};
-use super::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
-use super::config::PlonkParameters;
-use crate::backend::circuit::Circuit;
-use crate::backend::config::DefaultParameters;
-use crate::backend::function::cli::{Args, Commands};
-use crate::backend::function::request::FunctionRequest;
-use crate::backend::function::result::{
-    BytesResult, ElementsResult, FunctionResult, FunctionResultWrapper,
+pub use request::{
+    BytesRequestData, ElementsRequestData, ProofRequest, ProofRequestBase,
+    RecursiveProofsRequestData,
+};
+pub use result::{
+    BytesResultData, ElementsResultData, ProofResult, ProofResultBase, RecursiveProofsResultData,
 };
 
+use self::cli::{BuildArgs, ProveArgs};
+use super::circuit::{GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
+use crate::backend::circuit::{Circuit, DefaultParameters};
+use crate::backend::function::cli::{Args, Commands};
+
+/// Circuits that implement `CircuitFunction` have all necessary code for end-to-end deployment.
+///
+/// Conforming to this trait enables remote machines can generate proofs for you. In particular,
+/// this trait ensures that the circuit can be built, serialized, and deserialized.
+///
+/// You may need to override the default implementation for `generators` and `gates` if you are
+/// using custom gates or custom witness generators.
+///
+/// Look at the `plonky2x/examples` for examples of how to use this trait.
 pub trait CircuitFunction {
     /// Builds the circuit.
     fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D>;
 
+    /// Generates the witness registry.
     fn generators<L: PlonkParameters<D>, const D: usize>() -> WitnessGeneratorRegistry<L, D>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
@@ -33,6 +42,7 @@ pub trait CircuitFunction {
         WitnessGeneratorRegistry::<L, D>::new()
     }
 
+    /// Geneates the gate registry.
     fn gates<L: PlonkParameters<D>, const D: usize>() -> GateRegistry<L, D>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
@@ -83,91 +93,29 @@ contract FunctionVerifier is IFunctionVerifier {
         );
     }
 
-    fn prove_with_evm_io<L: PlonkParameters<D>, const D: usize>(args: ProveArgs, bytes: Vec<u8>)
+    fn prove<L: PlonkParameters<D>, const D: usize>(args: ProveArgs, request: ProofRequest<L, D>)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let circuit =
-            Circuit::<L, D>::load(&path, &Self::gates::<L, D>(), &Self::generators::<L, D>())
-                .unwrap();
+        let gates = Self::gates::<L, D>();
+        let generators = Self::generators::<L, D>();
+        let circuit = Circuit::<L, D>::load(&path, &gates, &generators).unwrap();
         info!("Successfully loaded circuit.");
 
-        let mut input = circuit.input();
-        input.evm_write_all(&bytes);
-
-        info!("Generating proof...");
+        let input = request.input();
         let (proof, output) = circuit.prove(&input);
-        info!("Proof generated.");
-        circuit.verify(&proof, &input, &output);
-        info!("Proof verified.");
-        let output_bytes = output.evm_read_all();
-        let output_hex_string = format!("0x{}", hex::encode(output_bytes.clone()));
+        info!("Successfully generated proof.");
 
-        let function_result = FunctionResult::Bytes(FunctionResultWrapper {
-            data: BytesResult {
-                proof: hex::encode(proof.to_bytes()),
-                output: output_hex_string,
-            },
-        });
-        let json = serde_json::to_string(&function_result).unwrap();
+        let result = ProofResult::new(proof, output);
+        let json = serde_json::to_string_pretty(&result).unwrap();
         let mut file = File::create("output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
-        info!(
-            "Succesfully wrote output of {} bytes and proof to output.json.",
-            output_bytes.len()
-        );
+        info!("Successfully saved proof to disk at output.json.");
     }
 
-    /// Generates a proof with field-based inputs and outputs.
-    fn prove_with_field_io<L: PlonkParameters<D>, const D: usize>(
-        args: ProveArgs,
-        elements: Vec<L::Field>,
-    ) where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
-        let path = format!("{}/main.circuit", args.build_dir);
-        info!("Loading circuit from {}...", path);
-        let circuit =
-            Circuit::<L, D>::load(&path, &Self::gates::<L, D>(), &Self::generators::<L, D>())
-                .unwrap();
-        info!("Successfully loaded circuit.");
-
-        let mut input = circuit.input();
-        input.write_all(&elements);
-
-        info!("Generating proof...");
-        let (proof, output) = circuit.prove(&input);
-        info!("Proof generated.");
-        circuit.verify(&proof, &input, &output);
-        info!("Proof verified.");
-        let output_elements = output.read_all();
-
-        let function_output = FunctionResult::Elements(FunctionResultWrapper {
-            data: ElementsResult {
-                proof: hex::encode(proof.to_bytes()),
-                output: output_elements.iter().map(|e| e.to_string()).collect(),
-            },
-        });
-        let json = serde_json::to_string_pretty(&function_output).unwrap();
-        let mut file = File::create("output.json").unwrap();
-        file.write_all(json.as_bytes()).unwrap();
-        info!(
-            "Succesfully wrote output of {} elements and proof to output.json.",
-            output_elements.len()
-        );
-    }
-
-    /// Reads the function input from a JSON file path.
-    fn read_function_input(input_json: String) -> FunctionRequest {
-        let mut file = File::open(input_json).unwrap();
-        let mut data = String::new();
-        file.read_to_string(&mut data).unwrap();
-        serde_json::from_str(&data).unwrap()
-    }
-
-    /// The entry point for the function when using CLI-based tools.
+    /// The entry point for the function when using the CLI.
     fn cli() {
         type L = DefaultParameters;
         const D: usize = 2;
@@ -178,74 +126,8 @@ contract FunctionVerifier is IFunctionVerifier {
                 Self::compile::<L, D>(args);
             }
             Commands::Prove(args) => {
-                let input = Self::read_function_input(args.clone().input_json);
-                match input {
-                    FunctionRequest::Bytes(input) => {
-                        Self::prove_with_evm_io::<L, D>(
-                            args,
-                            hex::decode(input.data.input).expect("failed to decode input bytes"),
-                        );
-                    }
-                    FunctionRequest::Elements(input) => {
-                        Self::prove_with_field_io::<L, D>(
-                            args,
-                            input
-                                .data
-                                .input
-                                .iter()
-                                .map(|e| {
-                                    <L as PlonkParameters<D>>::Field::from_canonical_u64(
-                                        e.parse::<u64>().unwrap(),
-                                    )
-                                })
-                                .collect(),
-                        );
-                    }
-                    _ => {
-                        warn!("No input bytes or elements found in input.json.");
-                    }
-                }
-            }
-        }
-    }
-
-    fn test<L: PlonkParameters<D>, const D: usize>(input_json: String)
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
-        let build_args = BuildArgs {
-            build_dir: "./build".to_string(),
-        };
-        Self::compile::<L, D>(build_args);
-        let prove_args = ProveArgs {
-            build_dir: "./build".to_string(),
-            input_json: input_json.clone(),
-        };
-        let input = Self::read_function_input(input_json);
-        match input {
-            FunctionRequest::Bytes(input) => {
-                Self::prove_with_evm_io::<L, D>(
-                    prove_args,
-                    hex::decode(input.data.input).expect("failed to decode input bytes"),
-                );
-            }
-            FunctionRequest::Elements(input) => {
-                Self::prove_with_field_io::<L, D>(
-                    prove_args,
-                    input
-                        .data
-                        .input
-                        .iter()
-                        .map(|e| {
-                            <L as PlonkParameters<D>>::Field::from_canonical_u64(
-                                e.parse::<u64>().unwrap(),
-                            )
-                        })
-                        .collect(),
-                );
-            }
-            _ => {
-                warn!("No input bytes or elements found in input.json.");
+                let request = ProofRequest::<L, D>::load(&args.input_json);
+                Self::prove(args, request);
             }
         }
     }

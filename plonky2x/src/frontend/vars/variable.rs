@@ -3,14 +3,15 @@ use std::fmt::Debug;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
+use serde::{Deserialize, Serialize};
 
 use super::CircuitVariable;
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
 
 /// A variable in the circuit. It represents a value between `[0, 2**64 - 2**32 + 1)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Variable(pub Target);
 
 impl CircuitVariable for Variable {
@@ -18,6 +19,7 @@ impl CircuitVariable for Variable {
 
     fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
         let target = builder.api.add_virtual_target();
+        builder.debug_target(target);
         Self(target)
     }
 
@@ -29,6 +31,7 @@ impl CircuitVariable for Variable {
         // so that we can use it to implement serialization/deserialize to/from elements for
         // ValueType automatically.
         let target = builder.api.constant(value);
+        builder.debug_target(target); // TODO: not sure if I need this
         let variable = Self(target);
         builder.constants.insert(variable, value);
         Self(target)

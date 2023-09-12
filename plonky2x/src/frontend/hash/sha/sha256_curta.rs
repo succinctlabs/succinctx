@@ -5,7 +5,7 @@ use itertools::Itertools;
 use plonky2::iop::target::Target;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::hash::bit_operations::util::u64_to_bits;
 use crate::frontend::uint::uint32::U32Variable;
 use crate::frontend::vars::Bytes32Variable;

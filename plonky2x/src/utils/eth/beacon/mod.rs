@@ -7,7 +7,7 @@ use serde_json::Value;
 use serde_with::serde_as;
 use tokio::runtime::Runtime;
 
-use super::deserialize_bigint::deserialize_bigint;
+use crate::utils::serde::deserialize_bigint;
 
 /// A client used for connecting and querying a beacon node.
 #[derive(Debug, Clone)]
@@ -51,7 +51,7 @@ pub struct BeaconHeader {
 
 /// The beacon validator struct according to the consensus spec.
 /// Reference: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde_as]
 pub struct BeaconValidator {

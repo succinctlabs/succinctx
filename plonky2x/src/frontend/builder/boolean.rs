@@ -1,4 +1,4 @@
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{BoolVariable, Variable};
 
@@ -21,7 +21,7 @@ mod tests {
     use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 
     use super::*;
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
 
     type L = DefaultParameters;
     const D: usize = 2;

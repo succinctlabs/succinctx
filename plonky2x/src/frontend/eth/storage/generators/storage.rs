@@ -11,7 +11,7 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use sha2::Digest;
 use tokio::runtime::Runtime;
 
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::storage::utils::get_map_storage_location;
 use crate::frontend::eth::storage::vars::{EthLog, EthLogVariable};

@@ -1,11 +1,10 @@
 use ethers::types::Address;
 
-use super::generators::block::EthBlockGenerator;
-use super::generators::storage::{
-    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+use super::generators::{
+    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint256::U256Variable;
@@ -75,11 +74,10 @@ mod tests {
     use ethers::types::{U256, U64};
 
     use super::*;
-    use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::{DefaultParameters, GateRegistry, WitnessGeneratorRegistry};
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthHeader, EthLog};
-    use crate::prelude::CircuitBuilderX;
+    use crate::prelude::DefaultBuilder;
     use crate::utils::{address, bytes32};
 
     type L = DefaultParameters;
@@ -94,7 +92,7 @@ mod tests {
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
         // This is the circuit definition
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         builder.set_execution_client(provider);
         let block_hash = builder.evm_read::<Bytes32Variable>();
         let address = builder.evm_read::<AddressVariable>();
@@ -149,7 +147,7 @@ mod tests {
     fn test_get_storage_key_at() {
         dotenv::dotenv().ok();
         // This is the circuit definition
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         let mapping_location = builder.read::<U256Variable>();
         let map_key = builder.read::<Bytes32Variable>();
 
@@ -208,7 +206,7 @@ mod tests {
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
         // This is the circuit definition
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         builder.set_execution_client(provider);
         let block_hash = builder.read::<Bytes32Variable>();
 
@@ -281,7 +279,7 @@ mod tests {
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
         // This is the circuit definition
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         builder.set_execution_client(provider);
         let transaction_hash = builder.read::<Bytes32Variable>();
         let block_hash = builder.read::<Bytes32Variable>();

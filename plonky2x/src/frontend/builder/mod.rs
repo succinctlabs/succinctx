@@ -5,40 +5,41 @@ pub mod watch;
 
 use std::collections::HashMap;
 
+use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
 use plonky2::iop::generator::SimpleGenerator;
 use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::plonk::circuit_builder::CircuitBuilder as _CircuitBuilder;
+use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
 use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
-use super::generator::hint::HintRef;
+use super::generator::general::HintRef;
 use super::vars::EvmVariable;
-use crate::backend::circuit::Circuit;
-use crate::backend::config::{DefaultParameters, PlonkParameters};
+use crate::backend::circuit::{Circuit, DefaultParameters, MockCircuit, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
 
-/// The universal api for building circuits using `plonky2x`.
+/// The universal builder for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
-    pub api: _CircuitBuilder<L::Field, D>,
+    pub api: CircuitAPI<L::Field, D>,
     pub io: CircuitIO<D>,
     pub constants: HashMap<Variable, L::Field>,
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
+    pub debug: bool,
+    pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintRef<L, D>>>,
     pub sha256_requests: Vec<Vec<Target>>,
     pub sha256_responses: Vec<[Target; 32]>,
 }
 
-/// The default suggested circuit builder using the Goldilocks field and the fast recursion config.
-pub struct CircuitBuilderX {}
+/// The universal api for building circuits using `plonky2x` with default parameters.
+pub struct DefaultBuilder {}
 
-impl CircuitBuilderX {
-    /// Creates a new builder.
+impl DefaultBuilder {
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> CircuitBuilder<DefaultParameters, 2> {
         CircuitBuilder::<DefaultParameters, 2>::new()
@@ -49,7 +50,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Creates a new builder.
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
-        let api = _CircuitBuilder::new(config);
+        let api = CircuitAPI::new(config);
         Self {
             api,
             io: CircuitIO::new(),
@@ -57,9 +58,28 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             beacon_client: None,
             execution_client: None,
             chain_id: None,
+            debug: false,
+            debug_variables: HashMap::new(),
             hints: Vec::new(),
             sha256_requests: Vec::new(),
             sha256_responses: Vec::new(),
+        }
+    }
+
+    pub fn set_debug(&mut self) {
+        self.debug = true;
+    }
+
+    pub fn debug_target(&mut self, target: Target) {
+        if !self.debug {
+            return;
+        }
+        match target {
+            Target::VirtualTarget { index } => {
+                let bt = Backtrace::new();
+                self.debug_variables.insert(index, format!("{:#?}", bt));
+            }
+            _ => panic!("Expected a virtual target"),
         }
     }
 
@@ -90,22 +110,50 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         for hint in hints {
             hint.register(&mut self);
         }
-        if self.io.evm.is_some() {
-            let io = self.io.evm.as_ref().unwrap();
-            let inputs: Vec<Target> = io.input_bytes.iter().flat_map(|b| b.targets()).collect();
-            let outputs: Vec<Target> = io.output_bytes.iter().flat_map(|b| b.targets()).collect();
-            self.register_public_inputs(inputs.as_slice());
-            self.register_public_inputs(outputs.as_slice());
-        } else if self.io.field.is_some() {
-            let io = self.io.field.as_ref().unwrap();
-            let inputs: Vec<Target> = io.input_variables.iter().map(|v| v.0).collect();
-            let outputs: Vec<Target> = io.output_variables.iter().map(|v| v.0).collect();
-            self.register_public_inputs(inputs.as_slice());
-            self.register_public_inputs(outputs.as_slice());
-        }
+        match self.io {
+            CircuitIO::Bytes(ref io) => {
+                let input = io
+                    .input
+                    .iter()
+                    .flat_map(|b| b.targets())
+                    .collect::<Vec<_>>();
+                let output = io
+                    .output
+                    .iter()
+                    .flat_map(|b| b.targets())
+                    .collect::<Vec<_>>();
+                self.register_public_inputs(input.as_slice());
+                self.register_public_inputs(output.as_slice());
+            }
+            CircuitIO::Elements(ref io) => {
+                let input = io
+                    .input
+                    .iter()
+                    .flat_map(|b| b.targets())
+                    .collect::<Vec<_>>();
+                let output = io
+                    .output
+                    .iter()
+                    .flat_map(|b| b.targets())
+                    .collect::<Vec<_>>();
+                self.register_public_inputs(input.as_slice());
+                self.register_public_inputs(output.as_slice());
+            }
+            CircuitIO::None() => {}
+            _ => panic!("unsupported io type"),
+        };
 
         let data = self.api.build();
         Circuit { data, io: self.io }
+    }
+
+    pub fn mock_build(self) -> MockCircuit<L, D> {
+        let mock_circuit = self.api.mock_build();
+        MockCircuit {
+            data: mock_circuit,
+            io: self.io,
+            debug_variables: self.debug_variables,
+        }
     }
 
     /// Add simple generator.
@@ -192,10 +240,19 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Fails if i1 != i2.
     pub fn assert_is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) {
-        assert_eq!(i1.targets().len(), i2.targets().len());
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
             self.api.connect(*t1, *t2);
         }
+    }
+
+    /// Returns 1 if i1 == i2 and 0 otherwise as a BoolVariable
+    pub fn is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) -> BoolVariable {
+        let mut result = self._true();
+        for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
+            let target_eq = BoolVariable(Variable(self.api.is_equal(*t1, *t2).target));
+            result = self.and(target_eq, result);
+        }
+        result
     }
 
     pub fn to_le_bits<V: EvmVariable>(&mut self, variable: V) -> Vec<BoolVariable> {
@@ -218,13 +275,13 @@ pub(crate) mod tests {
 
     use plonky2::field::types::Field;
 
-    use super::CircuitBuilderX;
+    use super::DefaultBuilder;
     use crate::prelude::*;
 
     #[test]
     fn test_simple_circuit_with_field_io() {
         // Define your circuit.
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         let a = builder.read::<Variable>();
         let b = builder.read::<Variable>();
         let c = builder.add(a, b);
@@ -252,7 +309,7 @@ pub(crate) mod tests {
     #[test]
     fn test_simple_circuit_with_evm_io() {
         // Define your circuit.
-        let mut builder = CircuitBuilderX::new();
+        let mut builder = DefaultBuilder::new();
         let a = builder.evm_read::<ByteVariable>();
         let b = builder.evm_read::<ByteVariable>();
         let c = builder.xor(a, b);

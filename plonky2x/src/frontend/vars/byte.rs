@@ -4,15 +4,16 @@ use array_macro::array;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
+use serde::{Deserialize, Serialize};
 
 use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
-use crate::backend::config::PlonkParameters;
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
 
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ByteVariable(pub [BoolVariable; 8]);
 
 impl CircuitVariable for ByteVariable {
@@ -94,6 +95,15 @@ impl ByteVariable {
         bits
     }
 
+    pub fn as_bool_targets(&self) -> [BoolTarget; 8] {
+        self.0
+            .iter()
+            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.0 .0))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
+    }
+
     pub fn to_nibbles<L: PlonkParameters<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<L, D>,
@@ -107,6 +117,24 @@ impl ByteVariable {
         right_nibble[4..].copy_from_slice(&bits[4..8]);
 
         [ByteVariable(left_nibble), ByteVariable(right_nibble)]
+    }
+}
+
+pub trait Nibbles<ByteVariable> {
+    fn to_nibbles<L: PlonkParameters<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Vec<ByteVariable>;
+}
+
+impl Nibbles<ByteVariable> for Vec<ByteVariable> {
+    fn to_nibbles<L: PlonkParameters<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Vec<ByteVariable> {
+        self.iter()
+            .flat_map(|b| b.to_nibbles(builder))
+            .collect::<Vec<ByteVariable>>()
     }
 }
 
@@ -209,22 +237,11 @@ impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for ByteVariable {
     }
 }
 
-impl ByteVariable {
-    pub fn as_bool_targets(&self) -> [BoolTarget; 8] {
-        self.0
-            .iter()
-            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.0 .0))
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
 
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
 
     type L = DefaultParameters;
