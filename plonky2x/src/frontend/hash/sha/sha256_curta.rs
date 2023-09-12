@@ -313,7 +313,7 @@ mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        // TODO: Add back once curta serializes as intended.
+        // TODO: Add back once curta serialization is implemented.
         // circuit.test_default_serializers();
     }
 
@@ -348,5 +348,7 @@ mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        // TODO: Add back once curta serialization is implemented.
+        // circuit.test_default_serializers();
     }
 }
