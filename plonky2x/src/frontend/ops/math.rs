@@ -137,3 +137,21 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         T::one(self)
     }
 }
+
+/// The less than operation.
+/// 
+/// Types implementing this trait can be used via the `builder.lt(lhs, rhs)` method.
+pub trait LessThan<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
+    type Output;
+
+    fn lt(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
+}
+
+/// The less than or equal to operation.
+/// 
+/// Types implementing this trait can be used via the `builder.lte(lhs, rhs)` method.
+pub trait LessThanOrEqual<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
+    type Output;
+
+    fn lte(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
+}
