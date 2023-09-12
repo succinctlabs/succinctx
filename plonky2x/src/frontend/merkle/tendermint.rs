@@ -12,7 +12,7 @@ use crate::prelude::{
 /// Merkle Tree implementation for the Tendermint spec (follows RFC-6962: https://tools.ietf.org/html/rfc6962).
 /// TODO: Add a generic interface for Merkle trees to implement.
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    fn get_root_from_merkle_proof<const PROOF_DEPTH: usize, const LEAF_SIZE_BYTES: usize>(
+    pub fn get_root_from_merkle_proof<const PROOF_DEPTH: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
         inclusion_proof: &MerkleInclusionProofVariable<PROOF_DEPTH, LEAF_SIZE_BYTES>,
     ) -> Bytes32Variable {
@@ -29,7 +29,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         hash_so_far
     }
 
-    fn leaf_hash(&mut self, leaf: &[ByteVariable]) -> Bytes32Variable {
+    pub fn leaf_hash(&mut self, leaf: &[ByteVariable]) -> Bytes32Variable {
         let zero_byte = ByteVariable::constant(self, 0u8);
 
         let mut encoded_leaf = vec![zero_byte];
@@ -43,7 +43,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.curta_sha256(&encoded_leaf)
     }
 
-    fn inner_hash(&mut self, left: &Bytes32Variable, right: &Bytes32Variable) -> Bytes32Variable {
+    pub fn inner_hash(
+        &mut self,
+        left: &Bytes32Variable,
+        right: &Bytes32Variable,
+    ) -> Bytes32Variable {
         // Calculate the length of the message for the inner hash.
         // 0x01 || left || right
         let one_byte = ByteVariable::constant(self, 1u8);
@@ -61,7 +65,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.curta_sha256(&encoded_leaf)
     }
 
-    fn hash_merkle_layer(
+    pub fn hash_merkle_layer(
         &mut self,
         merkle_hashes: Vec<Bytes32Variable>,
         merkle_hash_enabled: Vec<BoolVariable>,
@@ -93,7 +97,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         (new_merkle_hashes, new_merkle_hash_enabled)
     }
 
-    fn hash_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
+    pub fn hash_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
         leaves: &ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, NB_LEAVES>,
     ) -> ArrayVariable<Bytes32Variable, NB_LEAVES>
@@ -112,7 +116,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Fixed-size leaves, fixed number of leaves.
     /// TODO: Ideally, this function takes in NUM_LEAVES_ENABLED as a target, and sets the rest to disabled.
     /// Note: This function assumes the leaves are already hashed.
-    fn get_root_from_hashed_leaves<const NB_ENABLED_LEAVES: usize, const NB_LEAVES: usize>(
+    pub fn get_root_from_hashed_leaves<const NB_ENABLED_LEAVES: usize, const NB_LEAVES: usize>(
         &mut self,
         leaf_hashes: &ArrayVariable<Bytes32Variable, NB_ENABLED_LEAVES>,
     ) -> Bytes32Variable
@@ -151,7 +155,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     // TODO: Is there a clean way to compute NB_LEAVES from NB_ENABLED_LEAVES to avoid having to pass it in?
-    fn compute_root_from_leaves<
+    pub fn compute_root_from_leaves<
         const NB_ENABLED_LEAVES: usize,
         const NB_LEAVES: usize,
         const LEAF_SIZE_BYTES: usize,
