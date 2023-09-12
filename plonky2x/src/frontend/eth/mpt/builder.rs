@@ -96,17 +96,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         output
     }
 
-    pub fn sub_byte(&mut self, lhs: ByteVariable, rhs: ByteVariable) -> ByteVariable {
-        let generator: ByteSubGenerator<L, D> = ByteSubGenerator {
-            lhs,
-            rhs,
-            output: self.init::<ByteVariable>(),
-            _phantom: PhantomData,
-        };
-        self.add_simple_generator(generator.clone());
-        generator.output
-    }
-
     const PREFIX_EXTENSION_EVEN: u8 = 0;
     const PREFIX_EXTENSION_ODD: u8 = 1;
     const PREFIX_LEAF_EVEN: u8 = 2;
@@ -248,7 +237,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             finished = self.or(finished, m);
         }
 
-        let current_node_len = self.sub_byte(current_node_id[0], const_128);
+        let current_node_len = self.sub(current_node_id[0], const_128);
         let current_node_len_as_var = self.byte_to_variable(current_node_len);
         let lhs_offset = self.sub(const_32, current_node_len_as_var);
 
