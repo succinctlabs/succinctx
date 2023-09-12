@@ -1,5 +1,8 @@
 use std::marker::PhantomData;
 
+use plonky2::hash::poseidon::PoseidonHash;
+use plonky2::iop::challenger::RecursiveChallenger;
+
 use super::generators::SubarrayEqualGenerator;
 use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, PlonkParameters, Variable};
 
@@ -35,7 +38,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         b_offset: Variable,
         len: Variable,
     ) {
-        // TODO: implement
+        // TODO: instead of using the SubarrayEqualGenerator below that doesn't actually check anything, implement an RLC check here
         let generator: SubarrayEqualGenerator<L, D> = SubarrayEqualGenerator {
             a: a.to_vec(),
             a_offset,
@@ -45,6 +48,19 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             _phantom: PhantomData::<L>,
         };
         self.add_simple_generator(generator);
+
+        // The following methods might be helpful
+        let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
+        let challenger_seed = Vec::new(); // TODO: have to "seed" the challenger with some random inputs from the circuit
+        challenger.observe_elements(&challenger_seed);
+
+        let random_variables = challenger.get_n_challenges(&mut self.api, 1);
+        let random_variable = random_variables[0];
+
+        // To convert from a Target to a Variable, just use Variable(my_target) to get a Variable
+
+        // TODO: now compute a commitment to a[a_offset:a_offset+len]
+        // TODO: now compute a commitment to b[b_offset:b_offset+len]
     }
 }
 
