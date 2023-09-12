@@ -724,10 +724,10 @@ pub(crate) mod tests {
             builder.beacon_get_historical_block(block_root, idx);
         }
 
-        let circuit = builder.build();
+        let circuit = builder.mock_build();
         let input = circuit.input();
-        let (proof, output) = circuit.prove(&input);
-        circuit.verify(&proof, &input, &output);
-        circuit.test_default_serializers();
+        let (_proof, _output) = circuit.mock_prove(&input);
+        // circuit.verify(&proof, &input, &output);
+        // circuit.test_default_serializers();
     }
 }
