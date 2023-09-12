@@ -154,7 +154,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         current_nodes[0]
     }
 
-    // TODO: Is there a clean way to compute NB_LEAVES from NB_ENABLED_LEAVES to avoid having to pass it in?
+    // TODO: Compute NB_LEAVES from NB_ENABLED_LEAVES.
     pub fn compute_root_from_leaves<
         const NB_ENABLED_LEAVES: usize,
         const NB_LEAVES: usize,
