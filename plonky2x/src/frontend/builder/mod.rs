@@ -234,7 +234,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
     }
 
-    /// Returns 1 if i1 == i2 and 0 otherwise as a BoolVariable
+    /// Returns 1 if i1 == i2 and 0 otherwise as a BoolVariable.
     pub fn is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) -> BoolVariable {
         let mut result = self._true();
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
