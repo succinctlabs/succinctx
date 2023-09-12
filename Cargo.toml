@@ -10,8 +10,3 @@ incremental = true
 
 [profile.bench]
 opt-level = 3
-
-
-[patch.crates-io]
-plonky2x = { path = "plonky2x" }
-plonky2x-derive = { path = "plonky2x-derive" }
