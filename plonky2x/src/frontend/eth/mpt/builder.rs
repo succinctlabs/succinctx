@@ -55,8 +55,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         const NUM_LIMBS: usize = 64;
         // FIXME: overflow? potentially
         // might have to use a zipped iterator and compute lt
-        let max = self.constant(F::from_canonical_u64(1 << NUM_LIMBS));
-        let _one: Variable = self.constant(F::from_canonical_u64(1));
+        let max = self.constant(L::Field::from_canonical_u64(1 << NUM_LIMBS));
+        let _one: Variable = self.constant(L::Field::from_canonical_u64(1));
         // from circomlib: https://github.com/iden3/circomlib/blob/master/circuits/comparators.circom#L89
         let tmp = self.add(lhs, max);
         let res = self.sub(tmp, rhs);
@@ -82,7 +82,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.add_simple_generator(generator.clone());
         let output = generator.output;
 
-        let _two = self.constant::<Variable>(F::from_canonical_u8(2));
+        let _two = self.constant::<Variable>(L::Field::from_canonical_u8(2));
         let mut acc = self.zero::<Variable>();
         let mut pow = self.one::<Variable>();
         for i in 0..8 {
