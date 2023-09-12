@@ -17,14 +17,14 @@
 
 use std::env;
 
-use plonky2x::backend::circuit::{Circuit, PlonkParameters};
+use plonky2x::backend::circuit::{CircuitBuild, PlonkParameters};
 use plonky2x::backend::function::CircuitFunction;
 use plonky2x::prelude::{CircuitBuilder, Variable};
 
 struct Function {}
 
 impl CircuitFunction for Function {
-    fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D> {
+    fn build<L: PlonkParameters<D>, const D: usize>() -> CircuitBuild<L, D> {
         let mut builder = CircuitBuilder::<L, D>::new();
         let a = builder.read::<Variable>();
         let b = builder.read::<Variable>();

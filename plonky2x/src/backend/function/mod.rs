@@ -17,10 +17,10 @@ pub use result::{
 };
 
 use self::cli::{BuildArgs, ProveArgs};
-use super::circuit::{GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
-use crate::backend::circuit::{Circuit, DefaultParameters};
+use crate::backend::circuit::Circuit;
 use crate::backend::function::cli::{Args, Commands};
 
+struct VerifiableFunction<C: Circuit> {}
 /// Circuits that implement `CircuitFunction` have all necessary code for end-to-end deployment.
 ///
 /// Conforming to this trait enables remote machines can generate proofs for you. In particular,
@@ -30,33 +30,14 @@ use crate::backend::function::cli::{Args, Commands};
 /// using custom gates or custom witness generators.
 ///
 /// Look at the `plonky2x/examples` for examples of how to use this trait.
-pub trait CircuitFunction {
-    /// Builds the circuit.
-    fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D>;
-
-    /// Generates the witness registry.
-    fn generators<L: PlonkParameters<D>, const D: usize>() -> WitnessGeneratorRegistry<L, D>
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
-        WitnessGeneratorRegistry::<L, D>::new()
-    }
-
-    /// Geneates the gate registry.
-    fn gates<L: PlonkParameters<D>, const D: usize>() -> GateRegistry<L, D>
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
-        GateRegistry::<L, D>::new()
-    }
-
+impl<C: Circuit> VerifiableFunction<C> {
     /// Builds the circuit and saves it to disk.
     fn compile<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         info!("Building circuit...");
-        let circuit = Self::build::<L, D>();
+        let circuit = C::define::<L, D>();
         info!("Successfully built circuit.");
         info!("> Circuit: {}", circuit.id());
         info!("> Degree: {}", circuit.data.common.degree());
@@ -101,7 +82,7 @@ contract FunctionVerifier is IFunctionVerifier {
         info!("Loading circuit from {}...", path);
         let gates = Self::gates::<L, D>();
         let generators = Self::generators::<L, D>();
-        let circuit = Circuit::<L, D>::load(&path, &gates, &generators).unwrap();
+        let circuit = CircuitBuild::<L, D>::load(&path, &gates, &generators).unwrap();
         info!("Successfully loaded circuit.");
 
         let input = request.input();
@@ -116,7 +97,7 @@ contract FunctionVerifier is IFunctionVerifier {
     }
 
     /// The entry point for the function when using the CLI.
-    fn cli() {
+    fn entrypoint() {
         type L = DefaultParameters;
         const D: usize = 2;
 

@@ -17,7 +17,7 @@
 
 use std::env;
 
-use plonky2x::backend::circuit::{Circuit, PlonkParameters};
+use plonky2x::backend::circuit::{CircuitBuild, PlonkParameters};
 use plonky2x::backend::function::CircuitFunction;
 use plonky2x::frontend::vars::ByteVariable;
 use plonky2x::prelude::CircuitBuilder;
@@ -25,7 +25,7 @@ use plonky2x::prelude::CircuitBuilder;
 struct Function {}
 
 impl CircuitFunction for Function {
-    fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D> {
+    fn build<L: PlonkParameters<D>, const D: usize>() -> CircuitBuild<L, D> {
         let mut builder = CircuitBuilder::<L, D>::new();
         let a = builder.evm_read::<ByteVariable>();
         let b = builder.evm_read::<ByteVariable>();
