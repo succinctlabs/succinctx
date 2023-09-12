@@ -9,7 +9,7 @@ use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, BytesVariable, CircuitBuilder, CircuitVariable,
 };
 
-/// Merkle Tree implementation for the Tendermint spec (follows RFC-6962: https://tools.ietf.org/html/rfc6962).
+/// Merkle Tree implementation for the Tendermint spec (follows Comet BFT Simple Merkle Tree spec: https://docs.cometbft.com/main/spec/core/encoding#merkle-trees).
 /// TODO: Add a generic interface for Merkle trees to implement.
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn get_root_from_merkle_proof<const PROOF_DEPTH: usize, const LEAF_SIZE_BYTES: usize>(
