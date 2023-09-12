@@ -4,6 +4,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use super::tree::MerkleInclusionProofVariable;
 use crate::backend::circuit::PlonkParameters;
+use crate::frontend::uint::uint32::U32Variable;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, BytesVariable, CircuitBuilder, CircuitVariable,
@@ -41,6 +42,27 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         // Use curta gadget to generate SHA's.
         // Note: This can be removed when sha256 interface is fixed.
         self.curta_sha256(&encoded_leaf)
+    }
+
+    /// input_byte_length: The length of the subarray of leaf to hash.
+    /// leaf should be of length MAX_NB_CHUNKS * 64.
+    fn leaf_hash_variable<const MAX_NB_CHUNKS: usize>(
+        &mut self,
+        leaf: &[ByteVariable],
+        input_byte_length: U32Variable,
+        last_chunk: U32Variable,
+    ) -> Bytes32Variable {
+        let zero_byte = ByteVariable::constant(self, 0u8);
+
+        let mut encoded_leaf = vec![zero_byte];
+
+        // Append the leaf bytes to the zero byte.
+        encoded_leaf.extend(leaf.to_vec());
+
+        // Load the output of the hash.
+        // Use curta gadget to generate SHA's.
+        // Note: This can be removed when sha256 interface is fixed.
+        self.curta_sha256_variable::<MAX_NB_CHUNKS>(&encoded_leaf, input_byte_length, last_chunk)
     }
 
     fn inner_hash(&mut self, left: &Bytes32Variable, right: &Bytes32Variable) -> Bytes32Variable {
@@ -109,8 +131,37 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         )
     }
 
+    fn hash_leaves_variable<
+        const NB_LEAVES: usize,
+        const LEAF_SIZE_BYTES: usize,
+        const MAX_NB_CHUNKS: usize,
+    >(
+        &mut self,
+        leaves: &ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, NB_LEAVES>,
+        input_byte_lengths: &ArrayVariable<U32Variable, NB_LEAVES>,
+        last_chunks: &ArrayVariable<U32Variable, NB_LEAVES>,
+    ) -> ArrayVariable<Bytes32Variable, NB_LEAVES>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        ArrayVariable::<Bytes32Variable, NB_LEAVES>::new(
+            leaves
+                .as_vec()
+                .iter()
+                .enumerate()
+                .map(|(i, leaf)| {
+                    self.leaf_hash_variable::<MAX_NB_CHUNKS>(
+                        &leaf.0,
+                        input_byte_lengths[i],
+                        last_chunks[i],
+                    )
+                })
+                .collect_vec(),
+        )
+    }
+
     /// Fixed-size leaves, fixed number of leaves.
-    /// TODO: Ideally, this function takes in NUM_LEAVES_ENABLED as a target, and sets the rest to disabled.
+    /// TODO: Ideally, this function takes in NB_LEAVES_ENABLED as a target, and sets the rest to disabled.
     /// Note: This function assumes the leaves are already hashed.
     fn get_root_from_hashed_leaves<const NB_ENABLED_LEAVES: usize, const NB_LEAVES: usize>(
         &mut self,
@@ -150,6 +201,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         current_nodes[0]
     }
 
+    /// Fixed-size leaves, fixed number of leaves.
     // TODO: Is there a clean way to compute NB_LEAVES from NB_ENABLED_LEAVES to avoid having to pass it in?
     fn compute_root_from_leaves<
         const NB_ENABLED_LEAVES: usize,
@@ -177,6 +229,7 @@ mod tests {
 
     use crate::backend::circuit::DefaultParameters;
     use crate::frontend::merkle::tree::{InclusionProof, MerkleInclusionProofVariable};
+    use crate::frontend::uint::uint32::U32Variable;
     use crate::prelude::*;
 
     type L = DefaultParameters;
@@ -204,6 +257,55 @@ mod tests {
             "0xde8624485c0a1b8f9ecc858312916104cc3ee3ed601e405c11eaf9c5cbe05117"
         ));
         builder.assert_is_equal(root, expected_root);
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        // circuit.verify(&proof, &input, &output);
+        // circuit.test_default_serializers();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_root_from_leaves_variable() {
+        env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        const NB_LEAVES: usize = 2;
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+
+        let leaves = builder.constant::<ArrayVariable<BytesVariable<63>, NB_LEAVES>>(
+            [[0u8; 63]; NB_LEAVES].to_vec(),
+        );
+
+        let input_byte_lengths =
+            builder.constant::<ArrayVariable<U32Variable, NB_LEAVES>>(vec![48u32; NB_LEAVES]);
+        builder.watch(&input_byte_lengths, "input_byte_lengths");
+        let last_chunks =
+            builder.constant::<ArrayVariable<U32Variable, NB_LEAVES>>(vec![0u32; NB_LEAVES]);
+        builder.watch(&last_chunks, "last chunks");
+
+        const MAX_NB_CHUNKS: usize = 1;
+
+        let hashed_leaves = builder.hash_leaves_variable::<NB_LEAVES, 63, MAX_NB_CHUNKS>(
+            &leaves,
+            &input_byte_lengths,
+            &last_chunks,
+        );
+        // builder.watch(&hashed_leaves, "hashed_leaves");
+
+        let root = builder.get_root_from_hashed_leaves::<NB_LEAVES, NB_LEAVES>(&hashed_leaves);
+
+        builder.watch(&root, "root");
+        builder.curta_constrain_sha256();
+
+        // let expected_root = builder.constant::<Bytes32Variable>(bytes32!(
+        //     "0xde8624485c0a1b8f9ecc858312916104cc3ee3ed601e405c11eaf9c5cbe05117"
+        // ));
+        // builder.assert_is_equal(root, expected_root);
 
         let circuit = builder.build();
         let input = circuit.input();

@@ -158,8 +158,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn curta_sha256_variable<const MAX_NUM_CHUNKS: usize>(
         &mut self,
         input: &[ByteVariable],
-        last_chunk: U32Variable,
         input_byte_length: U32Variable,
+        last_chunk: U32Variable,
     ) -> Bytes32Variable {
         // TODO: Currently, Curta does not support no-ops over SHA chunks. Until Curta SHA-256 supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
         let expected_last_chunk = self.constant::<U32Variable>((MAX_NUM_CHUNKS - 1) as u32);
@@ -330,7 +330,7 @@ mod tests {
 
         let last_chunk = builder.constant::<U32Variable>(0);
 
-        let msg_hash = builder.curta_sha256_variable::<1>(&msg.0, last_chunk, bytes_length);
+        let msg_hash = builder.curta_sha256_variable::<1>(&msg.0, bytes_length, last_chunk);
         builder.watch(&msg_hash, "msg_hash");
 
         builder.assert_is_equal(msg_hash, expected_digest);
