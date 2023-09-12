@@ -180,6 +180,7 @@ mod tests {
     use crate::prelude::*;
 
     type L = DefaultParameters;
+    type F = <L as PlonkParameters<D>>::Field;
     const D: usize = 2;
 
     #[test]
@@ -230,10 +231,10 @@ mod tests {
             "0611fc80429feb4b56817f4070d289650ac0a8eaaa8975c8cc72b73e96376bff",
         ];
 
-        let inclusion_proof: InclusionProof = InclusionProof {
-            leaf: leaves[0].to_vec(),
-            path: vec![false; 4],
-            proof: aunts
+        let inclusion_proof: InclusionProof<4, 48, F> = InclusionProof {
+            leaf: leaves[0],
+            path_indices: vec![false; 4],
+            aunts: aunts
                 .iter()
                 .map(|aunt| H256::from_slice(hex::decode(aunt).unwrap().as_slice()))
                 .collect_vec(),
