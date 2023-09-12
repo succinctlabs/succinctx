@@ -238,7 +238,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     nb_chunks += 1;
                 }
             }
-            nb_chunks += curr_rq;
+            nb_chunks += curr_rq_nb_chunks;
             curr_rq += 1;
         }
 
@@ -288,7 +288,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 #[cfg(test)]
 mod tests {
 
-    use crate::backend::config::DefaultParameters;
+    use crate::backend::circuit::DefaultParameters;
     use crate::frontend::uint::uint32::U32Variable;
     use crate::frontend::vars::Bytes32Variable;
     use crate::prelude::{ByteVariable, BytesVariable, CircuitBuilder};
