@@ -10,7 +10,7 @@ use crate::prelude::{
 };
 
 /// Merkle Tree implementation for the Tendermint spec (follows Comet BFT Simple Merkle Tree spec: https://docs.cometbft.com/main/spec/core/encoding#merkle-trees).
-/// TODO: Add a generic interface for Merkle trees to implement.
+/// TODO: Create generic interface for Merkle trees to implement.
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn get_root_from_merkle_proof<const PROOF_DEPTH: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
