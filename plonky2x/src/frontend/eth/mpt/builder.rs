@@ -51,7 +51,26 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             _phantom: PhantomData,
         };
         self.add_simple_generator(generator.clone());
-        generator.output
+
+        const NUM_LIMBS: usize = 64;
+        // FIXME: overflow? potentially
+        // might have to use a zipped iterator and compute lt
+        let max = self.constant(F::from_canonical_u64(1 << NUM_LIMBS));
+        let _one: Variable = self.constant(F::from_canonical_u64(1));
+        // from circomlib: https://github.com/iden3/circomlib/blob/master/circuits/comparators.circom#L89
+        let tmp = self.add(lhs, max);
+        let res = self.sub(tmp, rhs);
+        // typically stored in BE, but we can just index instead of reversing
+        let res_bits = self.api.split_le(res.0, NUM_LIMBS);
+        let last_bit = Variable::from(res_bits[NUM_LIMBS - 1].target);
+        let lt_var = self.sub(_one, last_bit);
+        let lt = BoolVariable::from(lt_var);
+        let eq = self.is_equal(lhs, rhs);
+        let lte = self.or(lt, eq);
+
+        let output = generator.output;
+        self.assert_is_equal(lte, output);
+        output
     }
 
     pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
@@ -61,7 +80,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             _phantom: PhantomData,
         };
         self.add_simple_generator(generator.clone());
-        generator.output
+        let output = generator.output;
+
+        let _two = self.constant::<Variable>(F::from_canonical_u8(2));
+        let mut acc = self.zero::<Variable>();
+        let mut pow = self.one::<Variable>();
+        for i in 0..8 {
+            let curr = lhs.0[i].0;
+            let tmp = self.mul(acc, pow);
+            acc = self.add(tmp, curr);
+            pow = self.mul(pow, _two);
+        }
+        self.assert_is_equal(output, acc);
+
+        output
     }
 
     pub fn sub_byte(&mut self, lhs: ByteVariable, rhs: ByteVariable) -> ByteVariable {
