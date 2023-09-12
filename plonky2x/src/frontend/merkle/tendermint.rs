@@ -113,9 +113,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         )
     }
 
-    /// Fixed-size leaves, fixed number of leaves.
-    /// TODO: Ideally, this function takes in NUM_LEAVES_ENABLED as a target, and sets the rest to disabled.
-    /// Note: This function assumes the leaves are already hashed.
+    /// TODO: NUM_LEAVES_ENABLED can be a target if necessary.
     pub fn get_root_from_hashed_leaves<const NB_ENABLED_LEAVES: usize, const NB_LEAVES: usize>(
         &mut self,
         leaf_hashes: &ArrayVariable<Bytes32Variable, NB_ENABLED_LEAVES>,
