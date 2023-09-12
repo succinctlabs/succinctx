@@ -45,10 +45,10 @@ pub fn sha256_pad<L: PlonkParameters<D>, const D: usize>(
 }
 
 /// Pad the given variable length input according to the SHA-256 spec.
-/// MAX_NUM_CHUNKS is the maximum number of output chunks that this function will pad.
 pub fn sha256_pad_variable_length<
     L: PlonkParameters<D>,
     const D: usize,
+    // Maximum number of output chunks that this function will pad.
     const MAX_NUM_CHUNKS: usize,
 >(
     builder: &mut CircuitBuilder<L, D>,
