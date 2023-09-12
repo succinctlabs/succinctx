@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
@@ -8,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use super::CircuitVariable;
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
+use crate::frontend::ops::{Add, Div, LessThan, LessThanOrEqual, Mul, Neg, One, Sub, Zero};
+use crate::frontend::vars::BoolVariable;
 
 /// A variable in the circuit. It represents a value between `[0, 2**64 - 2**32 + 1)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -105,5 +107,34 @@ impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for Variable {
 impl<L: PlonkParameters<D>, const D: usize> One<L, D> for Variable {
     fn one(builder: &mut CircuitBuilder<L, D>) -> Self {
         Variable(builder.api.one())
+    }
+}
+
+impl<L: PlonkParameters<D>, const D: usize> LessThan<L, D> for Variable {
+    type Output = BoolVariable;
+
+    fn lt(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        // FIXME: Check for overflows and edge cases
+        const NUM_LIMBS: usize = 64;
+        let max = builder.constant(L::Field::from_canonical_u64(1 << (NUM_LIMBS - 1)));
+        let _one: Variable = builder.constant(L::Field::from_canonical_u64(1));
+        // from circomlib: https://github.com/iden3/circomlib/blob/master/circuits/comparators.circom#L89
+        let tmp = builder.add(self, max);
+        let res = builder.sub(tmp, rhs);
+        // typically stored in BE, but we can just index instead of reversing
+        let res_bits = builder.api.split_le(res.0, NUM_LIMBS);
+        let last_bit = Variable::from(res_bits[NUM_LIMBS - 1].target);
+        let lt_var = builder.sub(_one, last_bit);
+        BoolVariable::from(lt_var)
+    }
+}
+
+impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
+    type Output = BoolVariable;
+
+    fn lte(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        let lt = self.lt(rhs, builder);
+        let eq = builder.is_equal(self, rhs);
+        builder.or(lt, eq)
     }
 }
