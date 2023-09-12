@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero};
+use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not, RotateLeft, RotateRight, Shl, Shr, Zero, Add};
 
 /// A variable in the circuit representing a byte value. Under the hood, it is represented as
 /// eight bits stored in big endian.
@@ -234,6 +234,23 @@ impl<L: PlonkParameters<D>, const D: usize> RotateRight<L, D, usize> for ByteVar
 impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for ByteVariable {
     fn zero(builder: &mut CircuitBuilder<L, D>) -> Self {
         ByteVariable(array![_ => builder.constant(false); 8])
+    }
+}
+
+impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for ByteVariable {
+    type Output = Self;
+
+    fn add(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        let mut bits = array![_ => builder.init::<BoolVariable>(); 8];
+        let mut carry = builder.constant(false);
+        for i in 0..8 {
+            let l_xor_r = builder.xor(self.0[i], rhs.0[i]);
+            let l_and_r = builder.and(self.0[i], rhs.0[i]);
+            let carry_tmp = builder.and(l_xor_r, carry);
+            bits[i] = builder.xor(l_xor_r, carry);
+            carry = builder.or(carry_tmp, l_and_r);
+        }
+        ByteVariable(bits)
     }
 }
 
