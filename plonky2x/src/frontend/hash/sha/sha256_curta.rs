@@ -52,12 +52,26 @@ pub fn sha256_pad_variable_length<
     const MAX_NUM_CHUNKS: usize,
 >(
     builder: &mut CircuitBuilder<L, D>,
-    // input should be of length MAX_NUM_CHUNKS * 64 - 9
+    // Input should be length MAX_NUM_CHUNKS * 64.
     input: &[ByteVariable],
     last_chunk: U32Variable,
+    // Input byte length should be at most MAX_NUM_CHUNKS * 64 - 9.
     input_byte_length: U32Variable,
 ) -> Vec<ByteVariable> {
-    // TODO: Should be ArrayVariable<ByteVariable, MAX_NUM_CHUNKS * 64>
+    // Compute the length bytes (big-endian representation of the length in bits).
+    let bits_per_byte = builder.constant::<U32Variable>(8);
+    let input_bit_length = builder.mul(input_byte_length, bits_per_byte);
+    let mut length_bits = builder.api.split_le(input_bit_length.0 .0, 64);
+    length_bits.reverse();
+    let length_bytes = length_bits
+        .chunks(8)
+        .map(|chunk| {
+            let targets = chunk.iter().map(|b| b.target).collect_vec();
+            ByteVariable::from_targets(&targets)
+        })
+        .collect_vec();
+
+    // TODO: Use fixed size array instead of Vec. (MAX_NUM_CHUNKS * 64)
     let mut padded_bytes = Vec::new();
 
     let mut message_byte_selector = builder.constant::<BoolVariable>(true);
@@ -65,49 +79,30 @@ pub fn sha256_pad_variable_length<
         let chunk_offset = 64 * i;
         let curr_chunk = builder.constant::<U32Variable>(i as u32);
 
-        let add_length_selector = builder.is_equal(curr_chunk, last_chunk);
-
-        // Convert length_bytes into u64
-        let bits_per_byte = builder.constant::<U32Variable>(8);
-        let input_bit_length = builder.mul(input_byte_length, bits_per_byte);
-        let mut length_bits = builder.api.split_le(input_bit_length.0 .0, 64);
-        length_bits.reverse();
-        // Convert length_bits into [ByteVariable; 8]
-        let length_bytes = length_bits
-            .chunks(8)
-            .map(|chunk| {
-                let targets = chunk.iter().map(|b| b.target).collect_vec();
-                ByteVariable::from_targets(&targets)
-            })
-            .collect_vec();
+        let is_last_chunk = builder.is_equal(curr_chunk, last_chunk);
 
         for j in 0..64 {
             let idx = chunk_offset + j;
             let idx_t = builder.constant::<U32Variable>(idx as u32);
-            let idx_length_eq = builder.is_equal(idx_t, input_byte_length);
-            // builder.watch(&idx_t, "idx");
-            // builder.watch(&idx_length_eq, "idx_length_eq");
+            let is_last_msg_byte = builder.is_equal(idx_t, input_byte_length);
+            let not_last_msg_byte = builder.not(is_last_msg_byte);
 
-            let not_idx_length_eq = builder.not(idx_length_eq);
             message_byte_selector = builder.select(
                 message_byte_selector,
-                not_idx_length_eq,
+                not_last_msg_byte,
                 message_byte_selector,
             );
-            // If idx == length_bytes, then we want to select the length byte.
+
             let padding_start_byte = builder.constant::<ByteVariable>(0x80);
             let zero_byte = builder.constant::<ByteVariable>(0x00);
 
+            // If message_byte_selector is true, select the message byte.
             let mut byte = builder.select(message_byte_selector, input[idx], zero_byte);
-
-            // If message_byte_selector is true, then we want to select the message byte.
-            // If neither, then we want to select 0 byte.
-            byte = builder.select(idx_length_eq, padding_start_byte, byte);
-
+            // If idx == length_bytes, select the padding start byte.
+            byte = builder.select(is_last_msg_byte, padding_start_byte, byte);
             if j >= 64 - 8 {
-                builder.watch(&length_bytes[j % 8], "length_byte");
-                // If add_length_selector is true, then we want to select the length byte.
-                byte = builder.select(add_length_selector, length_bytes[j % 8], byte);
+                // If in last chunk, select the length byte.
+                byte = builder.select(is_last_chunk, length_bytes[j % 8], byte);
             }
 
             padded_bytes.push(byte);
@@ -117,7 +112,6 @@ pub fn sha256_pad_variable_length<
     padded_bytes
 }
 
-/// Convert an array of ByteVariable to a Vec<Target>.
 pub fn bytes_to_target<L: PlonkParameters<D>, const D: usize>(
     builder: &mut CircuitBuilder<L, D>,
     input: &[ByteVariable],
@@ -139,7 +133,7 @@ pub fn bytes_to_target<L: PlonkParameters<D>, const D: usize>(
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Executes a SHA256 hash on the given input.
-    /// input should be of length MAX_NUM_CHUNKS * 64.
+    /// input should be length MAX_NUM_CHUNKS * 64.
     /// input_byte_length should be at most MAX_NUM_CHUNKS * 64 - 9.
     pub fn sha256_curta_variable<const MAX_NUM_CHUNKS: usize>(
         &mut self,
@@ -147,9 +141,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         last_chunk: U32Variable,
         input_byte_length: U32Variable,
     ) -> Bytes32Variable {
+        // TODO: Currently, Curta does not support no-ops over SHA chunks. Until Curta SHA-256 supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
         let expected_last_chunk = self.constant::<U32Variable>((MAX_NUM_CHUNKS - 1) as u32);
-        // TODO: Currently, Curta does not support no-ops over SHA chunks.
-        // Until Curta SHA-256 has no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
         self.assert_is_equal(expected_last_chunk, last_chunk);
 
         let padded_input = sha256_pad_variable_length::<L, D, MAX_NUM_CHUNKS>(
@@ -212,45 +205,50 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         let mut nb_chunks = 0;
-        let mut rq_idx = 0;
-        let mut array_end_idx = self.sha256_requests.len();
+        let mut curr_rq = 0;
+        let mut num_rqs = self.sha256_requests.len();
 
         let zero = self.constant::<ByteVariable>(0u8);
         let zero_chunk = [zero; 1];
 
-        while rq_idx < array_end_idx {
-            let nb_chunks_in_rq = self.sha256_requests[rq_idx].len() / 64;
+        // If a request crosses over the 1024-chunk boundary from Curta, insert dummy chunks.
+        // This is because Curta does not support requests split over multiple gadgets.
 
-            let temp_nb_chunks = nb_chunks + nb_chunks_in_rq;
+        // Loop over all requests (including dummy requests).
+        while curr_rq < num_rqs {
+            let curr_rq_nb_chunks = self.sha256_requests[curr_rq].len() / 64;
 
-            // If temp_nb_chunks / 1024 != nb_chunks / 1024 & temp_nb_chunks % 1024 != 0 we need to zero pad
+            let temp_nb_chunks = nb_chunks + curr_rq_nb_chunks;
+
+            // If curr_rq crosses over the 1024-chunk boundary, insert dummy chunks.
             if (temp_nb_chunks / 1024 != nb_chunks / 1024) && temp_nb_chunks % 1024 != 0 {
                 while nb_chunks % 1024 != 0 {
-                    // We want to insert a 0 chunk in here!
                     let padded_input = sha256_pad(self, &zero_chunk);
                     let bytes = bytes_to_target(self, &padded_input);
 
-                    self.sha256_requests.insert(rq_idx, bytes);
-
+                    // Insert a dummy request and response.
+                    self.sha256_requests.insert(curr_rq, bytes);
                     let digest = self.api.add_virtual_target_arr::<32>();
-                    self.sha256_responses.insert(rq_idx, digest);
+                    self.sha256_responses.insert(curr_rq, digest);
 
-                    // Increment request index because we've inserted, and also increment the end index
-                    rq_idx += 1;
-                    array_end_idx += 1;
+                    // Increment the number of requests and chunks accordingly.
+                    curr_rq += 1;
+                    num_rqs += 1;
 
                     nb_chunks += 1;
                 }
             }
-            nb_chunks += nb_chunks_in_rq;
-            rq_idx += 1;
+            nb_chunks += curr_rq;
+            curr_rq += 1;
         }
 
+        // If the number of chunks is not a multiple of 1024, pad the gadget with dummy chunks.
         while nb_chunks % 1024 != 0 {
             self.sha256_curta(&zero_chunk);
             nb_chunks += 1;
         }
 
+        // Allocate Curta SHA-256 gadgets according to the number of chunks across all requests.
         let gadgets: Vec<SHA256BuilderGadget<<L as PlonkParameters<D>>::Field, L::CubicParams, D>> =
             (0..nb_chunks / 1024)
                 .map(|_| self.api.init_sha256())
@@ -260,8 +258,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         for i in 0..gadgets.len() {
             let mut gadget = gadgets[i].to_owned();
 
+            // Fill the gadget with 1024 padded chunks.
             let mut num_chunks_so_far = 0;
-
             while num_chunks_so_far < 1024 {
                 gadget
                     .padded_messages
