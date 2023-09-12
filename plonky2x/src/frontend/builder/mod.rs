@@ -17,7 +17,7 @@ use tokio::runtime::Runtime;
 pub use self::io::CircuitIO;
 use super::generator::general::HintRef;
 use super::vars::EvmVariable;
-use crate::backend::circuit::{Circuit, DefaultParameters, MockCircuit, PlonkParameters};
+use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
 
@@ -105,7 +105,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Build the circuit.
-    pub fn build(mut self) -> Circuit<L, D> {
+    pub fn build(mut self) -> CircuitBuild<L, D> {
         let hints = self.hints.drain(..).collect::<Vec<_>>();
         for hint in hints {
             hint.register(&mut self);
@@ -144,12 +144,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         };
 
         let data = self.api.build();
-        Circuit { data, io: self.io }
+        CircuitBuild { data, io: self.io }
     }
 
-    pub fn mock_build(self) -> MockCircuit<L, D> {
+    pub fn mock_build(self) -> MockCircuitBuild<L, D> {
         let mock_circuit = self.api.mock_build();
-        MockCircuit {
+        MockCircuitBuild {
             data: mock_circuit,
             io: self.io,
             debug_variables: self.debug_variables,
