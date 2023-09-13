@@ -1,11 +1,8 @@
-use std::marker::PhantomData;
-
 use curta::math::field::Field;
 
-use super::generators::*;
 use crate::frontend::vars::Nibbles;
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, PlonkParameters,
+    ArrayVariable, ByteVariable, Bytes32Variable, CircuitBuilder, PlonkParameters,
     Variable,
 };
 
@@ -43,36 +40,6 @@ pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usi
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn le(&mut self, lhs: Variable, rhs: Variable) -> BoolVariable {
-        let generator: LeGenerator<L, D> = LeGenerator {
-            lhs,
-            rhs,
-            output: self.init::<BoolVariable>(),
-            _phantom: PhantomData,
-        };
-        self.add_simple_generator(generator.clone());
-
-        const NUM_LIMBS: usize = 64;
-        // FIXME: overflow? potentially
-        // might have to use a zipped iterator and compute lt
-        let max = self.constant(L::Field::from_canonical_u64(1 << (NUM_LIMBS - 1)));
-        let _one: Variable = self.constant(L::Field::from_canonical_u64(1));
-        // from circomlib: https://github.com/iden3/circomlib/blob/master/circuits/comparators.circom#L89
-        let tmp = self.add(lhs, max);
-        let res = self.sub(tmp, rhs);
-        // typically stored in BE, but we can just index instead of reversing
-        let res_bits = self.api.split_le(res.0, NUM_LIMBS);
-        let last_bit = Variable::from(res_bits[NUM_LIMBS - 1].target);
-        let lt_var = self.sub(_one, last_bit);
-        let lt = BoolVariable::from(lt_var);
-        let eq = self.is_equal(lhs, rhs);
-        let lte = self.or(lt, eq);
-
-        let output = generator.output;
-        self.assert_is_equal(lte, output);
-        output
-    }
-
     const PREFIX_EXTENSION_EVEN: u8 = 0;
     const PREFIX_EXTENSION_ODD: u8 = 1;
     const PREFIX_LEAF_EVEN: u8 = 2;
@@ -135,7 +102,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     current_node_hash,
                     current_node_id.as_slice()[0..32].into(),
                 );
-                let node_len_le_32 = self.le(len_nodes[i], const_32);
+                let node_len_le_32 = self.lte(len_nodes[i], const_32);
                 let case_len_le_32 = self.and(node_len_le_32, first_32_bytes_eq);
                 let inter = self.not(node_len_le_32);
                 let case_len_gt_32 = self.and(inter, hash_eq);

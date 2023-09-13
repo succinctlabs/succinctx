@@ -138,3 +138,21 @@ impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
         builder.or(lt, eq)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::backend::circuit::DefaultParameters;
+    use crate::prelude::*;
+
+    type L = DefaultParameters;
+    const D: usize = 2;
+
+    #[test]
+    fn test_lt() {
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let lhs = builder.read::<Variable>();
+        let rhs = builder.read::<Variable>();
+        let less_than = builder.lt(lhs, rhs);
+        builder.write(less_than);
+    }
+}

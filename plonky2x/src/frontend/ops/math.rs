@@ -147,6 +147,15 @@ pub trait LessThan<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
     fn lt(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
 }
 
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn lt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as LessThan<L, D, Rhs>>::Output
+    where
+        Lhs: LessThan<L, D, Rhs>,
+    {
+        lhs.lt(rhs, self)
+    }
+}
+
 /// The less than or equal to operation.
 /// 
 /// Types implementing this trait can be used via the `builder.lte(lhs, rhs)` method.
@@ -154,4 +163,13 @@ pub trait LessThanOrEqual<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
     type Output;
 
     fn lte(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
+}
+
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn lte<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as LessThanOrEqual<L, D, Rhs>>::Output
+    where
+        Lhs: LessThanOrEqual<L, D, Rhs>,
+    {
+        lhs.lte(rhs, self)
+    }
 }
