@@ -200,7 +200,6 @@ mod tests {
         let root = builder.compute_root_from_leaves::<32, 32, 48>(&array);
 
         builder.watch(&root, "root");
-        builder.curta_constrain_sha256();
 
         let expected_root = builder.constant::<Bytes32Variable>(bytes32!(
             "0xde8624485c0a1b8f9ecc858312916104cc3ee3ed601e405c11eaf9c5cbe05117"
@@ -248,7 +247,6 @@ mod tests {
         let root = builder.get_root_from_merkle_proof(&proof_variable);
 
         builder.watch(&root, "root");
-        builder.curta_constrain_sha256();
 
         let expected_root = builder.constant::<Bytes32Variable>(bytes32!(
             "50d7ed02b144a75487702c9f5faaea07bb9a7385e1521e80f6080399fb9a0ffd"

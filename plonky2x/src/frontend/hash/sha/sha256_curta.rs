@@ -280,6 +280,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
 
     use crate::backend::circuit::DefaultParameters;
     use crate::frontend::uint::uint32::U32Variable;
@@ -293,6 +294,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_curta() {
+        env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
@@ -300,7 +302,12 @@ mod tests {
         let zero = builder.constant::<ByteVariable>(0u8);
         let result = builder.curta_sha256(&[zero; 1]);
         builder.watch(&result, "result");
-        builder.curta_constrain_sha256();
+
+        let expected_digest =
+            bytes32!("0x6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d");
+        let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
+
+        builder.assert_is_equal(result, expected_digest);
 
         let circuit = builder.build();
         let input = circuit.input();
@@ -313,6 +320,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_curta_variable_single() {
+        env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
@@ -334,8 +342,6 @@ mod tests {
         builder.watch(&msg_hash, "msg_hash");
 
         builder.assert_is_equal(msg_hash, expected_digest);
-
-        builder.curta_constrain_sha256();
 
         let circuit = builder.build();
         let input = circuit.input();
