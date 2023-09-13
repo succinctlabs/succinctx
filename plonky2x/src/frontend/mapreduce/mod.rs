@@ -2,28 +2,62 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 
 use itertools::Itertools;
-use log::debug;
+use plonky2::field::types::Field;
+use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hashing::{hash_n_to_hash_no_pad, PlonkyPermutation};
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartitionWitness, WitnessWrite};
+use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use plonky2x_derive::CircuitVariable;
 use tokio::runtime::Runtime;
 
+use super::hash::poseidon::poseidon256::{PoseidonHashOutVariable, PoseidonHashOutVariableValue};
 use crate::backend::circuit::Circuit;
 use crate::backend::prover::{EnvProver, Prover};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::CircuitVariable;
-use crate::prelude::{GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
+use crate::prelude::{GateRegistry, PlonkParameters, Variable, WitnessGeneratorRegistry};
+
+trait ProofWithPublicInputsTargetUtils {
+    fn read_start_from_pis<V: CircuitVariable>(&self) -> V;
+    fn read_end_from_pis<V: CircuitVariable>(&self) -> V;
+}
+
+impl<const D: usize> ProofWithPublicInputsTargetUtils for ProofWithPublicInputsTarget<D> {
+    fn read_start_from_pis<V: CircuitVariable>(&self) -> V {
+        V::from_targets(&self.public_inputs[..V::nb_elements()])
+    }
+
+    fn read_end_from_pis<V: CircuitVariable>(&self) -> V {
+        let public_inputs_len = self.public_inputs.len();
+        V::from_targets(&self.public_inputs[public_inputs_len - V::nb_elements()..])
+    }
+}
+
+#[derive(Debug, Clone, CircuitVariable)]
+struct MapReduceInputVariable<C: CircuitVariable, I: CircuitVariable> {
+    ctx: C,
+    input: I,
+}
+
+#[derive(Debug, Clone, CircuitVariable)]
+struct MapReduceOutputVariable<C: CircuitVariable, O: CircuitVariable> {
+    ctx: C,
+    output: O,
+    acc: PoseidonHashOutVariable,
+}
 
 #[derive(Debug, Clone)]
-pub struct MapReduceRecursiveProofGenerator<L, I, O, const D: usize>
+pub struct MapReduceRecursiveProofGenerator<L, C, I, O, const D: usize>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
     <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    C: CircuitVariable,
     I: CircuitVariable,
     O: CircuitVariable,
 {
@@ -33,8 +67,11 @@ where
     /// The identifiers for the reduce circuits.
     pub reduce_circuit_ids: Vec<String>,
 
-    /// The inputs to the map circuit.
-    pub inputs: Vec<I>,
+    /// The global context for all circuits.
+    pub ctx: C,
+
+    /// The constant inputs to the map circuit.
+    pub inputs: Vec<I::ValueType<L::Field>>,
 
     /// The proof target for the final circuit proof.
     pub proof: ProofWithPublicInputsTarget<D>,
@@ -44,14 +81,16 @@ where
     pub _phantom2: PhantomData<O>,
 }
 
-impl<L, I, O, const D: usize> SimpleGenerator<L::Field, D>
-    for MapReduceRecursiveProofGenerator<L, I, O, D>
+impl<L, C, I, O, const D: usize> SimpleGenerator<L::Field, D>
+    for MapReduceRecursiveProofGenerator<L, C, I, O, D>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
     <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    C: CircuitVariable,
     I: CircuitVariable,
     O: CircuitVariable,
+    <I as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
 {
     fn id(&self) -> String {
         "MapReduceRecursiveProofGenerator".to_string()
@@ -59,9 +98,7 @@ where
 
     fn dependencies(&self) -> Vec<Target> {
         let mut targets = Vec::new();
-        for i in 0..self.inputs.len() {
-            targets.extend(self.inputs[i].targets());
-        }
+        targets.extend(self.ctx.targets());
         targets
     }
 
@@ -85,11 +122,15 @@ where
                 .unwrap();
 
         // Calculate the inputs to the map.
-        let map_input_values = self.inputs.iter().map(|x| x.get(witness)).collect_vec();
+        let ctx_value = self.ctx.get(witness);
+        let map_input_values = &self.inputs;
         let mut map_inputs = Vec::new();
         for map_input_value in map_input_values {
             let mut map_input = map_circuit.input();
-            map_input.write::<I>(map_input_value);
+            map_input.write::<MapReduceInputVariable<C, I>>(MapReduceInputVariableValue {
+                ctx: ctx_value.clone(),
+                input: map_input_value.to_owned(),
+            });
             map_inputs.push(map_input)
         }
 
@@ -144,10 +185,13 @@ where
             dst.write_all(self.reduce_circuit_ids[i].as_bytes())?;
         }
 
-        // Write vector of input targets.
+        // Write context.
+        dst.write_target_vec(&self.ctx.targets())?;
+
+        // Write vector of input values.
         dst.write_usize(self.inputs.len())?;
         for i in 0..self.inputs.len() {
-            dst.write_target_vec(self.inputs[i].targets().as_slice())?;
+            dst.write_field_vec::<L::Field>(&I::elements::<L, D>(self.inputs[i].clone()))?;
         }
 
         // Write proof target.
@@ -170,12 +214,15 @@ where
             reduce_circuit_ids.push(String::from_utf8(reduce_circuit_id).unwrap());
         }
 
+        // Read context.
+        let ctx = C::from_targets(&src.read_target_vec()?);
+
         // Read vector of input targest.
         let mut inputs = Vec::new();
         let inputs_len = src.read_usize()?;
         for _ in 0..inputs_len {
-            let input_targets = src.read_target_vec()?;
-            inputs.push(I::from_targets(&input_targets));
+            let input_elements: Vec<L::Field> = src.read_field_vec(I::nb_elements())?;
+            inputs.push(I::from_elements::<L, D>(&input_elements));
         }
 
         // Read proof.
@@ -184,6 +231,7 @@ where
         Ok(Self {
             map_circuit_id: String::from_utf8(map_circuit_id).unwrap(),
             reduce_circuit_ids,
+            ctx,
             inputs,
             proof,
             _phantom1: PhantomData::<L>,
@@ -193,23 +241,39 @@ where
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    fn build_map<I, O, M>(&mut self, map_fn: &M) -> Circuit<L, D>
+    /// Builds a map circuit which maps from I -> O using the closure `m`.
+    pub fn build_map<C, I, O, M>(&mut self, map_fn: &M) -> Circuit<L, D>
     where
+        C: CircuitVariable,
         I: CircuitVariable,
         O: CircuitVariable,
-        M: Fn(I, &mut CircuitBuilder<L, D>) -> O,
+        M: Fn(C, I, &mut CircuitBuilder<L, D>) -> O,
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
         let mut builder = CircuitBuilder::<L, D>::new();
-        let input = builder.read::<I>();
-        let output = map_fn(input.clone(), &mut builder);
-        builder.write(output);
+        let data = builder.read::<MapReduceInputVariable<C, I>>();
+        let output = map_fn(data.clone().ctx, data.clone().input, &mut builder);
+        let acc = builder.poseidon_hash_n_to_hash_no_pad(&data.clone().variables());
+        let result = MapReduceOutputVariable {
+            ctx: data.clone().ctx,
+            acc,
+            output,
+        };
+        builder.write(result);
         builder.build()
     }
 
-    fn build_reduce<O, R>(&mut self, child_circuit: &Circuit<L, D>, reduce_fn: &R) -> Circuit<L, D>
+    /// Builds a reduce circuit which reduces two input proofs to an output O using the closure `r`.
+    pub fn build_reduce<C, O, R>(
+        &mut self,
+        child_circuit: &Circuit<L, D>,
+        reduce_fn: &R,
+    ) -> Circuit<L, D>
     where
+        C: CircuitVariable,
         O: CircuitVariable,
-        R: Fn(O, O, &mut CircuitBuilder<L, D>) -> O,
+        R: Fn(C, O, O, &mut CircuitBuilder<L, D>) -> O,
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
@@ -217,36 +281,62 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let verifier_data = builder.constant_verifier_data(&child_circuit.data);
 
         let proof_left = builder.proof_read(child_circuit);
-        let proof_right = builder.proof_read(child_circuit);
-
         builder.verify_proof(&proof_left, &verifier_data, &child_circuit.data.common);
+
+        let proof_right = builder.proof_read(child_circuit);
         builder.verify_proof(&proof_right, &verifier_data, &child_circuit.data.common);
 
-        let offset = proof_left.public_inputs.len();
-        let input_left = O::from_targets(&proof_left.public_inputs[offset - O::nb_elements()..]);
-        let input_right = O::from_targets(&proof_right.public_inputs[offset - O::nb_elements()..]);
+        let input_left = proof_left.read_end_from_pis::<MapReduceOutputVariable<C, O>>();
+        let input_right = proof_right.read_end_from_pis::<MapReduceOutputVariable<C, O>>();
+        self.assert_is_equal(input_left.clone().ctx, input_right.clone().ctx);
 
-        let output = reduce_fn(input_left, input_right, &mut builder);
-        builder.proof_write(output);
+        let output = reduce_fn(
+            input_left.clone().ctx,
+            input_left.clone().output,
+            input_right.clone().output,
+            &mut builder,
+        );
+        let acc = self.poseidon_hash_pair(input_left.clone().acc, input_right.clone().acc);
+        let result = MapReduceOutputVariable {
+            ctx: input_left.clone().ctx,
+            acc,
+            output,
+        };
 
+        builder.proof_write(result);
         builder.build()
     }
 
-    pub fn mapreduce<I, O, M, R>(&mut self, inputs: Vec<I>, map_fn: M, reduce_fn: R) -> O
+    pub fn mapreduce<C, I, O, M, R>(
+        &mut self,
+        ctx: C,
+        inputs: Vec<I::ValueType<L::Field>>,
+        map_fn: M,
+        reduce_fn: R,
+    ) -> O
     where
+        C: CircuitVariable,
         I: CircuitVariable,
         O: CircuitVariable,
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
-        M: Fn(I, &mut CircuitBuilder<L, D>) -> O,
-        R: Fn(O, O, &mut CircuitBuilder<L, D>) -> O,
+        <<<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher as AlgebraicHasher<
+            <L as PlonkParameters<D>>::Field,
+        >>::AlgebraicPermutation: PlonkyPermutation<<L as PlonkParameters<D>>::Field>,
+        <I as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
+        M: Fn(C, I, &mut CircuitBuilder<L, D>) -> O,
+        R: Fn(C, O, O, &mut CircuitBuilder<L, D>) -> O,
     {
+        // Compute the expected inputs hash.
+        let expected_inputs_hash = self.constant::<PoseidonHashOutVariable>(
+            compute_binary_merkle_tree_root::<L, <<<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher as AlgebraicHasher<<L as PlonkParameters<D>>::Field>>::AlgebraicPermutation, I, D>(&inputs),
+        );
+
         // The gate and witness generator serializers.
         let gate_serializer = GateRegistry::<L, D>::new();
         let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
 
         // Build a map circuit which maps from I -> O using the closure `m`.
-        debug!("building map circuit");
         let map_circuit = self.build_map(&map_fn);
 
         // Save map circuit and map circuit input target to build folder.
@@ -264,8 +354,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             } else {
                 &reduce_circuits[i - 1]
             };
-            debug!("building reduce circuit {}", i);
-            let reduce_circuit = self.build_reduce::<O, R>(child_circuit, &reduce_fn);
+            let reduce_circuit = self.build_reduce::<C, O, R>(child_circuit, &reduce_fn);
             let reduce_circuit_id = reduce_circuit.id();
             let reduce_circuit_path = format!("./build/{}.circuit", reduce_circuit_id);
             reduce_circuit.save(
@@ -281,9 +370,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let final_circuit = &reduce_circuits[reduce_circuits.len() - 1];
         let final_proof = self.add_virtual_proof_with_pis(&final_circuit.data.common);
 
-        let generator = MapReduceRecursiveProofGenerator::<L, I, O, D> {
+        let generator = MapReduceRecursiveProofGenerator::<L, C, I, O, D> {
             map_circuit_id,
             reduce_circuit_ids,
+            ctx,
             inputs: inputs.clone(),
             proof: final_proof.clone(),
             _phantom1: PhantomData,
@@ -299,49 +389,134 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             &final_circuit.data.common,
         );
 
+        // Verify the inputs hash.
+        let output = final_proof.read_end_from_pis::<MapReduceOutputVariable<C, O>>();
+        self.assert_is_equal(output.acc, expected_inputs_hash);
+
         // Deserialize the output from the final proof.
         O::from_targets(&final_proof.public_inputs)
     }
-}
 
-#[cfg(test)]
-pub(crate) mod tests {
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::Field;
+    pub fn compute_binary_merkle_tree_root<V: CircuitVariable>(
+        &mut self,
+        variables: &[V],
+    ) -> PoseidonHashOutVariable
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
+        let variables = variables.to_vec();
 
-    use crate::prelude::{CircuitBuilder, DefaultParameters, Variable};
+        // Calculate leafs.
+        let mut leafs = Vec::new();
+        for i in 0..variables.len() {
+            let input = &variables[i];
+            let h = self.poseidon_hash_n_to_hash_no_pad(&input.variables());
+            leafs.push(h);
+        }
 
-    type F = GoldilocksField;
-    type L = DefaultParameters;
-    const D: usize = 2;
+        // Pad leafs to a power of two with the zero leaf.
+        let zero = self.zero();
+        let h_zero = PoseidonHashOutVariable::from_variables(&[zero; NUM_HASH_OUT_ELTS]);
+        while leafs.len() < leafs.len().next_power_of_two() {
+            leafs.push(h_zero.clone());
+        }
 
-    #[test]
-    fn test_simple_mapreduce_circuit() {
-        env_logger::try_init().unwrap_or_default();
+        // Calculate the root.
+        while leafs.len() != 1 {
+            let mut tmp = Vec::new();
+            for i in 0..leafs.len() / 2 {
+                let left = leafs[i * 2].clone();
+                let right = leafs[i * 2 + 1].clone();
+                let h = self.poseidon_hash_pair(left, right);
+                tmp.push(h);
+            }
+        }
 
-        let mut builder = CircuitBuilder::<L, D>::new();
-        let a = builder.constant::<Variable>(F::from_canonical_u64(0));
-        let b = builder.constant::<Variable>(F::from_canonical_u64(1));
-        let c = builder.constant::<Variable>(F::from_canonical_u64(3));
-        let d = builder.constant::<Variable>(F::from_canonical_u64(4));
-
-        let inputs = vec![a, b, c, d];
-        let output = builder.mapreduce::<Variable, Variable, _, _>(
-            inputs,
-            |input, builder| {
-                let constant = builder.constant::<Variable>(F::ONE);
-                builder.add(input, constant)
-            },
-            |left, right, builder| builder.add(left, right),
-        );
-        builder.watch(&output, "output");
-        builder.write(output);
-
-        let circuit = builder.build();
-        let input = circuit.input();
-        let (proof, mut output) = circuit.prove(&input);
-        circuit.verify(&proof, &input, &output);
-        let result = output.read::<Variable>();
-        println!("{}", result);
+        leafs[0].to_owned()
     }
 }
+
+fn compute_binary_merkle_tree_root<
+    L: PlonkParameters<D>,
+    P: PlonkyPermutation<L::Field>,
+    V: CircuitVariable,
+    const D: usize,
+>(
+    values: &[V::ValueType<L::Field>],
+) -> PoseidonHashOutVariableValue<L::Field> {
+    let values = values.to_vec();
+
+    // Calculate leafs.
+    let mut leafs = Vec::new();
+    for i in 0..values.len() {
+        let input = V::elements::<L, D>(values[i].clone());
+        let h = hash_n_to_hash_no_pad::<L::Field, P>(&input);
+        leafs.push(h.elements);
+    }
+
+    // Pad leafs to a power of two with the zero leaf.
+    let h_zero = [L::Field::ZERO; NUM_HASH_OUT_ELTS];
+    while leafs.len() < leafs.len().next_power_of_two() {
+        leafs.push(h_zero);
+    }
+
+    // Calculate the root.
+    while leafs.len() != 1 {
+        let mut tmp = Vec::new();
+        for i in 0..leafs.len() / 2 {
+            let left = leafs[i * 2];
+            let right = leafs[i * 2 + 1];
+            let mut input = Vec::new();
+            input.extend(&left);
+            input.extend(&right);
+            let h = hash_n_to_hash_no_pad::<L::Field, P>(&input);
+            tmp.push(h.elements);
+        }
+        leafs = tmp;
+    }
+
+    PoseidonHashOutVariable::from_elements::<L, D>(&leafs[0])
+}
+
+// #[cfg(test)]
+// pub(crate) mod tests {
+//     use plonky2::field::goldilocks_field::GoldilocksField;
+//     use plonky2::field::types::Field;
+
+//     use crate::prelude::{CircuitBuilder, DefaultParameters, Variable};
+
+//     type F = GoldilocksField;
+//     type L = DefaultParameters;
+//     const D: usize = 2;
+
+//     #[test]
+//     fn test_simple_mapreduce_circuit() {
+//         env_logger::try_init().unwrap_or_default();
+
+//         let mut builder = CircuitBuilder::<L, D>::new();
+//         let a = builder.constant::<Variable>(F::from_canonical_u64(0));
+//         let b = builder.constant::<Variable>(F::from_canonical_u64(1));
+//         let c = builder.constant::<Variable>(F::from_canonical_u64(3));
+//         let d = builder.constant::<Variable>(F::from_canonical_u64(4));
+
+//         let inputs = vec![a, b, c, d];
+//         let output = builder.mapreduce::<Variable, Variable, _, _>(
+//             inputs,
+//             |input, builder| {
+//                 let constant = builder.constant::<Variable>(F::ONE);
+//                 builder.add(input, constant)
+//             },
+//             |left, right, builder| builder.add(left, right),
+//         );
+//         builder.watch(&output, "output");
+//         builder.write(output);
+
+//         let circuit = builder.build();
+//         let input = circuit.input();
+//         let (proof, mut output) = circuit.prove(&input);
+//         circuit.verify(&proof, &input, &output);
+//         let result = output.read::<Variable>();
+//         println!("{}", result);
+//     }
+// }

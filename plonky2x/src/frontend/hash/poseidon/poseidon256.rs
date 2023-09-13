@@ -1,14 +1,52 @@
 use array_macro::array;
+use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
-use plonky2::plonk::config::AlgebraicHasher;
+use plonky2::iop::witness::{Witness, WitnessWrite};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable};
+use crate::frontend::vars::{ArrayVariable, Bytes32Variable};
+use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable, Variable};
+
+#[derive(Debug, Clone, CircuitVariable)]
+pub struct PoseidonHashOutVariable {
+    elements: ArrayVariable<Variable, 4>,
+}
 
 /// Implements the Poseidon hash for CircuitBuilder.
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    /// Computes the Poseidon hash of the given variables with no padding.
+    pub fn poseidon_hash_n_to_hash_no_pad(
+        &mut self,
+        variables: &[Variable],
+    ) -> PoseidonHashOutVariable
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
+        let targets = variables.iter().map(|v| v.0).collect::<Vec<_>>();
+        PoseidonHashOutVariable::from_targets(
+            &self.api.hash_n_to_hash_no_pad::<<<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher>(targets).elements,
+        )
+    }
+
+    /// Computes the Poseidon hash of the given variables with no padding.
+    pub fn poseidon_hash_pair(
+        &mut self,
+        left: PoseidonHashOutVariable,
+        right: PoseidonHashOutVariable,
+    ) -> PoseidonHashOutVariable
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
+        let mut input = Vec::new();
+        input.extend(left.variables());
+        input.extend(right.variables());
+        self.poseidon_hash_n_to_hash_no_pad(&input)
+    }
+
     /// Note: This Poseidon implementation operates on bytes, not field elements. The input bytes to
     /// the Poseidon hash are converted into field elements internally. Specifically, we convert the
     /// [ByteVariable; N] into a [u32; N/4] and then represent the u32 as a [F; N/4]. We use u32's
