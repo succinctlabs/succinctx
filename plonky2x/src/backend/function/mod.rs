@@ -8,7 +8,8 @@ use std::path;
 
 use clap::Parser;
 use log::info;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::field::types::PrimeField64;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 pub use request::{
     BytesRequestData, ElementsRequestData, FunctionRequest, FunctionRequestBase,
     RecursiveProofsRequestData,
@@ -23,6 +24,8 @@ use crate::backend::circuit::{
 use crate::backend::function::cli::{Args, Commands};
 use crate::backend::function::result::{BytesResultData, FunctionResult};
 use crate::backend::wrapper::wrap::WrappedCircuit;
+
+const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
 
 /// Circuits that implement `CircuitFunction` have all necessary code for end-to-end deployment.
 ///
@@ -71,25 +74,64 @@ pub trait CircuitFunction {
         info!("Building verifier contract...");
         let contract_path = format!("{}/FunctionVerifier.sol", args.build_dir);
         let mut contract_file = File::create(&contract_path).unwrap();
-        let contract = "pragma solidity ^0.8.16;
 
+        let circuit_digest_bytes = circuit
+            .data
+            .verifier_only
+            .circuit_digest
+            .to_vec()
+            .iter()
+            .flat_map(|e| e.to_canonical_u64().to_be_bytes())
+            .collect::<Vec<u8>>();
+
+        assert!(
+            circuit_digest_bytes.len() <= 32,
+            "circuit digest must be <= 32 bytes"
+        );
+
+        let mut padded = vec![0u8; 32];
+        let digest_len = circuit_digest_bytes.len();
+        padded[(32 - digest_len)..].copy_from_slice(&circuit_digest_bytes);
+        let circuit_digest = format!("0x{}", hex::encode(padded));
+
+        let generated_contract = VERIFIER_CONTRACT
+            .replace("pragma solidity ^0.8.0;", "pragma solidity ^0.8.16;")
+            .replace("uint256[3] calldata input", "uint256[3] memory input");
+        contract_file
+            .write_all(generated_contract.as_bytes())
+            .unwrap();
+
+        let verifier_contract = "
 interface IFunctionVerifier {
     function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool);
 
     function verificationKeyHash() external pure returns (bytes32);
 }
 
-contract FunctionVerifier is IFunctionVerifier {
-    function verify(bytes32, bytes32, bytes memory) external pure returns (bool) {
-        return true;
+contract FunctionVerifier is IFunctionVerifier, Verifier {
+
+    bytes32 public constant CIRCUIT_DIGEST = {CIRCUIT_DIGEST};
+
+    function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool) {
+        (uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c) =
+            abi.decode(_proof, (uint256[2], uint256[2][2], uint256[2]));
+
+        uint256[3] memory input = [uint256(CIRCUIT_DIGEST), uint256(_inputHash), uint256(_outputHash)];
+        input[0] = input[0] & ((1 << 253) - 1);
+        input[1] = input[1] & ((1 << 253) - 1);
+        input[2] = input[2] & ((1 << 253) - 1); 
+
+        return verifyProof(a, b, c, input);
     }
 
     function verificationKeyHash() external pure returns (bytes32) {
-        return keccak256(\"\");
+        return keccak256(abi.encode(verifyingKey()));
     }
 }
-";
-        contract_file.write_all(contract.as_bytes()).unwrap();
+".replace("{CIRCUIT_DIGEST}", &circuit_digest);
+        contract_file
+            .write_all(verifier_contract.as_bytes())
+            .unwrap();
         info!(
             "Successfully saved verifier contract to disk at {}.",
             contract_path
@@ -161,6 +203,7 @@ contract FunctionVerifier is IFunctionVerifier {
                     .arg("-data")
                     .arg(path::Path::new(&args.wrapper_path))
                     .stdout(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::inherit())
                     .output()
                     .expect("failed to execute process");
 
