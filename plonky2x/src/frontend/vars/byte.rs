@@ -280,12 +280,14 @@ impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for ByteVariable {
         let mut bits = array![_ => builder.init::<BoolVariable>(); 8];
         let mut borrow = builder.constant(false);
         for i in (0..8).rev() {
+            let not_l = builder.not(self.0[i]);
+            let not_l_and_r = builder.and(not_l, rhs.0[i]);
+            let not_l_and_b = builder.and(not_l, borrow);
+            let r_and_b = builder.and(rhs.0[i], borrow);
             let l_xor_r = builder.xor(self.0[i], rhs.0[i]);
-            let not_r = builder.not(rhs.0[i]);
-            let l_and_not_r = builder.and(self.0[i], not_r);
-            let borrow_tmp = builder.and(l_xor_r, borrow);
             bits[i] = builder.xor(l_xor_r, borrow);
-            borrow = builder.or(borrow_tmp, l_and_not_r);
+            let borrow_tmp = builder.or(not_l_and_r, not_l_and_b);
+            borrow = builder.or(r_and_b, borrow_tmp);
         }
         ByteVariable(bits)
     }
@@ -443,7 +445,6 @@ mod tests {
 
         let rand_lhs = rand::random::<u8>();
         let rand_rhs = rand::random::<u8>();
-        println!("LHS is {}, RHS is {}", rand_lhs, rand_rhs);
         let mut inputs = circuit.input();
         inputs.write::<ByteVariable>(rand_lhs);
         inputs.write::<ByteVariable>(rand_rhs);
