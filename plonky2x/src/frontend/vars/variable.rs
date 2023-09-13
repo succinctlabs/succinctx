@@ -174,6 +174,31 @@ mod tests {
     }
 
     #[test]
+    fn test_lt_edge_cases() {
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let lhs = builder.read::<Variable>();
+        let rhs = builder.read::<Variable>();
+        let less_than = builder.lt(lhs, rhs);
+        builder.write(less_than);
+
+        let circuit = builder.build();
+
+        let max_lhs = std::u64::MAX;
+        let max_rhs = std::u64::MAX;
+        let mut inputs = circuit.input();
+        inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(max_lhs));
+        inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(max_rhs));
+
+        let (proof, mut output) = circuit.prove(&inputs);
+        circuit.verify(&proof, &inputs, &output);
+        
+        let expected_lt = max_lhs < max_rhs;
+        let proof_lt = output.read::<BoolVariable>();
+
+        assert_eq!(expected_lt, proof_lt);
+    }
+
+    #[test]
     fn test_lte() {
         let mut builder = CircuitBuilder::<L, D>::new();
         let lhs = builder.read::<Variable>();
@@ -193,6 +218,31 @@ mod tests {
         circuit.verify(&proof, &inputs, &output);
         
         let expected_lte = rand_lhs <= rand_rhs;
+        let proof_lte = output.read::<BoolVariable>();
+
+        assert_eq!(expected_lte, proof_lte);
+    }
+
+    #[test]
+    fn test_lte_edge_cases() {
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let lhs = builder.read::<Variable>();
+        let rhs = builder.read::<Variable>();
+        let less_than_or_equal = builder.lte(lhs, rhs);
+        builder.write(less_than_or_equal);
+
+        let circuit = builder.build();
+
+        let max_lhs = std::u64::MAX;
+        let max_rhs = std::u64::MAX;
+        let mut inputs = circuit.input();
+        inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(max_lhs));
+        inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(max_rhs));
+
+        let (proof, mut output) = circuit.prove(&inputs);
+        circuit.verify(&proof, &inputs, &output);
+        
+        let expected_lte = max_lhs <= max_rhs;
         let proof_lte = output.read::<BoolVariable>();
 
         assert_eq!(expected_lte, proof_lte);
