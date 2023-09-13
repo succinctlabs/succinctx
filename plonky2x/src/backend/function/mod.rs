@@ -92,7 +92,11 @@ pub trait CircuitFunction {
             .constants_sigmas_cap
             .0
             .iter()
-            .flat_map(|x| x.to_bytes())
+            .flat_map(|x| {
+                x.elements
+                    .iter()
+                    .flat_map(|e| e.to_canonical_u64().to_be_bytes())
+            })
             .chain(circuit_digest_bytes.iter().copied())
             .collect::<Vec<u8>>();
 
