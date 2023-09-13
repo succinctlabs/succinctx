@@ -1,6 +1,7 @@
 {
     "rust-analyzer.linkedProjects": [
         "./plonky2x/Cargo.toml",
+        "./plonky2x-derive/Cargo.toml"
     ],
     "rust-analyzer.check.overrideCommand": [
         "cargo",
@@ -21,5 +22,8 @@
     },
     "rust-analyzer.runnables.extraArgs": [
         "--release"
+    ],
+    "rust-analyzer.diagnostics.disabled": [
+        "unresolved-proc-macro"
     ],
 }

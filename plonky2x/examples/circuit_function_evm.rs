@@ -15,30 +15,24 @@
 //!
 //! Note that this circuit will not work with field-based io.
 
-use std::env;
-
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
-use plonky2x::backend::function::CircuitFunction;
+use plonky2x::backend::function::VerifiableFunction;
 use plonky2x::frontend::vars::ByteVariable;
 use plonky2x::prelude::CircuitBuilder;
 
-struct Function {}
+struct SimpleAdditionCircuit {}
 
-impl CircuitFunction for Function {
-    fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D> {
-        let mut builder = CircuitBuilder::<L, D>::new();
+impl Circuit for SimpleAdditionCircuit {
+    fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) {
         let a = builder.evm_read::<ByteVariable>();
         let b = builder.evm_read::<ByteVariable>();
         let c = builder.xor(a, b);
         builder.evm_write(c);
-        builder.build()
     }
 }
 
 fn main() {
-    env::set_var("RUST_LOG", "info");
-    env_logger::try_init().unwrap_or_default();
-    Function::cli();
+    VerifiableFunction::<SimpleAdditionCircuit>::entrypoint();
 }
 
 #[cfg(test)]
@@ -55,7 +49,9 @@ mod tests {
 
     #[test]
     fn test_circuit_function_evm() {
-        let circuit = Function::build::<L, D>();
+        let mut builder = CircuitBuilder::<L, D>::new();
+        SimpleCircuit::define(&mut builder);
+        let circuit = builder.build();
         let mut input = circuit.input();
         input.evm_write::<ByteVariable>(0u8);
         input.evm_write::<ByteVariable>(1u8);

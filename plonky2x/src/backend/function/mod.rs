@@ -11,24 +11,31 @@ use log::info;
 use plonky2::field::types::PrimeField64;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 pub use request::{
-    BytesRequestData, ElementsRequestData, FunctionRequest, FunctionRequestBase,
+    BytesRequestData, ElementsRequestData, ProofRequest, ProofRequestBase,
     RecursiveProofsRequestData,
+};
+pub use result::{
+    BytesResultData, ElementsResultData, ProofResult, ProofResultBase, RecursiveProofsResultData,
 };
 use serde::Serialize;
 use sha2::Digest;
 
 use self::cli::{BuildArgs, ProveArgs, ProveWrappedArgs};
-use super::circuit::{GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
+use crate::backend::circuit::config::Groth16VerifierParameters;
 use crate::backend::circuit::{
-    Circuit, DefaultParameters, Groth16VerifierParameters, PublicOutput,
+    Circuit, CircuitBuild, DefaultParameters, PlonkParameters, PublicOutput,
 };
 use crate::backend::function::cli::{Args, Commands};
-use crate::backend::function::result::{BytesResultData, FunctionResult};
 use crate::backend::wrapper::wrap::WrappedCircuit;
+use crate::prelude::{CircuitBuilder, GateRegistry, WitnessGeneratorRegistry};
 
 const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
 
-/// Circuits that implement `CircuitFunction` have all necessary code for end-to-end deployment.
+pub struct VerifiableFunction<C: Circuit> {
+    _phantom: std::marker::PhantomData<C>,
+}
+
+/// Circuits that implement `VerifiableFunction` have all necessary code for end-to-end deployment.
 ///
 /// Conforming to this trait enables remote machines can generate proofs for you. In particular,
 /// this trait ensures that the circuit can be built, serialized, and deserialized.
@@ -37,39 +44,28 @@ const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
 /// using custom gates or custom witness generators.
 ///
 /// Look at the `plonky2x/examples` for examples of how to use this trait.
-pub trait CircuitFunction {
-    /// Builds the circuit.
-    fn build<L: PlonkParameters<D>, const D: usize>() -> Circuit<L, D>;
-
-    /// Generates the witness registry.
-    fn generators<L: PlonkParameters<D>, const D: usize>() -> WitnessGeneratorRegistry<L, D>
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
-        WitnessGeneratorRegistry::<L, D>::new()
-    }
-
-    /// Geneates the gate registry.
-    fn gates<L: PlonkParameters<D>, const D: usize>() -> GateRegistry<L, D>
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
-        GateRegistry::<L, D>::new()
-    }
-
+impl<C: Circuit> VerifiableFunction<C> {
     /// Builds the circuit and saves it to disk.
-    fn compile<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
+    pub fn compile<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+        <<L as PlonkParameters<D>>::CurtaConfig as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<L::Field>,
     {
         info!("Building circuit...");
-        let circuit = Self::build::<L, D>();
+        let mut builder = CircuitBuilder::<L, D>::new();
+        C::define::<L, D>(&mut builder);
+        let circuit = builder.build();
         info!("Successfully built circuit.");
         info!("> Circuit: {}", circuit.id());
         info!("> Degree: {}", circuit.data.common.degree());
         info!("> Number of Gates: {}", circuit.data.common.gates.len());
         let path = format!("{}/main.circuit", args.build_dir);
-        circuit.save(&path, &Self::gates::<L, D>(), &Self::generators::<L, D>());
+        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut gate_registry = GateRegistry::new();
+        C::add_generators::<L, D>(&mut generator_registry);
+        C::add_gates::<L, D>(&mut gate_registry);
+        circuit.save(&path, &gate_registry, &generator_registry);
         info!("Successfully saved circuit to disk at {}.", path);
 
         info!("Building verifier contract...");
@@ -156,22 +152,27 @@ contract FunctionVerifier is IFunctionVerifier, Verifier {
         );
     }
 
-    fn prove<L: PlonkParameters<D>, const D: usize>(args: ProveArgs, request: FunctionRequest<L, D>)
-    where
+    pub fn prove<L: PlonkParameters<D>, const D: usize>(
+        args: ProveArgs,
+        request: ProofRequest<L, D>,
+    ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let gates = Self::gates::<L, D>();
-        let generators = Self::generators::<L, D>();
-        let circuit = Circuit::<L, D>::load(&path, &gates, &generators).unwrap();
+        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut gate_registry = GateRegistry::new();
+        C::add_generators::<L, D>(&mut generator_registry);
+        C::add_gates::<L, D>(&mut gate_registry);
+        let circuit =
+            CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap();
         info!("Successfully loaded circuit.");
 
         let input = request.input();
         let (proof, output) = circuit.prove(&input);
         info!("Successfully generated proof.");
 
-        let result = FunctionResult::from_proof_output(proof, output);
+        let result = ProofResult::from_proof_output(proof, output);
         let json = serde_json::to_string_pretty(&result).unwrap();
         let mut file = File::create("plonky2x_output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
@@ -184,17 +185,25 @@ contract FunctionVerifier is IFunctionVerifier, Verifier {
         const D: usize,
     >(
         args: ProveWrappedArgs,
-        request: FunctionRequest<InnerParameters, D>,
+        request: ProofRequest<InnerParameters, D>,
     ) where
-        <<InnerParameters as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+        <InnerParameters::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<InnerParameters::Field>,
+        <InnerParameters::CurtaConfig as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<InnerParameters::Field>,
+        <OuterParameters::CurtaConfig as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<OuterParameters::Field>,
         OuterParameters::Config: Serialize,
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let gates = Self::gates::<InnerParameters, D>();
-        let generators = Self::generators::<InnerParameters, D>();
-        let circuit = Circuit::<InnerParameters, D>::load(&path, &gates, &generators).unwrap();
+        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut gate_registry = GateRegistry::new();
+        C::add_generators::<InnerParameters, D>(&mut generator_registry);
+        C::add_gates::<InnerParameters, D>(&mut gate_registry);
+        let circuit =
+            CircuitBuild::<InnerParameters, D>::load(&path, &gate_registry, &generator_registry)
+                .unwrap();
         info!("Successfully loaded circuit.");
 
         let input = request.input();
@@ -236,8 +245,8 @@ contract FunctionVerifier is IFunctionVerifier, Verifier {
                 serde_json::from_reader::<BufReader<File>, BytesResultData>(rdr).unwrap();
 
             // Write full result with output bytes to output.json
-            let result: FunctionResult<OuterParameters, D> =
-                FunctionResult::from_bytes(result_data.proof, output_bytes);
+            let result: ProofResult<OuterParameters, D> =
+                ProofResult::from_bytes(result_data.proof, output_bytes);
             let json = serde_json::to_string_pretty(&result).unwrap();
             let mut file = File::create("output.json").unwrap();
             file.write_all(json.as_bytes()).unwrap();
@@ -248,9 +257,11 @@ contract FunctionVerifier is IFunctionVerifier, Verifier {
     }
 
     /// The entry point for the function when using the CLI.
-    fn cli() {
+    pub fn entrypoint() {
         type L = DefaultParameters;
         const D: usize = 2;
+
+        env_logger::try_init().unwrap_or_default();
 
         let args = Args::parse();
         match args.command {
@@ -258,11 +269,11 @@ contract FunctionVerifier is IFunctionVerifier, Verifier {
                 Self::compile::<L, D>(args);
             }
             Commands::Prove(args) => {
-                let request = FunctionRequest::<L, D>::load(&args.input_json);
+                let request = ProofRequest::<L, D>::load(&args.input_json);
                 Self::prove(args, request);
             }
             Commands::ProveWrapped(args) => {
-                let request = FunctionRequest::<L, D>::load(&args.input_json);
+                let request = ProofRequest::<L, D>::load(&args.input_json);
                 Self::prove_wrapped::<L, Groth16VerifierParameters, D>(args, request);
             }
         }

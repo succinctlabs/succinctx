@@ -13,7 +13,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use serde::Serialize;
 
-use crate::backend::circuit::{Circuit, PlonkParameters};
+use crate::backend::circuit::{CircuitBuild, PlonkParameters};
 use crate::frontend::builder::{CircuitBuilder, CircuitIO};
 use crate::frontend::hash::sha::sha256::sha256;
 use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable};
@@ -25,15 +25,19 @@ pub struct WrappedCircuit<
     const D: usize,
 > where
     <InnerParameters::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<InnerParameters::Field>,
+    <InnerParameters::CurtaConfig as GenericConfig<D>>::Hasher:
+        AlgebraicHasher<InnerParameters::Field>,
+    <OuterParameters::CurtaConfig as GenericConfig<D>>::Hasher:
+        AlgebraicHasher<OuterParameters::Field>,
 {
-    circuit: Circuit<InnerParameters, D>,
-    hash_circuit: Circuit<InnerParameters, D>,
+    circuit: CircuitBuild<InnerParameters, D>,
+    hash_circuit: CircuitBuild<InnerParameters, D>,
     circuit_proof_target: ProofWithPublicInputsTarget<D>,
     circuit_verifier_target: VerifierCircuitTarget,
-    recursive_circuit: Circuit<InnerParameters, D>,
+    recursive_circuit: CircuitBuild<InnerParameters, D>,
     hash_verifier_target: VerifierCircuitTarget,
     hash_proof_target: ProofWithPublicInputsTarget<D>,
-    wrapper_circuit: Circuit<OuterParameters, D>,
+    wrapper_circuit: CircuitBuild<OuterParameters, D>,
     proof_target: ProofWithPublicInputsTarget<D>,
     verifier_target: VerifierCircuitTarget,
 }
@@ -45,8 +49,12 @@ impl<
     > WrappedCircuit<InnerParameters, OuterParameters, D>
 where
     <InnerParameters::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<InnerParameters::Field>,
+    <InnerParameters::CurtaConfig as GenericConfig<D>>::Hasher:
+        AlgebraicHasher<InnerParameters::Field>,
+    <OuterParameters::CurtaConfig as GenericConfig<D>>::Hasher:
+        AlgebraicHasher<OuterParameters::Field>,
 {
-    pub fn build(circuit: Circuit<InnerParameters, D>) -> Self {
+    pub fn build(circuit: CircuitBuild<InnerParameters, D>) -> Self {
         let CircuitIO::Bytes(ref evm_io) = circuit.io else {
             panic!("CircuitIO must be Bytes")
         };

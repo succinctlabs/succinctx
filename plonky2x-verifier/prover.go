@@ -123,7 +123,7 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	}
 
 	log.Info().Msg("Saving proof to proof.json")
-	jsonProof, err := json.Marshal(types.FunctionResult{
+	jsonProof, err := json.Marshal(types.ProofResult{
 		// Output will be filled in by plonky2x CLI
 		Output: []byte{},
 		Proof:  encodedProofBytes,

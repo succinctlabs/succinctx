@@ -43,7 +43,7 @@ func (g *Groth16Proof) Export(file string) error {
 	return nil
 }
 
-type FunctionResult struct {
+type ProofResult struct {
 	Proof  hexutil.Bytes `json:"proof"`
 	Output hexutil.Bytes `json:"output"`
 }

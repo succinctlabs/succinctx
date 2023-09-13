@@ -10,22 +10,23 @@ default = ["parallel", "std", "timing"]
 parallel = ["plonky2/parallel"]
 std = ["plonky2/std", "itertools/use_std"]
 timing = ["plonky2/timing"]
-ci=[]
+ci = []
 
 [dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false}
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false }
 curta = { git = "https://github.com/succinctlabs/curta.git", branch = "john/nightly" }
+plonky2x-derive = { path = "../plonky2x-derive" }
 
 num = { version = "0.4", default-features = false }
 sha2 = "0.10.7"
 curve25519-dalek = { git = "https://github.com/succinctlabs/curve25519-dalek.git", branch = "feature/edwards-point-getters" }
 ff = {package="ff" , version="0.13", features = ["derive"]}
 
-ethers = { version = "2.0"}
+ethers = { version = "2.0" }
 
 hex = "0.4.3"
 log = { version = "0.4.14", default-features = false }
-rand = { version = "0.8.4", package = "rand"}
+rand = { version = "0.8.4", package = "rand" }
 itertools = { version = "0.10.0", default-features = false }
 serde = { version = "1.0.187", features = ["derive"] }
 serde_json = "1.0.103"
@@ -33,14 +34,23 @@ tokio = { version = "1", features = ["full"] }
 anyhow = "1.0.75"
 reqwest = { version = "0.11.4", features = ["json"] }
 array-macro = "2.1.5"
+tracing = "0.1.37"
+num-bigint = { version = "0.4", features = ["rand"] }
+base64 = "0.13"
+futures = "0.3.28"
+lazy_static = "1.4.0"
+backtrace = "0.3"
 env_logger = "0.10.0"
 clap = { version = "4.4.0", features = ["derive"] }
-lazy_static = "1.4.0"
 dotenv = "0.15.0"
 serde_with = "3.3.0"
 bincode = "1.3.3"
-backtrace = "0.3"
+uuid = { version = "1.4.1", features = ["serde"] }
+serde_plain = "1.0.2"
+
 
 [dev-dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = ["gate_testing"]}
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = [
+    "gate_testing",
+] }
 env_logger = "0.10.0"

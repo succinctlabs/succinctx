@@ -19,6 +19,9 @@ pub trait PlonkParameters<const D: usize>:
     type Config: GenericConfig<D, F = Self::Field, FE = <Self::Field as Extendable<D>>::Extension>
         + 'static;
 
+    type CurtaConfig: GenericConfig<D, F = Self::Field, FE = <Self::Field as Extendable<D>>::Extension>
+        + 'static;
+
     type CubicParams: CubicParameters<Self::Field>;
 }
 
@@ -32,6 +35,8 @@ impl PlonkParameters<2> for DefaultParameters {
     type CubicParams = GoldilocksCubicParameters;
 
     type Config = PoseidonGoldilocksConfig;
+
+    type CurtaConfig = PoseidonGoldilocksConfig;
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -43,4 +48,6 @@ impl PlonkParameters<2> for Groth16VerifierParameters {
     type CubicParams = GoldilocksCubicParameters;
 
     type Config = PoseidonBN128GoldilocksConfig;
+
+    type CurtaConfig = PoseidonGoldilocksConfig;
 }
