@@ -15,6 +15,7 @@ pub use request::{
     RecursiveProofsRequestData,
 };
 use serde::Serialize;
+use sha2::Digest;
 
 use self::cli::{BuildArgs, ProveArgs, ProveWrappedArgs};
 use super::circuit::{GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
@@ -84,14 +85,27 @@ pub trait CircuitFunction {
             .flat_map(|e| e.to_canonical_u64().to_be_bytes())
             .collect::<Vec<u8>>();
 
+        // See backend::wrapper::wrap::WrappedCircuit::build for how full circuit digest is computed
+        let full_circuit_digest_bytes = circuit
+            .data
+            .verifier_only
+            .constants_sigmas_cap
+            .0
+            .iter()
+            .flat_map(|x| x.to_bytes())
+            .chain(circuit_digest_bytes.iter().copied())
+            .collect::<Vec<u8>>();
+
+        let circuit_digest_hash = sha2::Sha256::digest(full_circuit_digest_bytes);
+
         assert!(
-            circuit_digest_bytes.len() <= 32,
+            circuit_digest_hash.len() <= 32,
             "circuit digest must be <= 32 bytes"
         );
 
         let mut padded = vec![0u8; 32];
-        let digest_len = circuit_digest_bytes.len();
-        padded[(32 - digest_len)..].copy_from_slice(&circuit_digest_bytes);
+        let digest_len = circuit_digest_hash.len();
+        padded[(32 - digest_len)..].copy_from_slice(&circuit_digest_hash);
         let circuit_digest = format!("0x{}", hex::encode(padded));
 
         let generated_contract = VERIFIER_CONTRACT
