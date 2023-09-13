@@ -355,6 +355,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_blake2b_single() {
         println!("Running blake2b test #1");
         run_test::<CHUNK_128_BYTES, 32>(

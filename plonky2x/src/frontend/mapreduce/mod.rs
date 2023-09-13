@@ -14,7 +14,7 @@ use plonky2x_derive::CircuitVariable;
 use tokio::runtime::Runtime;
 
 use super::hash::poseidon::poseidon256::PoseidonHashOutVariable;
-use crate::backend::circuit::Circuit;
+use crate::backend::circuit::CircuitBuild;
 use crate::backend::prover::{EnvProver, Prover};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::CircuitVariable;
@@ -117,7 +117,7 @@ where
         // Load the map circuit from disk & generate the proofs.
         let map_circuit_path = format!("./build/{}.circuit", self.map_circuit_id);
         let map_circuit =
-            Circuit::<L, D>::load(&map_circuit_path, &gate_serializer, &generator_serializer)
+            CircuitBuild::<L, D>::load(&map_circuit_path, &gate_serializer, &generator_serializer)
                 .unwrap();
 
         // Calculate the inputs to the map.
@@ -142,7 +142,7 @@ where
         for i in 0..nb_reduce_layers {
             // Load the reduce circuit from disk.
             let reduce_circuit_path = format!("./build/{}.circuit", self.reduce_circuit_ids[i]);
-            let reduce_circuit = Circuit::<L, D>::load(
+            let reduce_circuit = CircuitBuild::<L, D>::load(
                 &reduce_circuit_path,
                 &gate_serializer,
                 &generator_serializer,
@@ -241,7 +241,7 @@ where
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Builds a map circuit which maps from I -> O using the closure `m`.
-    pub fn build_map<C, I, O, M>(&mut self, map_fn: &M) -> Circuit<L, D>
+    pub fn build_map<C, I, O, M>(&mut self, map_fn: &M) -> CircuitBuild<L, D>
     where
         C: CircuitVariable,
         I: CircuitVariable,
@@ -266,9 +266,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Builds a reduce circuit which reduces two input proofs to an output O using the closure `r`.
     pub fn build_reduce<C, O, R>(
         &mut self,
-        child_circuit: &Circuit<L, D>,
+        child_circuit: &CircuitBuild<L, D>,
         reduce_fn: &R,
-    ) -> Circuit<L, D>
+    ) -> CircuitBuild<L, D>
     where
         C: CircuitVariable,
         O: CircuitVariable,

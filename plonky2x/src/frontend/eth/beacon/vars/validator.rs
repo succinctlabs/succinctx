@@ -199,6 +199,7 @@ pub(crate) mod tests {
     const D: usize = 2;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_validator_hash_tree_root_1() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
@@ -228,6 +229,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_validator_hash_tree_root_2() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();

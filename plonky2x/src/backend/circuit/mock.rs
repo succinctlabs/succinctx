@@ -15,13 +15,13 @@ use crate::frontend::builder::CircuitIO;
 /// Mock circuits are not meant to be used in production. It is only meant to be used for testing.
 /// It skips a bunch of time-consuming steps in .build() and .prove().
 #[derive(Debug)]
-pub struct MockCircuit<L: PlonkParameters<D>, const D: usize> {
+pub struct MockCircuitBuild<L: PlonkParameters<D>, const D: usize> {
     pub data: MockCircuitData<L::Field, L::Config, D>,
     pub io: CircuitIO<D>,
     pub debug_variables: HashMap<usize, String>,
 }
 
-impl<L: PlonkParameters<D>, const D: usize> MockCircuit<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
     /// Returns an input instance for the circuit.
     pub fn input(&self) -> PublicInput<L, D> {
         PublicInput::new(&self.io)

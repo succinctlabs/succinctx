@@ -4,6 +4,7 @@ use core::hash::Hash;
 use core::marker::PhantomData;
 use std::collections::HashMap;
 
+use anyhow::{anyhow, Result};
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
@@ -61,7 +62,9 @@ use crate::frontend::eth::beacon::vars::{
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
-use crate::frontend::generator::hint::{Hint, HintSerializer};
+use crate::frontend::generator::function::HintFn;
+use crate::frontend::generator::general::{HintGenerator, HintSerializer};
+use crate::frontend::generator::hint::{Hint, SateHintSerializer};
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
@@ -70,7 +73,7 @@ use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32Ari
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::Bytes32Variable;
+use crate::frontend::vars::{Bytes32Variable, ValueStream};
 use crate::prelude::Variable;
 
 /// A registry to store serializers for witness generators.
@@ -90,35 +93,8 @@ pub struct GateRegistry<L: PlonkParameters<D>, const D: usize>(
     SerializationRegistry<TypeId, L::Field, GateRef<L::Field, D>, D>,
 );
 
-#[derive(Debug, Clone)]
-pub enum GeneratorID {
-    #[allow(dead_code)]
-    Name(String),
-    #[allow(dead_code)]
-    Type(TypeId, String),
-}
-
-impl PartialEq for GeneratorID {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Name(name1), Self::Name(name2)) => name1 == name2,
-            (Self::Type(type_id1, _), Self::Type(type_id2, _)) => type_id1 == type_id2,
-            _ => false,
-        }
-    }
-}
-
-impl Hash for GeneratorID {
-    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        match self {
-            Self::Name(name) => name.hash(state),
-            Self::Type(type_id, _) => type_id.hash(state),
-        }
-    }
-}
-
 /// A trait for serializing and deserializing objects compatible with plonky2 traits.
-pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize> {
+pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize>: 'static {
     fn read(&self, buf: &mut Buffer, common_data: &CommonCircuitData<F, D>) -> IoResult<T>;
     fn write(
         &self,
@@ -149,7 +125,7 @@ impl<K: Hash + Debug, F: RichField + Extendable<D>, T: Debug, const D: usize> De
     }
 }
 
-impl<F: RichField + Extendable<D>, K: Hash, T: Any, const D: usize>
+impl<F: RichField + Extendable<D>, K: PartialEq + Eq + Hash + Clone, T: Any, const D: usize>
     SerializationRegistry<K, F, T, D>
 {
     pub fn new() -> Self {
@@ -159,6 +135,20 @@ impl<F: RichField + Extendable<D>, K: Hash, T: Any, const D: usize>
             identifiers: Vec::new(),
             current_index: 0,
         }
+    }
+
+    pub fn register<S: Serializer<F, T, D>>(&mut self, key: K, serializer: S) -> Result<()> {
+        let exists = self.registry.insert(key.clone(), Box::new(serializer));
+
+        if exists.is_some() {
+            return Err(anyhow!("Object type already registered"));
+        }
+
+        self.identifiers.push(key.clone());
+        self.index.insert(key, self.current_index);
+        self.current_index += 1;
+
+        Ok(())
     }
 }
 
@@ -214,42 +204,31 @@ impl<F: RichField + Extendable<D>, G: AnyGate<F, D>, const D: usize> Serializer<
 
 impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
     /// Registers a new witness generator with the given id.
-    pub fn register<W: WitnessGenerator<L::Field, D>>(&mut self, id: String) {
-        let exists = self.0.registry.insert(
-            id.clone(),
-            Box::new(WitnessGeneratorSerializerFn::<W>(PhantomData)),
-        );
-
-        if exists.is_some() {
-            panic!("Generator type {} already registered", id);
-        }
-
-        self.0.identifiers.push(id.clone());
-        self.0.index.insert(id, self.0.current_index);
-        self.0.current_index += 1;
+    pub fn register_generator<W: WitnessGenerator<L::Field, D>>(&mut self, id: String) {
+        let serializer = WitnessGeneratorSerializerFn::<W>(PhantomData);
+        self.0.register(id, serializer).unwrap()
     }
 
     /// Registers a new simple witness generator with the given id.
     pub fn register_simple<SG: SimpleGenerator<L::Field, D>>(&mut self, id: String) {
-        self.register::<SimpleGeneratorAdapter<L::Field, SG, D>>(id)
+        self.register_generator::<SimpleGeneratorAdapter<L::Field, SG, D>>(id)
     }
 
-    pub fn register_hint<H: Hint<L, D>>(&mut self, hint: H) {
-        let hint_serializer = HintSerializer::new(hint);
-        let id = hint_serializer.id();
+    pub fn register_hint_serializer<S: HintSerializer<L, D>>(&mut self, serializer: S) {
+        let id = serializer.id();
+        self.0.register(id, serializer).unwrap()
+    }
 
-        let exists = self
-            .0
-            .registry
-            .insert(id.clone(), Box::new(hint_serializer));
+    pub fn register_hint<H: Hint<L, D>>(&mut self) {
+        let serializer = SateHintSerializer::<L, H>::new();
+        self.register_hint_serializer(serializer)
+    }
 
-        if exists.is_some() {
-            panic!("Generator type {} already registered", id);
-        }
-
-        self.0.identifiers.push(id.clone());
-        self.0.index.insert(id, self.0.current_index);
-        self.0.current_index += 1;
+    pub fn register_hint_function(
+        &mut self,
+        hint_fn: fn(&mut ValueStream<L, D>, &mut ValueStream<L, D>),
+    ) {
+        self.register_hint_serializer(HintFn(hint_fn).serializer())
     }
 }
 
@@ -354,10 +333,10 @@ impl<L: PlonkParameters<D>, const D: usize> GateSerializer<L::Field, D> for Gate
 }
 
 macro_rules! register_watch_generator {
-    ($registry:ident, $($type:ty),*) => {
+    ($registry:ident, $l:ty, $d:ty, $($type:ty),*) => {
         $(
-            let generator_id = WatchGenerator::<$type>::id();
-            $registry.register_simple::<WatchGenerator<$type>>(generator_id);
+            let generator_id = WatchGenerator::<$l, $d, $type>::id();
+            $registry.register_simple::<WatchGenerator<$l, $d, $type>>(generator_id);
         )*
     };
 }
@@ -535,6 +514,8 @@ where
 
         register_watch_generator!(
             r,
+            L,
+            D,
             Variable,
             U64Variable,
             U256Variable,

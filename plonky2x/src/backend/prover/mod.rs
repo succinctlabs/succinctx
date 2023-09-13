@@ -11,7 +11,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 pub use remote::RemoteProver;
 pub use service::ProofService;
 
-use super::circuit::{Circuit, PlonkParameters, PublicInput, PublicOutput};
+use super::circuit::{CircuitBuild, PlonkParameters, PublicInput, PublicOutput};
 
 /// Basic methods for generating proofs from circuits.
 pub trait Prover {
@@ -21,7 +21,7 @@ pub trait Prover {
     /// Generates a proof with the given input.
     async fn prove<L: PlonkParameters<D>, const D: usize>(
         &self,
-        circuit: &Circuit<L, D>,
+        circuit: &CircuitBuild<L, D>,
         input: &PublicInput<L, D>,
     ) -> Result<(
         ProofWithPublicInputs<L::Field, L::Config, D>,
@@ -34,7 +34,7 @@ pub trait Prover {
     /// Generates a batch of proofs with the given input.
     async fn batch_prove<L: PlonkParameters<D>, const D: usize>(
         &self,
-        circuit: &Circuit<L, D>,
+        circuit: &CircuitBuild<L, D>,
         inputs: &[PublicInput<L, D>],
     ) -> Result<(
         Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,

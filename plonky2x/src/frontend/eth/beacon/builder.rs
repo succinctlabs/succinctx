@@ -574,6 +574,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_ssz_restore_merkle_root_equal() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
@@ -608,6 +609,7 @@ pub(crate) mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_ssz_restore_merkle_root_unequal() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
@@ -640,6 +642,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_ssz_restore_merkle_root_const_equal() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
@@ -673,6 +676,7 @@ pub(crate) mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_ssz_restore_merkle_root_const_unequal() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();

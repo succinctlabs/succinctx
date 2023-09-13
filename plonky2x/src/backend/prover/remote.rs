@@ -11,7 +11,7 @@ use reqwest::Client;
 use tokio::time::sleep;
 
 use super::Prover;
-use crate::backend::circuit::{Circuit, PlonkParameters, PublicInput, PublicOutput};
+use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput, PublicOutput};
 use crate::backend::function::ProofRequest;
 use crate::backend::prover::service::{ProofRequestStatus, ProofService};
 
@@ -30,7 +30,7 @@ impl Prover for RemoteProver {
 
     async fn prove<L: PlonkParameters<D>, const D: usize>(
         &self,
-        circuit: &Circuit<L, D>,
+        circuit: &CircuitBuild<L, D>,
         input: &PublicInput<L, D>,
     ) -> Result<(
         ProofWithPublicInputs<L::Field, L::Config, D>,
@@ -83,7 +83,7 @@ impl Prover for RemoteProver {
 
     async fn batch_prove<L: PlonkParameters<D>, const D: usize>(
         &self,
-        circuit: &Circuit<L, D>,
+        circuit: &CircuitBuild<L, D>,
         inputs: &[PublicInput<L, D>],
     ) -> Result<(
         Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,

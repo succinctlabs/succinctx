@@ -4,7 +4,7 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use serde::{Deserialize, Serialize};
 
 use super::CircuitBuilder;
-use crate::backend::circuit::{Circuit, PlonkParameters, PublicInput};
+use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput};
 use crate::frontend::vars::EvmVariable;
 use crate::prelude::{ByteVariable, CircuitVariable, Variable};
 use crate::utils::serde::{
@@ -176,7 +176,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         variable
     }
 
-    pub fn proof_read(&mut self, child_circuit: &Circuit<L, D>) -> ProofWithPublicInputsTarget<D> {
+    pub fn proof_read(
+        &mut self,
+        child_circuit: &CircuitBuild<L, D>,
+    ) -> ProofWithPublicInputsTarget<D> {
         self.try_init_proof_io();
         let proof = self.add_virtual_proof_with_pis(&child_circuit.data.common);
         match self.io {

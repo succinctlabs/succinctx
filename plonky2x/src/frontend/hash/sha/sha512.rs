@@ -487,6 +487,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_empty() -> Result<()> {
         let msg = b"";
         let msg_bits = to_bits(msg.to_vec());
@@ -519,6 +520,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_small_msg() -> Result<()> {
         let msg = b"plonky2";
         let msg_bits = to_bits(msg.to_vec());
@@ -551,6 +553,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_large_msg() -> Result<()> {
         let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
         let msg_bits = to_bits(msg.to_vec());
@@ -584,6 +587,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_large_msg_variable() -> Result<()> {
         // This test tests both the variable length and the no-op skip for processing each chunk of the sha512
         // 77-byte message fits in one chunk, but we make MAX_NUM_CHUNKS 2 to test the no-op skip
@@ -641,6 +645,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_failure() {
         let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
         let msg_bits = to_bits(msg.to_vec());

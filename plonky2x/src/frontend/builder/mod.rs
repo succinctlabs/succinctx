@@ -12,12 +12,13 @@ use plonky2::iop::generator::SimpleGenerator;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
 use plonky2::plonk::circuit_data::CircuitConfig;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
-use super::generator::hint::HintRef;
+use super::generator::general::HintRef;
 use super::vars::EvmVariable;
-use crate::backend::circuit::{Circuit, DefaultParameters, MockCircuit, PlonkParameters};
+use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
 
@@ -105,7 +106,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Build the circuit.
-    pub fn build(mut self) -> Circuit<L, D> {
+    pub fn build(mut self) -> CircuitBuild<L, D>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        if !self.sha256_requests.is_empty() {
+            self.curta_constrain_sha256();
+        }
+
         let hints = self.hints.drain(..).collect::<Vec<_>>();
         for hint in hints {
             hint.register(&mut self);
@@ -151,12 +159,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         };
 
         let data = self.api.build();
-        Circuit { data, io: self.io }
+        CircuitBuild { data, io: self.io }
     }
 
-    pub fn mock_build(self) -> MockCircuit<L, D> {
+    pub fn mock_build(self) -> MockCircuitBuild<L, D> {
         let mock_circuit = self.api.mock_build();
-        MockCircuit {
+        MockCircuitBuild {
             data: mock_circuit,
             io: self.io,
             debug_variables: self.debug_variables,
@@ -236,10 +244,19 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Fails if i1 != i2.
     pub fn assert_is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) {
-        assert_eq!(i1.targets().len(), i2.targets().len());
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
             self.api.connect(*t1, *t2);
         }
+    }
+
+    /// Returns 1 if i1 == i2 and 0 otherwise as a BoolVariable.
+    pub fn is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) -> BoolVariable {
+        let mut result = self._true();
+        for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
+            let target_eq = BoolVariable(Variable(self.api.is_equal(*t1, *t2).target));
+            result = self.and(target_eq, result);
+        }
+        result
     }
 
     pub fn to_le_bits<V: EvmVariable>(&mut self, variable: V) -> Vec<BoolVariable> {
