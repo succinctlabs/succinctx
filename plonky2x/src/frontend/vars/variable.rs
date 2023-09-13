@@ -142,6 +142,7 @@ impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
 #[cfg(test)]
 mod tests {
     use crate::backend::circuit::DefaultParameters;
+    use crate::backend::circuit::config::PlonkParameters;
     use crate::prelude::*;
 
     type L = DefaultParameters;
@@ -154,5 +155,46 @@ mod tests {
         let rhs = builder.read::<Variable>();
         let less_than = builder.lt(lhs, rhs);
         builder.write(less_than);
+
+        let circuit = builder.build();
+
+        let rand_lhs = rand::random::<u64>();
+        let rand_rhs = rand::random::<u64>();
+        let mut inputs = circuit.input();
+        inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(rand_lhs));
+        inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(rand_rhs));
+
+        let (proof, mut output) = circuit.prove(&inputs);
+        circuit.verify(&proof, &inputs, &output);
+        
+        let expected_lt = rand_lhs < rand_rhs;
+        let proof_lt = output.read::<BoolVariable>();
+
+        assert_eq!(expected_lt, proof_lt);
+    }
+
+    #[test]
+    fn test_lte() {
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let lhs = builder.read::<Variable>();
+        let rhs = builder.read::<Variable>();
+        let less_than_or_eq = builder.lte(lhs, rhs);
+        builder.write(less_than_or_eq);
+
+        let circuit = builder.build();
+
+        let rand_lhs = rand::random::<u64>();
+        let rand_rhs = rand::random::<u64>();
+        let mut inputs = circuit.input();
+        inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(rand_lhs));
+        inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(rand_rhs));
+
+        let (proof, mut output) = circuit.prove(&inputs);
+        circuit.verify(&proof, &inputs, &output);
+        
+        let expected_lte = rand_lhs <= rand_rhs;
+        let proof_lte = output.read::<BoolVariable>();
+
+        assert_eq!(expected_lte, proof_lte);
     }
 }
