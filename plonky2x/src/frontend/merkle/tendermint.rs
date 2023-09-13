@@ -12,21 +12,38 @@ use crate::prelude::{
 /// Merkle Tree implementation for the Tendermint spec (follows Comet BFT Simple Merkle Tree spec: https://docs.cometbft.com/main/spec/core/encoding#merkle-trees).
 /// TODO: Create generic interface for Merkle trees to implement.
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn get_root_from_merkle_proof<const PROOF_DEPTH: usize, const LEAF_SIZE_BYTES: usize>(
+    /// Leaf should already be hashed.
+    pub fn get_root_from_merkle_proof_hashed_leaf<const PROOF_DEPTH: usize>(
         &mut self,
-        inclusion_proof: &MerkleInclusionProofVariable<PROOF_DEPTH, LEAF_SIZE_BYTES>,
+        aunts: &ArrayVariable<Bytes32Variable, PROOF_DEPTH>,
+        path_indices: &ArrayVariable<BoolVariable, PROOF_DEPTH>,
+        leaf: Bytes32Variable,
     ) -> Bytes32Variable {
-        let mut hash_so_far = self.leaf_hash(&inclusion_proof.leaf.0);
+        let mut hash_so_far = leaf;
 
         for i in 0..PROOF_DEPTH {
-            let aunt = inclusion_proof.aunts[i];
-            let path_index = inclusion_proof.path_indices[i];
+            let aunt = aunts[i];
+            let path_index = path_indices[i];
             let left_hash_pair = self.inner_hash(&hash_so_far, &aunt);
             let right_hash_pair = self.inner_hash(&aunt, &hash_so_far);
 
             hash_so_far = self.select(path_index, right_hash_pair, left_hash_pair)
         }
+        self.watch(&hash_so_far, "root");
         hash_so_far
+    }
+
+    pub fn get_root_from_merkle_proof<const PROOF_DEPTH: usize, const LEAF_SIZE_BYTES: usize>(
+        &mut self,
+        inclusion_proof: &MerkleInclusionProofVariable<PROOF_DEPTH, LEAF_SIZE_BYTES>,
+    ) -> Bytes32Variable {
+        let hashed_leaf = self.leaf_hash(&inclusion_proof.leaf.0);
+
+        self.get_root_from_merkle_proof_hashed_leaf::<PROOF_DEPTH>(
+            &inclusion_proof.aunts,
+            &inclusion_proof.path_indices,
+            hashed_leaf,
+        )
     }
 
     pub fn leaf_hash(&mut self, leaf: &[ByteVariable]) -> Bytes32Variable {
