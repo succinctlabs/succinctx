@@ -2,7 +2,6 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 
 use itertools::Itertools;
-use log::debug;
 use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
