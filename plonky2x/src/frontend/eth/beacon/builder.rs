@@ -704,9 +704,9 @@ pub(crate) mod tests {
         circuit.test_default_serializers();
     }
 
-    #[test]
+    #[tokio::test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_async_witness_generator() {
+    async fn test_async_witness_generator() {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
@@ -720,13 +720,16 @@ pub(crate) mod tests {
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let idx = builder.constant::<U64Variable>(0.into());
 
+        dbg!();
         for _ in 0..10 {
             builder.beacon_get_historical_block(block_root, idx);
+        dbg!();
         }
 
+        dbg!();
         let circuit = builder.mock_build();
         let input = circuit.input();
-        let (_proof, _output) = circuit.mock_prove(&input);
+        let (_proof, _output) = circuit.mock_prove_async(&input).await;
         // circuit.verify(&proof, &input, &output);
         // circuit.test_default_serializers();
     }

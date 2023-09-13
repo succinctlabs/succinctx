@@ -5,6 +5,7 @@ pub mod watch;
 
 use std::collections::HashMap;
 
+use alloc::sync::Arc;
 use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
@@ -150,7 +151,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn mock_build(self) -> MockCircuit<L, D> {
         let mock_circuit = self.api.mock_build();
         MockCircuit {
-            data: mock_circuit,
+            data: Arc::new(mock_circuit),
             io: self.io,
             debug_variables: self.debug_variables,
         }

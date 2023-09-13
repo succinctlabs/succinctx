@@ -1,3 +1,4 @@
+use alloc::sync::Arc;
 use std::collections::HashMap;
 
 use plonky2::iop::witness::{PartialWitness, PartitionWitness};
@@ -5,7 +6,7 @@ use plonky2::plonk::circuit_data::MockCircuitData;
 
 use super::input::PublicInput;
 use super::output::PublicOutput;
-use super::witness::{generate_witness, GenerateWitnessError};
+use super::witness::{generate_witness, generate_witness_async, GenerateWitnessError};
 use super::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
 
@@ -15,7 +16,7 @@ use crate::frontend::builder::CircuitIO;
 /// It skips a bunch of time-consuming steps in .build() and .prove().
 #[derive(Debug)]
 pub struct MockCircuit<L: PlonkParameters<D>, const D: usize> {
-    pub data: MockCircuitData<L::Field, L::Config, D>,
+    pub data: Arc<MockCircuitData<L::Field, L::Config, D>>,
     pub io: CircuitIO<D>,
     pub debug_variables: HashMap<usize, String>,
 }
@@ -43,6 +44,37 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuit<L, D> {
                 panic!("generators not run: {:?}", targets)
             }
         };
+
+        // Get the output from the witness.
+        let output = PublicOutput::from_witness(&self.io, &witness);
+
+        (witness, output)
+    }
+
+    pub async fn mock_prove_async(
+        &self,
+        input: &PublicInput<L, D>,
+    ) -> (PartitionWitness<L::Field>, PublicOutput<L, D>) {
+        // Initialize the witness.
+        let mut pw = PartialWitness::new();
+
+        // Write the input to the witness.
+        self.io.set_witness(&mut pw, input);
+
+        // Generate the rest of witness.
+        let values = match generate_witness_async(pw, self.data.clone(), &self.data.common).await {
+            Ok(witness) => witness,
+            Err(GenerateWitnessError::GeneratorsNotRun(targets)) => {
+                panic!("generators not run: {:?}", targets)
+            }
+        };
+
+        let mut witness = PartitionWitness::new(
+            self.data.common.config.num_wires,
+            self.data.common.degree(),
+            &self.data.prover_only.representative_map,
+        );
+        witness.values = values;
 
         // Get the output from the witness.
         let output = PublicOutput::from_witness(&self.io, &witness);
