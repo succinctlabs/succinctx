@@ -71,6 +71,7 @@ use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGen
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
+use crate::prelude::Variable;
 
 /// A registry to store serializers for witness generators.
 ///
@@ -534,6 +535,7 @@ where
 
         register_watch_generator!(
             r,
+            Variable,
             U64Variable,
             U256Variable,
             Bytes32Variable,

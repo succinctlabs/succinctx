@@ -30,7 +30,7 @@ impl Prover for EnvProver {
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        if env::var("PROVER").unwrap() == "remote" {
+        if env::var("PROVER").unwrap_or("local".to_string()) == "remote" {
             RemoteProver::new().prove(circuit, input).await
         } else {
             LocalProver::new().prove(circuit, input).await
@@ -49,7 +49,7 @@ impl Prover for EnvProver {
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        if env::var("PROVER").unwrap() == "remote" {
+        if env::var("PROVER").unwrap_or("local".to_string()) == "remote" {
             RemoteProver::new().batch_prove(circuit, inputs).await
         } else {
             LocalProver::new().batch_prove(circuit, inputs).await

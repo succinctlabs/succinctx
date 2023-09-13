@@ -11,7 +11,7 @@ use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable,
 
 #[derive(Debug, Clone, CircuitVariable)]
 pub struct PoseidonHashOutVariable {
-    elements: ArrayVariable<Variable, 4>,
+    pub elements: ArrayVariable<Variable, 4>,
 }
 
 /// Implements the Poseidon hash for CircuitBuilder.
