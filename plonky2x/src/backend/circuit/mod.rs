@@ -21,15 +21,17 @@ pub trait Circuit {
     fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>);
 
     /// Add generators to the generator_registry
+    #[allow(unused_variables)]
     fn add_generators<L: PlonkParameters<D>, const D: usize>(
-        _generator_registry: &mut WitnessGeneratorRegistry<L, D>,
+        generator_registry: &mut WitnessGeneratorRegistry<L, D>,
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
     }
 
     /// Add gates to the gate_registry
-    fn add_gates<L: PlonkParameters<D>, const D: usize>(_gate_registry: &mut GateRegistry<L, D>)
+    #[allow(unused_variables)]
+    fn add_gates<L: PlonkParameters<D>, const D: usize>(gate_registry: &mut GateRegistry<L, D>)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
