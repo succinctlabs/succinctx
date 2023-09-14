@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::Path;
 
 use plonky2::field::types::PrimeField64;
 use plonky2::iop::witness::PartialWitness;
@@ -121,6 +122,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         gate_serializer: &impl GateSerializer<L::Field, D>,
         generator_serializer: &impl WitnessGeneratorSerializer<L::Field, D>,
     ) {
+        let path = Path::new(path);
+        if let Some(parent_dir) = path.parent() {
+            if !parent_dir.exists() {
+                fs::create_dir_all(parent_dir).unwrap();
+            }
+        }
         let bytes = self
             .serialize(gate_serializer, generator_serializer)
             .unwrap();
