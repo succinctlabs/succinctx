@@ -14,7 +14,7 @@ use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use serde::Serialize;
 
 use crate::backend::circuit::{CircuitBuild, PlonkParameters};
-use crate::frontend::builder::{CircuitBuilder, CircuitIO};
+use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::hash::sha::sha256::sha256;
 use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable};
 
@@ -55,10 +55,6 @@ where
         AlgebraicHasher<OuterParameters::Field>,
 {
     pub fn build(circuit: CircuitBuild<InnerParameters, D>) -> Self {
-        let CircuitIO::Bytes(ref evm_io) = circuit.io else {
-            panic!("CircuitIO must be Bytes")
-        };
-
         // Standartize the public inputs/outputs to their hash and verify the circuit recursively
         let mut hash_builder = CircuitBuilder::<InnerParameters, D>::new();
         let circuit_proof_target = hash_builder.add_virtual_proof_with_pis(&circuit.data.common);
@@ -94,8 +90,9 @@ where
         let circuit_digest_bytes = Bytes32Variable::from_targets(&circuit_digest_hash);
         hash_builder.write(circuit_digest_bytes);
 
-        let num_input_targets = evm_io
-            .input
+        let num_input_targets = circuit
+            .io
+            .input()
             .iter()
             .map(|x| x.targets().len())
             .sum::<usize>();
