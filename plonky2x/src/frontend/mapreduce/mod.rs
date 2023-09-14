@@ -80,6 +80,20 @@ where
     pub _phantom2: PhantomData<O>,
 }
 
+impl<L, C, I, O, const D: usize> MapReduceRecursiveProofGenerator<L, C, I, O, D>
+where
+    L: PlonkParameters<D>,
+    <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
+    <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    C: CircuitVariable,
+    I: CircuitVariable,
+    O: CircuitVariable,
+{
+    pub fn id() -> String {
+        "MapReduceRecursiveProofGenerator".to_string()
+    }
+}
+
 impl<L, C, I, O, const D: usize> SimpleGenerator<L::Field, D>
     for MapReduceRecursiveProofGenerator<L, C, I, O, D>
 where
@@ -92,7 +106,7 @@ where
     <I as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
 {
     fn id(&self) -> String {
-        "MapReduceRecursiveProofGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {
