@@ -379,61 +379,61 @@ impl BeaconClient {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     extern crate dotenv;
+#[cfg(test)]
+mod tests {
+    extern crate dotenv;
 
-//     use std::env;
+    use std::env;
 
-//     use anyhow::Result;
+    use anyhow::Result;
 
-//     use super::*;
+    use super::*;
 
-//     #[tokio::test]
-//     #[cfg_attr(feature = "ci", ignore)]
-//     async fn test_get_validators_root_by_slot() -> Result<()> {
-//         dotenv::dotenv()?;
-//         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
-//         let client = BeaconClient::new(rpc.to_string());
-//         let slot = 7052735;
-//         let result = client.get_validators_root(slot.to_string()).await?;
-//         println!("{:?}", result);
-//         Ok(())
-//     }
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_validators_root_by_slot() -> Result<()> {
+        dotenv::dotenv()?;
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(rpc.to_string());
+        let slot = 7052735;
+        let result = client.get_validators_root(slot.to_string())?;
+        println!("{:?}", result);
+        Ok(())
+    }
 
-//     #[tokio::test]
-//     #[cfg_attr(feature = "ci", ignore)]
-//     async fn test_get_validators_root_by_block_root() -> Result<()> {
-//         dotenv::dotenv()?;
-//         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
-//         let client = BeaconClient::new(rpc.to_string());
-//         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
-//         let result = client.get_validators_root(block_root.to_string()).await?;
-//         println!("{:?}", result);
-//         Ok(())
-//     }
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_validators_root_by_block_root() -> Result<()> {
+        dotenv::dotenv()?;
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(rpc.to_string());
+        let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
+        let result = client.get_validators_root(block_root.to_string())?;
+        println!("{:?}", result);
+        Ok(())
+    }
 
-//     #[tokio::test]
-//     #[cfg_attr(feature = "ci", ignore)]
-//     async fn test_get_validator_by_slot() -> Result<()> {
-//         dotenv::dotenv()?;
-//         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
-//         let client = BeaconClient::new(rpc.to_string());
-//         let slot = 7052735;
-//         let result = client.get_validator(slot.to_string(), 0).await?;
-//         println!("{:?}", result);
-//         Ok(())
-//     }
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_validator_by_slot() -> Result<()> {
+        dotenv::dotenv()?;
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(rpc.to_string());
+        let slot = 7052735;
+        let result = client.get_validator(slot.to_string(), 0)?;
+        println!("{:?}", result);
+        Ok(())
+    }
 
-//     #[tokio::test]
-//     #[cfg_attr(feature = "ci", ignore)]
-//     async fn test_get_validator_by_block_root() -> Result<()> {
-//         dotenv::dotenv()?;
-//         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
-//         let client = BeaconClient::new(rpc.to_string());
-//         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
-//         let result = client.get_validator(block_root.to_string(), 0).await?;
-//         println!("{:?}", result);
-//         Ok(())
-//     }
-// }
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_validator_by_block_root() -> Result<()> {
+        dotenv::dotenv()?;
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(rpc.to_string());
+        let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
+        let result = client.get_validator(block_root.to_string(), 0)?;
+        println!("{:?}", result);
+        Ok(())
+    }
+}
