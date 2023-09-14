@@ -20,6 +20,7 @@ pub struct BytesRequestData {
 
 /// Fields for a function request that uses field elements io.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ElementsRequestData<L: PlonkParameters<D>, const D: usize> {
     pub circuit_id: String,
     #[serde(serialize_with = "serialize_elements")]
@@ -29,6 +30,7 @@ pub struct ElementsRequestData<L: PlonkParameters<D>, const D: usize> {
 
 /// Fields for a function request that uses recursive proofs io.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RecursiveProofsRequestData<L: PlonkParameters<D>, const D: usize> {
     pub circuit_id: String,
     #[serde(serialize_with = "serialize_proof_with_pis_vec")]

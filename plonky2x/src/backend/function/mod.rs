@@ -8,7 +8,6 @@ use std::io::Write;
 use clap::Parser;
 use log::info;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::Proof;
 pub use request::{
     BytesRequestData, ElementsRequestData, ProofRequest, ProofRequestBase,
     RecursiveProofsRequestData,
