@@ -28,7 +28,7 @@ impl Circuit for MapReduceCircuit {
             "0xce041ceab7feb54821794e170bace390a41f34743f25b224e95d193ecb4d8052"
         ));
         let balances_root = builder.beacon_get_balances(block_root);
-        let idxs = (0..4).map(U64::from).collect_vec();
+        let idxs = (0..32).map(U64::from).collect_vec();
 
         let output = builder.mapreduce::<BeaconBalancesVariable, U64Variable, U64Variable, _, _>(
             balances_root,

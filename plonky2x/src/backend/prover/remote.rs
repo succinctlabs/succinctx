@@ -72,7 +72,7 @@ impl Prover for RemoteProver {
                 }
                 _ => break,
             };
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_secs(5)).await;
         }
 
         // Return an error if the proof failed to generate.

@@ -86,7 +86,7 @@ impl ProofService {
         O: DeserializeOwned,
     {
         let endpoint = format!("{}{}", self.base_url, route);
-        debug!("sending post request: url={}, {:?}", endpoint, input);
+        debug!("sending post request: url={}", endpoint);
         self.client
             .post(endpoint)
             .json(&input)

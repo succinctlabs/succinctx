@@ -5,6 +5,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::local::LocalProver;
+use super::{Prover, RemoteProver};
 use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput, PublicOutput};
 
 /// A prover that can generate proofs locally or remotely based on the env variable `PROVER` which
@@ -31,8 +32,8 @@ impl EnvProver {
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
         if env::var("PROVER").unwrap_or("local".to_string()) == "remote" {
-            todo!()
-            // RemoteProver::new().prove(circuit, input).await
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async { RemoteProver::new().prove(circuit, input).await })
         } else {
             LocalProver::new().prove(circuit, input)
         }
@@ -52,8 +53,8 @@ impl EnvProver {
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
         if env::var("PROVER").unwrap_or("local".to_string()) == "remote" {
-            todo!()
-            // RemoteProver::new().batch_prove(circuit, inputs).await
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async { RemoteProver::new().batch_prove(circuit, inputs).await })
         } else {
             LocalProver::new().batch_prove(circuit, inputs)
         }

@@ -1,3 +1,5 @@
+use core::time::Duration;
+
 use anyhow::Result;
 use ethers::types::U256;
 use num::BigInt;
@@ -185,7 +187,11 @@ impl BeaconClient {
     pub fn get_validators_root(&self, beacon_id: String) -> Result<GetBeaconValidatorsRoot> {
         let endpoint = format!("{}/api/beacon/validator/{}", self.rpc_url, beacon_id);
 
-        let response = reqwest::blocking::get(endpoint)?;
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
         let response: CustomResponse<GetBeaconValidatorsRoot> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -232,7 +238,11 @@ impl BeaconClient {
         let endpoint = format!("{}/api/beacon/balance/{}", self.rpc_url, beacon_id);
         println!("{}", endpoint);
 
-        let response = reqwest::blocking::get(endpoint)?;
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
         let response: CustomResponse<GetBeaconBalancesRoot> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -249,7 +259,11 @@ impl BeaconClient {
             self.rpc_url, beacon_id, validator_idx
         );
 
-        let response = reqwest::blocking::get(endpoint)?;
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
         let response: CustomResponse<GetBeaconBalance> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -266,7 +280,11 @@ impl BeaconClient {
             self.rpc_url, beacon_id, pubkey
         );
 
-        let response = reqwest::blocking::get(endpoint)?;
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
         let response: CustomResponse<GetBeaconBalance> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -302,7 +320,11 @@ impl BeaconClient {
             self.rpc_url, beacon_id, pubkey
         );
 
-        let response = reqwest::blocking::get(endpoint)?;
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
         let response: BeaconResponse<BeaconValidatorBalance> = response.json()?;
         let balance = response.data.data[0].balance.parse::<u64>()?;
         Ok(U256::from(balance))
@@ -311,7 +333,11 @@ impl BeaconClient {
     pub fn get_withdrawals_root(&self, beacon_id: String) -> Result<GetBeaconWithdrawalsRoot> {
         let endpoint = format!("{}/api/beacon/withdrawal/{}", self.rpc_url, beacon_id);
 
-        let response = reqwest::blocking::get(endpoint)?;
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
         let response: CustomResponse<GetBeaconWithdrawalsRoot> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -323,7 +349,11 @@ impl BeaconClient {
             self.rpc_url, beacon_id, idx
         );
 
-        let response = reqwest::blocking::get(endpoint)?;
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
         let response: CustomResponse<GetBeaconWithdrawal> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -338,7 +368,11 @@ impl BeaconClient {
             "{}/api/beacon/historical/{}/{}",
             self.rpc_url, beacon_id, offset
         );
-        let response = reqwest::blocking::get(endpoint)?;
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
         let response: CustomResponse<GetBeaconHistoricalBlock> = response.json()?;
         assert!(response.success);
         Ok(response.result)
