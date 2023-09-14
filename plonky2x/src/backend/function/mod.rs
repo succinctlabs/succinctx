@@ -51,8 +51,8 @@ impl<C: Circuit> VerifiableFunction<C> {
         let path = format!("{}/main.circuit", args.build_dir);
         let mut generator_registry = WitnessGeneratorRegistry::new();
         let mut gate_registry = GateRegistry::new();
-        C::add_generators::<L, D>(&mut generator_registry);
-        C::add_gates::<L, D>(&mut gate_registry);
+        C::register_generators::<L, D>(&mut generator_registry);
+        C::register_gates::<L, D>(&mut gate_registry);
         circuit.save(&path, &gate_registry, &generator_registry);
         info!("Successfully saved circuit to disk at {}.", path);
 
@@ -94,8 +94,8 @@ contract FunctionVerifier is IFunctionVerifier {
         info!("Loading circuit from {}...", path);
         let mut generator_registry = WitnessGeneratorRegistry::new();
         let mut gate_registry = GateRegistry::new();
-        C::add_generators::<L, D>(&mut generator_registry);
-        C::add_gates::<L, D>(&mut gate_registry);
+        C::register_generators::<L, D>(&mut generator_registry);
+        C::register_gates::<L, D>(&mut gate_registry);
         let circuit =
             CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap();
         info!("Successfully loaded circuit.");

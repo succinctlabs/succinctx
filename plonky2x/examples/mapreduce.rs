@@ -1,8 +1,7 @@
-use log::debug;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::VerifiableFunction;
-use plonky2x::frontend::mapreduce::MapReduceRecursiveProofGenerator;
+use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
 use plonky2x::prelude::{CircuitBuilder, Field, Variable};
 
 struct MapReduceCircuit {}
@@ -25,13 +24,11 @@ impl Circuit for MapReduceCircuit {
             ctx,
             inputs,
             |ctx, input, builder| {
-                debug!("map");
                 builder.watch(&ctx, "ctx");
                 let constant = builder.constant::<Variable>(L::Field::ONE);
                 builder.add(input, constant)
             },
             |ctx, left, right, builder| {
-                debug!("reduce");
                 builder.watch(&ctx, "ctx");
                 builder.add(left, right)
             },
@@ -41,13 +38,13 @@ impl Circuit for MapReduceCircuit {
         builder.write(output);
     }
 
-    fn add_generators<L: PlonkParameters<D>, const D: usize>(
+    fn register_generators<L: PlonkParameters<D>, const D: usize>(
         registry: &mut plonky2x::prelude::WitnessGeneratorRegistry<L, D>,
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        let id = MapReduceRecursiveProofGenerator::<L, Variable, Variable, Variable, D>::id();
-        registry.register_simple::<MapReduceRecursiveProofGenerator::<L, Variable, Variable, Variable, D>>(id);
+        let id = MapReduceGenerator::<L, Variable, Variable, Variable, D>::id();
+        registry.register_simple::<MapReduceGenerator<L, Variable, Variable, Variable, D>>(id);
     }
 }
 
@@ -73,6 +70,6 @@ mod tests {
         let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         let value = output.read::<Variable>();
-        println!("{}", value);
+        MapReduceCircuit::test_serialization::<L, D>();
     }
 }

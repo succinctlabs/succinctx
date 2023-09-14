@@ -24,7 +24,7 @@ pub trait Circuit {
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>;
 
     /// Add generators to the generator registry.
-    fn add_generators<L: PlonkParameters<D>, const D: usize>(
+    fn register_generators<L: PlonkParameters<D>, const D: usize>(
         _registry: &mut WitnessGeneratorRegistry<L, D>,
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
@@ -32,9 +32,27 @@ pub trait Circuit {
     }
 
     /// Add gates to the gate registry.
-    fn add_gates<L: PlonkParameters<D>, const D: usize>(_registry: &mut GateRegistry<L, D>)
+    fn register_gates<L: PlonkParameters<D>, const D: usize>(_registry: &mut GateRegistry<L, D>)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
+    }
+
+    // Tests that the circuit can be serialized and deserialized.
+    fn test_serialization<L: PlonkParameters<D>, const D: usize>()
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        let mut builder = CircuitBuilder::<L, D>::new();
+        Self::define(&mut builder);
+        let circuit = builder.build();
+
+        let mut generator_registry = WitnessGeneratorRegistry::<L, D>::new();
+        Self::register_generators(&mut generator_registry);
+
+        let mut gate_registry = GateRegistry::<L, D>::new();
+        Self::register_gates(&mut gate_registry);
+
+        circuit.test_serializers(&gate_registry, &generator_registry);
     }
 }
