@@ -1,6 +1,5 @@
 use ethers::types::H256;
 use itertools::Itertools;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use super::tree::MerkleInclusionProofVariable;
 use crate::backend::circuit::PlonkParameters;
