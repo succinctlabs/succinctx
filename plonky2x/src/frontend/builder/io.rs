@@ -100,6 +100,8 @@ impl<const D: usize> CircuitIO<D> {
                 let proof_with_pis_targets = &io.input;
                 if let PublicInput::RecursiveProofs(input) = input {
                     for i in 0..proof_with_pis_targets.len() {
+                        println!("{:?}", input[i]);
+                        println!("{:?}", proof_with_pis_targets[i]);
                         pw.set_proof_with_pis_target(&proof_with_pis_targets[i], &input[i]);
                     }
                 } else {

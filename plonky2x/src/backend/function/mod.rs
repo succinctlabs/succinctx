@@ -8,6 +8,7 @@ use std::io::Write;
 use clap::Parser;
 use log::info;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::proof::Proof;
 pub use request::{
     BytesRequestData, ElementsRequestData, ProofRequest, ProofRequestBase,
     RecursiveProofsRequestData,
@@ -101,6 +102,12 @@ contract FunctionVerifier is IFunctionVerifier {
         info!("Successfully loaded circuit.");
 
         if let ProofRequest::RecursiveProofs(ref request) = request {
+            if circuit.id() != request.data.circuit_id {
+                let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
+                circuit =
+                    CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap()
+            }
+        } else if let ProofRequest::Elements(ref request) = request {
             if circuit.id() != request.data.circuit_id {
                 let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
                 circuit =

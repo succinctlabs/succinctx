@@ -21,6 +21,7 @@ pub struct BytesRequestData {
 /// Fields for a function request that uses field elements io.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ElementsRequestData<L: PlonkParameters<D>, const D: usize> {
+    pub circuit_id: String,
     #[serde(serialize_with = "serialize_elements")]
     #[serde(deserialize_with = "deserialize_elements")]
     pub input: Vec<L::Field>,
@@ -73,6 +74,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
             PublicInput::Elements(input) => ProofRequest::Elements(ProofRequestBase {
                 release_id,
                 data: ElementsRequestData {
+                    circuit_id: circuit.id(),
                     input: input.clone(),
                 },
             }),
