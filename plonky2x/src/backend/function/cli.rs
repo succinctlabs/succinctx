@@ -22,7 +22,7 @@ pub struct ProveArgs {
 
 #[derive(Parser, Debug, Clone)]
 #[command(
-    about = "Generate a wrapped proof for a circuit. The output is meant for use with the gnark verifier."
+    about = "Generate a proof for a circuit and wrap it into a groth16 proof using the gnark verifier."
 )]
 pub struct ProveWrappedArgs {
     #[arg(long, default_value = "./build")]

@@ -27,6 +27,7 @@ use crate::backend::circuit::{
 };
 use crate::backend::function::cli::{Args, Commands};
 use crate::backend::wrapper::wrap::WrappedCircuit;
+use crate::frontend::builder::CircuitIO;
 use crate::prelude::{CircuitBuilder, GateRegistry, WitnessGeneratorRegistry};
 
 const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
@@ -68,88 +69,58 @@ impl<C: Circuit> VerifiableFunction<C> {
         circuit.save(&path, &gate_registry, &generator_registry);
         info!("Successfully saved circuit to disk at {}.", path);
 
-        info!("Building verifier contract...");
-        let contract_path = format!("{}/FunctionVerifier.sol", args.build_dir);
-        let mut contract_file = File::create(&contract_path).unwrap();
+        // If the circuit has Bytes IO, we generate the wrapped verifier contract
+        if let CircuitIO::Bytes(_) = circuit.io {
+            info!("Building verifier contract...");
+            let contract_path = format!("{}/FunctionVerifier.sol", args.build_dir);
+            let mut contract_file = File::create(&contract_path).unwrap();
 
-        let circuit_digest_bytes = circuit
-            .data
-            .verifier_only
-            .circuit_digest
-            .to_vec()
-            .iter()
-            .flat_map(|e| e.to_canonical_u64().to_be_bytes())
-            .collect::<Vec<u8>>();
+            let circuit_digest_bytes = circuit
+                .data
+                .verifier_only
+                .circuit_digest
+                .to_vec()
+                .iter()
+                .flat_map(|e| e.to_canonical_u64().to_be_bytes())
+                .collect::<Vec<u8>>();
 
-        // See backend::wrapper::wrap::WrappedCircuit::build for how full circuit digest is computed
-        let full_circuit_digest_bytes = circuit
-            .data
-            .verifier_only
-            .constants_sigmas_cap
-            .0
-            .iter()
-            .flat_map(|x| {
-                x.elements
-                    .iter()
-                    .flat_map(|e| e.to_canonical_u64().to_be_bytes())
-            })
-            .chain(circuit_digest_bytes.iter().copied())
-            .collect::<Vec<u8>>();
+            // See backend::wrapper::wrap::WrappedCircuit::build for how full circuit digest is computed
+            let full_circuit_digest_bytes = circuit
+                .data
+                .verifier_only
+                .constants_sigmas_cap
+                .0
+                .iter()
+                .flat_map(|x| {
+                    x.elements
+                        .iter()
+                        .flat_map(|e| e.to_canonical_u64().to_be_bytes())
+                })
+                .chain(circuit_digest_bytes.iter().copied())
+                .collect::<Vec<u8>>();
 
-        let circuit_digest_hash = sha2::Sha256::digest(full_circuit_digest_bytes);
+            let circuit_digest_hash = sha2::Sha256::digest(full_circuit_digest_bytes);
 
-        assert!(
-            circuit_digest_hash.len() <= 32,
-            "circuit digest must be <= 32 bytes"
-        );
+            assert!(
+                circuit_digest_hash.len() <= 32,
+                "circuit digest must be <= 32 bytes"
+            );
 
-        let mut padded = vec![0u8; 32];
-        let digest_len = circuit_digest_hash.len();
-        padded[(32 - digest_len)..].copy_from_slice(&circuit_digest_hash);
-        let circuit_digest = format!("0x{}", hex::encode(padded));
+            let mut padded = vec![0u8; 32];
+            let digest_len = circuit_digest_hash.len();
+            padded[(32 - digest_len)..].copy_from_slice(&circuit_digest_hash);
+            let circuit_digest = format!("0x{}", hex::encode(padded));
 
-        let generated_contract = VERIFIER_CONTRACT
-            .replace("pragma solidity ^0.8.0;", "pragma solidity ^0.8.16;")
-            .replace("uint256[3] calldata input", "uint256[3] memory input");
-        contract_file
-            .write_all(generated_contract.as_bytes())
-            .unwrap();
+            let verifier_contract = Self::get_verifier_contract(&circuit_digest);
 
-        let verifier_contract = "
-interface IFunctionVerifier {
-    function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool);
-
-    function verificationKeyHash() external pure returns (bytes32);
-}
-
-contract FunctionVerifier is IFunctionVerifier, Verifier {
-
-    bytes32 public constant CIRCUIT_DIGEST = {CIRCUIT_DIGEST};
-
-    function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool) {
-        (uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c) =
-            abi.decode(_proof, (uint256[2], uint256[2][2], uint256[2]));
-
-        uint256[3] memory input = [uint256(CIRCUIT_DIGEST), uint256(_inputHash), uint256(_outputHash)];
-        input[0] = input[0] & ((1 << 253) - 1);
-        input[1] = input[1] & ((1 << 253) - 1);
-        input[2] = input[2] & ((1 << 253) - 1); 
-
-        return verifyProof(a, b, c, input);
-    }
-
-    function verificationKeyHash() external pure returns (bytes32) {
-        return keccak256(abi.encode(verifyingKey()));
-    }
-}
-".replace("{CIRCUIT_DIGEST}", &circuit_digest);
-        contract_file
-            .write_all(verifier_contract.as_bytes())
-            .unwrap();
-        info!(
-            "Successfully saved verifier contract to disk at {}.",
-            contract_path
-        );
+            contract_file
+                .write_all(verifier_contract.as_bytes())
+                .unwrap();
+            info!(
+                "Successfully saved verifier contract to disk at {}.",
+                contract_path
+            );
+        }
     }
 
     pub fn prove<L: PlonkParameters<D>, const D: usize>(
@@ -277,5 +248,42 @@ contract FunctionVerifier is IFunctionVerifier, Verifier {
                 Self::prove_wrapped::<L, Groth16VerifierParameters, D>(args, request);
             }
         }
+    }
+
+    fn get_verifier_contract(circuit_digest: &str) -> String {
+        let generated_contract = VERIFIER_CONTRACT
+            .replace("pragma solidity ^0.8.0;", "pragma solidity ^0.8.16;")
+            .replace("uint256[3] calldata input", "uint256[3] memory input");
+
+        let verifier_contract = "
+
+interface IFunctionVerifier {
+    function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool);
+
+    function verificationKeyHash() external pure returns (bytes32);
+}
+
+contract FunctionVerifier is IFunctionVerifier, Verifier {
+
+    bytes32 public constant CIRCUIT_DIGEST = {CIRCUIT_DIGEST};
+
+    function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool) {
+        (uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c) =
+            abi.decode(_proof, (uint256[2], uint256[2][2], uint256[2]));
+
+        uint256[3] memory input = [uint256(CIRCUIT_DIGEST), uint256(_inputHash), uint256(_outputHash)];
+        input[0] = input[0] & ((1 << 253) - 1);
+        input[1] = input[1] & ((1 << 253) - 1);
+        input[2] = input[2] & ((1 << 253) - 1); 
+
+        return verifyProof(a, b, c, input);
+    }
+
+    function verificationKeyHash() external pure returns (bytes32) {
+        return keccak256(abi.encode(verifyingKey()));
+    }
+}
+".replace("{CIRCUIT_DIGEST}", circuit_digest);
+        generated_contract + &verifier_contract
     }
 }
