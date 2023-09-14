@@ -17,6 +17,7 @@ keystore
 **/*.bin
 **/target
 **/build
+!/build
 
 **/__pycache__
 **/Verifier.sol
