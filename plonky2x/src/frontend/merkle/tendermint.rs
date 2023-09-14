@@ -116,10 +116,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn hash_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
         leaves: &ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, NB_LEAVES>,
-    ) -> ArrayVariable<Bytes32Variable, NB_LEAVES>
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
+    ) -> ArrayVariable<Bytes32Variable, NB_LEAVES> {
         ArrayVariable::<Bytes32Variable, NB_LEAVES>::new(
             leaves
                 .as_vec()
@@ -133,10 +130,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn get_root_from_hashed_leaves<const NB_ENABLED_LEAVES: usize, const NB_LEAVES: usize>(
         &mut self,
         leaf_hashes: &ArrayVariable<Bytes32Variable, NB_ENABLED_LEAVES>,
-    ) -> Bytes32Variable
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
+    ) -> Bytes32Variable {
         assert!(NB_ENABLED_LEAVES <= NB_LEAVES);
         assert!(NB_LEAVES.is_power_of_two());
 
@@ -176,10 +170,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     >(
         &mut self,
         leaves: &ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, NB_ENABLED_LEAVES>,
-    ) -> Bytes32Variable
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
+    ) -> Bytes32Variable {
         let hashed_leaves = self.hash_leaves(leaves);
         self.get_root_from_hashed_leaves::<NB_ENABLED_LEAVES, NB_LEAVES>(&hashed_leaves)
     }
