@@ -29,7 +29,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             hash_so_far = self.select(path_index, right_hash_pair, left_hash_pair)
         }
-        self.watch(&hash_so_far, "root");
         hash_so_far
     }
 
