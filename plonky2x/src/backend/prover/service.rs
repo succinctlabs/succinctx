@@ -1,4 +1,7 @@
+use core::fmt::Debug;
+
 use anyhow::Result;
+use log::debug;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -11,7 +14,7 @@ use crate::backend::function::{ProofRequest, ProofResult};
 const SUBMIT_PROOF_REQUEST_ROUTE: &str = "/api/proof/new";
 
 /// The endpoint for getting the status of a proof request.
-const GET_PROOF_REQUEST_ROUTE: &str = "/api/proof/{id}";
+const GET_PROOF_REQUEST_ROUTE: &str = "/api/proof";
 
 /// A UUID V4 identifer for a proof request.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -41,7 +44,7 @@ pub struct SubmitProofRequestResponse {
 pub struct GetProofRequestResponse<L: PlonkParameters<D>, const D: usize> {
     pub id: ProofId,
     pub status: ProofRequestStatus,
-    pub result: ProofResult<L, D>,
+    pub result: Option<ProofResult<L, D>>,
 }
 
 /// A client for connecting to the proof service which can generate proofs remotely.
@@ -65,8 +68,10 @@ impl ProofService {
     where
         O: DeserializeOwned,
     {
+        let endpoint = format!("{}{}", self.base_url, route);
+        debug!("sending get request: url={}", endpoint);
         self.client
-            .get(format!("{}/{}", self.base_url, route))
+            .get(endpoint)
             .send()
             .await?
             .json()
@@ -77,11 +82,13 @@ impl ProofService {
     /// Sends a POST request to the given route with the given input serialized as JSON.
     async fn post_json<I, O>(&self, route: &str, input: I) -> Result<O>
     where
-        I: Serialize + Sized,
+        I: Debug + Serialize + Sized,
         O: DeserializeOwned,
     {
+        let endpoint = format!("{}{}", self.base_url, route);
+        debug!("sending post request: url={}, {:?}", endpoint, input);
         self.client
-            .post(format!("{}/{}", self.base_url, route))
+            .post(endpoint)
             .json(&input)
             .send()
             .await?

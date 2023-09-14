@@ -67,7 +67,9 @@ impl Prover for RemoteProver {
             match request.status {
                 ProofRequestStatus::Pending => {}
                 ProofRequestStatus::Running => {}
-                ProofRequestStatus::Success => return Ok(request.result.as_proof_and_output()),
+                ProofRequestStatus::Success => {
+                    return Ok(request.result.unwrap().as_proof_and_output())
+                }
                 _ => break,
             };
             sleep(Duration::from_secs(1)).await;
