@@ -25,10 +25,6 @@ pub struct WrappedCircuit<
     const D: usize,
 > where
     <InnerParameters::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<InnerParameters::Field>,
-    <InnerParameters::CurtaConfig as GenericConfig<D>>::Hasher:
-        AlgebraicHasher<InnerParameters::Field>,
-    <OuterParameters::CurtaConfig as GenericConfig<D>>::Hasher:
-        AlgebraicHasher<OuterParameters::Field>,
 {
     circuit: CircuitBuild<InnerParameters, D>,
     hash_circuit: CircuitBuild<InnerParameters, D>,
@@ -49,10 +45,6 @@ impl<
     > WrappedCircuit<InnerParameters, OuterParameters, D>
 where
     <InnerParameters::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<InnerParameters::Field>,
-    <InnerParameters::CurtaConfig as GenericConfig<D>>::Hasher:
-        AlgebraicHasher<InnerParameters::Field>,
-    <OuterParameters::CurtaConfig as GenericConfig<D>>::Hasher:
-        AlgebraicHasher<OuterParameters::Field>,
 {
     pub fn build(circuit: CircuitBuild<InnerParameters, D>) -> Self {
         // Standartize the public inputs/outputs to their hash and verify the circuit recursively

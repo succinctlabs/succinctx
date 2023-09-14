@@ -211,7 +211,7 @@ mod tests {
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         // circuit.verify(&proof, &input, &output);
-        // circuit.test_default_serializers();
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -258,6 +258,6 @@ mod tests {
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         // circuit.verify(&proof, &input, &output);
-        // circuit.test_default_serializers();
+        circuit.test_default_serializers();
     }
 }

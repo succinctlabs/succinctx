@@ -50,8 +50,6 @@ impl<C: Circuit> VerifiableFunction<C> {
     pub fn compile<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-        <<L as PlonkParameters<D>>::CurtaConfig as GenericConfig<D>>::Hasher:
-            AlgebraicHasher<L::Field>,
     {
         info!("Building circuit...");
         let mut builder = CircuitBuilder::<L, D>::new();
@@ -160,10 +158,6 @@ impl<C: Circuit> VerifiableFunction<C> {
     ) where
         <InnerParameters::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<InnerParameters::Field>,
-        <InnerParameters::CurtaConfig as GenericConfig<D>>::Hasher:
-            AlgebraicHasher<InnerParameters::Field>,
-        <OuterParameters::CurtaConfig as GenericConfig<D>>::Hasher:
-            AlgebraicHasher<OuterParameters::Field>,
         OuterParameters::Config: Serialize,
     {
         let path = format!("{}/main.circuit", args.build_dir);

@@ -701,7 +701,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=john/nightly#e8b9f1745c9d92be77ba9817b0e3921869c1df7a"
+source = "git+https://github.com/succinctlabs/curta.git?branch=tamir/serialization#252099a28bc350b9c8a3d2a9c95fea44d577c304"
 dependencies = [
  "anyhow",
  "bincode",

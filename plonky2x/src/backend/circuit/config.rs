@@ -2,6 +2,7 @@ use core::fmt::Debug;
 
 use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
 use curta::math::prelude::CubicParameters;
+use curta::plonky2::stark::config::{CurtaConfig, CurtaPoseidonGoldilocksConfig};
 use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::RichField;
@@ -19,8 +20,11 @@ pub trait PlonkParameters<const D: usize>:
     type Config: GenericConfig<D, F = Self::Field, FE = <Self::Field as Extendable<D>>::Extension>
         + 'static;
 
-    type CurtaConfig: GenericConfig<D, F = Self::Field, FE = <Self::Field as Extendable<D>>::Extension>
-        + 'static;
+    type CurtaConfig: CurtaConfig<
+        D,
+        F = Self::Field,
+        FE = <Self::Field as Extendable<D>>::Extension,
+    >;
 
     type CubicParams: CubicParameters<Self::Field>;
 }
@@ -36,7 +40,7 @@ impl PlonkParameters<2> for DefaultParameters {
 
     type Config = PoseidonGoldilocksConfig;
 
-    type CurtaConfig = PoseidonGoldilocksConfig;
+    type CurtaConfig = CurtaPoseidonGoldilocksConfig;
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -49,5 +53,5 @@ impl PlonkParameters<2> for Groth16VerifierParameters {
 
     type Config = PoseidonBN128GoldilocksConfig;
 
-    type CurtaConfig = PoseidonGoldilocksConfig;
+    type CurtaConfig = CurtaPoseidonGoldilocksConfig;
 }
