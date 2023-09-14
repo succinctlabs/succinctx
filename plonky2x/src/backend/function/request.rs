@@ -4,7 +4,7 @@ use std::env;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use serde::{Deserialize, Serialize};
 
-use crate::backend::circuit::{PlonkParameters, PublicInput};
+use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput};
 use crate::utils::serde::{
     deserialize_elements, deserialize_hex, deserialize_proof_with_pis_vec, serialize_elements,
     serialize_hex, serialize_proof_with_pis_vec,
@@ -29,7 +29,7 @@ pub struct ElementsRequestData<L: PlonkParameters<D>, const D: usize> {
 /// Fields for a function request that uses recursive proofs io.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecursiveProofsRequestData<L: PlonkParameters<D>, const D: usize> {
-    pub subfunction: Option<String>,
+    pub circuit_id: String,
     #[serde(serialize_with = "serialize_proof_with_pis_vec")]
     #[serde(deserialize_with = "deserialize_proof_with_pis_vec")]
     pub input: Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
@@ -37,8 +37,8 @@ pub struct RecursiveProofsRequestData<L: PlonkParameters<D>, const D: usize> {
 
 /// Common fields for all function requests.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProofRequestBase<D> {
-    #[serde(rename = "releaseId")]
     pub release_id: String,
     pub data: D,
 }
@@ -61,7 +61,7 @@ pub enum ProofRequest<L: PlonkParameters<D>, const D: usize> {
 
 impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
     /// Creates a new function request from a circuit and public input.
-    pub fn new(input: &PublicInput<L, D>) -> Self {
+    pub fn new(circuit: &CircuitBuild<L, D>, input: &PublicInput<L, D>) -> Self {
         let release_id = env::var("RELEASE_ID").unwrap();
         match input {
             PublicInput::Bytes(input) => ProofRequest::Bytes(ProofRequestBase {
@@ -80,7 +80,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
                 ProofRequest::RecursiveProofs(ProofRequestBase {
                     release_id,
                     data: RecursiveProofsRequestData {
-                        subfunction: None,
+                        circuit_id: circuit.id(),
                         input: input.clone(),
                     },
                 })

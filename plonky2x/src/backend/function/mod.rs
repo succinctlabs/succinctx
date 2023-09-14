@@ -96,9 +96,17 @@ contract FunctionVerifier is IFunctionVerifier {
         let mut gate_registry = GateRegistry::new();
         C::register_generators::<L, D>(&mut generator_registry);
         C::register_gates::<L, D>(&mut gate_registry);
-        let circuit =
+        let mut circuit =
             CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap();
         info!("Successfully loaded circuit.");
+
+        if let ProofRequest::RecursiveProofs(ref request) = request {
+            if circuit.id() != request.data.circuit_id {
+                let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
+                circuit =
+                    CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap()
+            }
+        }
 
         let input = request.input();
         let (proof, output) = circuit.prove(&input);

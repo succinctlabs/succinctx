@@ -47,7 +47,7 @@ impl Prover for RemoteProver {
         let service = ProofService::new(service_url);
 
         // Submit the proof request.
-        let request = ProofRequest::new(input);
+        let request = ProofRequest::new(circuit, input);
         let proof_id = service.submit::<L, D>(request).await?;
 
         // Wait for the proof to be generated.
