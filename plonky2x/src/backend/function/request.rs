@@ -1,9 +1,10 @@
 use core::fmt::Debug;
+use std::env;
 
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use serde::{Deserialize, Serialize};
 
-use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput};
+use crate::backend::circuit::{PlonkParameters, PublicInput};
 use crate::utils::serde::{
     deserialize_elements, deserialize_hex, deserialize_proof_with_pis_vec, serialize_elements,
     serialize_hex, serialize_proof_with_pis_vec,
@@ -60,8 +61,8 @@ pub enum ProofRequest<L: PlonkParameters<D>, const D: usize> {
 
 impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
     /// Creates a new function request from a circuit and public input.
-    pub fn new(circuit: &CircuitBuild<L, D>, input: &PublicInput<L, D>) -> Self {
-        let release_id = circuit.id();
+    pub fn new(input: &PublicInput<L, D>) -> Self {
+        let release_id = env::var("RELEASE_ID").unwrap();
         match input {
             PublicInput::Bytes(input) => ProofRequest::Bytes(ProofRequestBase {
                 release_id,
