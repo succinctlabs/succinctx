@@ -7,8 +7,8 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
 
-pub use super::config::{DefaultParameters, PlonkParameters};
-pub use super::input::PublicInput;
+use super::config::PlonkParameters;
+use super::input::PublicInput;
 use super::output::PublicOutput;
 use super::serialization::{GateRegistry, WitnessGeneratorRegistry};
 use crate::frontend::builder::CircuitIO;
@@ -167,7 +167,6 @@ pub(crate) mod tests {
 
     use plonky2::field::types::Field;
 
-    use super::DefaultParameters;
     use crate::backend::circuit::serialization::{GateRegistry, WitnessGeneratorRegistry};
     use crate::backend::circuit::CircuitBuild;
     use crate::frontend::builder::DefaultBuilder;

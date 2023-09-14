@@ -4,11 +4,11 @@ use curta::chip::ec::edwards::ed25519::Ed25519 as CurtaEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::ScalarMulEd25519Gadget;
 use curta::chip::ec::edwards::EdwardsParameters;
 use curta::math::extension::cubic::parameters::CubicParameters;
+use curta::plonky2::stark::config::CurtaConfig;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use crate::frontend::ecc::ed25519::curve::curve_types::Curve;
 use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
@@ -94,17 +94,14 @@ pub fn verify_variable_signatures_circuit<
     F: RichField + Extendable<D>,
     C: Curve,
     E: CubicParameters<F>,
-    Config: GenericConfig<D, F = F, FE = F::Extension> + 'static,
+    Config: CurtaConfig<D, F = F, FE = F::Extension>,
     const D: usize,
     // Maximum length of a signed message in bits.
     const MAX_MSG_LEN_BITS: usize,
 >(
     builder: &mut CircuitBuilder<F, D>,
     num_sigs: usize,
-) -> EDDSAVariableTargets<C>
-where
-    Config::Hasher: AlgebraicHasher<F>,
-{
+) -> EDDSAVariableTargets<C> {
     assert!(num_sigs > 0 && num_sigs <= MAX_NUM_SIGS);
 
     // Note: This will calculate number of chunks in the message, including the compressed sig and pk bits (512 bits).
@@ -255,16 +252,13 @@ pub fn verify_signatures_circuit<
     F: RichField + Extendable<D>,
     C: Curve,
     E: CubicParameters<F>,
-    Config: GenericConfig<D, F = F, FE = F::Extension> + 'static,
+    Config: CurtaConfig<D, F = F, FE = F::Extension>,
     const D: usize,
 >(
     builder: &mut CircuitBuilder<F, D>,
     num_sigs: usize,
     msg_len: u128, // message length in bytes
-) -> EDDSATargets<C>
-where
-    Config::Hasher: AlgebraicHasher<F>,
-{
+) -> EDDSATargets<C> {
     assert!(num_sigs > 0 && num_sigs <= MAX_NUM_SIGS);
 
     // Create the eddsa circuit's virtual targets.
@@ -388,6 +382,7 @@ mod tests {
     use std::time::SystemTime;
 
     use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
+    use curta::plonky2::stark::config::CurtaPoseidonGoldilocksConfig;
     use num::BigUint;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, PrimeField};
@@ -427,6 +422,7 @@ mod tests {
     fn test_eddsa_circuit_with_config(config: CircuitConfig) {
         type F = GoldilocksField;
         type E = GoldilocksCubicParameters;
+        type SC = CurtaPoseidonGoldilocksConfig;
         type C = PoseidonGoldilocksConfig;
         type Curve = Ed25519;
         const D: usize = 2;
@@ -479,7 +475,7 @@ mod tests {
 
         assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
 
-        let eddsa_target = verify_signatures_circuit::<F, Curve, E, C, D>(
+        let eddsa_target = verify_signatures_circuit::<F, Curve, E, SC, D>(
             &mut builder,
             1,
             msg.len().try_into().unwrap(),
@@ -545,6 +541,7 @@ mod tests {
 
         type F = GoldilocksField;
         type E = GoldilocksCubicParameters;
+        type SC = CurtaPoseidonGoldilocksConfig;
         type C = PoseidonGoldilocksConfig;
         type Curve = Ed25519;
         const D: usize = 2;
@@ -552,7 +549,7 @@ mod tests {
         let mut pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
 
-        let eddsa_target = verify_signatures_circuit::<F, Curve, E, C, D>(
+        let eddsa_target = verify_signatures_circuit::<F, Curve, E, SC, D>(
             &mut builder,
             msgs.len(),
             msg_len.try_into().unwrap(),
@@ -638,6 +635,7 @@ mod tests {
 
         type F = GoldilocksField;
         type E = GoldilocksCubicParameters;
+        type SC = CurtaPoseidonGoldilocksConfig;
         type C = PoseidonGoldilocksConfig;
         type Curve = Ed25519;
         const D: usize = 2;
@@ -646,7 +644,7 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         const MAX_MSG_LEN_BITS: usize = 128 * 8;
         // Length of sig.r and pk_compressed in hash_msg
-        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, C, D, MAX_MSG_LEN_BITS>(
+        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, SC, D, MAX_MSG_LEN_BITS>(
             &mut builder,
             msgs.len(),
         );

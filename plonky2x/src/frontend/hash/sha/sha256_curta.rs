@@ -3,7 +3,6 @@ use curta::chip::hash::sha::sha256::generator::SHA256HintGenerator;
 use curta::math::field::Field;
 use itertools::Itertools;
 use plonky2::iop::target::Target;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::hash::bit_operations::util::u64_to_bits;
@@ -193,10 +192,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         )
     }
 
-    pub fn curta_constrain_sha256(&mut self)
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
+    pub fn curta_constrain_sha256(&mut self) {
         let mut nb_chunks = 0;
         let mut curr_rq = 0;
         let mut num_rqs = self.sha256_requests.len();
@@ -273,7 +269,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 rq_idx += 1;
             }
 
-            self.api.constrain_sha256_gadget::<L::Config>(gadget);
+            self.api.constrain_sha256_gadget::<L::CurtaConfig>(gadget);
         }
     }
 }

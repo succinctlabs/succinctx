@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+use core::panic;
 
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use serde::{Deserialize, Serialize};
@@ -11,13 +12,13 @@ use crate::utils::serde::{
 
 /// Fields for a function result that uses bytes io.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BytesResultData<L: PlonkParameters<D>, const D: usize> {
+pub struct BytesResultData {
     #[serde(serialize_with = "serialize_hex")]
     #[serde(deserialize_with = "deserialize_hex")]
     pub output: Vec<u8>,
-    #[serde(serialize_with = "serialize_proof_with_pis")]
-    #[serde(deserialize_with = "deserialize_proof_with_pis")]
-    pub proof: ProofWithPublicInputs<L::Field, L::Config, D>,
+    #[serde(serialize_with = "serialize_hex")]
+    #[serde(deserialize_with = "deserialize_hex")]
+    pub proof: Vec<u8>,
 }
 
 /// Fields for a function result that uses field elements io.
@@ -55,7 +56,7 @@ pub struct ProofResultBase<D> {
 #[serde(bound = "")]
 pub enum ProofResult<L: PlonkParameters<D>, const D: usize> {
     #[serde(rename = "res_bytes")]
-    Bytes(ProofResultBase<BytesResultData<L, D>>),
+    Bytes(ProofResultBase<BytesResultData>),
     #[serde(rename = "res_elements")]
     Elements(ProofResultBase<ElementsResultData<L, D>>),
     #[serde(rename = "res_recursiveProofs")]
@@ -64,13 +65,16 @@ pub enum ProofResult<L: PlonkParameters<D>, const D: usize> {
 
 impl<L: PlonkParameters<D>, const D: usize> ProofResult<L, D> {
     /// Creates a new function result from a proof and output.
-    pub fn new(
+    pub fn from_proof_output(
         proof: ProofWithPublicInputs<L::Field, L::Config, D>,
         output: PublicOutput<L, D>,
     ) -> Self {
         match output {
             PublicOutput::Bytes(output) => {
-                let data = BytesResultData { output, proof };
+                let data = BytesResultData {
+                    output,
+                    proof: bincode::serialize(&proof).unwrap(),
+                };
                 ProofResult::Bytes(ProofResultBase { data })
             }
             PublicOutput::Elements(output) => {
@@ -85,6 +89,11 @@ impl<L: PlonkParameters<D>, const D: usize> ProofResult<L, D> {
         }
     }
 
+    pub fn from_bytes(proof: Vec<u8>, output: Vec<u8>) -> Self {
+        let data = BytesResultData { output, proof };
+        ProofResult::Bytes(ProofResultBase { data })
+    }
+
     pub fn as_proof_and_output(
         &self,
     ) -> (
@@ -92,11 +101,6 @@ impl<L: PlonkParameters<D>, const D: usize> ProofResult<L, D> {
         PublicOutput<L, D>,
     ) {
         match self {
-            ProofResult::Bytes(result) => {
-                let proof = &result.data.proof;
-                let output = PublicOutput::Bytes(result.data.output.clone());
-                (proof.clone(), output)
-            }
             ProofResult::Elements(result) => {
                 let proof = &result.data.proof;
                 let output = PublicOutput::Elements(result.data.output.clone());
@@ -107,6 +111,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofResult<L, D> {
                 let output = PublicOutput::Proofs(result.data.output.clone());
                 (proof.clone(), output)
             }
+            _ => panic!("cannot convert to proof and output"),
         }
     }
 }

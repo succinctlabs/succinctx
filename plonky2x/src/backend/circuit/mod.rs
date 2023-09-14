@@ -9,7 +9,7 @@ mod witness;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 pub use self::build::CircuitBuild;
-pub use self::config::{DefaultParameters, PlonkParameters};
+pub use self::config::{DefaultParameters, Groth16VerifierParameters, PlonkParameters};
 pub use self::input::PublicInput;
 pub use self::mock::MockCircuitBuild;
 pub use self::output::PublicOutput;

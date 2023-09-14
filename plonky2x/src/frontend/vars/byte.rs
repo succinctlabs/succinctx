@@ -118,6 +118,10 @@ impl ByteVariable {
 
         [ByteVariable(left_nibble), ByteVariable(right_nibble)]
     }
+
+    pub fn from_be_bits(bits: [BoolVariable; 8]) -> ByteVariable {
+        ByteVariable(bits)
+    }
 }
 
 pub trait Nibbles<ByteVariable> {

@@ -41,7 +41,7 @@ succinct prove
 To create a new SDK release:
 
 ```sh
-./build/release.sh <X.Y.Z>
+./scripts/release.sh <X.Y.Z>
 ```
 
 ## Building ABIs and Bindings
@@ -49,13 +49,13 @@ To create a new SDK release:
 To build the ABIs:
 
 ```sh
-./build/abi.sh
+./scripts/abi.sh
 ```
 
 Then to build the bindings:
 
 ```sh
-./build/binding.sh
+./scripts/binding.sh
 ```
 
-If you need to add a binding for a different contract, edit `build/binding.sh` and modify the `CONTRACTS` array.
+If you need to add a binding for a different contract, edit `scripts/binding.sh` and modify the `CONTRACTS` array.

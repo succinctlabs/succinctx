@@ -1,5 +1,5 @@
 {
     "preset": "plonky2",
-    "build_command": "rm -rf ./build && cd examples/beacon-validator-statistics && rustup override set nightly && mkdir build && cargo run --release build && mv ./build ../../build && mv ./target/release/beacon-validator-statistics ../../build/beacon-validator-statistics",
-    "prove_command": "./build/beacon-validator-statistics"
+    "build_command": "mkdir -p build && cargo run --example circuit_function_evm --release build && mv ./target/release/examples/circuit_function_evm ./build/circuit_function_evm",
+    "prove_command": "./build/circuit_function_evm prove-wrapped --input-json input.json --wrapper-path /verifier-build"
 }
