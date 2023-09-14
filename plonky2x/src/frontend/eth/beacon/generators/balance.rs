@@ -2,12 +2,12 @@ use core::marker::PhantomData;
 use std::env;
 
 use array_macro::array;
+use futures::executor;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
-use tokio::runtime::Runtime;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
@@ -144,36 +144,34 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         out_buffer: &mut GeneratedValues<L::Field>,
     ) {
         let block_root = self.block_root.get(witness);
-        let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result = rt
-            .block_on(async {
-                match &self.input {
-                    BeaconBalanceInput::IndexConst(idx) => {
-                        self.client
-                            .get_validator_balance_v2(hex!(block_root), *idx)
-                            .await
-                    }
-                    BeaconBalanceInput::IndexVariable(idx) => {
-                        let idx = idx.get(witness);
-                        self.client
-                            .get_validator_balance_v2(hex!(block_root), idx.as_u64())
-                            .await
-                    }
-                    BeaconBalanceInput::PubkeyConst(pubkey) => {
-                        let pubkey = hex!(pubkey.0);
-                        self.client
-                            .get_validator_balance_by_pubkey_v2(hex!(block_root), pubkey)
-                            .await
-                    }
-                    BeaconBalanceInput::PubkeyVariable(pubkey) => {
-                        let pubkey = hex!(pubkey.get(witness));
-                        self.client
-                            .get_validator_balance_by_pubkey_v2(hex!(block_root), pubkey)
-                            .await
-                    }
+        let result = executor::block_on(async {
+            match &self.input {
+                BeaconBalanceInput::IndexConst(idx) => {
+                    self.client
+                        .get_validator_balance_v2(hex!(block_root), *idx)
+                        .await
                 }
-            })
-            .unwrap();
+                BeaconBalanceInput::IndexVariable(idx) => {
+                    let idx = idx.get(witness);
+                    self.client
+                        .get_validator_balance_v2(hex!(block_root), idx.as_u64())
+                        .await
+                }
+                BeaconBalanceInput::PubkeyConst(pubkey) => {
+                    let pubkey = hex!(pubkey.0);
+                    self.client
+                        .get_validator_balance_by_pubkey_v2(hex!(block_root), pubkey)
+                        .await
+                }
+                BeaconBalanceInput::PubkeyVariable(pubkey) => {
+                    let pubkey = hex!(pubkey.get(witness));
+                    self.client
+                        .get_validator_balance_by_pubkey_v2(hex!(block_root), pubkey)
+                        .await
+                }
+            }
+        })
+        .unwrap();
         self.balance.set(out_buffer, result.balance.into());
         self.balance_leaf
             .set(out_buffer, bytes32!(result.balance_leaf));

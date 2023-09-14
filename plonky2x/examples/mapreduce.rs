@@ -1,8 +1,16 @@
+use std::env;
+
+use ethers::types::U64;
+use itertools::Itertools;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::VerifiableFunction;
+use plonky2x::frontend::eth::beacon::vars::BeaconBalancesVariable;
 use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
-use plonky2x::prelude::{CircuitBuilder, Field, Variable};
+use plonky2x::frontend::uint::uint64::U64Variable;
+use plonky2x::prelude::{Bytes32Variable, CircuitBuilder};
+use plonky2x::utils::bytes32;
+use plonky2x::utils::eth::beacon::BeaconClient;
 
 struct MapReduceCircuit {}
 
@@ -12,26 +20,25 @@ impl Circuit for MapReduceCircuit {
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        let ctx = builder.constant::<Variable>(L::Field::from_canonical_u64(8));
-        let inputs = vec![
-            L::Field::from_canonical_u64(0),
-            L::Field::from_canonical_u64(1),
-            L::Field::from_canonical_u64(2),
-            L::Field::from_canonical_u64(0),
-        ];
+        let rpc_url = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(rpc_url);
+        builder.set_beacon_client(client);
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xce041ceab7feb54821794e170bace390a41f34743f25b224e95d193ecb4d8052"
+        ));
+        let balances_root = builder.beacon_get_balances(block_root);
+        let idxs = (0..8).map(U64::from).collect_vec();
 
-        let output = builder.mapreduce::<Variable, Variable, Variable, _, _>(
-            ctx,
-            inputs,
-            |ctx, input, builder| {
-                builder.watch(&ctx, "ctx");
-                let constant = builder.constant::<Variable>(L::Field::ONE);
-                builder.add(input, constant)
+        let output = builder.mapreduce::<BeaconBalancesVariable, U64Variable, U64Variable, _, _>(
+            balances_root,
+            idxs,
+            |balances_root, idx, builder| {
+                let rpc_url = env::var("CONSENSUS_RPC_1").unwrap();
+                let client = BeaconClient::new(rpc_url);
+                builder.set_beacon_client(client);
+                builder.beacon_get_balance(balances_root, idx)
             },
-            |ctx, left, right, builder| {
-                builder.watch(&ctx, "ctx");
-                builder.add(left, right)
-            },
+            |_, left, right, builder| builder.add(left, right),
         );
 
         builder.watch(&output, "output");
@@ -43,8 +50,8 @@ impl Circuit for MapReduceCircuit {
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        let id = MapReduceGenerator::<L, Variable, Variable, Variable, D>::id();
-        registry.register_simple::<MapReduceGenerator<L, Variable, Variable, Variable, D>>(id);
+        let id = MapReduceGenerator::<L, BeaconBalancesVariable, U64Variable, U64Variable, D>::id();
+        registry.register_simple::<MapReduceGenerator<L, BeaconBalancesVariable, U64Variable, U64Variable, D>>(id);
     }
 }
 
@@ -63,13 +70,16 @@ mod tests {
 
     #[test]
     fn test_circuit() {
+        env_logger::try_init().unwrap_or_default();
+
         let mut builder = CircuitBuilder::<L, D>::new();
         MapReduceCircuit::define(&mut builder);
         let circuit = builder.build();
+
         let input = circuit.input();
         let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        let value = output.read::<Variable>();
+
         MapReduceCircuit::test_serialization::<L, D>();
     }
 }

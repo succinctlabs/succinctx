@@ -130,6 +130,7 @@ contract FunctionVerifier is IFunctionVerifier {
         type L = DefaultParameters;
         const D: usize = 2;
 
+        dotenv::dotenv().ok();
         env_logger::try_init().unwrap_or_default();
 
         let args = Args::parse();

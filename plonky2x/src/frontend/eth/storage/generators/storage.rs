@@ -3,13 +3,14 @@ use core::marker::PhantomData;
 
 use ethers::providers::Middleware;
 use ethers::types::{EIP1186ProofResponse, TransactionReceipt};
+use futures::executor;
+use log::debug;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use sha2::Digest;
-use tokio::runtime::Runtime;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
@@ -79,12 +80,17 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         let location = self.storage_key.get(witness);
         let block_hash = self.block_hash.get(witness);
         let provider = get_provider(self.chain_id);
-        let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result: EIP1186ProofResponse = rt.block_on(async {
-            provider
+        let result: EIP1186ProofResponse = executor::block_on(async {
+            debug!(
+                "querying proof {:?} {:?} {:?}",
+                address, location, block_hash
+            );
+            let proof = provider
                 .get_proof(address, vec![location], Some(block_hash.into()))
                 .await
-                .expect("Failed to get proof")
+                .expect("Failed to get proof");
+            debug!("got proof {:?}", proof.storage_proof[0].value);
+            proof
         });
         let value = u256_to_h256_be(result.storage_proof[0].value);
         self.value.set(buffer, value);
@@ -281,15 +287,14 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for Eth
         let _block_hash = self.block_hash.get(witness);
 
         let provider = get_provider(self.chain_id);
-        let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result: TransactionReceipt = rt
-            .block_on(async {
-                provider
-                    .get_transaction_receipt(transaction_hash)
-                    .await
-                    .expect("Failed to call get_transaction_receipt")
-            })
-            .expect("No transaction receipt found");
+
+        let result: TransactionReceipt = executor::block_on(async {
+            provider
+                .get_transaction_receipt(transaction_hash)
+                .await
+                .expect("Failed to call get_transaction_receipt")
+        })
+        .expect("No transaction receipt found");
 
         let log = &result.logs[self.log_index as usize];
         let value = EthLog {
