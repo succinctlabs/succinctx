@@ -7,7 +7,6 @@ use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
-use tokio::runtime::Runtime;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
@@ -121,30 +120,24 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         out_buffer: &mut GeneratedValues<L::Field>,
     ) {
         let block_root = self.block_root.get(witness);
-        let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result = rt.block_on(async {
-            match &self.input {
-                BeaconValidatorGeneratorInput::IndexConst(idx) => self
-                    .client
-                    .get_validator(hex!(block_root), *idx)
-                    .await
-                    .expect("failed to get validator"),
-                BeaconValidatorGeneratorInput::IndexVariable(idx) => {
-                    let idx = idx.get(witness).as_u64();
-                    self.client
-                        .get_validator(hex!(block_root), idx)
-                        .await
-                        .expect("failed to get validator")
-                }
-                BeaconValidatorGeneratorInput::PubkeyVariable(pubkey) => {
-                    let pubkey = hex!(pubkey.get(witness));
-                    self.client
-                        .get_validator_by_pubkey(hex!(block_root), pubkey)
-                        .await
-                        .expect("failed to get validator")
-                }
+        let result = match &self.input {
+            BeaconValidatorGeneratorInput::IndexConst(idx) => self
+                .client
+                .get_validator(hex!(block_root), *idx)
+                .expect("failed to get validator"),
+            BeaconValidatorGeneratorInput::IndexVariable(idx) => {
+                let idx = idx.get(witness).as_u64();
+                self.client
+                    .get_validator(hex!(block_root), idx)
+                    .expect("failed to get validator")
             }
-        });
+            BeaconValidatorGeneratorInput::PubkeyVariable(pubkey) => {
+                let pubkey = hex!(pubkey.get(witness));
+                self.client
+                    .get_validator_by_pubkey(hex!(block_root), pubkey)
+                    .expect("failed to get validator")
+            }
+        };
         self.validator.set(out_buffer, result.validator);
         self.validator_idx
             .set(out_buffer, result.validator_idx.into());

@@ -7,11 +7,10 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
-use tokio::runtime::Runtime;
 
 use super::{MapReduceInputVariable, MapReduceInputVariableValue};
 use crate::backend::circuit::CircuitBuild;
-use crate::backend::prover::{EnvProver, Prover};
+use crate::backend::prover::EnvProver;
 use crate::prelude::{CircuitVariable, GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
 
 #[derive(Debug, Clone)]
@@ -89,7 +88,6 @@ where
 
         // Create the prover and the async runtime.
         let prover = EnvProver::new();
-        let rt = Runtime::new().expect("failed to create tokio runtime");
 
         // Load the map circuit from disk & generate the proofs.
         let map_circuit_path = format!("./build/{}.circuit", self.map_circuit_id);
@@ -111,8 +109,7 @@ where
         }
 
         // Generate the proofs for the map layer.
-        let (mut proofs, _) =
-            rt.block_on(async { prover.batch_prove(&map_circuit, &map_inputs).await.unwrap() });
+        let (mut proofs, _) = prover.batch_prove(&map_circuit, &map_inputs).unwrap();
 
         // Process each reduce layer.
         let nb_reduce_layers = (self.inputs.len() as f64).log2().ceil() as usize;
@@ -137,12 +134,7 @@ where
             }
 
             // Generate the proofs for the reduce layer and update the proofs buffer.
-            (proofs, _) = rt.block_on(async {
-                prover
-                    .batch_prove(&reduce_circuit, &reduce_inputs)
-                    .await
-                    .unwrap()
-            });
+            (proofs, _) = prover.batch_prove(&reduce_circuit, &reduce_inputs).unwrap();
         }
 
         // Set the proof target with the final proof.

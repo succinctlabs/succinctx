@@ -347,7 +347,7 @@ pub(crate) mod tests {
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+        let latest_block_root = client.get_finalized_block_root().unwrap();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
@@ -371,7 +371,7 @@ pub(crate) mod tests {
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+        let latest_block_root = client.get_finalized_block_root().unwrap();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
@@ -400,7 +400,7 @@ pub(crate) mod tests {
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+        let latest_block_root = client.get_finalized_block_root().unwrap();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
@@ -428,7 +428,7 @@ pub(crate) mod tests {
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+        let latest_block_root = client.get_finalized_block_root().unwrap();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
@@ -456,7 +456,7 @@ pub(crate) mod tests {
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+        let latest_block_root = client.get_finalized_block_root().unwrap();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
@@ -480,7 +480,7 @@ pub(crate) mod tests {
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+        let latest_block_root = client.get_finalized_block_root().unwrap();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
@@ -506,7 +506,7 @@ pub(crate) mod tests {
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+        let latest_block_root = client.get_finalized_block_root().unwrap();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
@@ -530,7 +530,7 @@ pub(crate) mod tests {
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+        let latest_block_root = client.get_finalized_block_root().unwrap();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
@@ -556,7 +556,7 @@ pub(crate) mod tests {
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root_sync().unwrap();
+        let latest_block_root = client.get_finalized_block_root().unwrap();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);

@@ -12,9 +12,9 @@ use plonky2x::prelude::{Bytes32Variable, CircuitBuilder};
 use plonky2x::utils::bytes32;
 use plonky2x::utils::eth::beacon::BeaconClient;
 
-struct MapReduceCircuit {}
+struct MapReduceCircuitSSZ {}
 
-impl Circuit for MapReduceCircuit {
+impl Circuit for MapReduceCircuitSSZ {
     fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
@@ -23,11 +23,12 @@ impl Circuit for MapReduceCircuit {
         let rpc_url = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc_url);
         builder.set_beacon_client(client);
+
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(
             "0xce041ceab7feb54821794e170bace390a41f34743f25b224e95d193ecb4d8052"
         ));
         let balances_root = builder.beacon_get_balances(block_root);
-        let idxs = (0..8).map(U64::from).collect_vec();
+        let idxs = (0..4).map(U64::from).collect_vec();
 
         let output = builder.mapreduce::<BeaconBalancesVariable, U64Variable, U64Variable, _, _>(
             balances_root,
@@ -56,7 +57,7 @@ impl Circuit for MapReduceCircuit {
 }
 
 fn main() {
-    VerifiableFunction::<MapReduceCircuit>::entrypoint();
+    VerifiableFunction::<MapReduceCircuitSSZ>::entrypoint();
 }
 
 #[cfg(test)]
@@ -73,13 +74,13 @@ mod tests {
         env_logger::try_init().unwrap_or_default();
 
         let mut builder = CircuitBuilder::<L, D>::new();
-        MapReduceCircuit::define(&mut builder);
+        MapReduceCircuitSSZ::define(&mut builder);
         let circuit = builder.build();
 
         let input = circuit.input();
-        let (proof, mut output) = circuit.prove(&input);
+        let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
 
-        MapReduceCircuit::test_serialization::<L, D>();
+        MapReduceCircuitSSZ::test_serialization::<L, D>();
     }
 }

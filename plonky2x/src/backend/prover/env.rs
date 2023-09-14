@@ -5,20 +5,20 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::local::LocalProver;
-use super::remote::RemoteProver;
-use super::Prover;
 use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput, PublicOutput};
 
 /// A prover that can generate proofs locally or remotely based on the env variable `PROVER` which
 /// can either be `remote` or `local`.
 pub struct EnvProver;
 
-impl Prover for EnvProver {
-    fn new() -> Self {
+impl EnvProver {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
         Self {}
     }
 
-    async fn prove<L: PlonkParameters<D>, const D: usize>(
+    #[allow(clippy::type_complexity)]
+    pub fn prove<L: PlonkParameters<D>, const D: usize>(
         &self,
         circuit: &CircuitBuild<L, D>,
         input: &PublicInput<L, D>,
@@ -31,13 +31,15 @@ impl Prover for EnvProver {
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
         if env::var("PROVER").unwrap_or("local".to_string()) == "remote" {
-            RemoteProver::new().prove(circuit, input).await
+            todo!()
+            // RemoteProver::new().prove(circuit, input).await
         } else {
-            LocalProver::new().prove(circuit, input).await
+            LocalProver::new().prove(circuit, input)
         }
     }
 
-    async fn batch_prove<L: PlonkParameters<D>, const D: usize>(
+    #[allow(clippy::type_complexity)]
+    pub fn batch_prove<L: PlonkParameters<D>, const D: usize>(
         &self,
         circuit: &CircuitBuild<L, D>,
         inputs: &[PublicInput<L, D>],
@@ -50,9 +52,10 @@ impl Prover for EnvProver {
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
         if env::var("PROVER").unwrap_or("local".to_string()) == "remote" {
-            RemoteProver::new().batch_prove(circuit, inputs).await
+            todo!()
+            // RemoteProver::new().batch_prove(circuit, inputs).await
         } else {
-            LocalProver::new().batch_prove(circuit, inputs).await
+            LocalProver::new().batch_prove(circuit, inputs)
         }
     }
 }
