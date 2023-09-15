@@ -53,20 +53,22 @@ pub struct EthHeaderVariable {
 impl CircuitVariable for EthHeaderVariable {
     type ValueType<F: RichField> = EthHeader;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
         Self {
-            parent_hash: Bytes32Variable::init(builder),
-            uncle_hash: Bytes32Variable::init(builder),
-            coinbase: AddressVariable::init(builder),
-            root: Bytes32Variable::init(builder),
-            tx_hash: Bytes32Variable::init(builder),
-            receipt_hash: Bytes32Variable::init(builder),
+            parent_hash: Bytes32Variable::init_unsafe(builder),
+            uncle_hash: Bytes32Variable::init_unsafe(builder),
+            coinbase: AddressVariable::init_unsafe(builder),
+            root: Bytes32Variable::init_unsafe(builder),
+            tx_hash: Bytes32Variable::init_unsafe(builder),
+            receipt_hash: Bytes32Variable::init_unsafe(builder),
             // bloom: Bytes32Variable::init(builder),
-            difficulty: U256Variable::init(builder),
-            number: U64Variable::init(builder),
-            gas_limit: U256Variable::init(builder),
-            gas_used: U256Variable::init(builder),
-            time: U256Variable::init(builder),
+            difficulty: U256Variable::init_unsafe(builder),
+            number: U64Variable::init_unsafe(builder),
+            gas_limit: U256Variable::init_unsafe(builder),
+            gas_used: U256Variable::init_unsafe(builder),
+            time: U256Variable::init_unsafe(builder),
             // extra: Bytes32Variable::init(builder),
         }
     }
@@ -98,38 +100,40 @@ impl CircuitVariable for EthHeaderVariable {
     }
 
     #[allow(unused_variables)]
-    fn from_variables(variables: &[Variable]) -> Self {
-        let parent_hash = Bytes32Variable::from_variables(&variables[0..32 * 8]);
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        let parent_hash = Bytes32Variable::from_variables_unsafe(&variables[0..32 * 8]);
         let mut offset = 32 * 8;
-        let uncle_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        let uncle_hash =
+            Bytes32Variable::from_variables_unsafe(&variables[offset..offset + 32 * 8]);
         offset += 32 * 8;
-        let coinbase = AddressVariable::from_variables(&variables[offset..offset + 8 * 20]);
+        let coinbase = AddressVariable::from_variables_unsafe(&variables[offset..offset + 8 * 20]);
         offset += 8 * 20;
-        let root = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        let root = Bytes32Variable::from_variables_unsafe(&variables[offset..offset + 32 * 8]);
         offset += 32 * 8;
 
-        let tx_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        let tx_hash = Bytes32Variable::from_variables_unsafe(&variables[offset..offset + 32 * 8]);
         offset += 32 * 8;
 
-        let receipt_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        let receipt_hash =
+            Bytes32Variable::from_variables_unsafe(&variables[offset..offset + 32 * 8]);
         offset += 32 * 8;
 
         // let bloom = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
         // offset += 32 * 8;
 
-        let difficulty = U256Variable::from_variables(&variables[offset..offset + 4]);
+        let difficulty = U256Variable::from_variables_unsafe(&variables[offset..offset + 4]);
         offset += 4;
 
-        let number = U64Variable::from_variables(&variables[offset..offset + 1]);
+        let number = U64Variable::from_variables_unsafe(&variables[offset..offset + 1]);
         offset += 1;
 
-        let gas_limit = U256Variable::from_variables(&variables[offset..offset + 4]);
+        let gas_limit = U256Variable::from_variables_unsafe(&variables[offset..offset + 4]);
         offset += 4;
 
-        let gas_used = U256Variable::from_variables(&variables[offset..offset + 4]);
+        let gas_used = U256Variable::from_variables_unsafe(&variables[offset..offset + 4]);
         offset += 4;
 
-        let time = U256Variable::from_variables(&variables[offset..offset + 4]);
+        let time = U256Variable::from_variables_unsafe(&variables[offset..offset + 4]);
 
         // let extra = Bytes32Variable::from_variables(&variables[offset+8..offset+8+32*8]);
 
@@ -148,6 +152,24 @@ impl CircuitVariable for EthHeaderVariable {
             time,
             // extra
         }
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        self.parent_hash.assert_is_valid(builder);
+        self.uncle_hash.assert_is_valid(builder);
+        self.coinbase.assert_is_valid(builder);
+        self.root.assert_is_valid(builder);
+        self.tx_hash.assert_is_valid(builder);
+        self.receipt_hash.assert_is_valid(builder);
+        // self.bloom.assert_is_valid(builder);
+        self.difficulty.assert_is_valid(builder);
+        self.number.assert_is_valid(builder);
+        self.gas_limit.assert_is_valid(builder);
+        self.gas_used.assert_is_valid(builder);
+        self.time.assert_is_valid(builder);
     }
 
     #[allow(unused_variables)]

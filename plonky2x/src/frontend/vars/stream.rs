@@ -49,7 +49,7 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
     }
     pub fn read<V: CircuitVariable>(&self, builder: &mut CircuitBuilder<L, D>) -> V {
         let variables = self.read_exact(builder, V::nb_elements());
-        V::from_variables(&variables)
+        V::from_variables_unsafe(&variables)
     }
 }
 
@@ -78,7 +78,7 @@ impl VariableStream {
 
     pub fn read<V: CircuitVariable>(&mut self) -> V {
         let variables = self.0.read_exact(V::nb_elements());
-        V::from_variables(variables)
+        V::from_variables_unsafe(variables)
     }
 
     pub fn write<V: CircuitVariable>(&mut self, value: &V) {

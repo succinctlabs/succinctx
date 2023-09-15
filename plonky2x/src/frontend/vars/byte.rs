@@ -19,8 +19,10 @@ pub struct ByteVariable(pub [BoolVariable; 8]);
 impl CircuitVariable for ByteVariable {
     type ValueType<F: RichField> = u8;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
-        Self(array![_ => BoolVariable::init(builder); 8])
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        Self(array![_ => BoolVariable::init_unsafe(builder); 8])
     }
 
     fn constant<L: PlonkParameters<D>, const D: usize>(
@@ -34,9 +36,18 @@ impl CircuitVariable for ByteVariable {
         self.0.iter().map(|x| x.0).collect()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), 8);
         Self(array![i => BoolVariable(variables[i]); 8])
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        for b in self.0.iter() {
+            b.assert_is_valid(builder);
+        }
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

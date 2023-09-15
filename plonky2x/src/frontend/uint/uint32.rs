@@ -9,7 +9,7 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
-use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
+use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
 use crate::prelude::*;
 
@@ -21,8 +21,10 @@ pub struct U32Variable(pub Variable);
 impl CircuitVariable for U32Variable {
     type ValueType<F: RichField> = u32;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
-        Self(Variable::init(builder))
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        Self(Variable::init_unsafe(builder))
     }
 
     fn constant<L: PlonkParameters<D>, const D: usize>(
@@ -39,9 +41,16 @@ impl CircuitVariable for U32Variable {
         vec![self.0]
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), 1);
         Self(variables[0])
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        builder.api.u32_to_bits_le(U32Target(self.targets()[0]));
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

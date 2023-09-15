@@ -17,8 +17,10 @@ pub struct BytesVariable<const N: usize>(pub [ByteVariable; N]);
 impl<const N: usize> CircuitVariable for BytesVariable<N> {
     type ValueType<F: RichField> = [u8; N];
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
-        Self(array![_ => ByteVariable::init(builder); N])
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        Self(array![_ => ByteVariable::init_unsafe(builder); N])
     }
 
     fn constant<L: PlonkParameters<D>, const D: usize>(
@@ -32,16 +34,25 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         self.0.iter().flat_map(|b| b.variables()).collect()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), 8 * N);
         Self(
             variables
                 .chunks_exact(8)
-                .map(ByteVariable::from_variables)
+                .map(ByteVariable::from_variables_unsafe)
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap(),
         )
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        for b in self.0.iter() {
+            b.assert_is_valid(builder);
+        }
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

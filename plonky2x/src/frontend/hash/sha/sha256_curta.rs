@@ -82,7 +82,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 .chunks(8)
                 .map(|chunk| {
                     let variables = chunk.iter().map(|b| b.0).collect_vec();
-                    ByteVariable::from_variables(&variables)
+                    ByteVariable::from_variables_unsafe(&variables)
                 })
                 .collect_vec(),
         );

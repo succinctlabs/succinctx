@@ -1,13 +1,15 @@
 extern crate proc_macro;
 
+mod assert_is_valid;
 mod constant;
 mod init;
 mod value;
 mod variables;
 mod witness;
 
+use assert_is_valid::assert_is_valid;
 use constant::constant;
-use init::init;
+use init::init_unsafe;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::{
@@ -15,7 +17,7 @@ use syn::{
     WherePredicate,
 };
 use value::value;
-use variables::{from_variables, variables};
+use variables::{from_variables_unsafe, variables};
 use witness::{get, set};
 
 struct StructData {
@@ -67,10 +69,11 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
     let (value_generics, value_expanded) = value(&value_ident, &value_derive, &data, &generics);
     let (_, value_ty_generics, _) = value_generics.split_for_impl();
 
-    let init_expanded = init(&data);
+    let init_unsafe_expanded = init_unsafe(&data);
     let constant_expanded = constant(&data);
     let variables_expanded = variables(&data);
-    let from_variables_expanded = from_variables(&data);
+    let from_variables_unsafe_expanded = from_variables_unsafe(&data);
+    let assert_is_valid_expanded = assert_is_valid(&data);
     let set_exapaned = set(&data);
     let get_exapaned = get(&data);
 
@@ -82,8 +85,8 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
 
             type ValueType<F: RichField> = #value_ident #value_ty_generics;
 
-            fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
-                #init_expanded
+            fn init_unsafe<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+                #init_unsafe_expanded
             }
 
             fn constant<L: PlonkParameters<D>, const D: usize>(
@@ -97,8 +100,12 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
                 #variables_expanded
             }
 
-            fn from_variables(variables: &[Variable]) -> Self {
-                #from_variables_expanded
+            fn from_variables_unsafe(variables: &[Variable]) -> Self {
+                #from_variables_unsafe_expanded
+            }
+
+            fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(&self, builder: &mut CircuitBuilder<L, D>) {
+                #assert_is_valid_expanded
             }
 
             fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

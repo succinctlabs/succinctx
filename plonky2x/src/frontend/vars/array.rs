@@ -13,21 +13,21 @@ use crate::frontend::builder::CircuitBuilder;
 /// We use this to avoid stack overflow arrays associated with fixed-length arrays.
 #[derive(Debug, Clone)]
 pub struct ArrayVariable<V: CircuitVariable, const N: usize> {
-    elements: Vec<V>,
+    data: Vec<V>,
 }
 
 impl<V: CircuitVariable, const N: usize> ArrayVariable<V, N> {
     pub fn new(elements: Vec<V>) -> Self {
         assert_eq!(elements.len(), N);
-        Self { elements }
+        Self { data: elements }
     }
 
     pub fn as_slice(&self) -> &[V] {
-        &self.elements
+        &self.data
     }
 
     pub fn as_vec(&self) -> Vec<V> {
-        self.elements.clone()
+        self.data.clone()
     }
 }
 
@@ -35,7 +35,7 @@ impl<V: CircuitVariable, const N: usize> Index<usize> for ArrayVariable<V, N> {
     type Output = V;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.elements[index]
+        &self.data[index]
     }
 }
 
@@ -43,7 +43,7 @@ impl<V: CircuitVariable, const N: usize> Index<Range<usize>> for ArrayVariable<V
     type Output = [V];
 
     fn index(&self, range: Range<usize>) -> &Self::Output {
-        &self.elements[range]
+        &self.data[range]
     }
 }
 
@@ -56,9 +56,11 @@ impl<V: CircuitVariable, const N: usize> From<Vec<V>> for ArrayVariable<V, N> {
 impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N> {
     type ValueType<F: RichField> = Vec<V::ValueType<F>>;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
         Self {
-            elements: (0..N).map(|_| V::init(builder)).collect(),
+            data: (0..N).map(|_| V::init_unsafe(builder)).collect(),
         }
     }
 
@@ -68,34 +70,43 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
     ) -> Self {
         assert_eq!(value.len(), N);
         Self {
-            elements: value.into_iter().map(|x| V::constant(builder, x)).collect(),
+            data: value.into_iter().map(|x| V::constant(builder, x)).collect(),
         }
     }
 
     fn variables(&self) -> Vec<Variable> {
-        self.elements.iter().flat_map(|x| x.variables()).collect()
+        self.data.iter().flat_map(|x| x.variables()).collect()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), N * V::nb_elements());
         let mut res = Vec::new();
         for i in 0..N {
             let start = i * V::nb_elements();
             let end = (i + 1) * V::nb_elements();
             let slice = &variables[start..end];
-            res.push(V::from_variables(slice));
+            res.push(V::from_variables_unsafe(slice));
         }
 
-        Self { elements: res }
+        Self { data: res }
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        for element in self.data.iter() {
+            element.assert_is_valid(builder);
+        }
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        self.elements.iter().map(|x| x.get(witness)).collect()
+        self.data.iter().map(|x| x.get(witness)).collect()
     }
 
     fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
         assert_eq!(value.len(), N);
-        for (element, value) in self.elements.iter().zip(value) {
+        for (element, value) in self.data.iter().zip(value) {
             element.set(witness, value);
         }
     }
@@ -142,7 +153,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             selected_vars.push(Variable(self.api.random_access(selector.0, pos_i_targets)));
         }
 
-        V::from_variables(&selected_vars)
+        V::from_variables_unsafe(&selected_vars)
     }
 }
 
