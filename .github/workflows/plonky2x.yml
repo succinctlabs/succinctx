@@ -44,10 +44,10 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release --features "ci" 
+          args: --features "ci" 
         env:
-          CARGO_LOG: cargo::core::compiler::fingerprint=info
-          RUST_LOG: info
+          RUSTFLAGS: -Copt-level=3 -Cdebug-assertions -Coverflow-checks=y -Cdebuginfo=0
+          RUST_LOG: 1
           RUST_BACKTRACE: 1
 
   lints:
