@@ -29,6 +29,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: rust-nightly-2023-08-24-
 
       - name: Install nightly toolchain
         id: rustc-toolchain
@@ -78,6 +79,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: rust-nightly-2023-08-24-
 
       - name: Install nightly toolchain
         id: rustc-toolchain
