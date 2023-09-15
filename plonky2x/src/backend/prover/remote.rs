@@ -48,12 +48,16 @@ impl Prover for RemoteProver {
 
         // Submit the proof request.
         let request = ProofRequest::new(circuit, input);
-        let proof_id = service.submit::<L, D>(request).await?;
+        let proof_id = service
+            .submit::<L, D>(request)
+            .await
+            .expect("failed to submit proof request");
 
         // Wait for the proof to be generated.
-        const MAX_RETRIES: usize = 120;
+        const MAX_RETRIES: usize = 500;
         let mut status = ProofRequestStatus::Pending;
         for i in 0..MAX_RETRIES {
+            sleep(Duration::from_secs(60)).await;
             let request = service.get::<L, D>(proof_id).await?;
             debug!(
                 "proof {:?}: status={:?}, nb_retries={}/{}",
@@ -72,7 +76,6 @@ impl Prover for RemoteProver {
                 }
                 _ => break,
             };
-            sleep(Duration::from_secs(5)).await;
         }
 
         // Return an error if the proof failed to generate.
