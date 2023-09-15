@@ -28,7 +28,7 @@ jobs:
           override: true
 
       - name: rust-cache
-        uses: actions/cache@v3
+        uses: buildjet/cache@v3
         with:
           path: |
             ~/.cargo/bin/
@@ -78,7 +78,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: rust-cache
-        uses: actions/cache@v3
+        uses: buildjet/cache@v3
         with:
           path: |
             ~/.cargo/bin/
