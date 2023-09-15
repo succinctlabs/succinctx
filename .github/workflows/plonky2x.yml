@@ -46,7 +46,8 @@ jobs:
           command: test
           args: --release --features "ci" 
         env:
-          RUST_LOG: 1
+          CARGO_LOG: cargo::core::compiler::fingerprint=info
+          RUST_LOG: info
           RUST_BACKTRACE: 1
 
   lints:
