@@ -9,8 +9,8 @@ use plonky2::field::types::PrimeField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::iop::witness::{PartitionWitness, WitnessWrite};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
+use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::ceil_div_usize;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
@@ -23,11 +23,89 @@ use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32T
 use crate::frontend::num::u32::gadgets::range_check::range_check_u32_circuit;
 use crate::frontend::num::u32::serialization::{ReadU32, WriteU32};
 use crate::frontend::num::u32::witness::GeneratedValuesU32;
+use crate::prelude::{CircuitBuilder, CircuitVariable, PlonkParameters, Variable};
 
 #[derive(Clone, Debug, Default)]
 pub struct NonNativeTarget<FF: PrimeField> {
     pub value: BigUintTarget,
     pub _phantom: PhantomData<FF>,
+}
+
+fn num_nonnative_limbs<FF: PrimeField>() -> usize {
+    ceil_div_usize(FF::BITS, 32)
+}
+
+impl<FF: PrimeField> CircuitVariable for NonNativeTarget<FF> {
+    type ValueType<F: RichField> = FF;
+
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        builder.api.add_virtual_nonnative_target()
+    }
+
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
+    ) -> Self {
+        builder.api.constant_nonnative::<FF>(value)
+    }
+
+    fn variables(&self) -> Vec<Variable> {
+        self.value
+            .limbs
+            .iter()
+            .map(|x| Variable(x.0))
+            .collect::<Vec<Variable>>()
+    }
+
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        let num_limbs = num_nonnative_limbs::<FF>();
+        let u32s = variables
+            .iter()
+            .map(|x| U32Target(x.0))
+            .collect::<Vec<U32Target>>();
+        assert_eq!(u32s.len(), num_limbs);
+        Self {
+            value: BigUintTarget { limbs: u32s },
+            _phantom: PhantomData,
+        }
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        let modulus = builder.api.constant_biguint(&FF::order());
+        let cmp = builder.api.cmp_biguint(&self.value, &modulus);
+        let one = builder.api.one();
+        builder.api.connect(cmp.target, one);
+    }
+
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+        let field_elements = self
+            .value
+            .limbs
+            .iter()
+            .map(|x| Variable(x.0).get(witness).to_canonical_u64() as u32)
+            .collect::<Vec<u32>>();
+        let big_uint = BigUint::from_slice(&field_elements);
+        FF::from_noncanonical_biguint(big_uint)
+    }
+
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+        let biguint = value.to_canonical_biguint();
+        let limbs = biguint.to_u32_digits();
+        let num_limbs = num_nonnative_limbs::<FF>();
+        assert_eq!(limbs.len(), num_limbs);
+        let _ = self
+            .value
+            .limbs
+            .iter()
+            .enumerate()
+            .map(|(i, x)| Variable(x.0).set(witness, F::from_canonical_u32(limbs[i])))
+            .collect::<Vec<_>>();
+    }
 }
 
 pub trait CircuitBuilderNonNative<F: RichField + Extendable<D>, const D: usize> {
@@ -133,7 +211,7 @@ pub trait CircuitBuilderNonNative<F: RichField + Extendable<D>, const D: usize> 
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
-    for CircuitBuilder<F, D>
+    for BaseCircuitBuilder<F, D>
 {
     fn num_nonnative_limbs<FF: PrimeField>() -> usize {
         ceil_div_usize(FF::BITS, 32)
@@ -880,7 +958,7 @@ mod tests {
     use plonky2::field::secp256k1_base::Secp256K1Base;
     use plonky2::field::types::{Field, PrimeField, Sample};
     use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use plonky2::plonk::circuit_builder::BaseCircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
@@ -899,7 +977,7 @@ mod tests {
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let x = builder.constant_nonnative(x_ff);
         let y = builder.constant_nonnative(y_ff);
@@ -932,7 +1010,7 @@ mod tests {
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let a = builder.constant_nonnative(a_ff);
         let b = builder.constant_nonnative(b_ff);
@@ -969,7 +1047,7 @@ mod tests {
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let x = builder.constant_nonnative(x_ff);
         let y = builder.constant_nonnative(y_ff);
@@ -995,7 +1073,7 @@ mod tests {
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let x = builder.constant_nonnative(x_ff);
         let y = builder.constant_nonnative(y_ff);
@@ -1020,7 +1098,7 @@ mod tests {
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let x = builder.constant_nonnative(x_ff);
         let neg_x = builder.neg_nonnative(&x);
@@ -1044,7 +1122,7 @@ mod tests {
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let x = builder.constant_nonnative(x_ff);
         let inv_x = builder.inv_nonnative(&x);
