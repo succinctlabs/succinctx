@@ -8,7 +8,7 @@ use curta::plonky2::stark::config::CurtaConfig;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
 
 use crate::frontend::ecc::ed25519::curve::curve_types::Curve;
 use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
@@ -19,6 +19,9 @@ use crate::frontend::hash::sha::sha512::{
 use crate::frontend::num::biguint::BigUintTarget;
 use crate::frontend::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
+use crate::prelude::{
+    CircuitBuilder, CircuitVariable, PlonkParameters, Variable, Witness, WitnessWrite,
+};
 
 const MAX_NUM_SIGS: usize = 256;
 const COMPRESSED_SIG_AND_PK_LEN_BITS: usize = 512;
@@ -26,7 +29,7 @@ const COMPRESSED_SIG_AND_PK_LEN_BITS: usize = 512;
 #[derive(Clone, Debug)]
 pub struct EDDSAPublicKeyTarget<C: Curve>(pub AffinePointTarget<C>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, CircuitVariable)]
 pub struct EDDSASignatureTarget<C: Curve> {
     pub r: AffinePointTarget<C>,
     pub s: NonNativeTarget<C::ScalarField>,
@@ -67,7 +70,7 @@ fn reverse_byte_ordering(input_vec: Vec<BoolTarget>) -> Vec<BoolTarget> {
 // This function create a circuit to output a will accept a bit vector that is in little endian byte order
 // and will output a BigUintTarget.
 fn biguint_from_le_bytes<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+    builder: &mut BaseCircuitBuilder<F, D>,
     bits: Vec<BoolTarget>, // bits is in little-endian byte order, but big endian bit order
 ) -> BigUintTarget {
     assert!(bits.len() % 32 == 0);
@@ -99,7 +102,7 @@ pub fn verify_variable_signatures_circuit<
     // Maximum length of a signed message in bits.
     const MAX_MSG_LEN_BITS: usize,
 >(
-    builder: &mut CircuitBuilder<F, D>,
+    builder: &mut BaseCircuitBuilder<F, D>,
     num_sigs: usize,
 ) -> EDDSAVariableTargets<C> {
     assert!(num_sigs > 0 && num_sigs <= MAX_NUM_SIGS);
@@ -255,7 +258,7 @@ pub fn verify_signatures_circuit<
     Config: CurtaConfig<D, F = F, FE = F::Extension>,
     const D: usize,
 >(
-    builder: &mut CircuitBuilder<F, D>,
+    builder: &mut BaseCircuitBuilder<F, D>,
     num_sigs: usize,
     msg_len: u128, // message length in bytes
 ) -> EDDSATargets<C> {
@@ -387,7 +390,7 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, PrimeField};
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
-    use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
@@ -428,7 +431,7 @@ mod tests {
         const D: usize = 2;
 
         let mut pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let msg = b"plonky2";
         let msg_bits = to_bits(msg.to_vec());
@@ -547,7 +550,7 @@ mod tests {
         const D: usize = 2;
 
         let mut pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let mut builder = BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
 
         let eddsa_target = verify_signatures_circuit::<F, Curve, E, SC, D>(
             &mut builder,
@@ -599,7 +602,8 @@ mod tests {
         let inner_proof = inner_data.prove(pw).unwrap();
         inner_data.verify(inner_proof.clone()).unwrap();
 
-        let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let mut outer_builder =
+            BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
         let inner_verifier_data =
             outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
@@ -641,7 +645,7 @@ mod tests {
         const D: usize = 2;
 
         let mut pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let mut builder = BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         const MAX_MSG_LEN_BITS: usize = 128 * 8;
         // Length of sig.r and pk_compressed in hash_msg
         let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, SC, D, MAX_MSG_LEN_BITS>(
@@ -707,7 +711,8 @@ mod tests {
         let inner_proof = inner_data.prove(pw).unwrap();
         inner_data.verify(inner_proof.clone()).unwrap();
 
-        let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let mut outer_builder =
+            BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
         let inner_verifier_data =
             outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
