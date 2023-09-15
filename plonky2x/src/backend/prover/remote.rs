@@ -1,5 +1,6 @@
 use core::time::Duration;
 use std::env;
+use std::net::ToSocketAddrs;
 
 use anyhow::{anyhow, Result};
 use futures::future::join_all;
@@ -7,6 +8,7 @@ use itertools::Itertools;
 use log::debug;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
+use rand::Rng;
 use reqwest::Client;
 use tokio::time::sleep;
 
@@ -23,8 +25,16 @@ pub struct RemoteProver {
 
 impl Prover for RemoteProver {
     fn new() -> Self {
+        let host = "alpha.succinct.xyz";
+        let sock_addrs = format!("{}:443", host)
+            .to_socket_addrs()
+            .unwrap()
+            .collect::<Vec<_>>();
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .resolve_to_addrs(host, &sock_addrs)
+                .build()
+                .unwrap(),
         }
     }
 
@@ -47,6 +57,9 @@ impl Prover for RemoteProver {
         let service = ProofService::new(service_url);
 
         // Submit the proof request.
+        let mut rng = rand::thread_rng();
+        let sleep_time = rng.gen_range(0..=5000);
+        sleep(Duration::from_millis(sleep_time)).await;
         let request = ProofRequest::new(circuit, input);
         let proof_id = service
             .submit::<L, D>(request)

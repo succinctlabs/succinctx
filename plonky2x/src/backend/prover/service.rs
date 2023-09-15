@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+use std::net::ToSocketAddrs;
 
 use anyhow::Result;
 use log::debug;
@@ -57,8 +58,16 @@ pub struct ProofService {
 impl ProofService {
     /// Creates a new instance of the function service client.
     pub fn new(url: String) -> Self {
+        let host = url.split("://").last().unwrap();
+        let sock_addrs = format!("{}:443", host)
+            .to_socket_addrs()
+            .unwrap()
+            .collect::<Vec<_>>();
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .resolve_to_addrs(host, &sock_addrs)
+                .build()
+                .unwrap(),
             base_url: url,
         }
     }
@@ -86,15 +95,11 @@ impl ProofService {
         O: DeserializeOwned,
     {
         let endpoint = format!("{}{}", self.base_url, route);
-        debug!("sending post request: url={}", endpoint);
-        self.client
-            .post(endpoint)
-            .json(&input)
-            .send()
-            .await?
-            .json()
-            .await
-            .map_err(|e| e.into())
+        debug!("sending post request: url={}, input={:?}", endpoint, input);
+        let response = self.client.post(endpoint).json(&input).send().await?;
+        let text = response.text().await?;
+        debug!("response: {:?}", text);
+        Ok(serde_json::from_str(&text).unwrap())
     }
 
     /// Submits a request for the service to generate a proof. Returns the proof id.
