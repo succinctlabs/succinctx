@@ -40,17 +40,6 @@ jobs:
           toolchain: nightly-2023-08-24
           override: true
 
-      - name: Check in plonky2x subdirectory
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --manifest-path plonky2x/Cargo.toml
-        env:
-          RUSTFLAGS: -Copt-level=3 -Cdebug-assertions -Coverflow-checks=y -Cdebuginfo=0
-          RUST_LOG: 1
-          CARGO_INCREMENTAL: 1
-          RUST_BACKTRACE: 1
-
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
