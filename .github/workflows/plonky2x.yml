@@ -19,14 +19,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v2
 
-      - name: Install nightly toolchain
-        id: rustc-toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2023-08-24
-          override: true
-
       - name: rust-cache
         uses: buildjet/cache@v3
         with:
@@ -36,7 +28,15 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: rustc-test-${{ steps.rustc-toolchain.outputs.rustc_hash }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install nightly toolchain
+        id: rustc-toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2023-08-24
+          override: true
 
       - name: Check in plonky2x subdirectory
         uses: actions-rs/cargo@v1
@@ -67,16 +67,7 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
-
-      - name: Install nightly toolchain
-        id: rustc-toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2023-08-24
-          override: true
-          components: rustfmt, clippy
-
+ 
       - name: rust-cache
         uses: buildjet/cache@v3
         with:
@@ -86,7 +77,16 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: rustc-lints-${{ steps.rustc-toolchain.outputs.rustc_hash }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install nightly toolchain
+        id: rustc-toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2023-08-24
+          override: true
+          components: rustfmt, clippy
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
