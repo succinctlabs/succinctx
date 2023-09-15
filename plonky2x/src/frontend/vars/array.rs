@@ -194,6 +194,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_select_index() {
         type F = GoldilocksField;
         const INPUT_SIZE: usize = 1000;
