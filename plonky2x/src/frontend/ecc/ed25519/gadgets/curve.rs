@@ -3,8 +3,8 @@ use plonky2::field::extension::Extendable;
 use plonky2::field::types::{Field, PrimeField, PrimeField64};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::iop::witness::Witness;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::iop::witness::{Witness, WitnessWrite};
+use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
 use plonky2::util::serialization::{Buffer, IoResult};
 
 use crate::frontend::ecc::ed25519::curve::curve_types::{AffinePoint, Curve};
@@ -14,13 +14,67 @@ use crate::frontend::num::nonnative::nonnative::{
     CircuitBuilderNonNative, NonNativeTarget, ReadNonNativeTarget, WriteNonNativeTarget,
 };
 use crate::frontend::num::nonnative::split_nonnative::CircuitBuilderSplit;
-
+use crate::prelude::{CircuitBuilder, CircuitVariable, PlonkParameters, Variable};
 /// A Target representing an affine point on the curve `C`. We use incomplete arithmetic for efficiency,
 /// so we assume these points are not zero.
 #[derive(Clone, Debug, Default)]
 pub struct AffinePointTarget<C: Curve> {
     pub x: NonNativeTarget<C::BaseField>,
     pub y: NonNativeTarget<C::BaseField>,
+}
+
+impl<C: Curve> CircuitVariable for AffinePointTarget<C> {
+    type ValueType<F: RichField> = AffinePoint<C>;
+
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        Self {
+            x: NonNativeTarget::init_unsafe(builder),
+            y: NonNativeTarget::init_unsafe(builder),
+        }
+    }
+
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
+    ) -> Self {
+        Self {
+            x: NonNativeTarget::constant(builder, value.x),
+            y: NonNativeTarget::constant(builder, value.y),
+        }
+    }
+
+    fn variables(&self) -> Vec<Variable> {
+        let mut variables = Vec::new();
+        variables.extend(self.x.variables());
+        variables.extend(self.y.variables());
+        variables
+    }
+
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        let nb_variables = NonNativeTarget::<C::BaseField>::nb_elements();
+        Self {
+            x: NonNativeTarget::from_variables_unsafe(&variables[0..nb_variables]),
+            y: NonNativeTarget::from_variables_unsafe(&variables[nb_variables..]),
+        }
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        builder.api.curve_assert_valid(self);
+    }
+
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+        AffinePoint::nonzero(self.x.get(witness), self.y.get(witness))
+    }
+
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+        self.x.set(witness, value.x);
+        self.y.set(witness, value.y);
+    }
 }
 
 pub struct CompressedPointTarget {
@@ -81,7 +135,7 @@ pub trait CircuitBuilderCurve<F: RichField + Extendable<D>, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
-    for CircuitBuilder<F, D>
+    for BaseCircuitBuilder<F, D>
 {
     fn constant_affine_point<C: Curve>(&mut self, point: AffinePoint<C>) -> AffinePointTarget<C> {
         debug_assert!(!point.zero);
@@ -317,7 +371,7 @@ mod tests {
 
     use plonky2::field::types::{Field, Sample};
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
-    use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
@@ -339,7 +393,7 @@ mod tests {
         let config = CircuitConfig::standard_ecc_config();
 
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let g = Ed25519::GENERATOR_AFFINE;
         let g_target = builder.constant_affine_point(g);
@@ -353,7 +407,8 @@ mod tests {
 
         inner_data.verify(inner_proof.clone()).unwrap();
 
-        let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let mut outer_builder =
+            BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
         let inner_verifier_data =
             outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
@@ -383,7 +438,7 @@ mod tests {
         let config = CircuitConfig::standard_ecc_config();
 
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let g = Ed25519::GENERATOR_AFFINE;
         let not_g = AffinePoint::<Ed25519> {
@@ -410,7 +465,7 @@ mod tests {
         let config = CircuitConfig::standard_ecc_config();
 
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let g = Ed25519::GENERATOR_AFFINE;
         let double_g = g.double();
@@ -441,7 +496,7 @@ mod tests {
         let config = CircuitConfig::standard_ecc_config();
 
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let rando =
             (CurveScalar(Ed25519Scalar::rand()) * Ed25519::GENERATOR_PROJECTIVE).to_affine();
@@ -467,7 +522,7 @@ mod tests {
         let config = CircuitConfig::standard_ecc_config();
 
         let pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let priv_key = Ed25519Scalar::from_canonical_usize(5);
         let g = Ed25519::GENERATOR_AFFINE;
