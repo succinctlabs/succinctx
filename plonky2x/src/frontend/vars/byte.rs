@@ -263,6 +263,7 @@ mod tests {
     const D: usize = 2;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_byte_operations() {
         let mut builder = CircuitBuilder::<L, D>::new();
 

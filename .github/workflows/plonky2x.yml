@@ -13,11 +13,24 @@ on:
 jobs:  
   test:
     name: CI Test Suite
-    runs-on: chad
+    runs-on: buildjet-32vcpu-ubuntu-2204
     if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
+
+      - name: rust-cache
+        uses: buildjet/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            ~/.rustup/
+          key: rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: rust-nightly-2023-08-24-
 
       - name: Install nightly toolchain
         id: rustc-toolchain
@@ -26,28 +39,6 @@ jobs:
           profile: minimal
           toolchain: nightly-2023-08-24
           override: true
-
-      - name: rust-cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: rustc-test-${{ steps.rustc-toolchain.outputs.rustc_hash }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-
-      - name: Check in plonky2x subdirectory
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --manifest-path plonky2x/Cargo.toml
-        env:
-          RUSTFLAGS: -Copt-level=3 -Cdebug-assertions -Coverflow-checks=y -Cdebuginfo=0
-          RUST_LOG: 1
-          CARGO_INCREMENTAL: 1
-          RUST_BACKTRACE: 1
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
@@ -62,11 +53,24 @@ jobs:
 
   lints:
     name: Formatting & Clippy
-    runs-on: chad
+    runs-on: buildjet-32vcpu-ubuntu-2204
     if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
+ 
+      - name: rust-cache
+        uses: buildjet/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            ~/.rustup/
+          key: rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: rust-nightly-2023-08-24-
 
       - name: Install nightly toolchain
         id: rustc-toolchain
@@ -76,17 +80,6 @@ jobs:
           toolchain: nightly-2023-08-24
           override: true
           components: rustfmt, clippy
-
-      - name: rust-cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: rustc-lints-${{ steps.rustc-toolchain.outputs.rustc_hash }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
