@@ -62,9 +62,11 @@ pub struct U32NVariable<U: Uint<N>, const N: usize> {
 impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
     type ValueType<F: RichField> = U;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
         Self {
-            limbs: array![_ => U32Variable::init(builder); N],
+            limbs: array![_ => U32Variable::init_unsafe(builder); N],
             _marker: core::marker::PhantomData,
         }
     }
@@ -84,11 +86,20 @@ impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {
         self.limbs.iter().map(|x| x.0).collect()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), N);
         Self {
             limbs: array![i => U32Variable(variables[i]); N],
             _marker: core::marker::PhantomData,
+        }
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        for limb in self.limbs.iter() {
+            limb.assert_is_valid(builder);
         }
     }
 
@@ -126,7 +137,7 @@ impl<U: Uint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
         bytes: &[ByteVariable],
     ) -> Self {
         assert_eq!(bytes.len(), N * 4);
-        let mut limbs = [U32Variable::init(builder); N];
+        let mut limbs = [U32Variable::init_unsafe(builder); N];
         for i in 0..N {
             limbs[i] = U32Variable::decode(builder, &bytes[i * 4..(i + 1) * 4]);
         }

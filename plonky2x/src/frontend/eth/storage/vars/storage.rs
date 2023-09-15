@@ -24,9 +24,11 @@ pub struct EthProofVariable {
 impl CircuitVariable for EthProofVariable {
     type ValueType<F: RichField> = EthProof;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
         Self {
-            proof: Bytes32Variable::init(builder),
+            proof: Bytes32Variable::init_unsafe(builder),
         }
     }
 
@@ -43,10 +45,16 @@ impl CircuitVariable for EthProofVariable {
         self.proof.variables()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
         Self {
-            proof: Bytes32Variable::from_variables(variables),
+            proof: Bytes32Variable::from_variables_unsafe(variables),
         }
+    }
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        self.proof.assert_is_valid(builder);
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
@@ -79,12 +87,14 @@ pub struct EthAccountVariable {
 impl CircuitVariable for EthAccountVariable {
     type ValueType<F: RichField> = EthAccount;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
         Self {
-            balance: U256Variable::init(builder),
-            code_hash: Bytes32Variable::init(builder),
-            nonce: U256Variable::init(builder),
-            storage_hash: Bytes32Variable::init(builder),
+            balance: U256Variable::init_unsafe(builder),
+            code_hash: Bytes32Variable::init_unsafe(builder),
+            nonce: U256Variable::init_unsafe(builder),
+            storage_hash: Bytes32Variable::init_unsafe(builder),
         }
     }
 
@@ -109,20 +119,31 @@ impl CircuitVariable for EthAccountVariable {
         vars
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
-        let balance = U256Variable::from_variables(&variables[0..4]);
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        let balance = U256Variable::from_variables_unsafe(&variables[0..4]);
         let mut offset = 4;
-        let code_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        let code_hash = Bytes32Variable::from_variables_unsafe(&variables[offset..offset + 32 * 8]);
         offset += 32 * 8;
-        let nonce = U256Variable::from_variables(&variables[offset..offset + 4]);
+        let nonce = U256Variable::from_variables_unsafe(&variables[offset..offset + 4]);
         offset += 4;
-        let storage_hash = Bytes32Variable::from_variables(&variables[offset..offset + 32 * 8]);
+        let storage_hash =
+            Bytes32Variable::from_variables_unsafe(&variables[offset..offset + 32 * 8]);
         Self {
             balance,
             code_hash,
             nonce,
             storage_hash,
         }
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        self.balance.assert_is_valid(builder);
+        self.code_hash.assert_is_valid(builder);
+        self.nonce.assert_is_valid(builder);
+        self.storage_hash.assert_is_valid(builder);
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
@@ -159,11 +180,13 @@ pub struct EthLogVariable {
 impl CircuitVariable for EthLogVariable {
     type ValueType<F: RichField> = EthLog;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
         Self {
-            address: AddressVariable::init(builder),
-            topics: array![_ => Bytes32Variable::init(builder); 3],
-            data_hash: Bytes32Variable::init(builder),
+            address: AddressVariable::init_unsafe(builder),
+            topics: array![_ => Bytes32Variable::init_unsafe(builder); 3],
+            data_hash: Bytes32Variable::init_unsafe(builder),
         }
     }
 
@@ -191,7 +214,7 @@ impl CircuitVariable for EthLogVariable {
         vars
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
         let mut var_buffer = VariableStream::from_variables(variables.to_vec());
         let address = var_buffer.read::<AddressVariable>();
         let topics = array![_ => var_buffer.read::<Bytes32Variable>(); 3];
@@ -201,6 +224,17 @@ impl CircuitVariable for EthLogVariable {
             topics,
             data_hash,
         }
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        self.address.assert_is_valid(builder);
+        for topic in self.topics.iter() {
+            topic.assert_is_valid(builder);
+        }
+        self.data_hash.assert_is_valid(builder);
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
