@@ -15,8 +15,10 @@ pub struct BLSPubkeyVariable(pub BytesVariable<48>);
 impl CircuitVariable for BLSPubkeyVariable {
     type ValueType<F: RichField> = [u8; 48];
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
-        Self(BytesVariable::init(builder))
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        Self(BytesVariable::init_unsafe(builder))
     }
 
     fn constant<L: PlonkParameters<D>, const D: usize>(
@@ -30,8 +32,15 @@ impl CircuitVariable for BLSPubkeyVariable {
         self.0.variables()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
-        Self(BytesVariable::from_variables(variables))
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        Self(BytesVariable::from_variables_unsafe(variables))
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        self.0.assert_is_valid(builder);
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
@@ -49,8 +58,10 @@ pub struct AddressVariable(pub BytesVariable<20>);
 impl CircuitVariable for AddressVariable {
     type ValueType<F: RichField> = H160;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
-        Self(BytesVariable::init(builder))
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        Self(BytesVariable::init_unsafe(builder))
     }
 
     fn constant<L: PlonkParameters<D>, const D: usize>(
@@ -67,8 +78,15 @@ impl CircuitVariable for AddressVariable {
         self.0.variables()
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
-        Self(BytesVariable::from_variables(variables))
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        Self(BytesVariable::from_variables_unsafe(variables))
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        self.0.assert_is_valid(builder);
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

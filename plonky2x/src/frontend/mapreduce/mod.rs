@@ -114,11 +114,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut builder = CircuitBuilder::<L, D>::new();
 
         // Read and verify the child proofs.
-        let verifier_data = builder.constant_verifier_data(&child_circuit.data);
+        let verifier_data = builder.constant_verifier_data::<L>(&child_circuit.data);
         let proof_left = builder.proof_read(child_circuit);
-        builder.verify_proof(&proof_left, &verifier_data, &child_circuit.data.common);
+        builder.verify_proof::<L>(&proof_left, &verifier_data, &child_circuit.data.common);
         let proof_right = builder.proof_read(child_circuit);
-        builder.verify_proof(&proof_right, &verifier_data, &child_circuit.data.common);
+        builder.verify_proof::<L>(&proof_right, &verifier_data, &child_circuit.data.common);
 
         // Assert that the contexts match.
         let input_left = proof_left.read_end_from_pis::<MapReduceOutputVariable<C, O>>();
@@ -220,8 +220,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.add_simple_generator(generator);
 
         // Verify the final proof.
-        let final_verifier_data = self.constant_verifier_data(&final_circuit.data);
-        self.verify_proof(
+        let final_verifier_data = self.constant_verifier_data::<L>(&final_circuit.data);
+        self.verify_proof::<L>(
             &final_proof,
             &final_verifier_data,
             &final_circuit.data.common,

@@ -15,7 +15,7 @@ on:
 jobs:
   format:
     name: Format
-    runs-on: chad 
+    runs-on: buildjet-2vcpu-ubuntu-2204 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3

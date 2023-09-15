@@ -13,21 +13,21 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.api.add_virtual_proof_with_pis(common_data)
     }
 
-    pub fn verify_proof(
+    pub fn verify_proof<P: PlonkParameters<D, Field = L::Field>>(
         &mut self,
         proof_with_pis: &ProofWithPublicInputsTarget<D>,
         inner_verifier_data: &VerifierCircuitTarget,
         inner_common_data: &CommonCircuitData<L::Field, D>,
     ) where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+        <<P as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         self.api
-            .verify_proof::<L::Config>(proof_with_pis, inner_verifier_data, inner_common_data);
+            .verify_proof::<P::Config>(proof_with_pis, inner_verifier_data, inner_common_data);
     }
 
-    pub fn constant_verifier_data(
+    pub fn constant_verifier_data<P: PlonkParameters<D, Field = L::Field>>(
         &mut self,
-        data: &CircuitData<L::Field, L::Config, D>,
+        data: &CircuitData<P::Field, P::Config, D>,
     ) -> VerifierCircuitTarget {
         // Set the verifier data target to be the verifier data, which is a constant.
         let vd = self

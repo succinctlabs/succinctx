@@ -17,7 +17,9 @@ pub struct Variable(pub Target);
 impl CircuitVariable for Variable {
     type ValueType<F: RichField> = F;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
         let target = builder.api.add_virtual_target();
         builder.debug_target(target);
         Self(target)
@@ -27,11 +29,8 @@ impl CircuitVariable for Variable {
         builder: &mut CircuitBuilder<L, D>,
         value: Self::ValueType<L::Field>,
     ) -> Self {
-        // In the special case that we are creating a variable constant, we record it in the builder
-        // so that we can use it to implement serialization/deserialize to/from elements for
-        // ValueType automatically.
         let target = builder.api.constant(value);
-        builder.debug_target(target); // TODO: not sure if I need this
+        builder.debug_target(target);
         let variable = Self(target);
         builder.constants.insert(variable, value);
         Self(target)
@@ -41,9 +40,16 @@ impl CircuitVariable for Variable {
         vec![*self]
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), 1);
         variables[0]
+    }
+
+    #[allow(unused_variables)]
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

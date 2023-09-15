@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::Target;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{Witness, WitnessWrite};
 use serde::{Deserialize, Serialize};
 
@@ -18,8 +18,10 @@ pub struct BoolVariable(pub Variable);
 impl CircuitVariable for BoolVariable {
     type ValueType<F: RichField> = bool;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
-        Self(Variable::init(builder))
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        Self(Variable::init_unsafe(builder))
     }
 
     fn constant<L: PlonkParameters<D>, const D: usize>(
@@ -36,9 +38,18 @@ impl CircuitVariable for BoolVariable {
         vec![self.0]
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), 1);
         Self(variables[0])
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        builder
+            .api
+            .assert_bool(BoolTarget::new_unsafe(self.targets()[0]))
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

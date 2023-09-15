@@ -12,7 +12,6 @@ use plonky2::iop::generator::SimpleGenerator;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
 use plonky2::plonk::circuit_data::CircuitConfig;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
@@ -106,10 +105,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Build the circuit.
-    pub fn build(mut self) -> CircuitBuild<L, D>
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    {
+    pub fn build(mut self) -> CircuitBuild<L, D> {
         if !self.sha256_requests.is_empty() {
             self.curta_constrain_sha256();
         }

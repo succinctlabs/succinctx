@@ -84,7 +84,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             })
             .collect::<Vec<_>>();
 
-        let mut hash_bytes_array = [ByteVariable::init(self); 32];
+        let mut hash_bytes_array = [ByteVariable::init_unsafe(self); 32];
         hash_bytes_array.copy_from_slice(&hash_bytes_vec);
 
         Bytes32Variable(BytesVariable(hash_bytes_array))
@@ -110,7 +110,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // Pad leafs to a power of two with the zero leaf.
         let zero = self.zero();
-        let h_zero = PoseidonHashOutVariable::from_variables(&[zero; NUM_HASH_OUT_ELTS]);
+        let h_zero = PoseidonHashOutVariable::from_variables_unsafe(&[zero; NUM_HASH_OUT_ELTS]);
         while leafs.len() < leafs.len().next_power_of_two() {
             leafs.push(h_zero.clone());
         }

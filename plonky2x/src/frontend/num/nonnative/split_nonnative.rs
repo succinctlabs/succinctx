@@ -3,7 +3,7 @@ use core::marker::PhantomData;
 
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
-use plonky2::field::types::Field;
+use plonky2::field::types::PrimeField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -17,29 +17,29 @@ pub trait CircuitBuilderSplit<F: RichField + Extendable<D>, const D: usize> {
 
     fn split_u32_to_16_bit_limbs(&mut self, val: U32Target) -> Vec<Target>;
 
-    fn split_nonnative_to_16_bit_limbs<FF: Field>(
+    fn split_nonnative_to_16_bit_limbs<FF: PrimeField>(
         &mut self,
         val: &NonNativeTarget<FF>,
     ) -> Vec<Target>;
 
-    fn split_nonnative_to_4_bit_limbs<FF: Field>(
+    fn split_nonnative_to_4_bit_limbs<FF: PrimeField>(
         &mut self,
         val: &NonNativeTarget<FF>,
     ) -> Vec<Target>;
 
-    fn split_nonnative_to_2_bit_limbs<FF: Field>(
+    fn split_nonnative_to_2_bit_limbs<FF: PrimeField>(
         &mut self,
         val: &NonNativeTarget<FF>,
     ) -> Vec<Target>;
 
     // Note: assumes its inputs are 4-bit limbs, and does not range-check.
-    fn recombine_nonnative_4_bit_limbs<FF: Field>(
+    fn recombine_nonnative_4_bit_limbs<FF: PrimeField>(
         &mut self,
         limbs: Vec<Target>,
     ) -> NonNativeTarget<FF>;
 
     // Note: assumes its inputs are 16-bit limbs, and does not range-check.
-    fn recombine_nonnative_16_bit_limbs<FF: Field>(
+    fn recombine_nonnative_16_bit_limbs<FF: PrimeField>(
         &mut self,
         limbs: Vec<Target>,
     ) -> NonNativeTarget<FF>;
@@ -71,7 +71,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
         combined_limbs
     }
 
-    fn split_nonnative_to_16_bit_limbs<FF: Field>(
+    fn split_nonnative_to_16_bit_limbs<FF: PrimeField>(
         &mut self,
         val: &NonNativeTarget<FF>,
     ) -> Vec<Target> {
@@ -82,7 +82,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
             .collect()
     }
 
-    fn split_nonnative_to_4_bit_limbs<FF: Field>(
+    fn split_nonnative_to_4_bit_limbs<FF: PrimeField>(
         &mut self,
         val: &NonNativeTarget<FF>,
     ) -> Vec<Target> {
@@ -93,7 +93,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
             .collect()
     }
 
-    fn split_nonnative_to_2_bit_limbs<FF: Field>(
+    fn split_nonnative_to_2_bit_limbs<FF: PrimeField>(
         &mut self,
         val: &NonNativeTarget<FF>,
     ) -> Vec<Target> {
@@ -105,7 +105,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
     }
 
     // Note: assumes its inputs are 4-bit limbs, and does not range-check.
-    fn recombine_nonnative_4_bit_limbs<FF: Field>(
+    fn recombine_nonnative_4_bit_limbs<FF: PrimeField>(
         &mut self,
         limbs: Vec<Target>,
     ) -> NonNativeTarget<FF> {
@@ -129,7 +129,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
     }
 
     // Note: assumes its inputs are 16-bit limbs, and does not range-check.
-    fn recombine_nonnative_16_bit_limbs<FF: Field>(
+    fn recombine_nonnative_16_bit_limbs<FF: PrimeField>(
         &mut self,
         limbs: Vec<Target>,
     ) -> NonNativeTarget<FF> {

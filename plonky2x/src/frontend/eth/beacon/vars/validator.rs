@@ -28,16 +28,18 @@ pub struct BeaconValidatorVariable {
 impl CircuitVariable for BeaconValidatorVariable {
     type ValueType<F: RichField> = BeaconValidator;
 
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
         Self {
-            pubkey: BLSPubkeyVariable::init(builder),
-            withdrawal_credentials: Bytes32Variable::init(builder),
-            effective_balance: U256Variable::init(builder),
-            slashed: BoolVariable::init(builder),
-            activation_eligibility_epoch: U256Variable::init(builder),
-            activation_epoch: U256Variable::init(builder),
-            exit_epoch: U256Variable::init(builder),
-            withdrawable_epoch: U256Variable::init(builder),
+            pubkey: BLSPubkeyVariable::init_unsafe(builder),
+            withdrawal_credentials: Bytes32Variable::init_unsafe(builder),
+            effective_balance: U256Variable::init_unsafe(builder),
+            slashed: BoolVariable::init_unsafe(builder),
+            activation_eligibility_epoch: U256Variable::init_unsafe(builder),
+            activation_epoch: U256Variable::init_unsafe(builder),
+            exit_epoch: U256Variable::init_unsafe(builder),
+            withdrawable_epoch: U256Variable::init_unsafe(builder),
         }
     }
 
@@ -83,15 +85,16 @@ impl CircuitVariable for BeaconValidatorVariable {
         vars
     }
 
-    fn from_variables(variables: &[Variable]) -> Self {
-        let pubkey = BLSPubkeyVariable::from_variables(&variables[0..384]);
-        let withdrawal_credentials = Bytes32Variable::from_variables(&variables[384..640]);
-        let effective_balance = U256Variable::from_variables(&variables[640..648]);
-        let slashed = BoolVariable::from_variables(&variables[648..649]);
-        let activation_eligibility_epoch = U256Variable::from_variables(&variables[649..657]);
-        let activation_epoch = U256Variable::from_variables(&variables[657..665]);
-        let exit_epoch = U256Variable::from_variables(&variables[665..673]);
-        let withdrawable_epoch = U256Variable::from_variables(&variables[673..681]);
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        let pubkey = BLSPubkeyVariable::from_variables_unsafe(&variables[0..384]);
+        let withdrawal_credentials = Bytes32Variable::from_variables_unsafe(&variables[384..640]);
+        let effective_balance = U256Variable::from_variables_unsafe(&variables[640..648]);
+        let slashed = BoolVariable::from_variables_unsafe(&variables[648..649]);
+        let activation_eligibility_epoch =
+            U256Variable::from_variables_unsafe(&variables[649..657]);
+        let activation_epoch = U256Variable::from_variables_unsafe(&variables[657..665]);
+        let exit_epoch = U256Variable::from_variables_unsafe(&variables[665..673]);
+        let withdrawable_epoch = U256Variable::from_variables_unsafe(&variables[673..681]);
         Self {
             pubkey,
             withdrawal_credentials,
@@ -102,6 +105,20 @@ impl CircuitVariable for BeaconValidatorVariable {
             exit_epoch,
             withdrawable_epoch,
         }
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        self.pubkey.assert_is_valid(builder);
+        self.withdrawal_credentials.assert_is_valid(builder);
+        self.effective_balance.assert_is_valid(builder);
+        self.slashed.assert_is_valid(builder);
+        self.activation_eligibility_epoch.assert_is_valid(builder);
+        self.activation_epoch.assert_is_valid(builder);
+        self.exit_epoch.assert_is_valid(builder);
+        self.withdrawable_epoch.assert_is_valid(builder);
     }
 
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {

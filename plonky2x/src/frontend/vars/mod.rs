@@ -29,8 +29,18 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     /// The underlying type of the variable if it were not in a circuit.
     type ValueType<F: RichField>: Debug + Clone;
 
-    /// Initializes the variable with no value in the circuit.
-    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self;
+    /// Initializes the variable with no value in the circuit and checks that the variable is valid
+    /// (i.e., range checks).
+    fn init<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
+        let variable = Self::init_unsafe(builder);
+        variable.assert_is_valid(builder);
+        variable
+    }
+
+    /// Initialies the variable with no value and does not check that the variable is valid.
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self;
 
     /// Initializes the variable with a constant value in the circuit.
     fn constant<L: PlonkParameters<D>, const D: usize>(
@@ -41,8 +51,25 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     /// Serializes the circuit variable to variables.
     fn variables(&self) -> Vec<Variable>;
 
-    /// Deserializes the circuit variable from variables.
-    fn from_variables(variables: &[Variable]) -> Self;
+    /// Deserializes the circuit variable from variables and checks that the variable is valid.
+    fn from_variables<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        variables: &[Variable],
+    ) -> Self {
+        let variable = Self::from_variables_unsafe(variables);
+        variable.assert_is_valid(builder);
+        variable
+    }
+
+    /// Deserializes the circuit variable from variables and does not check that the variable is
+    /// valid.
+    fn from_variables_unsafe(variables: &[Variable]) -> Self;
+
+    /// Asserts that the variable is valid (i.e., range checks).
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    );
 
     /// Gets the value of the variable from the witness.
     fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F>;
@@ -57,7 +84,7 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
 
     /// Deserializes a variable from a list of targets.
     fn from_targets(targets: &[Target]) -> Self {
-        Self::from_variables(&targets.iter().map(|t| Variable(*t)).collect_vec())
+        Self::from_variables_unsafe(&targets.iter().map(|t| Variable(*t)).collect_vec())
     }
 
     /// The number of field elements it takes to represent this variable.
@@ -192,7 +219,7 @@ mod tests {
         builder.assert_is_equal(point.clone(), constant_point.clone());
 
         let variables = point.variables();
-        let point_back = TestPoint::from_variables(&variables);
+        let point_back = TestPoint::from_variables_unsafe(&variables);
         assert_eq!(point.variables(), point_back.variables());
 
         builder.write::<TestPoint>(constant_point);
@@ -230,7 +257,7 @@ mod tests {
         builder.assert_is_equal(point.clone(), constant_point.clone());
 
         let variables = point.variables();
-        let point_back = TestPoint::from_variables(&variables);
+        let point_back = TestPoint::from_variables_unsafe(&variables);
         assert_eq!(point.variables(), point_back.variables());
 
         builder.write::<TestPoint>(constant_point);

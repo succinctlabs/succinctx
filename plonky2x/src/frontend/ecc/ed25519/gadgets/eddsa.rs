@@ -4,11 +4,11 @@ use curta::chip::ec::edwards::ed25519::Ed25519 as CurtaEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::ScalarMulEd25519Gadget;
 use curta::chip::ec::edwards::EdwardsParameters;
 use curta::math::extension::cubic::parameters::CubicParameters;
+use curta::plonky2::stark::config::CurtaConfig;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
 
 use crate::frontend::ecc::ed25519::curve::curve_types::Curve;
 use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
@@ -19,6 +19,9 @@ use crate::frontend::hash::sha::sha512::{
 use crate::frontend::num::biguint::BigUintTarget;
 use crate::frontend::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
+use crate::prelude::{
+    CircuitBuilder, CircuitVariable, PlonkParameters, Variable, Witness, WitnessWrite,
+};
 
 const MAX_NUM_SIGS: usize = 256;
 const COMPRESSED_SIG_AND_PK_LEN_BITS: usize = 512;
@@ -26,7 +29,7 @@ const COMPRESSED_SIG_AND_PK_LEN_BITS: usize = 512;
 #[derive(Clone, Debug)]
 pub struct EDDSAPublicKeyTarget<C: Curve>(pub AffinePointTarget<C>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, CircuitVariable)]
 pub struct EDDSASignatureTarget<C: Curve> {
     pub r: AffinePointTarget<C>,
     pub s: NonNativeTarget<C::ScalarField>,
@@ -67,7 +70,7 @@ fn reverse_byte_ordering(input_vec: Vec<BoolTarget>) -> Vec<BoolTarget> {
 // This function create a circuit to output a will accept a bit vector that is in little endian byte order
 // and will output a BigUintTarget.
 fn biguint_from_le_bytes<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+    builder: &mut BaseCircuitBuilder<F, D>,
     bits: Vec<BoolTarget>, // bits is in little-endian byte order, but big endian bit order
 ) -> BigUintTarget {
     assert!(bits.len() % 32 == 0);
@@ -94,17 +97,14 @@ pub fn verify_variable_signatures_circuit<
     F: RichField + Extendable<D>,
     C: Curve,
     E: CubicParameters<F>,
-    Config: GenericConfig<D, F = F, FE = F::Extension> + 'static,
+    Config: CurtaConfig<D, F = F, FE = F::Extension>,
     const D: usize,
     // Maximum length of a signed message in bits.
     const MAX_MSG_LEN_BITS: usize,
 >(
-    builder: &mut CircuitBuilder<F, D>,
+    builder: &mut BaseCircuitBuilder<F, D>,
     num_sigs: usize,
-) -> EDDSAVariableTargets<C>
-where
-    Config::Hasher: AlgebraicHasher<F>,
-{
+) -> EDDSAVariableTargets<C> {
     assert!(num_sigs > 0 && num_sigs <= MAX_NUM_SIGS);
 
     // Note: This will calculate number of chunks in the message, including the compressed sig and pk bits (512 bits).
@@ -255,16 +255,13 @@ pub fn verify_signatures_circuit<
     F: RichField + Extendable<D>,
     C: Curve,
     E: CubicParameters<F>,
-    Config: GenericConfig<D, F = F, FE = F::Extension> + 'static,
+    Config: CurtaConfig<D, F = F, FE = F::Extension>,
     const D: usize,
 >(
-    builder: &mut CircuitBuilder<F, D>,
+    builder: &mut BaseCircuitBuilder<F, D>,
     num_sigs: usize,
     msg_len: u128, // message length in bytes
-) -> EDDSATargets<C>
-where
-    Config::Hasher: AlgebraicHasher<F>,
-{
+) -> EDDSATargets<C> {
     assert!(num_sigs > 0 && num_sigs <= MAX_NUM_SIGS);
 
     // Create the eddsa circuit's virtual targets.
@@ -388,11 +385,12 @@ mod tests {
     use std::time::SystemTime;
 
     use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
+    use curta::plonky2::stark::config::CurtaPoseidonGoldilocksConfig;
     use num::BigUint;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, PrimeField};
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
-    use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
@@ -427,12 +425,13 @@ mod tests {
     fn test_eddsa_circuit_with_config(config: CircuitConfig) {
         type F = GoldilocksField;
         type E = GoldilocksCubicParameters;
+        type SC = CurtaPoseidonGoldilocksConfig;
         type C = PoseidonGoldilocksConfig;
         type Curve = Ed25519;
         const D: usize = 2;
 
         let mut pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(config);
+        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
         let msg = b"plonky2";
         let msg_bits = to_bits(msg.to_vec());
@@ -479,7 +478,7 @@ mod tests {
 
         assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
 
-        let eddsa_target = verify_signatures_circuit::<F, Curve, E, C, D>(
+        let eddsa_target = verify_signatures_circuit::<F, Curve, E, SC, D>(
             &mut builder,
             1,
             msg.len().try_into().unwrap(),
@@ -545,14 +544,15 @@ mod tests {
 
         type F = GoldilocksField;
         type E = GoldilocksCubicParameters;
+        type SC = CurtaPoseidonGoldilocksConfig;
         type C = PoseidonGoldilocksConfig;
         type Curve = Ed25519;
         const D: usize = 2;
 
         let mut pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let mut builder = BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
 
-        let eddsa_target = verify_signatures_circuit::<F, Curve, E, C, D>(
+        let eddsa_target = verify_signatures_circuit::<F, Curve, E, SC, D>(
             &mut builder,
             msgs.len(),
             msg_len.try_into().unwrap(),
@@ -602,7 +602,8 @@ mod tests {
         let inner_proof = inner_data.prove(pw).unwrap();
         inner_data.verify(inner_proof.clone()).unwrap();
 
-        let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let mut outer_builder =
+            BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
         let inner_verifier_data =
             outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);
@@ -638,15 +639,16 @@ mod tests {
 
         type F = GoldilocksField;
         type E = GoldilocksCubicParameters;
+        type SC = CurtaPoseidonGoldilocksConfig;
         type C = PoseidonGoldilocksConfig;
         type Curve = Ed25519;
         const D: usize = 2;
 
         let mut pw = PartialWitness::new();
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let mut builder = BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         const MAX_MSG_LEN_BITS: usize = 128 * 8;
         // Length of sig.r and pk_compressed in hash_msg
-        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, C, D, MAX_MSG_LEN_BITS>(
+        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, SC, D, MAX_MSG_LEN_BITS>(
             &mut builder,
             msgs.len(),
         );
@@ -709,7 +711,8 @@ mod tests {
         let inner_proof = inner_data.prove(pw).unwrap();
         inner_data.verify(inner_proof.clone()).unwrap();
 
-        let mut outer_builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let mut outer_builder =
+            BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
         let inner_proof_target = outer_builder.add_virtual_proof_with_pis(&inner_data.common);
         let inner_verifier_data =
             outer_builder.add_virtual_verifier_data(inner_data.common.config.fri_config.cap_height);

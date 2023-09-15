@@ -8,8 +8,6 @@ use anyhow::{anyhow, Result};
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
-use curta::chip::trace::generator::ArithmeticGenerator;
-use curta::chip::Chip;
 use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
@@ -502,13 +500,14 @@ where
         let sha256_generator = SHA256Generator::<L::Field, L::CubicParams>::id();
         r.register_simple::<SHA256Generator<L::Field, L::CubicParams>>(sha256_generator);
 
-        let simple_stark_witness_generator_id = "SimpleStarkWitnessGenerator".to_string();
+        let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
+            SHA256AirParameters<L::Field, L::CubicParams>,
+            L::CurtaConfig,
+            D,
+        >::id();
         r.register_simple::<SimpleStarkWitnessGenerator<
-            Chip<SHA256AirParameters<L::Field, L::CubicParams>>,
-            ArithmeticGenerator<SHA256AirParameters<L::Field, L::CubicParams>>,
-            L::Field,
-            L::Config,
-            L::Field,
+            SHA256AirParameters<L::Field, L::CubicParams>,
+            L::CurtaConfig,
             D,
         >>(simple_stark_witness_generator_id);
 
