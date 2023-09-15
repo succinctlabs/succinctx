@@ -958,7 +958,7 @@ mod tests {
     use plonky2::field::secp256k1_base::Secp256K1Base;
     use plonky2::field::types::{Field, PrimeField, Sample};
     use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::circuit_builder::BaseCircuitBuilder;
+    use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
