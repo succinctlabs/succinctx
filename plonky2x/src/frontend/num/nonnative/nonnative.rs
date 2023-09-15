@@ -5,7 +5,7 @@ use core::marker::PhantomData;
 
 use num::{BigUint, Integer, One, Zero};
 use plonky2::field::extension::Extendable;
-use plonky2::field::types::{Field, PrimeField};
+use plonky2::field::types::PrimeField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::{BoolTarget, Target};
