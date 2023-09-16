@@ -43,6 +43,8 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     ) -> Self;
 
     /// Initializes the variable with a constant value in the circuit.
+    /// You also *have to* add the constant to the builder's constants map.
+    /// This is used in serializing values to field elements.
     fn constant<L: PlonkParameters<D>, const D: usize>(
         builder: &mut CircuitBuilder<L, D>,
         value: Self::ValueType<L::Field>,
