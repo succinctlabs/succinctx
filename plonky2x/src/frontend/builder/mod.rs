@@ -25,7 +25,6 @@ use crate::utils::eth::beacon::BeaconClient;
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub api: CircuitAPI<L::Field, D>,
     pub io: CircuitIO<D>,
-    pub constants: HashMap<Variable, L::Field>,
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
@@ -54,7 +53,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         Self {
             api,
             io: CircuitIO::new(),
-            constants: HashMap::new(),
             beacon_client: None,
             execution_client: None,
             chain_id: None,

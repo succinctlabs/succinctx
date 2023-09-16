@@ -265,6 +265,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_byte_operations() {
+        env_logger::try_init().unwrap_or_default();
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let x_bytes = (0..256)
@@ -297,6 +298,7 @@ mod tests {
             })
             .unzip();
 
+        builder.api.print_gate_counts(0);
         let circuit = builder.build();
         let mut pw = PartialWitness::new();
 
