@@ -22,7 +22,7 @@ pub use variable::*;
 
 pub use super::uint::uint256::*;
 pub use super::uint::uint32::*;
-use crate::backend::circuit::{DefaultParameters, PlonkParameters};
+use crate::backend::circuit::{generate_witness, DefaultParameters, PlonkParameters};
 use crate::frontend::builder::CircuitBuilder;
 
 pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
@@ -101,12 +101,12 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
         value: Self::ValueType<L::Field>,
     ) -> Vec<L::Field> {
         let mut builder = CircuitBuilder::<L, D>::new();
-        let variable = builder.constant::<Self>(value);
-        let variables = variable.variables();
-        variables
-            .into_iter()
-            .map(|v| *builder.constants.get(&v).unwrap())
-            .collect()
+        let variables = builder.constant::<Self>(value).variables();
+        let circuit = builder.build();
+        let pw = PartialWitness::new();
+        let witness =
+            generate_witness(pw, &circuit.data.prover_only, &circuit.data.common).unwrap();
+        variables.iter().map(|v| v.get(&witness)).collect_vec()
     }
 
     /// Deserializes the value to a list of field elements.
