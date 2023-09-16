@@ -13,6 +13,7 @@ pub fn range_check_u32_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     vals: Vec<U32Target>,
 ) {
+    // Chunk the input u32's into 7-limb chunks, and add a range check gate for each chunk.
     vals.chunks(7).for_each(|chunk| {
         let num_input_limbs = chunk.len();
         let gate = U32RangeCheckGate::<F, D>::new(num_input_limbs);
