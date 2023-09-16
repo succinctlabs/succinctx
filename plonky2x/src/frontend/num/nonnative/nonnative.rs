@@ -57,7 +57,6 @@ impl<FF: PrimeField> CircuitVariable for NonNativeTarget<FF> {
                 .constants
                 .insert(*variable, L::Field::from_canonical_u32(big_int_rep[i]));
         }
-        builder.constants.insert(target, value);
         return target;
     }
 
