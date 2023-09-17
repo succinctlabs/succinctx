@@ -20,7 +20,7 @@ pub fn generate_witness<
     C: GenericConfig<D, F = F>,
     const D: usize,
 >(
-    inputs: PartialWitness<F>,
+    pw: PartialWitness<F>,
     prover_data: &'a ProverOnlyCircuitData<F, C, D>,
     common_data: &'a CommonCircuitData<F, D>,
 ) -> Result<PartitionWitness<'a, F>, GenerateWitnessError> {
@@ -34,7 +34,7 @@ pub fn generate_witness<
         &prover_data.representative_map,
     );
 
-    for (t, v) in inputs.target_values.into_iter() {
+    for (t, v) in pw.target_values.into_iter() {
         witness.set_target(t, v);
     }
 

@@ -29,7 +29,7 @@ jobs:
             ~/.cargo/git/db/
             target/
             ~/.rustup/
-          key: rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
+          key: test-rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
           restore-keys: rust-nightly-2023-08-24-
 
       - name: Install nightly toolchain
@@ -44,11 +44,9 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --features "ci"
+          args: --release --features "ci" 
         env:
-          RUSTFLAGS: -Copt-level=3 -Cdebug-assertions -Coverflow-checks=y -Cdebuginfo=0
           RUST_LOG: 1
-          CARGO_INCREMENTAL: 1
           RUST_BACKTRACE: 1
 
   lints:
@@ -69,7 +67,7 @@ jobs:
             ~/.cargo/git/db/
             target/
             ~/.rustup/
-          key: rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
+          key: clippy-rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
           restore-keys: rust-nightly-2023-08-24-
 
       - name: Install nightly toolchain

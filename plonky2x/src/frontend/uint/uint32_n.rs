@@ -56,7 +56,7 @@ pub trait Uint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
 #[derive(Debug, Clone, Copy)]
 pub struct U32NVariable<U: Uint<N>, const N: usize> {
     pub limbs: [U32Variable; N],
-    _marker: std::marker::PhantomData<U>,
+    pub _marker: std::marker::PhantomData<U>,
 }
 
 impl<U: Uint<N>, const N: usize> CircuitVariable for U32NVariable<U, N> {

@@ -31,8 +31,6 @@ impl CircuitVariable for Variable {
     ) -> Self {
         let target = builder.api.constant(value);
         builder.debug_target(target);
-        let variable = Self(target);
-        builder.constants.insert(variable, value);
         Self(target)
     }
 
