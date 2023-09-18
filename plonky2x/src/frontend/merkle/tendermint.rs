@@ -120,7 +120,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .iter()
             .map(|leaf| self.leaf_hash(&leaf.0))
             .collect_vec()
-        
     }
 
     pub fn get_root_from_hashed_leaves<const NB_LEAVES: usize>(
@@ -154,6 +153,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         leaves: &Vec<BytesVariable<LEAF_SIZE_BYTES>>,
         leaves_enabled: &Vec<BoolVariable>,
     ) -> Bytes32Variable {
+        // TODO: Remove, this is just for debugging.
+        assert_eq!(leaves.len(), NB_LEAVES);
+
         let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves);
         self.get_root_from_hashed_leaves::<NB_LEAVES>(&hashed_leaves, leaves_enabled)
     }
@@ -184,25 +186,26 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let array =
-            builder.constant::<ArrayVariable<BytesVariable<48>, 32>>([[0u8; 48]; 32].to_vec());
-
-        let enabled = builder.constant::<ArrayVariable<BoolVariable, 32>>([true; 32].to_vec());
-
-        let root = builder.compute_root_from_leaves::<32, 48>(&array.as_vec(), &enabled.as_vec());
-
-        builder.watch(&root, "root");
-
-        let expected_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xde8624485c0a1b8f9ecc858312916104cc3ee3ed601e405c11eaf9c5cbe05117"
-        ));
-        builder.assert_is_equal(root, expected_root);
-
+        let leaves = builder.read::<ArrayVariable<BytesVariable<48>, 32>>();
+        let enabled = builder.read::<ArrayVariable<BoolVariable, 32>>();
+        let root = builder.compute_root_from_leaves::<32, 48>(&leaves.as_vec(), &enabled.as_vec());
+        builder.write::<Bytes32Variable>(root);
         let circuit = builder.build();
-        let input = circuit.input();
-        let (proof, output) = circuit.prove(&input);
-        circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
+
+        let mut input = circuit.input();
+
+        input.write::<ArrayVariable<BytesVariable<48>, 32>>([[0u8; 48]; 32].to_vec());
+        input.write::<ArrayVariable<BoolVariable, 32>>([true; 32].to_vec());
+
+        let (proof, mut output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        let root = output.read::<Bytes32Variable>();
+
+        assert_eq!(
+            root,
+            bytes32!("0xde8624485c0a1b8f9ecc858312916104cc3ee3ed601e405c11eaf9c5cbe05117"),
+        );
     }
 
     #[test]
