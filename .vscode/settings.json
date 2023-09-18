@@ -11,8 +11,6 @@
         "--all-features",
         "--all-targets",
         "--",
-        "-D",
-        "warnings",
         "-A",
         "incomplete-features"
     ],
