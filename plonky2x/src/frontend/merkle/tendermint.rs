@@ -189,7 +189,7 @@ mod tests {
 
         let leaves = builder.read::<ArrayVariable<BytesVariable<48>, 32>>();
         let enabled = builder.read::<ArrayVariable<BoolVariable, 32>>();
-        let root = builder.compute_root_from_leaves::<32, 48>(leaves, enabled);
+        let root = builder.compute_root_from_leaves::<32, 48>(leaves.as_vec(), enabled.as_vec());
         builder.write::<Bytes32Variable>(root);
         let circuit = builder.build();
         circuit.test_default_serializers();
