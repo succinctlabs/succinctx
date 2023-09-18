@@ -50,9 +50,9 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconBalanceGenerator<L, D> {
             client: builder.beacon_client.clone().unwrap(),
             block_root,
             input: BeaconBalanceInput::IndexConst(validator_idx),
-            balance: builder.init::<U64Variable>(),
-            balance_leaf: builder.init::<Bytes32Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            balance: builder.init_unsafe::<U64Variable>(),
+            balance_leaf: builder.init_unsafe::<Bytes32Variable>(),
+            proof: array![_ => builder.init_unsafe::<Bytes32Variable>(); DEPTH],
             gindex: builder.init::<U64Variable>(),
             _phantom: PhantomData,
         }

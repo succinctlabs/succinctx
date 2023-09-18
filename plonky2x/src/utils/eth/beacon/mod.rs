@@ -172,7 +172,7 @@ impl BeaconClient {
     pub fn get_finalized_block_root(&self) -> Result<String> {
         let endpoint = format!("{}/eth/v1/beacon/headers/finalized", self.rpc_url);
         let parsed: Value = reqwest::blocking::get(endpoint)?.json()?;
-
+        println!("{:?}", parsed);
         if let Value::Object(data) = &parsed["data"] {
             if let Value::Object(data2) = &data["data"] {
                 return Ok(data2["root"].as_str().unwrap().to_string());

@@ -1,5 +1,7 @@
 use core::marker::PhantomData;
 
+use array_macro::array;
+use log::debug;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, WitnessWrite};
@@ -14,14 +16,14 @@ use crate::backend::prover::EnvProver;
 use crate::prelude::{CircuitVariable, GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
 
 #[derive(Debug, Clone)]
-pub struct MapReduceGenerator<L, C, I, O, const D: usize>
+pub struct MapReduceGenerator<L, Ctx, Input, Output, const B: usize, const D: usize>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
     <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    C: CircuitVariable,
-    I: CircuitVariable,
-    O: CircuitVariable,
+    Ctx: CircuitVariable,
+    Input: CircuitVariable,
+    Output: CircuitVariable,
 {
     /// The identifier for the compiled map circuit.
     pub map_circuit_id: String,
@@ -30,42 +32,44 @@ where
     pub reduce_circuit_ids: Vec<String>,
 
     /// The global context for all circuits.
-    pub ctx: C,
+    pub ctx: Ctx,
 
     /// The constant inputs to the map circuit.
-    pub inputs: Vec<I::ValueType<L::Field>>,
+    pub inputs: Vec<Input::ValueType<L::Field>>,
 
     /// The proof target for the final circuit proof.
     pub proof: ProofWithPublicInputsTarget<D>,
 
     /// Phantom data.
     pub _phantom1: PhantomData<L>,
-    pub _phantom2: PhantomData<O>,
+    pub _phantom2: PhantomData<Output>,
 }
 
-impl<L, C, I, O, const D: usize> MapReduceGenerator<L, C, I, O, D>
+impl<L, Ctx, Input, Output, const B: usize, const D: usize>
+    MapReduceGenerator<L, Ctx, Input, Output, B, D>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
     <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    C: CircuitVariable,
-    I: CircuitVariable,
-    O: CircuitVariable,
+    Ctx: CircuitVariable,
+    Input: CircuitVariable,
+    Output: CircuitVariable,
 {
     pub fn id() -> String {
         "MapReduceGenerator".to_string()
     }
 }
 
-impl<L, C, I, O, const D: usize> SimpleGenerator<L::Field, D> for MapReduceGenerator<L, C, I, O, D>
+impl<L, Ctx, Input, Output, const B: usize, const D: usize> SimpleGenerator<L::Field, D>
+    for MapReduceGenerator<L, Ctx, Input, Output, B, D>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
     <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
-    C: CircuitVariable,
-    I: CircuitVariable,
-    O: CircuitVariable,
-    <I as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
+    Ctx: CircuitVariable,
+    Input: CircuitVariable,
+    Output: CircuitVariable,
+    <Input as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
 {
     fn id(&self) -> String {
         Self::id()
@@ -99,11 +103,12 @@ where
         let ctx_value = self.ctx.get(witness);
         let map_input_values = &self.inputs;
         let mut map_inputs = Vec::new();
-        for map_input_value in map_input_values {
+        for i in 0..map_input_values.len() / B {
             let mut map_input = map_circuit.input();
-            map_input.write::<MapReduceInputVariable<C, I>>(MapReduceInputVariableValue {
+            let input = array![j => map_input_values[i * B + j].clone(); B];
+            map_input.write::<MapReduceInputVariable<Ctx, Input, B>>(MapReduceInputVariableValue {
                 ctx: ctx_value.clone(),
-                input: map_input_value.to_owned(),
+                inputs: input.to_vec(),
             });
             map_inputs.push(map_input)
         }
@@ -112,7 +117,7 @@ where
         let (mut proofs, _) = prover.batch_prove(&map_circuit, &map_inputs).unwrap();
 
         // Process each reduce layer.
-        let nb_reduce_layers = (self.inputs.len() as f64).log2().ceil() as usize;
+        let nb_reduce_layers = ((self.inputs.len() / B) as f64).log2().ceil() as usize;
         for i in 0..nb_reduce_layers {
             // Load the reduce circuit from disk.
             let reduce_circuit_path = format!("./build/{}.circuit", self.reduce_circuit_ids[i]);
@@ -124,8 +129,10 @@ where
             .unwrap();
 
             // Calculate the inputs to the reduce layer.
-            let nb_proofs = self.inputs.len() / (2usize.pow((i + 1) as u32));
+            debug!("reduce time");
+            let nb_proofs = (self.inputs.len() / B) / (2usize.pow((i + 1) as u32));
             let mut reduce_inputs = Vec::new();
+            debug!("nb_proofs {}", nb_proofs);
             for j in 0..nb_proofs {
                 let mut reduce_input = reduce_circuit.input();
                 reduce_input.proof_write(proofs[j * 2].clone());
@@ -134,6 +141,7 @@ where
             }
 
             // Generate the proofs for the reduce layer and update the proofs buffer.
+            debug!("reduce batch proofs");
             (proofs, _) = prover.batch_prove(&reduce_circuit, &reduce_inputs).unwrap();
         }
 
@@ -159,7 +167,7 @@ where
         // Write vector of input values.
         dst.write_usize(self.inputs.len())?;
         for i in 0..self.inputs.len() {
-            dst.write_field_vec::<L::Field>(&I::elements::<L, D>(self.inputs[i].clone()))?;
+            dst.write_field_vec::<L::Field>(&Input::elements::<L, D>(self.inputs[i].clone()))?;
         }
 
         // Write proof target.
@@ -183,14 +191,14 @@ where
         }
 
         // Read context.
-        let ctx = C::from_targets(&src.read_target_vec()?);
+        let ctx = Ctx::from_targets(&src.read_target_vec()?);
 
         // Read vector of input targest.
         let mut inputs = Vec::new();
         let inputs_len = src.read_usize()?;
         for _ in 0..inputs_len {
-            let input_elements: Vec<L::Field> = src.read_field_vec(I::nb_elements())?;
-            inputs.push(I::from_elements::<L, D>(&input_elements));
+            let input_elements: Vec<L::Field> = src.read_field_vec(Input::nb_elements())?;
+            inputs.push(Input::from_elements::<L, D>(&input_elements));
         }
 
         // Read proof.
@@ -203,7 +211,7 @@ where
             inputs,
             proof,
             _phantom1: PhantomData::<L>,
-            _phantom2: PhantomData::<O>,
+            _phantom2: PhantomData::<Output>,
         })
     }
 }

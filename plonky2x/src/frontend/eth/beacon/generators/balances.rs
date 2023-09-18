@@ -34,8 +34,8 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconBalancesGenerator<L, D> {
         Self {
             client,
             block_root,
-            balances_root: builder.init::<Bytes32Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            balances_root: builder.init_unsafe::<Bytes32Variable>(),
+            proof: array![_ => builder.init_unsafe::<Bytes32Variable>(); DEPTH],
             _phantom: Default::default(),
         }
     }

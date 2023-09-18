@@ -25,22 +25,24 @@ impl Circuit for MapReduceCircuit {
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xce041ceab7feb54821794e170bace390a41f34743f25b224e95d193ecb4d8052"
+            "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb"
         ));
         let balances_root = builder.beacon_get_balances(block_root);
-        let idxs = (0..512).map(U64::from).collect_vec();
+        let idxs = (0..8).map(U64::from).collect_vec();
 
-        let output = builder.mapreduce::<BeaconBalancesVariable, U64Variable, U64Variable, _, _>(
-            balances_root,
-            idxs,
-            |balances_root, idx, builder| {
-                let rpc_url = env::var("CONSENSUS_RPC_1").unwrap();
-                let client = BeaconClient::new(rpc_url);
-                builder.set_beacon_client(client);
-                builder.beacon_get_balance(balances_root, idx)
-            },
-            |_, left, right, builder| builder.add(left, right),
-        );
+        let output = builder
+            .mapreduce::<BeaconBalancesVariable, U64Variable, Bytes32Variable, _, _, 4>(
+                balances_root,
+                idxs,
+                |balances_root, idxs, builder| {
+                    let b0 = builder.beacon_get_balance_witness(balances_root, idxs[0]);
+                    let b1 = builder.beacon_get_balance_witness(balances_root, idxs[1]);
+                    let b2 = builder.beacon_get_balance_witness(balances_root, idxs[2]);
+                    let b3 = builder.beacon_get_balance_witness(balances_root, idxs[3]);
+                    builder.beacon_u64s_to_leaf([b0, b1, b2, b3])
+                },
+                |_, left, right, builder| builder.sha256_pair(left, right),
+            );
 
         builder.watch(&output, "output");
         builder.write(output);
@@ -51,8 +53,10 @@ impl Circuit for MapReduceCircuit {
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        let id = MapReduceGenerator::<L, BeaconBalancesVariable, U64Variable, U64Variable, D>::id();
-        registry.register_simple::<MapReduceGenerator<L, BeaconBalancesVariable, U64Variable, U64Variable, D>>(id);
+        let id =
+            MapReduceGenerator::<L, BeaconBalancesVariable, U64Variable, Bytes32Variable, 4, D>::id(
+            );
+        registry.register_simple::<MapReduceGenerator<L, BeaconBalancesVariable, U64Variable, Bytes32Variable, 4, D>>(id);
     }
 }
 

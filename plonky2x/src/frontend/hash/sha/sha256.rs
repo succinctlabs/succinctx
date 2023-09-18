@@ -293,9 +293,19 @@ impl<L: PlonkParameters<D>, const D: usize> Plonky2xCircuitBuilder<L, D> {
             .chunks(8)
             .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8]))
             .collect::<Vec<_>>();
-        let mut hash_bytes_array = [ByteVariable::init(self); 32];
+        let mut hash_bytes_array = [ByteVariable::init_unsafe(self); 32];
         hash_bytes_array.copy_from_slice(&hash_bytes_vec);
         Bytes32Variable(BytesVariable(hash_bytes_array))
+    }
+
+    pub fn sha256_pair(
+        &mut self,
+        left: Bytes32Variable,
+        right: Bytes32Variable,
+    ) -> Bytes32Variable {
+        let mut left_bytes = left.as_bytes().to_vec();
+        left_bytes.extend(&right.as_bytes());
+        self.sha256(&left_bytes)
     }
 }
 

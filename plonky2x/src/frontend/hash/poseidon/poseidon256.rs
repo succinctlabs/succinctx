@@ -1,5 +1,5 @@
 use array_macro::array;
-use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
@@ -17,10 +17,7 @@ pub struct PoseidonHashOutVariable {
 /// Implements the Poseidon hash for CircuitBuilder.
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Computes the Poseidon hash of the given variables with no padding.
-    pub fn poseidon_hash_n_to_hash_no_pad(
-        &mut self,
-        variables: &[Variable],
-    ) -> PoseidonHashOutVariable
+    pub fn poseidon_hash(&mut self, variables: &[Variable]) -> PoseidonHashOutVariable
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
@@ -44,7 +41,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut input = Vec::new();
         input.extend(left.variables());
         input.extend(right.variables());
-        self.poseidon_hash_n_to_hash_no_pad(&input)
+        self.poseidon_hash(&input)
     }
 
     /// Note: This Poseidon implementation operates on bytes, not field elements. The input bytes to
@@ -88,47 +85,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         hash_bytes_array.copy_from_slice(&hash_bytes_vec);
 
         Bytes32Variable(BytesVariable(hash_bytes_array))
-    }
-
-    pub fn compute_binary_merkle_tree_root<V: CircuitVariable>(
-        &mut self,
-        variables: &[V],
-    ) -> PoseidonHashOutVariable
-    where
-        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
-            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
-    {
-        let variables = variables.to_vec();
-
-        // Calculate leafs.
-        let mut leafs = Vec::new();
-        for i in 0..variables.len() {
-            let input = &variables[i];
-            let h = self.poseidon_hash_n_to_hash_no_pad(&input.variables());
-            leafs.push(h);
-        }
-
-        // Pad leafs to a power of two with the zero leaf.
-        let zero = self.zero();
-        let h_zero = PoseidonHashOutVariable::from_variables_unsafe(&[zero; NUM_HASH_OUT_ELTS]);
-        while leafs.len() < leafs.len().next_power_of_two() {
-            leafs.push(h_zero.clone());
-        }
-
-        // Calculate the root.
-        while leafs.len() != 1 {
-            let mut tmp = Vec::new();
-            for i in 0..leafs.len() / 2 {
-                let left = leafs[i * 2].clone();
-                let right = leafs[i * 2 + 1].clone();
-                let h = self.poseidon_hash_pair(left, right);
-                self.watch(&h, "h");
-                tmp.push(h);
-            }
-            leafs = tmp;
-        }
-
-        leafs[0].to_owned()
     }
 }
 

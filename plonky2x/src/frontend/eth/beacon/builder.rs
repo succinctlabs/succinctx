@@ -137,6 +137,36 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
     }
 
+    /// Serializes a list of u64s into a single leaf according to the SSZ spec.
+    pub fn beacon_u64s_to_leaf(&mut self, u64s: [U64Variable; 4]) -> Bytes32Variable {
+        let mut leaf = self.init_unsafe::<Bytes32Variable>();
+        let bytes = [
+            u64s[0].encode(self),
+            u64s[1].encode(self),
+            u64s[2].encode(self),
+            u64s[3].encode(self),
+        ];
+        for i in 0..8 {
+            leaf.0 .0[i] = bytes[0][7 - i];
+            leaf.0 .0[i + 8] = bytes[1][7 - i];
+            leaf.0 .0[i + 16] = bytes[2][7 - i];
+            leaf.0 .0[i + 24] = bytes[2][7 - i];
+        }
+        leaf
+    }
+
+    /// Get a validator balance with no constraints.
+    pub fn beacon_get_balance_witness(
+        &mut self,
+        balances: BeaconBalancesVariable,
+        index: U64Variable,
+    ) -> U64Variable {
+        let generator =
+            BeaconBalanceGenerator::new_with_index_variable(self, balances.block_root, index);
+        self.add_simple_generator(generator.clone());
+        generator.balance
+    }
+
     /// Get a validator balance from a given deterministic index.
     pub fn beacon_get_balance(
         &mut self,
@@ -311,7 +341,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             } else {
                 (hash.as_bytes(), branch[i].as_bytes())
             };
-            let mut data = [ByteVariable::init(self); 64];
+            let mut data = [ByteVariable::init_unsafe(self); 64];
             data[..32].copy_from_slice(&first);
             data[32..].copy_from_slice(&second);
             hash = self.sha256(&data);

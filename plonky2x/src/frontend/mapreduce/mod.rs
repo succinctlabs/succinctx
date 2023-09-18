@@ -32,82 +32,93 @@ use super::hash::poseidon::poseidon256::PoseidonHashOutVariable;
 use crate::backend::circuit::CircuitBuild;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::CircuitVariable;
-use crate::prelude::{GateRegistry, PlonkParameters, Variable, WitnessGeneratorRegistry};
-use crate::utils::poseidon::compute_binary_merkle_tree_root;
+use crate::prelude::{
+    ArrayVariable, GateRegistry, PlonkParameters, Variable, WitnessGeneratorRegistry,
+};
+use crate::utils::poseidon::mapreduce_merkle_tree_root;
 use crate::utils::proof::ProofWithPublicInputsTargetUtils;
 
 /// The input to the map or reduce circuit.
 #[derive(Debug, Clone, CircuitVariable)]
-struct MapReduceInputVariable<C: CircuitVariable, I: CircuitVariable> {
+struct MapReduceInputVariable<Ctx: CircuitVariable, Input: CircuitVariable, const B: usize> {
     /// The context stores a variable passed in from the root circuit. Useful for passing in
     /// small amounts of dynamic data (i.e., a block hash) that is shared among all calls to map
     /// and reduce.
-    ctx: C,
+    ctx: Ctx,
 
     /// The input is a build-time constant passed in from the root circuit. To check the right
     /// input was passed, we hash the inputs and check it matches the expected hash in the root
     /// circuit.
-    input: I,
+    inputs: ArrayVariable<Input, B>,
 }
 
 /// The output of the map or reduce circuit.
 #[derive(Debug, Clone, CircuitVariable)]
-struct MapReduceOutputVariable<C: CircuitVariable, O: CircuitVariable> {
+struct MapReduceOutputVariable<Ctx: CircuitVariable, Output: CircuitVariable> {
     /// The context stores a variable passed in from the root circuit. Useful for passing in
     /// small amounts of dynamic data (i.e., a block hash) that is shared among all calls to map
     /// and reduce.
-    ctx: C,
+    ctx: Ctx,
 
     // The output is the result of the map or reduce function.
-    output: O,
+    output: Output,
 
     // The accumulator is the hash of the inputs up to this point to the map or reduce function.
     acc: PoseidonHashOutVariable,
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    /// Builds a map circuit which maps from I -> O using the closure `m`.
-    fn build_map<C, I, O, M>(&mut self, map_fn: &M) -> CircuitBuild<L, D>
+    fn build_map<Ctx, Input, Output, MapFn, const B: usize>(
+        &mut self,
+        map_fn: &MapFn,
+    ) -> CircuitBuild<L, D>
     where
-        C: CircuitVariable,
-        I: CircuitVariable,
-        O: CircuitVariable,
-        M: Fn(C, I, &mut CircuitBuilder<L, D>) -> O,
+        Ctx: CircuitVariable,
+        Input: CircuitVariable,
+        Output: CircuitVariable,
+        MapFn: Fn(Ctx, ArrayVariable<Input, B>, &mut CircuitBuilder<L, D>) -> Output,
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
         let mut builder = CircuitBuilder::<L, D>::new();
+        builder.beacon_client = self.beacon_client.clone();
+        builder.execution_client = self.execution_client.clone();
 
-        // Read the input.
-        let data = builder.read::<MapReduceInputVariable<C, I>>();
+        // Read the inputs.
+        let data = builder.read::<MapReduceInputVariable<Ctx, Input, B>>();
 
         // Apply the map function.
-        let output = map_fn(data.clone().ctx, data.clone().input, &mut builder);
+        let output = map_fn(data.clone().ctx, data.clone().inputs, &mut builder);
 
         // Compute the leaf hash for the input.
-        let acc = builder.poseidon_hash_n_to_hash_no_pad(&data.clone().input.variables());
+        let input_variables = data
+            .clone()
+            .inputs
+            .as_vec()
+            .iter()
+            .flat_map(|i| i.variables())
+            .collect_vec();
+        let acc = builder.poseidon_hash(&input_variables);
 
         // Write result.
         let result = MapReduceOutputVariable {
-            ctx: data.clone().ctx,
+            ctx: data.ctx,
             acc,
             output,
         };
         builder.write(result);
-
         builder.build()
     }
 
-    /// Builds a reduce circuit which reduces two input proofs to an output O using the closure `r`.
-    fn build_reduce<C, O, R>(
+    fn build_reduce<Ctx, Output, ReduceFn>(
         &mut self,
         child_circuit: &CircuitBuild<L, D>,
-        reduce_fn: &R,
+        reduce_fn: &ReduceFn,
     ) -> CircuitBuild<L, D>
     where
-        C: CircuitVariable,
-        O: CircuitVariable,
-        R: Fn(C, O, O, &mut CircuitBuilder<L, D>) -> O,
+        Ctx: CircuitVariable,
+        Output: CircuitVariable,
+        ReduceFn: Fn(Ctx, Output, Output, &mut CircuitBuilder<L, D>) -> Output,
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
@@ -121,8 +132,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         builder.verify_proof::<L>(&proof_right, &verifier_data, &child_circuit.data.common);
 
         // Assert that the contexts match.
-        let input_left = proof_left.read_end_from_pis::<MapReduceOutputVariable<C, O>>();
-        let input_right = proof_right.read_end_from_pis::<MapReduceOutputVariable<C, O>>();
+        let input_left = proof_left.read_end_from_pis::<MapReduceOutputVariable<Ctx, Output>>();
+        let input_right = proof_right.read_end_from_pis::<MapReduceOutputVariable<Ctx, Output>>();
         builder.assert_is_equal(input_left.clone().ctx, input_right.clone().ctx);
 
         // Apply the reduce function.
@@ -147,27 +158,35 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         builder.build()
     }
 
-    pub fn mapreduce<C, I, O, M, R>(
+    pub fn mapreduce<Ctx, Input, Output, MapFn, ReduceFn, const B: usize>(
         &mut self,
-        ctx: C,
-        inputs: Vec<I::ValueType<L::Field>>,
-        map_fn: M,
-        reduce_fn: R,
-    ) -> O
+        ctx: Ctx,
+        inputs: Vec<Input::ValueType<L::Field>>,
+        map_fn: MapFn,
+        reduce_fn: ReduceFn,
+    ) -> Output
     where
-        C: CircuitVariable,
-        I: CircuitVariable,
-        O: CircuitVariable,
+        Ctx: CircuitVariable,
+        Input: CircuitVariable,
+        Output: CircuitVariable,
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
-        <I as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
-        M: Fn(C, I, &mut CircuitBuilder<L, D>) -> O,
-        R: Fn(C, O, O, &mut CircuitBuilder<L, D>) -> O,
+        <Input as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
+        MapFn: Fn(Ctx, ArrayVariable<Input, B>, &mut CircuitBuilder<L, D>) -> Output,
+        ReduceFn: Fn(Ctx, Output, Output, &mut CircuitBuilder<L, D>) -> Output,
     {
-        // Compute the expected inputs accumulator.
-        let expected_acc = self.constant::<PoseidonHashOutVariable>(
-            compute_binary_merkle_tree_root::<L, I, D>(&inputs),
+        // Sanity checks.
+        assert_eq!(inputs.len() % B, 0, "inputs length must be a multiple of B");
+        assert!(
+            (inputs.len() / B).is_power_of_two(),
+            "inputs.len() / B must be a power of two"
         );
+
+        // Compute the expected inputs accumulator.
+        let expected_acc =
+            self.constant::<PoseidonHashOutVariable>(mapreduce_merkle_tree_root::<L, Input, B, D>(
+                &inputs,
+            ));
 
         // The gate and witness generator serializers.
         let gate_serializer = GateRegistry::<L, D>::new();
@@ -184,7 +203,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // For each reduce layer, we build a reduce circuit which reduces two input proofs
         // to an output O.
-        let nb_reduce_layers = (inputs.len() as f64).log2().ceil() as usize;
+        let nb_reduce_layers = ((inputs.len() / B) as f64).log2().ceil() as usize;
         let mut reduce_circuits = Vec::new();
         for i in 0..nb_reduce_layers {
             let child_circuit = if i == 0 {
@@ -192,7 +211,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             } else {
                 &reduce_circuits[i - 1]
             };
-            let reduce_circuit = self.build_reduce::<C, O, R>(child_circuit, &reduce_fn);
+            let reduce_circuit =
+                self.build_reduce::<Ctx, Output, ReduceFn>(child_circuit, &reduce_fn);
             let reduce_circuit_id = reduce_circuit.id();
             let reduce_circuit_path = format!("./build/{}.circuit", reduce_circuit_id);
             reduce_circuit.save(
@@ -208,7 +228,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let reduce_circuit_ids = reduce_circuits.iter().map(|c| c.id()).collect_vec();
         let final_circuit = &reduce_circuits[reduce_circuits.len() - 1];
         let final_proof = self.add_virtual_proof_with_pis(&final_circuit.data.common);
-        let generator = MapReduceGenerator::<L, C, I, O, D> {
+        let generator = MapReduceGenerator::<L, Ctx, Input, Output, B, D> {
             map_circuit_id,
             reduce_circuit_ids,
             ctx: ctx.clone(),
@@ -228,7 +248,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         );
 
         // Verify the inputs accumulator.
-        let output = final_proof.read_end_from_pis::<MapReduceOutputVariable<C, O>>();
+        let output = final_proof.read_end_from_pis::<MapReduceOutputVariable<Ctx, Output>>();
         self.assert_is_equal(output.acc, expected_acc);
 
         // Verify the context.
@@ -244,48 +264,11 @@ pub(crate) mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
-    use crate::frontend::hash::poseidon::poseidon256::PoseidonHashOutVariable;
     use crate::prelude::{CircuitBuilder, DefaultParameters, Variable};
-    use crate::utils::poseidon::compute_binary_merkle_tree_root;
 
     type F = GoldilocksField;
     type L = DefaultParameters;
     const D: usize = 2;
-
-    #[test]
-    fn test_binary_merkle_root_match() {
-        env_logger::try_init().unwrap_or_default();
-
-        let values = [
-            F::from_canonical_u64(0),
-            F::from_canonical_u64(1),
-            F::from_canonical_u64(2),
-            F::from_canonical_u64(0),
-        ];
-        let hash = compute_binary_merkle_tree_root::<L, Variable, D>(&values);
-
-        let mut builder = CircuitBuilder::<L, D>::new();
-        let a = builder.constant::<Variable>(values[0]);
-        let b = builder.constant::<Variable>(values[1]);
-        let c = builder.constant::<Variable>(values[2]);
-        let d = builder.constant::<Variable>(values[3]);
-        let h = builder.compute_binary_merkle_tree_root(&[a, b, c, d]);
-        builder.write(h);
-
-        let circuit = builder.build();
-        let input = circuit.input();
-        let (proof, mut output) = circuit.prove(&input);
-        circuit.verify(&proof, &input, &output);
-        let result = output.read::<PoseidonHashOutVariable>();
-
-        result
-            .elements
-            .iter()
-            .zip(hash.elements.iter())
-            .for_each(|(a, b)| {
-                assert_eq!(a, b);
-            });
-    }
 
     #[test]
     fn test_simple_mapreduce_circuit() {
@@ -297,16 +280,18 @@ pub(crate) mod tests {
             F::from_canonical_u64(0),
             F::from_canonical_u64(1),
             F::from_canonical_u64(2),
-            F::from_canonical_u64(0),
+            F::from_canonical_u64(3),
         ];
 
-        let output = builder.mapreduce::<Variable, Variable, Variable, _, _>(
+        let output = builder.mapreduce::<Variable, Variable, Variable, _, _, 2>(
             ctx,
             inputs,
-            |ctx, input, builder| {
+            |ctx, inputs, builder| {
                 builder.watch(&ctx, "ctx");
                 let constant = builder.constant::<Variable>(F::ONE);
-                builder.add(input, constant)
+                let o1 = builder.add(inputs[0], constant);
+                let o2 = builder.add(inputs[1], constant);
+                builder.add(o1, o2)
             },
             |ctx, left, right, builder| {
                 builder.watch(&ctx, "ctx");
