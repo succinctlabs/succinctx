@@ -121,13 +121,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .collect_vec()
     }
 
-    // leaf_hashes and leaves_enabled should be of size NB_LEAVES.
     pub fn get_root_from_hashed_leaves<const NB_LEAVES: usize>(
         &mut self,
         leaf_hashes: Vec<Bytes32Variable>,
         leaves_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable {
         assert!(NB_LEAVES.is_power_of_two());
+        assert!(leaf_hashes.len() == NB_LEAVES);
+        assert!(leaves_enabled.len() == NB_LEAVES);
 
         // Hash each of the validators to get their corresponding leaf hash.
         let mut current_nodes = leaf_hashes.clone();
