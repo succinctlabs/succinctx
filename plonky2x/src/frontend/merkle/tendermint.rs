@@ -121,6 +121,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .collect_vec()
     }
 
+    // leaf_hashes and leaves_enabled should be of size NB_LEAVES.
     pub fn get_root_from_hashed_leaves<const NB_LEAVES: usize>(
         &mut self,
         leaf_hashes: Vec<Bytes32Variable>,
@@ -149,14 +150,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn compute_root_from_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
-        leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
-        leaves_enabled: Vec<BoolVariable>,
+        leaves: ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, NB_LEAVES>,
+        leaves_enabled: ArrayVariable<BoolVariable, NB_LEAVES>,
     ) -> Bytes32Variable {
-        // TODO: Remove, this is just for debugging.
-        assert_eq!(leaves.len(), NB_LEAVES);
-
-        let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves);
-        self.get_root_from_hashed_leaves::<NB_LEAVES>(hashed_leaves, leaves_enabled)
+        let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves.as_vec());
+        self.get_root_from_hashed_leaves::<NB_LEAVES>(hashed_leaves, leaves_enabled.as_vec())
     }
 }
 
@@ -187,7 +185,7 @@ mod tests {
 
         let leaves = builder.read::<ArrayVariable<BytesVariable<48>, 32>>();
         let enabled = builder.read::<ArrayVariable<BoolVariable, 32>>();
-        let root = builder.compute_root_from_leaves::<32, 48>(leaves.as_vec(), enabled.as_vec());
+        let root = builder.compute_root_from_leaves::<32, 48>(leaves, enabled);
         builder.write::<Bytes32Variable>(root);
         let circuit = builder.build();
         circuit.test_default_serializers();
