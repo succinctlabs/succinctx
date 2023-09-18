@@ -2,11 +2,10 @@ use std::env;
 
 use anyhow::Result;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::local::LocalProver;
-use super::{Prover, RemoteProver};
-use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput, PublicOutput};
+use super::{ProverOutput, ProverOutputs, RemoteProver};
+use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput};
 
 /// A prover that can generate proofs locally or remotely based on the env variable `PROVER` which
 /// can either be `remote` or `local`.
@@ -18,15 +17,11 @@ impl EnvProver {
         Self {}
     }
 
-    #[allow(clippy::type_complexity)]
     pub fn prove<L: PlonkParameters<D>, const D: usize>(
         &self,
         circuit: &CircuitBuild<L, D>,
         input: &PublicInput<L, D>,
-    ) -> Result<(
-        ProofWithPublicInputs<L::Field, L::Config, D>,
-        PublicOutput<L, D>,
-    )>
+    ) -> Result<ProverOutput<L, D>>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
@@ -39,15 +34,11 @@ impl EnvProver {
         }
     }
 
-    #[allow(clippy::type_complexity)]
     pub fn batch_prove<L: PlonkParameters<D>, const D: usize>(
         &self,
         circuit: &CircuitBuild<L, D>,
         inputs: &[PublicInput<L, D>],
-    ) -> Result<(
-        Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
-        Vec<PublicOutput<L, D>>,
-    )>
+    ) -> Result<ProverOutputs<L, D>>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,

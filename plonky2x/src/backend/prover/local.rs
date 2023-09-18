@@ -1,8 +1,8 @@
 use anyhow::Result;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput, PublicOutput};
+use super::{ProverOutput, ProverOutputs};
+use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput};
 
 /// A prover that generates proofs locally.
 #[derive(Debug, Clone)]
@@ -19,15 +19,13 @@ impl LocalProver {
         &self,
         circuit: &CircuitBuild<L, D>,
         input: &PublicInput<L, D>,
-    ) -> Result<(
-        ProofWithPublicInputs<L::Field, L::Config, D>,
-        PublicOutput<L, D>,
-    )>
+    ) -> Result<ProverOutput<L, D>>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        Ok(circuit.prove(input))
+        let (proof, output) = circuit.prove(input);
+        Ok(ProverOutput::Local(proof, output))
     }
 
     /// Generates a batch of proofs with the given input.
@@ -36,21 +34,23 @@ impl LocalProver {
         &self,
         circuit: &CircuitBuild<L, D>,
         inputs: &[PublicInput<L, D>],
-    ) -> Result<(
-        Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
-        Vec<PublicOutput<L, D>>,
-    )>
+    ) -> Result<ProverOutputs<L, D>>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        let mut proofs = Vec::new();
         let mut outputs = Vec::new();
         for input in inputs {
-            let (proof, output) = self.prove(circuit, input)?;
-            proofs.push(proof);
+            let output = self.prove(circuit, input)?;
             outputs.push(output);
         }
-        Ok((proofs, outputs))
+        let (proofs, outputs) = outputs
+            .into_iter()
+            .map(|x| match x {
+                ProverOutput::Local(proof, output) => (proof, output),
+                _ => unreachable!(),
+            })
+            .unzip();
+        Ok(ProverOutputs::Local(proofs, outputs))
     }
 }

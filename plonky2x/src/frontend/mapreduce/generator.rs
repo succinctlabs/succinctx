@@ -11,8 +11,8 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use super::{MapReduceInputVariable, MapReduceInputVariableValue};
-use crate::backend::circuit::CircuitBuild;
-use crate::backend::prover::EnvProver;
+use crate::backend::circuit::{CircuitBuild, PublicInput};
+use crate::backend::prover::{EnvProver, ProverOutputs};
 use crate::prelude::{CircuitVariable, GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
 
 #[derive(Debug, Clone)]
@@ -114,7 +114,7 @@ where
         }
 
         // Generate the proofs for the map layer.
-        let (mut proofs, _) = prover.batch_prove(&map_circuit, &map_inputs).unwrap();
+        let mut outputs = prover.batch_prove(&map_circuit, &map_inputs).unwrap();
 
         // Process each reduce layer.
         let nb_reduce_layers = ((self.inputs.len() / B) as f64).log2().ceil() as usize;
@@ -133,19 +133,33 @@ where
             let nb_proofs = (self.inputs.len() / B) / (2usize.pow((i + 1) as u32));
             let mut reduce_inputs = Vec::new();
             debug!("nb_proofs {}", nb_proofs);
-            for j in 0..nb_proofs {
-                let mut reduce_input = reduce_circuit.input();
-                reduce_input.proof_write(proofs[j * 2].clone());
-                reduce_input.proof_write(proofs[j * 2 + 1].clone());
-                reduce_inputs.push(reduce_input);
+            match outputs {
+                ProverOutputs::Local(proofs, _) => {
+                    for j in 0..nb_proofs {
+                        let mut reduce_input = reduce_circuit.input();
+                        reduce_input.proof_write(proofs[j * 2].clone());
+                        reduce_input.proof_write(proofs[j * 2 + 1].clone());
+                        reduce_inputs.push(reduce_input);
+                    }
+                }
+                ProverOutputs::Remote(proof_ids) => {
+                    for j in 0..nb_proofs {
+                        let reduce_input = PublicInput::<L, D>::RemoteRecursiveProofs(vec![
+                            proof_ids[j * 2],
+                            proof_ids[j * 2 + 1],
+                        ]);
+                        reduce_inputs.push(reduce_input);
+                    }
+                }
             }
 
             // Generate the proofs for the reduce layer and update the proofs buffer.
             debug!("reduce batch proofs");
-            (proofs, _) = prover.batch_prove(&reduce_circuit, &reduce_inputs).unwrap();
+            outputs = prover.batch_prove(&reduce_circuit, &reduce_inputs).unwrap();
         }
 
         // Set the proof target with the final proof.
+        let (proofs, _) = outputs.materialize().unwrap();
         out_buffer.set_proof_with_pis_target(&self.proof, &proofs[0]);
     }
 

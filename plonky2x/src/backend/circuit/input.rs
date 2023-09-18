@@ -3,6 +3,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 use serde::{Deserialize, Serialize};
 
 use super::PlonkParameters;
+use crate::backend::prover::ProofId;
 use crate::frontend::builder::CircuitIO;
 use crate::frontend::vars::{EvmVariable, ValueStream};
 use crate::prelude::{ByteVariable, CircuitVariable};
@@ -13,6 +14,7 @@ pub enum PublicInput<L: PlonkParameters<D>, const D: usize> {
     Bytes(Vec<u8>),
     Elements(Vec<L::Field>),
     RecursiveProofs(Vec<ProofWithPublicInputs<L::Field, L::Config, D>>),
+    RemoteRecursiveProofs(Vec<ProofId>),
     None(),
 }
 

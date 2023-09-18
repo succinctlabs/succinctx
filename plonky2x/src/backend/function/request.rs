@@ -5,6 +5,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 use serde::{Deserialize, Serialize};
 
 use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput};
+use crate::backend::prover::ProofId;
 use crate::utils::serde::{
     deserialize_elements, deserialize_hex, deserialize_proof_with_pis_vec, serialize_elements,
     serialize_hex, serialize_proof_with_pis_vec,
@@ -38,6 +39,14 @@ pub struct RecursiveProofsRequestData<L: PlonkParameters<D>, const D: usize> {
     pub input: Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
 }
 
+/// Fields for a function request that uses recursive proofs io but with remote proofs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteRecursiveProofsRequestData {
+    pub circuit_id: String,
+    pub input: Vec<ProofId>,
+}
+
 /// Common fields for all function requests.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,6 +69,8 @@ pub enum ProofRequest<L: PlonkParameters<D>, const D: usize> {
     Elements(ProofRequestBase<ElementsRequestData<L, D>>),
     #[serde(rename = "req_recursiveProofs")]
     RecursiveProofs(ProofRequestBase<RecursiveProofsRequestData<L, D>>),
+    #[serde(rename = "req_remoteRecursiveProofs")]
+    RemoteRecursiveProofs(ProofRequestBase<RemoteRecursiveProofsRequestData>),
 }
 
 impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
@@ -89,6 +100,15 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
                     },
                 })
             }
+            PublicInput::RemoteRecursiveProofs(input) => {
+                ProofRequest::RemoteRecursiveProofs(ProofRequestBase {
+                    release_id,
+                    data: RemoteRecursiveProofsRequestData {
+                        circuit_id: circuit.id(),
+                        input: input.clone(),
+                    },
+                })
+            }
             PublicInput::None() => todo!(),
         }
     }
@@ -112,6 +132,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
             ProofRequest::RecursiveProofs(ProofRequestBase { data, .. }) => {
                 PublicInput::RecursiveProofs(data.input.clone())
             }
+            _ => panic!("invalid proof request type"),
         }
     }
 }

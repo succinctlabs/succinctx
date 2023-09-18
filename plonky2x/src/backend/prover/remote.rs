@@ -3,29 +3,29 @@ use std::env;
 use std::net::ToSocketAddrs;
 
 use anyhow::{anyhow, Result};
-use futures::future::join_all;
 use itertools::Itertools;
 use log::debug;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::ProofWithPublicInputs;
 use rand::Rng;
 use reqwest::Client;
 use tokio::time::sleep;
 
-use super::Prover;
-use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput, PublicOutput};
+use super::ProverOutput;
+use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput};
 use crate::backend::function::ProofRequest;
 use crate::backend::prover::service::{ProofRequestStatus, ProofService};
+use crate::backend::prover::ProverOutputs;
 
 /// A prover that generates proofs remotely on another machine.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RemoteProver {
     pub client: Client,
 }
 
-impl Prover for RemoteProver {
-    fn new() -> Self {
-        let host = "alpha.succinct.xyz";
+impl RemoteProver {
+    pub fn new() -> Self {
+        let proof_service_url = env::var("PROOF_SERVICE_URL").unwrap();
+        let host = &proof_service_url.split("://").last().unwrap();
         let sock_addrs = format!("{}:443", host)
             .to_socket_addrs()
             .unwrap()
@@ -38,14 +38,11 @@ impl Prover for RemoteProver {
         }
     }
 
-    async fn prove<L: PlonkParameters<D>, const D: usize>(
+    pub async fn prove<L: PlonkParameters<D>, const D: usize>(
         &self,
         circuit: &CircuitBuild<L, D>,
         input: &PublicInput<L, D>,
-    ) -> Result<(
-        ProofWithPublicInputs<L::Field, L::Config, D>,
-        PublicOutput<L, D>,
-    )>
+    ) -> Result<ProverOutput<L, D>>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
@@ -53,8 +50,7 @@ impl Prover for RemoteProver {
         debug!("prove: circuit_id={}", circuit.id());
 
         // Initialize the proof service.
-        let service_url = env::var("PROOF_SERVICE_URL").unwrap();
-        let service = ProofService::new(service_url);
+        let service = ProofService::new_from_env();
 
         // Submit the proof request.
         let mut rng = rand::thread_rng();
@@ -63,7 +59,6 @@ impl Prover for RemoteProver {
         let request = ProofRequest::new(circuit, input);
         let proof_id = service
             .submit::<L, D>(request)
-            .await
             .expect("failed to submit proof request");
 
         // Wait for the proof to be generated.
@@ -71,7 +66,7 @@ impl Prover for RemoteProver {
         let mut status = ProofRequestStatus::Pending;
         for i in 0..MAX_RETRIES {
             sleep(Duration::from_secs(60)).await;
-            let request = service.get::<L, D>(proof_id).await?;
+            let request = service.get::<L, D>(proof_id)?;
             debug!(
                 "proof {:?}: status={:?}, nb_retries={}/{}",
                 proof_id,
@@ -85,7 +80,8 @@ impl Prover for RemoteProver {
                 ProofRequestStatus::Pending => {}
                 ProofRequestStatus::Running => {}
                 ProofRequestStatus::Success => {
-                    return Ok(request.result.unwrap().as_proof_and_output())
+                    let (proof, output) = request.result.unwrap().as_proof_and_output();
+                    return Ok(ProverOutput::Local(proof, output));
                 }
                 _ => break,
             };
@@ -99,34 +95,48 @@ impl Prover for RemoteProver {
         ))
     }
 
-    async fn batch_prove<L: PlonkParameters<D>, const D: usize>(
+    pub async fn batch_prove<L: PlonkParameters<D>, const D: usize>(
         &self,
         circuit: &CircuitBuild<L, D>,
         inputs: &[PublicInput<L, D>],
-    ) -> Result<(
-        Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
-        Vec<PublicOutput<L, D>>,
-    )>
+    ) -> Result<ProverOutputs<L, D>>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        debug!(
-            "batch_prove: circuit_id={}, nb_inputs={}",
-            circuit.id(),
-            inputs.len()
-        );
+        // Initialize the proof service.
+        let service = ProofService::new_from_env();
 
-        // Create a proof request for each input in parallel.
-        let futures = inputs
+        // Submit the batch proof request.
+        let requests = inputs
             .iter()
-            .map(|input| self.prove(circuit, input))
+            .map(|input| ProofRequest::new(circuit, input))
             .collect_vec();
+        let (batch_id, proof_ids) = service.submit_batch(&requests)?;
 
-        // Wait for all proofs to be generated.
-        let results = join_all(futures).await;
+        const MAX_RETRIES: usize = 500;
+        for _ in 0..MAX_RETRIES {
+            sleep(Duration::from_secs(60)).await;
+            let request = service.get_batch::<L, D>(batch_id)?;
+            if let Some(failed) = request.statuses[&ProofRequestStatus::Failure] {
+                return Err(anyhow!(
+                    "batch proof failed: nb_failed={}, nb_success={}",
+                    failed,
+                    request.statuses[&ProofRequestStatus::Success].unwrap_or(0)
+                ));
+            } else if let Some(success) = request.statuses[&ProofRequestStatus::Success] {
+                if success as usize != inputs.len() {
+                    return Err(anyhow!(
+                        "batch proof failed: nb_failed={}, nb_success={}",
+                        request.statuses[&ProofRequestStatus::Failure].unwrap_or(0),
+                        success
+                    ));
+                }
+                return Ok(ProverOutputs::Remote(proof_ids));
+            }
+        }
 
-        // Unzip the results.
-        Ok(results.into_iter().map(|r| r.unwrap()).unzip())
+        // Return an error if the proof failed to generate.
+        Err(anyhow!("could not generate proof {:?}", batch_id,))
     }
 }
