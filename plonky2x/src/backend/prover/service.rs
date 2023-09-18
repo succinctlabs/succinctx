@@ -55,7 +55,7 @@ pub struct SubmitProofRequestResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubmitProofBatchRequestResponse {
-    pub batch_proof_id: BatchProofId,
+    pub proof_batch_id: BatchProofId,
     pub proof_ids: Vec<ProofId>,
 }
 
@@ -71,7 +71,7 @@ pub struct GetProofRequestResponse<L: PlonkParameters<D>, const D: usize> {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound = "")]
 pub struct GetProofBatchRequestResponse {
-    pub statuses: HashMap<ProofRequestStatus, Option<u64>>,
+    pub statuses: HashMap<ProofRequestStatus, u64>,
 }
 
 /// A client for connecting to the proof service which can generate proofs remotely.
@@ -148,7 +148,7 @@ impl ProofService {
     ) -> Result<(BatchProofId, Vec<ProofId>)> {
         let response: SubmitProofBatchRequestResponse =
             self.post_json(SUBMIT_PROOF_BATCH_REQUEST_ROUTE, requests)?;
-        Ok((response.batch_proof_id, response.proof_ids))
+        Ok((response.proof_batch_id, response.proof_ids))
     }
 
     /// Gets the status of a proof request with the given proof id.

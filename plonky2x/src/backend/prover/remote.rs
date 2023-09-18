@@ -118,19 +118,17 @@ impl RemoteProver {
         for _ in 0..MAX_RETRIES {
             sleep(Duration::from_secs(60)).await;
             let request = service.get_batch::<L, D>(batch_id)?;
-            if let Some(failed) = request.statuses[&ProofRequestStatus::Failure] {
-                return Err(anyhow!(
-                    "batch proof failed: nb_failed={}, nb_success={}",
-                    failed,
-                    request.statuses[&ProofRequestStatus::Success].unwrap_or(0)
-                ));
-            } else if let Some(success) = request.statuses[&ProofRequestStatus::Success] {
-                if success as usize != inputs.len() {
+            if let Some(failed) = request.statuses.get(&ProofRequestStatus::Failure) {
+                if *failed > 0 {
                     return Err(anyhow!(
                         "batch proof failed: nb_failed={}, nb_success={}",
-                        request.statuses[&ProofRequestStatus::Failure].unwrap_or(0),
-                        success
+                        failed,
+                        request.statuses.get(&ProofRequestStatus::Success).unwrap()
                     ));
+                }
+            } else if let Some(success) = request.statuses.get(&ProofRequestStatus::Success) {
+                if *success as usize != inputs.len() {
+                    continue;
                 }
                 return Ok(ProverOutputs::Remote(proof_ids));
             }
