@@ -1,4 +1,3 @@
-use ethers::types::H256;
 use itertools::Itertools;
 
 use super::tree::MerkleInclusionProofVariable;
