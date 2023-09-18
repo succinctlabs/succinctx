@@ -217,15 +217,23 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let leaves = [[0u8; 48]; 16].to_vec();
+        let proof_variable = builder.read::<MerkleInclusionProofVariable<4, 48>>();
 
+        let root = builder.get_root_from_merkle_proof(&proof_variable);
+        builder.write::<Bytes32Variable>(root);
+
+        let circuit = builder.build();
+        circuit.test_default_serializers();
+
+        let mut input = circuit.input();
+
+        let leaves = [[0u8; 48]; 16].to_vec();
         let aunts = [
             "78877fa898f0b4c45c9c33ae941e40617ad7c8657a307db62bc5691f92f4f60e",
             "8195d3a7e856bd9bf73464642c1e9177c7e0fbe9cf7458e2572f4e7c267676c7",
             "b1992b2f60fc8b11b83c6d9dbdd1d6abb1f5ef91c0a7aa4e7d629532048d0270",
             "0611fc80429feb4b56817f4070d289650ac0a8eaaa8975c8cc72b73e96376bff",
         ];
-
         let inclusion_proof: InclusionProof<4, 48, F> = InclusionProof {
             leaf: leaves[0],
             path_indices: vec![false; 4],
@@ -234,24 +242,15 @@ mod tests {
                 .map(|aunt| H256::from_slice(hex::decode(aunt).unwrap().as_slice()))
                 .collect_vec(),
         };
+        input.write::<MerkleInclusionProofVariable<4, 48>>(inclusion_proof);
 
-        let proof_variable =
-            builder.constant::<MerkleInclusionProofVariable<4, 48>>(inclusion_proof);
-
-        let root = builder.get_root_from_merkle_proof(&proof_variable);
-
-        builder.watch(&root, "root");
-
-        let expected_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "50d7ed02b144a75487702c9f5faaea07bb9a7385e1521e80f6080399fb9a0ffd"
-        ));
-        builder.assert_is_equal(root, expected_root);
-
-        let circuit = builder.build();
-        let input = circuit.input();
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        // circuit.verify(&proof, &input, &output);
-        circuit.test_default_serializers();
+
+        let computed_root = output.read::<Bytes32Variable>();
+        assert_eq!(
+            bytes32!("50d7ed02b144a75487702c9f5faaea07bb9a7385e1521e80f6080399fb9a0ffd"),
+            computed_root
+        );
     }
 }
