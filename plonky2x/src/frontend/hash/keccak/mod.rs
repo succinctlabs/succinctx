@@ -18,7 +18,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             _phantom: PhantomData::<L>,
         };
         let output = generator.output;
-        self.add_simple_generator(generator);
+        self.add_simple_generator(generator.clone());
         output
     }
 
@@ -33,7 +33,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             length: Some(length),
             _phantom: PhantomData::<L>,
         };
-        self.add_simple_generator(generator);
+        self.add_simple_generator(generator.clone());
         generator.output
     }
 }
