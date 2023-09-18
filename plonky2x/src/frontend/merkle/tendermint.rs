@@ -1,4 +1,3 @@
-use ethers::types::H256;
 use itertools::Itertools;
 
 use super::tree::MerkleInclusionProofVariable;
@@ -112,41 +111,30 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         (new_merkle_hashes, new_merkle_hash_enabled)
     }
 
-    pub fn hash_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
+    pub fn hash_leaves<const LEAF_SIZE_BYTES: usize>(
         &mut self,
-        leaves: &ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, NB_LEAVES>,
-    ) -> ArrayVariable<Bytes32Variable, NB_LEAVES> {
-        ArrayVariable::<Bytes32Variable, NB_LEAVES>::new(
-            leaves
-                .as_vec()
-                .iter()
-                .map(|leaf| self.leaf_hash(&leaf.0))
-                .collect_vec(),
-        )
+        leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
+    ) -> Vec<Bytes32Variable> {
+        leaves
+            .iter()
+            .map(|leaf| self.leaf_hash(&leaf.0))
+            .collect_vec()
     }
 
-    /// TODO: NUM_LEAVES_ENABLED can be a target if necessary.
-    pub fn get_root_from_hashed_leaves<const NB_ENABLED_LEAVES: usize, const NB_LEAVES: usize>(
+    pub fn get_root_from_hashed_leaves<const NB_LEAVES: usize>(
         &mut self,
-        leaf_hashes: &ArrayVariable<Bytes32Variable, NB_ENABLED_LEAVES>,
+        leaf_hashes: Vec<Bytes32Variable>,
+        leaves_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable {
-        assert!(NB_ENABLED_LEAVES <= NB_LEAVES);
         assert!(NB_LEAVES.is_power_of_two());
-
-        let mut leaves = leaf_hashes.as_vec();
-        leaves.extend(vec![
-            self.constant::<Bytes32Variable>(H256::default());
-            NB_LEAVES - NB_ENABLED_LEAVES
-        ]);
-
-        let mut leaf_enabled = vec![self._true(); NB_ENABLED_LEAVES];
-        leaf_enabled.extend(vec![self._false(); NB_LEAVES - NB_ENABLED_LEAVES]);
+        assert!(leaf_hashes.len() == NB_LEAVES);
+        assert!(leaves_enabled.len() == NB_LEAVES);
 
         // Hash each of the validators to get their corresponding leaf hash.
-        let mut current_nodes = leaves.clone();
+        let mut current_nodes = leaf_hashes.clone();
 
         // Whether to treat the validator as empty.
-        let mut current_node_enabled = leaf_enabled.clone();
+        let mut current_node_enabled = leaves_enabled.clone();
 
         let mut merkle_layer_size = NB_LEAVES;
 
@@ -161,17 +149,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         current_nodes[0]
     }
 
-    // TODO: Compute NB_LEAVES from NB_ENABLED_LEAVES.
-    pub fn compute_root_from_leaves<
-        const NB_ENABLED_LEAVES: usize,
-        const NB_LEAVES: usize,
-        const LEAF_SIZE_BYTES: usize,
-    >(
+    pub fn compute_root_from_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
-        leaves: &ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, NB_ENABLED_LEAVES>,
+        leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
+        leaves_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable {
-        let hashed_leaves = self.hash_leaves(leaves);
-        self.get_root_from_hashed_leaves::<NB_ENABLED_LEAVES, NB_LEAVES>(&hashed_leaves)
+        assert!(NB_LEAVES == leaves.len());
+        assert!(NB_LEAVES == leaves_enabled.len());
+
+        let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves.to_vec());
+        self.get_root_from_hashed_leaves::<NB_LEAVES>(hashed_leaves, leaves_enabled.to_vec())
     }
 }
 
@@ -200,24 +187,26 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let array =
-            builder.constant::<ArrayVariable<BytesVariable<48>, 32>>([[0u8; 48]; 32].to_vec());
-
-        let root = builder.compute_root_from_leaves::<32, 32, 48>(&array);
-
-        builder.watch(&root, "root");
-
-        let expected_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xde8624485c0a1b8f9ecc858312916104cc3ee3ed601e405c11eaf9c5cbe05117"
-        ));
-        builder.assert_is_equal(root, expected_root);
-
+        let leaves = builder.read::<ArrayVariable<BytesVariable<48>, 32>>();
+        let enabled = builder.read::<ArrayVariable<BoolVariable, 32>>();
+        let root = builder.compute_root_from_leaves::<32, 48>(leaves.as_vec(), enabled.as_vec());
+        builder.write::<Bytes32Variable>(root);
         let circuit = builder.build();
-        let input = circuit.input();
-        let (proof, output) = circuit.prove(&input);
-        circuit.verify(&proof, &input, &output);
-        // circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
+
+        let mut input = circuit.input();
+
+        input.write::<ArrayVariable<BytesVariable<48>, 32>>([[0u8; 48]; 32].to_vec());
+        input.write::<ArrayVariable<BoolVariable, 32>>([true; 32].to_vec());
+
+        let (proof, mut output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        let root = output.read::<Bytes32Variable>();
+
+        assert_eq!(
+            root,
+            bytes32!("0xde8624485c0a1b8f9ecc858312916104cc3ee3ed601e405c11eaf9c5cbe05117"),
+        );
     }
 
     #[test]
@@ -229,15 +218,23 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let leaves = [[0u8; 48]; 16].to_vec();
+        let proof_variable = builder.read::<MerkleInclusionProofVariable<4, 48>>();
 
+        let root = builder.get_root_from_merkle_proof(&proof_variable);
+        builder.write::<Bytes32Variable>(root);
+
+        let circuit = builder.build();
+        circuit.test_default_serializers();
+
+        let mut input = circuit.input();
+
+        let leaves = [[0u8; 48]; 16].to_vec();
         let aunts = [
             "78877fa898f0b4c45c9c33ae941e40617ad7c8657a307db62bc5691f92f4f60e",
             "8195d3a7e856bd9bf73464642c1e9177c7e0fbe9cf7458e2572f4e7c267676c7",
             "b1992b2f60fc8b11b83c6d9dbdd1d6abb1f5ef91c0a7aa4e7d629532048d0270",
             "0611fc80429feb4b56817f4070d289650ac0a8eaaa8975c8cc72b73e96376bff",
         ];
-
         let inclusion_proof: InclusionProof<4, 48, F> = InclusionProof {
             leaf: leaves[0],
             path_indices: vec![false; 4],
@@ -246,24 +243,15 @@ mod tests {
                 .map(|aunt| H256::from_slice(hex::decode(aunt).unwrap().as_slice()))
                 .collect_vec(),
         };
+        input.write::<MerkleInclusionProofVariable<4, 48>>(inclusion_proof);
 
-        let proof_variable =
-            builder.constant::<MerkleInclusionProofVariable<4, 48>>(inclusion_proof);
-
-        let root = builder.get_root_from_merkle_proof(&proof_variable);
-
-        builder.watch(&root, "root");
-
-        let expected_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "50d7ed02b144a75487702c9f5faaea07bb9a7385e1521e80f6080399fb9a0ffd"
-        ));
-        builder.assert_is_equal(root, expected_root);
-
-        let circuit = builder.build();
-        let input = circuit.input();
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        // circuit.verify(&proof, &input, &output);
-        circuit.test_default_serializers();
+
+        let computed_root = output.read::<Bytes32Variable>();
+        assert_eq!(
+            bytes32!("50d7ed02b144a75487702c9f5faaea07bb9a7385e1521e80f6080399fb9a0ffd"),
+            computed_root
+        );
     }
 }
