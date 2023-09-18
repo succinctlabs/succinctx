@@ -3,13 +3,15 @@ use std::io::Read;
 
 use ethers::providers::{Http, Middleware, Provider};
 pub(crate) use ethers::types::EIP1186ProofResponse;
+use log::info;
 use tokio::runtime::Runtime;
 
-use crate::utils::{address, bytes32};
+use crate::utils::{address, bytes32, setup_logger};
 
 // TODO: figure out a better way to do fixtures below
 #[allow(dead_code)] // We allow dead_code since this is just used for fixture generation
 fn generate_fixtures() {
+    setup_logger();
     // TODO: don't have mainnet RPC url here, read from a .env
     let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
     let provider = Provider::<Http>::try_from(rpc_url).unwrap();
@@ -35,7 +37,7 @@ fn generate_fixtures() {
     };
     let storage_result: EIP1186ProofResponse = get_proof_closure();
     let serialized = serde_json::to_string(&storage_result).unwrap();
-    println!("{}", serialized);
+    info!("{}", serialized);
     // TODO: save this to fixtures/example.json programatically instead of copy-paste
 }
 

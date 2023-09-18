@@ -125,6 +125,7 @@ impl<L: PlonkParameters<D>, V: CircuitVariable, const D: usize> SimpleGenerator<
 
 #[cfg(test)]
 mod tests {
+    use log::info;
     use plonky2::field::types::Field;
 
     use crate::frontend::builder::DefaultBuilder;
@@ -158,6 +159,6 @@ mod tests {
 
         // Read output.
         let sum = output.read::<Variable>();
-        println!("{}", sum.0);
+        info!("{}", sum.0);
     }
 }

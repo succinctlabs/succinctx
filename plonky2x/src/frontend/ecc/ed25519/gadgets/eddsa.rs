@@ -386,6 +386,7 @@ mod tests {
 
     use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
     use curta::plonky2::stark::config::CurtaPoseidonGoldilocksConfig;
+    use log::info;
     use num::BigUint;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, PrimeField};
@@ -423,6 +424,7 @@ mod tests {
     }
 
     fn test_eddsa_circuit_with_config(config: CircuitConfig) {
+        setup_logger();
         type F = GoldilocksField;
         type E = GoldilocksCubicParameters;
         type SC = CurtaPoseidonGoldilocksConfig;
@@ -521,7 +523,7 @@ mod tests {
         data.verify(proof).unwrap();
         let verify_time = verify_start_time.elapsed().unwrap();
 
-        println!(
+        info!(
             "circuit_builder_time: {}\nproof_time: {}\nverify_time: {}",
             circuit_builder_time.as_secs(),
             proof_time.as_secs(),
@@ -615,7 +617,7 @@ mod tests {
 
         let outer_data = outer_builder.build::<C>();
         for gate in outer_data.common.gates.iter() {
-            println!("ecddsa verify recursive gate: {:?}", gate);
+            info!("ecddsa verify recursive gate: {:?}", gate);
         }
 
         let mut outer_pw = PartialWitness::new();
@@ -706,7 +708,7 @@ mod tests {
 
         let inner_data = builder.build::<C>();
         let circuit_digest = inner_data.verifier_only.circuit_digest;
-        println!("circuit_digest: {:?}", circuit_digest);
+        info!("circuit_digest: {:?}", circuit_digest);
 
         let inner_proof = inner_data.prove(pw).unwrap();
         inner_data.verify(inner_proof.clone()).unwrap();
@@ -724,7 +726,7 @@ mod tests {
 
         let outer_data = outer_builder.build::<C>();
         for gate in outer_data.common.gates.iter() {
-            println!("ecddsa verify recursive gate: {:?}", gate);
+            info!("ecddsa verify recursive gate: {:?}", gate);
         }
 
         let mut outer_pw = PartialWitness::new();
