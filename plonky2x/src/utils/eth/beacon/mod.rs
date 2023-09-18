@@ -1,7 +1,6 @@
 use core::time::Duration;
 
 use anyhow::Result;
-use ethers::types::U256;
 use num::BigInt;
 use serde::Deserialize;
 use serde_json::Value;
@@ -22,12 +21,14 @@ struct BeaconData<T> {
     pub execution_optimistic: bool,
     #[allow(unused)]
     pub finalized: bool,
+    #[allow(unused)]
     pub data: Vec<T>,
 }
 
 /// The format returned by official Eth Beacon Node APIs.
 #[derive(Debug, Deserialize)]
 struct BeaconResponse<T> {
+    #[allow(unused)]
     data: BeaconData<T>,
 }
 
@@ -71,6 +72,7 @@ pub struct BeaconValidator {
 struct BeaconValidatorBalance {
     #[allow(unused)]
     pub index: String,
+    #[allow(unused)]
     pub balance: String,
 }
 
@@ -119,6 +121,12 @@ pub struct GetBeaconBalance {
     pub depth: u64,
     #[serde(deserialize_with = "deserialize_bigint")]
     pub gindex: BigInt,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconBalanceWitness {
+    pub balance: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -185,7 +193,7 @@ impl BeaconClient {
     /// Gets the validators root based on a beacon_id and the SSZ proof from
     /// `stateRoot -> validatorsRoot`.
     pub fn get_validators_root(&self, beacon_id: String) -> Result<GetBeaconValidatorsRoot> {
-        let endpoint = format!("{}/api/beacon/validator/{}", self.rpc_url, beacon_id);
+        let endpoint = format!("{}/api/beacon/proof/validator/{}", self.rpc_url, beacon_id);
 
         let client = reqwest::blocking::Client::new();
         let response = client
@@ -222,7 +230,7 @@ impl BeaconClient {
         pubkey: String,
     ) -> Result<GetBeaconValidator> {
         let endpoint = format!(
-            "{}/api/beacon/validator/{}/{}",
+            "{}/api/beacon/proof/validator/{}/{}",
             self.rpc_url, beacon_id, pubkey
         );
         println!("{}", endpoint);
@@ -235,7 +243,7 @@ impl BeaconClient {
 
     /// Gets the balances root based on a beacon_id.
     pub fn get_balances_root(&self, beacon_id: String) -> Result<GetBeaconBalancesRoot> {
-        let endpoint = format!("{}/api/beacon/balance/{}", self.rpc_url, beacon_id);
+        let endpoint = format!("{}/api/beacon/proof/balance/{}", self.rpc_url, beacon_id);
         println!("{}", endpoint);
 
         let client = reqwest::blocking::Client::new();
@@ -248,6 +256,17 @@ impl BeaconClient {
         Ok(response.result)
     }
 
+    pub fn get_balance_witness(&self, beacon_id: String, idx: u64) -> Result<u64> {
+        let endpoint = format!("{}/api/beacon/balance/{}/{}", self.rpc_url, beacon_id, idx);
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
+        let response: GetBeaconBalanceWitness = response.json()?;
+        Ok(response.balance)
+    }
+
     /// Gets the balance of a validator based on a beacon_id and validator index.
     pub fn get_validator_balance_v2(
         &self,
@@ -255,7 +274,7 @@ impl BeaconClient {
         validator_idx: u64,
     ) -> Result<GetBeaconBalance> {
         let endpoint = format!(
-            "{}/api/beacon/balance/{}/{}",
+            "{}/api/beacon/proof/balance/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
 
@@ -276,7 +295,7 @@ impl BeaconClient {
         pubkey: String,
     ) -> Result<GetBeaconBalance> {
         let endpoint = format!(
-            "{}/api/beacon/balance/{}/{}",
+            "{}/api/beacon/proof/balance/{}/{}",
             self.rpc_url, beacon_id, pubkey
         );
 
@@ -288,46 +307,6 @@ impl BeaconClient {
         let response: CustomResponse<GetBeaconBalance> = response.json()?;
         assert!(response.success);
         Ok(response.result)
-    }
-
-    /// Gets the balance of a validator based on a beacon_id and validator index.
-    #[allow(unused)]
-    fn get_validator_balance_deprecated(
-        &self,
-        beacon_id: String,
-        validator_idx: u64,
-    ) -> Result<U256> {
-        let endpoint = format!(
-            "{}/eth/v1/beacon/states/{}/validator_balances?id={}",
-            self.rpc_url, beacon_id, validator_idx
-        );
-
-        let response = reqwest::blocking::get(endpoint)?;
-        let response: BeaconResponse<BeaconValidatorBalance> = response.json()?;
-        let balance = response.data.data[0].balance.parse::<u64>()?;
-        Ok(U256::from(balance))
-    }
-
-    /// Gets the balance of a validator based on a beacon_id and validator pubkey.
-    #[allow(unused)]
-    fn get_validator_balance_by_pubkey_deprecated(
-        &self,
-        beacon_id: String,
-        pubkey: String,
-    ) -> Result<U256> {
-        let endpoint = format!(
-            "{}/eth/v1/beacon/states/{}/validator_balances?id={}",
-            self.rpc_url, beacon_id, pubkey
-        );
-
-        let client = reqwest::blocking::Client::new();
-        let response = client
-            .get(endpoint)
-            .timeout(Duration::from_secs(300))
-            .send()?;
-        let response: BeaconResponse<BeaconValidatorBalance> = response.json()?;
-        let balance = response.data.data[0].balance.parse::<u64>()?;
-        Ok(U256::from(balance))
     }
 
     pub fn get_withdrawals_root(&self, beacon_id: String) -> Result<GetBeaconWithdrawalsRoot> {
@@ -345,7 +324,7 @@ impl BeaconClient {
 
     pub fn get_withdrawal(&self, beacon_id: String, idx: u64) -> Result<GetBeaconWithdrawal> {
         let endpoint = format!(
-            "{}/api/beacon/withdrawal/{}/{}",
+            "{}/api/beacon/proof/withdrawal/{}/{}",
             self.rpc_url, beacon_id, idx
         );
 
@@ -365,7 +344,7 @@ impl BeaconClient {
         offset: u64,
     ) -> Result<GetBeaconHistoricalBlock> {
         let endpoint = format!(
-            "{}/api/beacon/historical/{}/{}",
+            "{}/api/beacon/proof/historical/{}/{}",
             self.rpc_url, beacon_id, offset
         );
         let client = reqwest::blocking::Client::new();
@@ -433,6 +412,18 @@ mod tests {
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
         let result = client.get_validator(block_root.to_string(), 0)?;
+        println!("{:?}", result);
+        Ok(())
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_get_balance_witness() -> Result<()> {
+        dotenv::dotenv()?;
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(rpc.to_string());
+        let slot = "7354007";
+        let result = client.get_balance_witness(slot.to_string(), 0)?;
         println!("{:?}", result);
         Ok(())
     }
