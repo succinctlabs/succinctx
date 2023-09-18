@@ -151,11 +151,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn compute_root_from_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
-        leaves: ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, NB_LEAVES>,
-        leaves_enabled: ArrayVariable<BoolVariable, NB_LEAVES>,
+        leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
+        leaves_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable {
-        let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves.as_vec());
-        self.get_root_from_hashed_leaves::<NB_LEAVES>(hashed_leaves, leaves_enabled.as_vec())
+        assert!(NB_LEAVES == leaves.len());
+        assert!(NB_LEAVES == leaves_enabled.len());
+
+        let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves.to_vec());
+        self.get_root_from_hashed_leaves::<NB_LEAVES>(hashed_leaves, leaves_enabled.to_vec())
     }
 }
 
