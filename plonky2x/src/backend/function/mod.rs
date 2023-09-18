@@ -157,9 +157,9 @@ impl<C: Circuit> VerifiableFunction<C> {
 
         let result = ProofResult::from_proof_output(proof, output);
         let json = serde_json::to_string_pretty(&result).unwrap();
-        let mut file = File::create("plonky2x_output.json").unwrap();
+        let mut file = File::create("output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
-        info!("Successfully saved proof to disk at plonky2x_output.json.");
+        info!("Successfully saved proof to disk at output.json.");
     }
 
     fn prove_wrapped<

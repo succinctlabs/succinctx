@@ -120,10 +120,14 @@ impl RemoteProver {
             let request = service.get_batch::<L, D>(batch_id)?;
             if let Some(failed) = request.statuses.get(&ProofRequestStatus::Failure) {
                 if *failed > 0 {
+                    let count = request
+                        .statuses
+                        .get(&ProofRequestStatus::Success)
+                        .unwrap_or(&0);
                     return Err(anyhow!(
                         "batch proof failed: nb_failed={}, nb_success={}",
                         failed,
-                        request.statuses.get(&ProofRequestStatus::Success).unwrap()
+                        *count,
                     ));
                 }
             } else if let Some(success) = request.statuses.get(&ProofRequestStatus::Success) {
