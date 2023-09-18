@@ -112,41 +112,29 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         (new_merkle_hashes, new_merkle_hash_enabled)
     }
 
-    pub fn hash_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
+    pub fn hash_leaves<const LEAF_SIZE_BYTES: usize>(
         &mut self,
-        leaves: &ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, NB_LEAVES>,
-    ) -> ArrayVariable<Bytes32Variable, NB_LEAVES> {
-        ArrayVariable::<Bytes32Variable, NB_LEAVES>::new(
-            leaves
-                .as_vec()
-                .iter()
-                .map(|leaf| self.leaf_hash(&leaf.0))
-                .collect_vec(),
-        )
+        leaves: &Vec<BytesVariable<LEAF_SIZE_BYTES>>,
+    ) -> Vec<Bytes32Variable> {
+        leaves
+            .iter()
+            .map(|leaf| self.leaf_hash(&leaf.0))
+            .collect_vec()
+        
     }
 
-    /// TODO: NUM_LEAVES_ENABLED can be a target if necessary.
-    pub fn get_root_from_hashed_leaves<const NB_ENABLED_LEAVES: usize, const NB_LEAVES: usize>(
+    pub fn get_root_from_hashed_leaves<const NB_LEAVES: usize>(
         &mut self,
-        leaf_hashes: &ArrayVariable<Bytes32Variable, NB_ENABLED_LEAVES>,
+        leaf_hashes: &Vec<Bytes32Variable>,
+        leaves_enabled: &Vec<BoolVariable>,
     ) -> Bytes32Variable {
-        assert!(NB_ENABLED_LEAVES <= NB_LEAVES);
         assert!(NB_LEAVES.is_power_of_two());
 
-        let mut leaves = leaf_hashes.as_vec();
-        leaves.extend(vec![
-            self.constant::<Bytes32Variable>(H256::default());
-            NB_LEAVES - NB_ENABLED_LEAVES
-        ]);
-
-        let mut leaf_enabled = vec![self._true(); NB_ENABLED_LEAVES];
-        leaf_enabled.extend(vec![self._false(); NB_LEAVES - NB_ENABLED_LEAVES]);
-
         // Hash each of the validators to get their corresponding leaf hash.
-        let mut current_nodes = leaves.clone();
+        let mut current_nodes = leaf_hashes.clone();
 
         // Whether to treat the validator as empty.
-        let mut current_node_enabled = leaf_enabled.clone();
+        let mut current_node_enabled = leaves_enabled.clone();
 
         let mut merkle_layer_size = NB_LEAVES;
 
@@ -161,17 +149,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         current_nodes[0]
     }
 
-    // TODO: Compute NB_LEAVES from NB_ENABLED_LEAVES.
-    pub fn compute_root_from_leaves<
-        const NB_ENABLED_LEAVES: usize,
-        const NB_LEAVES: usize,
-        const LEAF_SIZE_BYTES: usize,
-    >(
+    pub fn compute_root_from_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
-        leaves: &ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, NB_ENABLED_LEAVES>,
+        leaves: &Vec<BytesVariable<LEAF_SIZE_BYTES>>,
+        leaves_enabled: &Vec<BoolVariable>,
     ) -> Bytes32Variable {
-        let hashed_leaves = self.hash_leaves(leaves);
-        self.get_root_from_hashed_leaves::<NB_ENABLED_LEAVES, NB_LEAVES>(&hashed_leaves)
+        let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves);
+        self.get_root_from_hashed_leaves::<NB_LEAVES>(&hashed_leaves, leaves_enabled)
     }
 }
 
@@ -203,7 +187,9 @@ mod tests {
         let array =
             builder.constant::<ArrayVariable<BytesVariable<48>, 32>>([[0u8; 48]; 32].to_vec());
 
-        let root = builder.compute_root_from_leaves::<32, 32, 48>(&array);
+        let enabled = builder.constant::<ArrayVariable<BoolVariable, 32>>([true; 32].to_vec());
+
+        let root = builder.compute_root_from_leaves::<32, 48>(&array.as_vec(), &enabled.as_vec());
 
         builder.watch(&root, "root");
 
@@ -216,7 +202,6 @@ mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        // circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
     }
 
