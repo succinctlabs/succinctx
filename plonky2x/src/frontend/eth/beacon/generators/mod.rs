@@ -2,10 +2,10 @@ mod balance;
 mod balances;
 mod historical;
 mod validator;
+mod validator_witness;
 mod validators;
 mod withdrawal;
 mod withdrawals;
-mod validator_witness;
 
 pub use balance::BeaconBalanceGenerator;
 pub use balances::BeaconBalancesGenerator;
