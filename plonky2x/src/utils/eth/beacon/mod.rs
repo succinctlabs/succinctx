@@ -1,9 +1,9 @@
 use core::time::Duration;
 
 use anyhow::Result;
-use num::BigInt;
 use ethers::types::U256;
 use log::info;
+use num::BigInt;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde_json::Value;
@@ -211,7 +211,7 @@ impl BeaconClient {
     /// Gets the validators root based on a beacon_id and the SSZ proof from
     /// `stateRoot -> validatorsRoot`.
     pub fn get_validators_root(&self, beacon_id: String) -> Result<GetBeaconValidatorsRoot> {
-        let endpoint = format!("{}/api/beacon/validator/{}", self.rpc_url, beacon_id);
+        let endpoint = format!("{}/api/beacon/proof/validator/{}", self.rpc_url, beacon_id);
         let client = Client::new();
         let response = client.get(endpoint).send()?;
         let response: CustomResponse<GetBeaconValidatorsRoot> = response.json()?;
@@ -245,7 +245,7 @@ impl BeaconClient {
         validator_idx: u64,
     ) -> Result<GetBeaconValidator> {
         let endpoint = format!(
-            "{}/api/beacon/validator/{}/{}",
+            "{}/api/beacon/proof/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
         let client = Client::new();
@@ -276,7 +276,7 @@ impl BeaconClient {
 
     /// Gets the balances root based on a beacon_id.
     pub fn get_balances_root(&self, beacon_id: String) -> Result<GetBeaconBalancesRoot> {
-        let endpoint = format!("{}/api/beacon/balance/{}", self.rpc_url, beacon_id);
+        let endpoint = format!("{}/api/beacon/proof/balance/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
         let client = Client::new();
         let response = client.get(endpoint).send()?;
