@@ -484,8 +484,10 @@ where
         let sha256_hint_generator_id = SHA256HintGenerator::id();
         r.register_simple::<SHA256HintGenerator>(sha256_hint_generator_id);
 
-        let sha256_generator = SHA256Generator::<L::Field, L::CubicParams>::id();
-        r.register_simple::<SHA256Generator<L::Field, L::CubicParams>>(sha256_generator);
+        let sha256_generator = SHA256Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
+        r.register_simple::<SHA256Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(
+            sha256_generator,
+        );
 
         let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
             SHA256AirParameters<L::Field, L::CubicParams>,
