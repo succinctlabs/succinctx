@@ -6,12 +6,11 @@ pub(crate) use ethers::types::EIP1186ProofResponse;
 use log::info;
 use tokio::runtime::Runtime;
 
-use crate::utils::{address, bytes32, setup_logger};
+use crate::utils::{address, bytes32};
 
 // TODO: figure out a better way to do fixtures below
 #[allow(dead_code)] // We allow dead_code since this is just used for fixture generation
 fn generate_fixtures() {
-    setup_logger();
     // TODO: don't have mainnet RPC url here, read from a .env
     let rpc_url = "https://eth-mainnet.g.alchemy.com/v2/hIxcf_hqT9It2hS8iCFeHKklL8tNyXNF";
     let provider = Provider::<Http>::try_from(rpc_url).unwrap();

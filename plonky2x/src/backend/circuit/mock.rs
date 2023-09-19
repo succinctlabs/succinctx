@@ -54,15 +54,15 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
 #[cfg(test)]
 pub(crate) mod tests {
 
-    use log::info;
+    use log::debug;
     use plonky2::field::types::Field;
 
     use crate::prelude::*;
-    use crate::utils::setup_logger;
+    use crate::utils;
 
     #[test]
     fn test_mock_circuit_with_field_io() {
-        setup_logger();
+        utils::setup_logger();
 
         // Define your circuit.
         let mut builder = DefaultBuilder::new();
@@ -84,12 +84,12 @@ pub(crate) mod tests {
 
         // Read output.
         let sum = output.read::<Variable>();
-        info!("{}", sum.0);
+        debug!("{}", sum.0);
     }
 
     #[test]
     fn test_simple_circuit_with_evm_io() {
-        setup_logger();
+        utils::setup_logger();
 
         // Define your circuit.
         let mut builder = DefaultBuilder::new();
@@ -111,6 +111,6 @@ pub(crate) mod tests {
 
         // // Read output.
         let xor = output.evm_read::<ByteVariable>();
-        info!("{}", xor);
+        debug!("{}", xor);
     }
 }

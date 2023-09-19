@@ -281,19 +281,19 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use log::info;
+    use log::debug;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
     use crate::builder::CircuitBuilder;
-    use crate::utils::setup_logger;
+    use crate::utils;
     use crate::vars::{CircuitVariable, Variable};
 
     #[test]
     fn test_simple_mapreduce_circuit() {
-        setup_logger();
+        utils::setup_logger();
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
@@ -320,14 +320,14 @@ pub(crate) mod tests {
         );
         builder.register_public_inputs(output.targets().as_slice());
 
-        info!("compiling outer circuit");
+        debug!("compiling outer circuit");
         let data = builder.build::<C>();
 
-        info!("proving outer circuit");
+        debug!("proving outer circuit");
         let pw = PartialWitness::new();
         let proof = data.prove(pw).unwrap();
         data.verify(proof.clone()).unwrap();
 
-        info!("result: {:?}", proof.public_inputs);
+        debug!("result: {:?}", proof.public_inputs);
     }
 }

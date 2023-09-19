@@ -283,7 +283,7 @@ mod tests {
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::hash::sha::sha256::sha256;
     use crate::prelude::*;
-    use crate::utils::setup_logger;
+    use crate::utils;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -308,7 +308,7 @@ mod tests {
         type InnerParameters = DefaultParameters;
         type OuterParameters = Groth16VerifierParameters;
 
-        setup_logger();
+        utils::setup_logger();
 
         let build_path = "../plonky2x-verifier/data".to_string();
         let path = format!("{}/test_circuit/", build_path);

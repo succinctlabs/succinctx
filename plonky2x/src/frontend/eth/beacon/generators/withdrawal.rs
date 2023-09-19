@@ -19,7 +19,7 @@ use crate::frontend::eth::beacon::vars::{
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::utils::eth::beacon::BeaconClient;
-use crate::utils::{bytes32, hex, setup_logger};
+use crate::utils::{bytes32, hex};
 
 const DEPTH: usize = 5;
 
@@ -76,7 +76,6 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
     ) {
-        setup_logger();
         let block_root = self.withdrawals.block_root.get(witness);
         let idx = self.idx.get(witness);
 

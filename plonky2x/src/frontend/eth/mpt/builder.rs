@@ -233,18 +233,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 #[cfg(test)]
 mod tests {
     use curta::math::field::Field;
-    use log::info;
+    use log::debug;
 
     use super::super::utils::{read_fixture, EIP1186ProofResponse};
     use super::*;
     use crate::frontend::eth::utils::u256_to_h256_be;
     use crate::prelude::{DefaultBuilder, GoldilocksField};
-    use crate::utils::setup_logger;
+    use crate::utils;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_mpt_circuit() {
-        setup_logger();
+        utils::setup_logger();
         type F = GoldilocksField;
 
         let storage_result: EIP1186ProofResponse =
@@ -259,10 +259,10 @@ mod tests {
         let key = storage_result.storage_proof[0].key;
         let value = storage_result.storage_proof[0].value;
 
-        info!("root {:?} key {:?} value {:?}", root, key, value);
+        debug!("root {:?} key {:?} value {:?}", root, key, value);
 
         let value_as_h256 = u256_to_h256_be(value);
-        info!("value_as_h256 {:?}", value_as_h256);
+        debug!("value_as_h256 {:?}", value_as_h256);
 
         const ENCODING_LEN: usize = 600;
         const PROOF_LEN: usize = 16;

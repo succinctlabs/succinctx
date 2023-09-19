@@ -125,16 +125,16 @@ impl<L: PlonkParameters<D>, V: CircuitVariable, const D: usize> SimpleGenerator<
 
 #[cfg(test)]
 mod tests {
-    use log::info;
+    use log::debug;
     use plonky2::field::types::Field;
 
     use crate::frontend::builder::DefaultBuilder;
     use crate::prelude::*;
-    use crate::utils::setup_logger;
+    use crate::utils;
 
     #[test]
     fn test_watcher() {
-        setup_logger();
+        utils::setup_logger();
 
         let mut builder = DefaultBuilder::new();
         let a = builder.read::<Variable>();
@@ -159,6 +159,6 @@ mod tests {
 
         // Read output.
         let sum = output.read::<Variable>();
-        info!("{}", sum.0);
+        debug!("{}", sum.0);
     }
 }

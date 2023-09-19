@@ -303,7 +303,7 @@ impl<L: PlonkParameters<D>, const D: usize> Plonky2xCircuitBuilder<L, D> {
 mod tests {
     use anyhow::Result;
     use hex::decode;
-    use log::info;
+    use log::debug;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -311,7 +311,7 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use super::*;
-    use crate::utils::setup_logger;
+    use crate::utils;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -331,7 +331,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_bench() -> Result<()> {
-        setup_logger();
+        utils::setup_logger();
         let mut msg = String::new();
         for _ in 0..8 {
             msg.push_str("abcdefghij");
@@ -369,7 +369,7 @@ mod tests {
             }
             let now = std::time::Instant::now();
             let _proof = data.prove(pw).unwrap();
-            info!("{} step, time elapsed {}", i, now.elapsed().as_millis());
+            debug!("{} step, time elapsed {}", i, now.elapsed().as_millis());
         }
 
         Ok(())

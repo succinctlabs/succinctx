@@ -16,7 +16,6 @@ use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
     Variable,
 };
-use crate::utils::setup_logger;
 
 pub fn bool_to_u32(b: bool) -> u32 {
     if b {
@@ -27,7 +26,6 @@ pub fn bool_to_u32(b: bool) -> u32 {
 }
 // Note this only decodes bytes and doesn't support long strings
 pub fn rlp_decode_bytes(input: &[u8]) -> (Vec<u8>, usize) {
-    setup_logger();
     let prefix = input[0];
     if prefix <= 0x7F {
         (vec![prefix], 1)
@@ -58,7 +56,6 @@ pub fn rlp_decode_bytes(input: &[u8]) -> (Vec<u8>, usize) {
 }
 
 pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
-    setup_logger();
     info!("input {:?}", Bytes::from(input.to_vec()).to_string());
     let prefix = input[0];
 

@@ -72,14 +72,14 @@ mod tests {
 
     use ethers::providers::{Http, Provider};
     use ethers::types::{U256, U64};
-    use log::info;
+    use log::debug;
 
     use super::*;
     use crate::backend::circuit::{DefaultParameters, GateRegistry, WitnessGeneratorRegistry};
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthHeader, EthLog};
     use crate::prelude::DefaultBuilder;
-    use crate::utils::{address, bytes32, setup_logger};
+    use crate::utils::{self, address, bytes32};
 
     type L = DefaultParameters;
     const D: usize = 2;
@@ -88,7 +88,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
     fn test_eth_get_storage_at() {
-        setup_logger();
+        utils::setup_logger();
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
@@ -127,7 +127,7 @@ mod tests {
 
         // Read output.
         let circuit_value = output.evm_read::<Bytes32Variable>();
-        info!("{:?}", circuit_value);
+        debug!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
@@ -147,7 +147,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
     fn test_get_storage_key_at() {
-        setup_logger();
+        utils::setup_logger();
         dotenv::dotenv().ok();
         // This is the circuit definition
         let mut builder = DefaultBuilder::new();
@@ -171,7 +171,7 @@ mod tests {
         // map_key
         input.write::<Bytes32Variable>(map_key);
 
-        info!(
+        debug!(
             "storage key: {:?}",
             get_map_storage_location(mapping_location.as_u128(), map_key)
         );
@@ -184,7 +184,7 @@ mod tests {
 
         // Read output.
         let circuit_value = output.read::<Bytes32Variable>();
-        info!("{:?}", circuit_value);
+        debug!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
             bytes32!("0xca77d4e79102603cb6842afffd8846a3123877159ed214aeadfc4333d595fd50"),
@@ -204,7 +204,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
     fn test_eth_get_block_by_hash() {
-        setup_logger();
+        utils::setup_logger();
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
@@ -236,7 +236,7 @@ mod tests {
 
         // Read output
         let circuit_value = output.read::<EthHeaderVariable>();
-        info!("{:?}", circuit_value);
+        debug!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
             EthHeader {
@@ -278,7 +278,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
     fn test_eth_get_transaction_log() {
-        setup_logger();
+        utils::setup_logger();
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
@@ -316,7 +316,7 @@ mod tests {
 
         // Read output.
         let circuit_value = output.read::<EthLogVariable>();
-        info!("{:?}", circuit_value);
+        debug!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
             EthLog {

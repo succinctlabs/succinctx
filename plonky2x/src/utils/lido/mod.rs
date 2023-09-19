@@ -10,7 +10,6 @@ use log::info;
 
 use crate::frontend::eth::storage::utils::get_map_storage_location;
 use crate::frontend::eth::utils::{h256_to_u256_be, u256_to_h256_be};
-use crate::utils::setup_logger;
 
 abigen!(
     NodeOperatorRegistry,
@@ -46,7 +45,6 @@ impl LidoUtils {
         block: BlockId,
         operator_id: u64,
     ) -> Result<EIP1186ProofResponse> {
-        setup_logger();
         // Get the storage value
         // Sanity check against calling the contract
         // Return [storagekey, storagevalue, storageproof]
@@ -102,7 +100,6 @@ impl LidoUtils {
         operator_id: u64,
         key_idx: u64,
     ) -> Result<EIP1186ProofResponse> {
-        setup_logger();
         let signing_key: (Bytes, Bytes, Vec<bool>) = self
             .contract
             .get_signing_keys(U256::from(operator_id), U256::from(key_idx), U256::from(1))
@@ -165,13 +162,13 @@ impl LidoUtils {
 
 #[cfg(test)]
 mod tests {
-    use log::info;
+    use log::debug;
 
     use super::*;
-    use crate::utils::setup_logger;
+    use crate::utils;
     #[tokio::test]
     async fn test_lido_metadata() {
-        setup_logger();
+        utils::setup_logger();
         let rpc_url = "https://eth.llamarpc.com";
         let lido_metadata = LidoUtils::new(rpc_url);
         let block = lido_metadata.provider.get_block_number().await.unwrap();
@@ -182,8 +179,8 @@ mod tests {
             .unwrap();
         let full_block = lido_metadata.provider.get_block(block).await.unwrap();
         let state_root = full_block.unwrap().state_root;
-        info!("block number {:?} state root {:?}", block, state_root);
-        info!(
+        debug!("block number {:?} state root {:?}", block, state_root);
+        debug!(
             "node_operator_proof {:?} {:?}",
             node_operator_proof.storage_proof[0].key,
             u256_to_h256_be(node_operator_proof.storage_proof[0].value)
@@ -193,6 +190,6 @@ mod tests {
             .get_operator_key_info(block.into(), operator_id, key_idx)
             .await
             .unwrap();
-        info!("operator_key_proof {:?}", operator_key_proof);
+        debug!("operator_key_proof {:?}", operator_key_proof);
     }
 }
