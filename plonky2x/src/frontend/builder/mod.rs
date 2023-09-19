@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
+use itertools::Itertools;
 use plonky2::iop::generator::SimpleGenerator;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
@@ -117,12 +118,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let input = io
                     .input
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 let output = io
                     .output
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 self.register_public_inputs(input.as_slice());
                 self.register_public_inputs(output.as_slice());
@@ -131,12 +132,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let input = io
                     .input
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 let output = io
                     .output
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 self.register_public_inputs(input.as_slice());
                 self.register_public_inputs(output.as_slice());
@@ -177,8 +178,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Registers the given targets as public inputs.
-    pub fn register_public_inputs(&mut self, inputs: &[Target]) {
-        self.api.register_public_inputs(inputs);
+    pub fn register_public_inputs(&mut self, inputs: &[Variable]) {
+        self.api
+            .register_public_inputs(&inputs.iter().map(|v| v.0).collect_vec());
     }
 
     /// Add returns res = i1 + i2 + ...

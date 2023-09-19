@@ -152,7 +152,9 @@ where
             &hash_circuit.data.common,
         );
 
-        recursive_builder.register_public_inputs(&hash_proof_target.public_inputs);
+        recursive_builder
+            .api
+            .register_public_inputs(&hash_proof_target.public_inputs);
 
         let recursive_circuit = recursive_builder.build();
         debug!(
@@ -172,7 +174,9 @@ where
             &recursive_circuit.data.common,
         );
 
-        wrapper_builder.register_public_inputs(&proof_target.public_inputs);
+        wrapper_builder
+            .api
+            .register_public_inputs(&proof_target.public_inputs);
 
         let wrapper_circuit = wrapper_builder.build();
         debug!(
