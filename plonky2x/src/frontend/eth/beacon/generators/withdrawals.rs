@@ -68,7 +68,6 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         let result = rt.block_on(async {
             self.client
                 .get_withdrawals_root(hex!(block_root.as_bytes()).to_string())
-                .await
                 .expect("failed to get validators root")
         });
 

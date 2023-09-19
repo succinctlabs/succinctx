@@ -463,6 +463,7 @@ pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
 mod tests {
     use anyhow::Result;
     use hex::decode;
+    use log::debug;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -470,6 +471,7 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use super::*;
+    use crate::utils;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -589,6 +591,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_large_msg_variable() -> Result<()> {
+        utils::setup_logger();
         // This test tests both the variable length and the no-op skip for processing each chunk of the sha512
         // 77-byte message fits in one chunk, but we make MAX_NUM_CHUNKS 2 to test the no-op skip
         let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
@@ -636,7 +639,7 @@ mod tests {
         let data = builder.build::<C>();
 
         let circuit_digest = data.verifier_only.circuit_digest;
-        println!("circuit_digest: {:?}", circuit_digest);
+        debug!("circuit_digest: {:?}", circuit_digest);
 
         let proof = data.prove(pw).unwrap();
 

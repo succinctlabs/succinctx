@@ -3,6 +3,7 @@ use std::io::Read;
 
 use ethers::providers::{Http, Middleware, Provider};
 pub(crate) use ethers::types::EIP1186ProofResponse;
+use log::info;
 use tokio::runtime::Runtime;
 
 use crate::utils::{address, bytes32};
@@ -35,7 +36,7 @@ fn generate_fixtures() {
     };
     let storage_result: EIP1186ProofResponse = get_proof_closure();
     let serialized = serde_json::to_string(&storage_result).unwrap();
-    println!("{}", serialized);
+    info!("{}", serialized);
     // TODO: save this to fixtures/example.json programatically instead of copy-paste
 }
 
