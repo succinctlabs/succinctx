@@ -13,8 +13,8 @@ timing = ["plonky2/timing"]
 ci = []
 
 [dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false }
-curta = { git = "https://github.com/succinctlabs/curta.git"}
+plonky2 = { git = "https://github.com/tamirhemo/plonky2.git", default-features = false }
+curta = { git = "https://github.com/succinctlabs/curta.git", branch = "tamir/plonky_2_fork"}
 plonky2x-derive = { path = "../plonky2x-derive" }
 
 num = { version = "0.4", default-features = false }
@@ -51,7 +51,7 @@ async-trait = "0.1.73"
 
 
 [dev-dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = [
+plonky2 = { git = "https://github.com/tamirhemo/plonky2.git", features = [
     "gate_testing",
 ] }
 env_logger = "0.10.0"
