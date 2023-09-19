@@ -261,20 +261,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use log::debug;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
-    use crate::builder::CircuitBuilder;
-    use crate::utils;
-    use crate::vars::{CircuitVariable, Variable};
+    use crate::prelude::{CircuitBuilder, DefaultParameters, Variable};
+
+    type F = GoldilocksField;
+    type L = DefaultParameters;
+    const D: usize = 2;
 
     #[test]
     fn test_simple_mapreduce_circuit() {
-        utils::setup_logger();
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
-        const D: usize = 2;
+        env_logger::try_init().unwrap_or_default();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         let ctx = builder.constant::<Variable>(F::from_canonical_u64(8));
@@ -303,14 +301,11 @@ pub(crate) mod tests {
         builder.watch(&output, "output");
         builder.write(output);
 
-        debug!("compiling outer circuit");
-        let data = builder.build::<C>();
-
-        debug!("proving outer circuit");
-        let pw = PartialWitness::new();
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof.clone()).unwrap();
-
-        debug!("result: {:?}", proof.public_inputs);
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, mut output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        let result = output.read::<Variable>();
+        println!("{}", result);
     }
 }

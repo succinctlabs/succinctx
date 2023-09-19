@@ -70,7 +70,7 @@ use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32Ari
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable,ValueStream};
+use crate::frontend::vars::{Bytes32Variable};
 use crate::prelude::Variable;
 
 /// A registry to store serializers for witness generators.
