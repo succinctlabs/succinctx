@@ -151,7 +151,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         CircuitBuild { data, io: self.io }
     }
 
-    pub fn mock_build(self) -> MockCircuitBuild<L, D> {
+    pub fn mock_build(mut self) -> MockCircuitBuild<L, D> {
+        if !self.sha256_requests.is_empty() {
+            self.curta_constrain_sha256();
+        }
         let mock_circuit = self.api.mock_build();
         MockCircuitBuild {
             data: mock_circuit,
