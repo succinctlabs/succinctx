@@ -395,6 +395,7 @@ mod tests {
     use crate::utils;
 
     #[cfg_attr(feature = "ci", ignore)]
+    #[test]
     fn test_get_validators_root_by_slot() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
@@ -407,6 +408,7 @@ mod tests {
     }
 
     #[cfg_attr(feature = "ci", ignore)]
+    #[test]
     fn test_get_validators_root_by_block_root() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
@@ -419,6 +421,7 @@ mod tests {
     }
 
     #[cfg_attr(feature = "ci", ignore)]
+    #[test]
     fn test_get_validator_by_slot() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
@@ -431,6 +434,7 @@ mod tests {
     }
 
     #[cfg_attr(feature = "ci", ignore)]
+    #[test]
     fn test_get_validator_by_block_root() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
