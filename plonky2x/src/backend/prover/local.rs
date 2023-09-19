@@ -1,4 +1,5 @@
 use anyhow::Result;
+use log::debug;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use super::{ProverOutput, ProverOutputs};
@@ -41,6 +42,7 @@ impl LocalProver {
     {
         let mut outputs = Vec::new();
         for input in inputs {
+            debug!("batch_prove: circuit_id={}", circuit.id());
             let output = self.prove(circuit, input)?;
             outputs.push(output);
         }

@@ -278,10 +278,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 mod tests {
     use std::env;
 
-    use crate::backend::circuit::DefaultParameters;
+    use crate::backend::circuit::{CircuitBuild, DefaultParameters};
     use crate::frontend::uint::uint32::U32Variable;
     use crate::frontend::vars::Bytes32Variable;
-    use crate::prelude::{ByteVariable, BytesVariable, CircuitBuilder};
+    use crate::prelude::{
+        ByteVariable, BytesVariable, CircuitBuilder, GateRegistry, WitnessGeneratorRegistry,
+    };
     use crate::utils::{bytes, bytes32};
 
     type L = DefaultParameters;
@@ -306,11 +308,18 @@ mod tests {
         builder.assert_is_equal(result, expected_digest);
 
         let circuit = builder.build();
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let bytes = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
+        let circuit =
+            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer)
+                .unwrap();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        // TODO: Add back once curta serialization is implemented.
-        // circuit.test_default_serializers();
+        circuit.test_default_serializers();
     }
 
     #[test]

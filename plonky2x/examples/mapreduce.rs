@@ -39,7 +39,9 @@ impl Circuit for MapReduceCircuit {
                     let b1 = builder.beacon_get_balance_witness(balances_root, idxs[1]);
                     let b2 = builder.beacon_get_balance_witness(balances_root, idxs[2]);
                     let b3 = builder.beacon_get_balance_witness(balances_root, idxs[3]);
-                    builder.beacon_u64s_to_leaf([b0, b1, b2, b3])
+                    let leaf = builder.beacon_u64s_to_leaf([b0, b1, b2, b3]);
+                    builder.curta_sha256(&leaf.as_bytes());
+                    leaf
                 },
                 |_, left, right, builder| builder.sha256_pair(left, right),
             );
