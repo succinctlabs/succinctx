@@ -2,6 +2,7 @@ mod balance;
 mod balances;
 mod historical;
 mod validator;
+mod validator_witness;
 mod validators;
 mod withdrawal;
 mod withdrawals;

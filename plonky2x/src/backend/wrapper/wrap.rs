@@ -152,7 +152,9 @@ where
             &hash_circuit.data.common,
         );
 
-        recursive_builder.register_public_inputs(&hash_proof_target.public_inputs);
+        recursive_builder
+            .api
+            .register_public_inputs(&hash_proof_target.public_inputs);
 
         let recursive_circuit = recursive_builder.build();
         debug!(
@@ -172,7 +174,9 @@ where
             &recursive_circuit.data.common,
         );
 
-        wrapper_builder.register_public_inputs(&proof_target.public_inputs);
+        wrapper_builder
+            .api
+            .register_public_inputs(&proof_target.public_inputs);
 
         let wrapper_circuit = wrapper_builder.build();
         debug!(
@@ -283,7 +287,7 @@ mod tests {
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::hash::sha::sha256::sha256;
     use crate::prelude::*;
-    use crate::utils::setup_logger;
+    use crate::utils;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -308,7 +312,7 @@ mod tests {
         type InnerParameters = DefaultParameters;
         type OuterParameters = Groth16VerifierParameters;
 
-        setup_logger();
+        utils::setup_logger();
 
         let build_path = "../plonky2x-verifier/data".to_string();
         let path = format!("{}/test_circuit/", build_path);

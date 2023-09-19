@@ -3,6 +3,7 @@ use std::env;
 
 use array_macro::array;
 use ethers::types::{Address, U256};
+use log::info;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
@@ -82,11 +83,10 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         let result = rt.block_on(async {
             self.client
                 .get_withdrawal(hex!(block_root.as_bytes()).to_string(), idx.as_u64())
-                .await
                 .expect("failed to get validators root")
         });
 
-        println!("{}", result.withdrawal.amount);
+        info!("{}", result.withdrawal.amount);
         let withdrawal = BeaconWithdrawalValue {
             index: result.withdrawal.index.into(),
             validator_index: result.withdrawal.validator_index.into(),

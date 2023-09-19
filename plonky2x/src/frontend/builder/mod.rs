@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
+use itertools::Itertools;
 use plonky2::iop::generator::SimpleGenerator;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
@@ -117,12 +118,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let input = io
                     .input
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 let output = io
                     .output
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 self.register_public_inputs(input.as_slice());
                 self.register_public_inputs(output.as_slice());
@@ -131,12 +132,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let input = io
                     .input
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 let output = io
                     .output
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 self.register_public_inputs(input.as_slice());
                 self.register_public_inputs(output.as_slice());
@@ -149,7 +150,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         CircuitBuild { data, io: self.io }
     }
 
-    pub fn mock_build(self) -> MockCircuitBuild<L, D> {
+    pub fn mock_build(mut self) -> MockCircuitBuild<L, D> {
+        if !self.sha256_requests.is_empty() {
+            self.curta_constrain_sha256();
+        }
         let mock_circuit = self.api.mock_build();
         MockCircuitBuild {
             data: mock_circuit,
@@ -168,14 +172,25 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::init(self)
     }
 
+    /// Initializes a variable with a value from the circuit input without any validity checks.
+    pub fn init_unsafe<V: CircuitVariable>(&mut self) -> V {
+        V::init_unsafe(self)
+    }
+
     /// Initializes a variable with a constant value in the circuit.
     pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) -> V {
         V::constant(self, value)
     }
 
+    /// Asserts that the given variable is valid.
+    pub fn assert_is_valid<V: CircuitVariable>(&mut self, variable: V) {
+        variable.assert_is_valid(self)
+    }
+
     /// Registers the given targets as public inputs.
-    pub fn register_public_inputs(&mut self, inputs: &[Target]) {
-        self.api.register_public_inputs(inputs);
+    pub fn register_public_inputs(&mut self, inputs: &[Variable]) {
+        self.api
+            .register_public_inputs(&inputs.iter().map(|v| v.0).collect_vec());
     }
 
     /// Add returns res = i1 + i2 + ...
@@ -264,13 +279,16 @@ impl<L: PlonkParameters<D>, const D: usize> Default for CircuitBuilder<L, D> {
 #[cfg(test)]
 pub(crate) mod tests {
 
+    use log::debug;
     use plonky2::field::types::Field;
 
     use super::DefaultBuilder;
     use crate::prelude::*;
+    use crate::utils;
 
     #[test]
     fn test_simple_circuit_with_field_io() {
+        utils::setup_logger();
         // Define your circuit.
         let mut builder = DefaultBuilder::new();
         let a = builder.read::<Variable>();
@@ -294,11 +312,12 @@ pub(crate) mod tests {
 
         // Read output.
         let sum = output.read::<Variable>();
-        println!("{}", sum.0);
+        debug!("{}", sum.0);
     }
 
     #[test]
     fn test_simple_circuit_with_evm_io() {
+        utils::setup_logger();
         // Define your circuit.
         let mut builder = DefaultBuilder::new();
         let a = builder.evm_read::<ByteVariable>();
@@ -322,6 +341,6 @@ pub(crate) mod tests {
 
         // Read output.
         let xor = output.evm_read::<ByteVariable>();
-        println!("{}", xor);
+        debug!("{}", xor);
     }
 }

@@ -127,20 +127,17 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
                 BeaconValidatorGeneratorInput::IndexConst(idx) => self
                     .client
                     .get_validator(hex!(block_root), *idx)
-                    .await
                     .expect("failed to get validator"),
                 BeaconValidatorGeneratorInput::IndexVariable(idx) => {
                     let idx = idx.get(witness).as_u64();
                     self.client
                         .get_validator(hex!(block_root), idx)
-                        .await
                         .expect("failed to get validator")
                 }
                 BeaconValidatorGeneratorInput::PubkeyVariable(pubkey) => {
                     let pubkey = hex!(pubkey.get(witness));
                     self.client
                         .get_validator_by_pubkey(hex!(block_root), pubkey)
-                        .await
                         .expect("failed to get validator")
                 }
             }

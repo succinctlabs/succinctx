@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use curta::math::field::Field;
 use curta::math::prelude::PrimeField64;
 use ethers::types::Bytes;
+use log::info;
 use num::bigint::ToBigInt;
 use num::BigInt;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -49,13 +50,13 @@ pub fn rlp_decode_bytes(input: &[u8]) -> (Vec<u8>, usize) {
             1 + len_of_str_len + str_len,
         );
     } else {
-        println!("input {:?}", input);
+        info!("input {:?}", input);
         panic!("Invalid prefix rlp_decode_bytes")
     }
 }
 
 pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
-    println!("input {:?}", Bytes::from(input.to_vec()).to_string());
+    info!("input {:?}", Bytes::from(input.to_vec()).to_string());
     let prefix = input[0];
 
     // Short list (0-55 bytes total payload)
@@ -67,17 +68,17 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
         let (ele_2, _) = rlp_decode_bytes(&input[1 + increment..]);
         vec![ele_1, ele_2]
     } else {
-        println!("hi in this case");
+        info!("hi in this case");
         // TODO: check that prefix is bounded within a certain range
         let len_of_list_length = prefix - 0xF7;
-        // println!("len_of_list_length {:?}", len_of_list_length);
+        // info!("len_of_list_length {:?}", len_of_list_length);
         // TODO: figure out what to do with len_of_list_length
         let mut pos = 1 + len_of_list_length as usize;
         let mut res = vec![];
         for _ in 0..17 {
             let (ele, increment) = rlp_decode_bytes(&input[pos..]);
-            println!("ele {:?}", Bytes::from(ele.clone()).to_string());
-            println!("increment {:?}", increment);
+            info!("ele {:?}", Bytes::from(ele.clone()).to_string());
+            info!("increment {:?}", increment);
             res.push(ele);
             pos += increment;
             if pos == input.len() {
@@ -86,7 +87,7 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
         }
         assert!(pos == input.len()); // Checks that we have iterated through all the input
         assert!(res.len() == 17 || res.len() == 2);
-        println!("END");
+        info!("END");
         res
     }
 }

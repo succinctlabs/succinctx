@@ -51,10 +51,10 @@ static INIT: Once = Once::new();
 pub fn setup_logger() {
     INIT.call_once(|| {
         if std::env::args().any(|arg| arg == "--show-output") {
-            let mut builder_logger = env_logger::Builder::from_default_env();
-            builder_logger.format_timestamp(None);
-            builder_logger.filter_level(LevelFilter::Trace);
-            builder_logger.init();
+            env_logger::Builder::from_default_env()
+                .format_timestamp(None)
+                .filter_level(LevelFilter::Trace)
+                .init();
         }
     });
 }
