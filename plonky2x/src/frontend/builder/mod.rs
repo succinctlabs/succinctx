@@ -172,6 +172,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::init(self)
     }
 
+    /// Initializes a variable with a value from the circuit input without any validity checks.
+    pub fn init_unsafe<V: CircuitVariable>(&mut self) -> V {
+        V::init_unsafe(self)
+    }
+
     /// Initializes a variable with a constant value in the circuit.
     pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) -> V {
         V::constant(self, value)
