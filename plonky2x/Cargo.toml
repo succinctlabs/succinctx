@@ -14,13 +14,13 @@ ci = []
 
 [dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false }
-curta = { path = "../../curta/curta" }
+curta = { git = "https://github.com/succinctlabs/curta.git"}
 plonky2x-derive = { path = "../plonky2x-derive" }
 
 num = { version = "0.4", default-features = false }
 sha2 = "0.10.7"
 curve25519-dalek = { git = "https://github.com/succinctlabs/curve25519-dalek.git", branch = "feature/edwards-point-getters" }
-ff = {package="ff" , version="0.13", features = ["derive"]}
+ff = { package = "ff", version = "0.13", features = ["derive"] }
 
 ethers = { version = "2.0" }
 

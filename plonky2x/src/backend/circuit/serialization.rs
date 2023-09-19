@@ -60,9 +60,8 @@ use crate::frontend::eth::beacon::vars::{
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
-use crate::frontend::generator::function::HintFn;
-use crate::frontend::generator::general::{HintGenerator, HintSerializer};
-use crate::frontend::generator::hint::{Hint, SateHintSerializer};
+use crate::frontend::generator::simple::hint::Hint;
+use crate::frontend::generator::simple::serializer::SimpleHintSerializer;
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
@@ -71,7 +70,7 @@ use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32Ari
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, ValueStream};
+use crate::frontend::vars::{Bytes32Variable,ValueStream};
 use crate::prelude::Variable;
 
 /// A registry to store serializers for witness generators.
@@ -212,21 +211,10 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
         self.register_generator::<SimpleGeneratorAdapter<L::Field, SG, D>>(id)
     }
 
-    pub fn register_hint_serializer<S: HintSerializer<L, D>>(&mut self, serializer: S) {
-        let id = serializer.id();
-        self.0.register(id, serializer).unwrap()
-    }
-
     pub fn register_hint<H: Hint<L, D>>(&mut self) {
-        let serializer = SateHintSerializer::<L, H>::new();
-        self.register_hint_serializer(serializer)
-    }
-
-    pub fn register_hint_function(
-        &mut self,
-        hint_fn: fn(&mut ValueStream<L, D>, &mut ValueStream<L, D>),
-    ) {
-        self.register_hint_serializer(HintFn(hint_fn).serializer())
+        let serializer = SimpleHintSerializer::<L, H>::new();
+        let id = H::id();
+        self.0.register(id, serializer).unwrap();
     }
 }
 
@@ -497,8 +485,10 @@ where
         let sha256_hint_generator_id = SHA256HintGenerator::id();
         r.register_simple::<SHA256HintGenerator>(sha256_hint_generator_id);
 
-        let sha256_generator = SHA256Generator::<L::Field, L::CubicParams>::id();
-        r.register_simple::<SHA256Generator<L::Field, L::CubicParams>>(sha256_generator);
+        let sha256_generator = SHA256Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
+        r.register_simple::<SHA256Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(
+            sha256_generator,
+        );
 
         let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
             SHA256AirParameters<L::Field, L::CubicParams>,

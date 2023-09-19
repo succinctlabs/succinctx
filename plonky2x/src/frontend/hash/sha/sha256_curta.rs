@@ -355,4 +355,37 @@ mod tests {
         // TODO: Add back once curta serialization is implemented.
         // circuit.test_default_serializers();
     }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_serialized_sha256_curta() {
+        env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let zero = builder.constant::<ByteVariable>(0u8);
+        let result = builder.curta_sha256(&[zero; 1]);
+        builder.watch(&result, "result");
+
+        let expected_digest =
+            bytes32!("0x6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d");
+        let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
+
+        builder.assert_is_equal(result, expected_digest);
+
+        let circuit = builder.build();
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let bytes = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
+        let circuit =
+            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer)
+                .unwrap();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
+    }
 }

@@ -1,35 +1,16 @@
-use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef};
+use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
+use plonky2::util::serialization::{Buffer, IoError, IoResult};
 
-use crate::backend::circuit::{PlonkParameters, Serializer};
-use crate::frontend::vars::{OutputVariableStream, ValueStream, VariableStream};
-use crate::prelude::{CircuitBuilder, CircuitVariable};
-
-pub trait HintGenerator<L: PlonkParameters<D>, const D: usize>:
-    'static + Debug + Clone + Send + Sync
-{
-    type Serializer: HintSerializer<L, D>;
-    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>);
-
-    fn serializer(&self) -> Self::Serializer;
-}
-
-pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
-    Serializer<L::Field, WitnessGeneratorRef<L::Field, D>, D>
-{
-    fn id(&self) -> String;
-}
-
-pub trait HintRef<L: PlonkParameters<D>, const D: usize> {
-    fn output_stream(&mut self) -> &mut VariableStream;
-    fn register(&self, builder: &mut CircuitBuilder<L, D>);
-}
+use super::hint::Hint;
+use crate::frontend::generator::HintRef;
+use crate::frontend::vars::{ValueStream, VariableStream};
+use crate::prelude::{CircuitBuilder, CircuitVariable, PlonkParameters};
+use crate::utils::serde::BufferWrite;
 
 #[derive(Debug, Clone)]
 pub struct HintSimpleGenerator<L, H> {
@@ -50,10 +31,10 @@ impl<L, H> HintSimpleGenerator<L, H> {
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize, H: HintGenerator<L, D>> HintRef<L, D>
+impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> HintRef<L, D>
     for HintSimpleGenerator<L, H>
 {
-    fn output_stream(&mut self) -> &mut VariableStream {
+    fn output_stream_mut(&mut self) -> &mut VariableStream {
         &mut self.output_stream
     }
 
@@ -62,32 +43,11 @@ impl<L: PlonkParameters<D>, const D: usize, H: HintGenerator<L, D>> HintRef<L, D
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn hint_generator<H: HintGenerator<L, D>>(
-        &mut self,
-        input_stream: VariableStream,
-        hint: H,
-    ) -> OutputVariableStream<L, D> {
-        let output_stream = VariableStream::new();
-
-        let hint = HintSimpleGenerator::<L, H> {
-            input_stream,
-            output_stream,
-            hint,
-            _marker: PhantomData,
-        };
-        let hint_id = self.hints.len();
-        self.hints.push(Box::new(hint));
-
-        OutputVariableStream::new(hint_id)
-    }
-}
-
-impl<L: PlonkParameters<D>, const D: usize, H: HintGenerator<L, D>> SimpleGenerator<L::Field, D>
+impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> SimpleGenerator<L::Field, D>
     for HintSimpleGenerator<L, H>
 {
     fn id(&self) -> String {
-        self.hint.serializer().id()
+        H::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -125,7 +85,10 @@ impl<L: PlonkParameters<D>, const D: usize, H: HintGenerator<L, D>> SimpleGenera
         _common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<()> {
         self.input_stream.serialize_to_writer(dst)?;
-        self.output_stream.serialize_to_writer(dst)
+        self.output_stream.serialize_to_writer(dst)?;
+
+        let bytes = bincode::serialize(&self.hint).map_err(|_| IoError)?;
+        dst.write_bytes(&bytes)
     }
 
     fn deserialize(
