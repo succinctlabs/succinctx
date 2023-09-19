@@ -173,6 +173,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::constant(self, value)
     }
 
+    /// Asserts that the given variable is valid.
+    pub fn assert_is_valid<V: CircuitVariable>(&mut self, variable: V) {
+        variable.assert_is_valid(self)
+    }
+
     /// Registers the given targets as public inputs.
     pub fn register_public_inputs(&mut self, inputs: &[Target]) {
         self.api.register_public_inputs(inputs);
