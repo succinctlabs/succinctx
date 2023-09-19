@@ -61,11 +61,11 @@ mod tests {
     use crate::backend::circuit::{DefaultParameters, PlonkParameters};
     use crate::frontend::vars::Bytes32Variable;
     use crate::prelude::CircuitBuilder;
-    use crate::utils::{bytes32, setup_logger};
+    use crate::utils::{self, bytes32};
 
     #[test]
     fn test_poseidon() -> Result<()> {
-        setup_logger();
+        utils::setup_logger();
 
         type L = DefaultParameters;
         const D: usize = 2;
