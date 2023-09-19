@@ -42,7 +42,7 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
             .hints
             .get_mut(self.hint_id)
             .expect("Hint not found")
-            .output_stream();
+            .output_stream_mut();
         stream.0.write_slice(&variables);
 
         variables
