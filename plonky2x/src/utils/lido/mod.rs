@@ -6,6 +6,7 @@ use ethers::prelude::*;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::{Address, H256, U256};
 use ethers::utils::keccak256;
+use log::info;
 
 use crate::frontend::eth::storage::utils::get_map_storage_location;
 use crate::frontend::eth::utils::{h256_to_u256_be, u256_to_h256_be};
@@ -56,7 +57,7 @@ impl LidoUtils {
                 Some(block),
             )
             .await?;
-        println!(
+        info!(
             "Storage at {} in block {:?}: {:?}",
             NODE_OPERATOR_REGISTRY_ADDR.parse::<Address>()?,
             block,
@@ -67,8 +68,8 @@ impl LidoUtils {
             .get_node_operator(U256::from(operator_id), true)
             .call()
             .await?;
-        println!("result.active: {:?}", result.0);
-        println!("result.pubkey: {:?}", result.2);
+        info!("result.active: {:?}", result.0);
+        info!("result.pubkey: {:?}", result.2);
         // TODO verify storage == H256(leftpad(result.pubkey, result.active))
         // TODO verify below proof
         let proof = self
@@ -104,8 +105,8 @@ impl LidoUtils {
             .get_signing_keys(U256::from(operator_id), U256::from(key_idx), U256::from(1))
             .call()
             .await?;
-        println!("signing_key.pubkeys {:?}", signing_key.0);
-        println!("signing_key.bools {:?}", signing_key.2);
+        info!("signing_key.pubkeys {:?}", signing_key.0);
+        info!("signing_key.bools {:?}", signing_key.2);
 
         let key_offset = LidoUtils::get_key_offset(
             SIGNING_KEYS_MAPPING_NAME.parse::<H256>()?,
@@ -123,7 +124,7 @@ impl LidoUtils {
                 Some(block),
             )
             .await?;
-        println!(
+        info!(
             "Storage at {} in block {}: {:?}",
             NODE_OPERATOR_REGISTRY_ADDR.parse::<Address>()?,
             key_offset,
@@ -138,7 +139,7 @@ impl LidoUtils {
                 Some(block),
             )
             .await?;
-        println!(
+        info!(
             "Storage at {} in block {}: {:?}",
             NODE_OPERATOR_REGISTRY_ADDR.parse::<Address>()?,
             key_offset_plus_1_h256,
@@ -161,10 +162,13 @@ impl LidoUtils {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use log::debug;
 
+    use super::*;
+    use crate::utils;
     #[tokio::test]
     async fn test_lido_metadata() {
+        utils::setup_logger();
         let rpc_url = "https://eth.llamarpc.com";
         let lido_metadata = LidoUtils::new(rpc_url);
         let block = lido_metadata.provider.get_block_number().await.unwrap();
@@ -175,8 +179,8 @@ mod tests {
             .unwrap();
         let full_block = lido_metadata.provider.get_block(block).await.unwrap();
         let state_root = full_block.unwrap().state_root;
-        println!("block number {:?} state root {:?}", block, state_root);
-        println!(
+        debug!("block number {:?} state root {:?}", block, state_root);
+        debug!(
             "node_operator_proof {:?} {:?}",
             node_operator_proof.storage_proof[0].key,
             u256_to_h256_be(node_operator_proof.storage_proof[0].value)
@@ -186,6 +190,6 @@ mod tests {
             .get_operator_key_info(block.into(), operator_id, key_idx)
             .await
             .unwrap();
-        println!("operator_key_proof {:?}", operator_key_proof);
+        debug!("operator_key_proof {:?}", operator_key_proof);
     }
 }

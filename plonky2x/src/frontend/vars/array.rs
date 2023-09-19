@@ -162,6 +162,7 @@ mod tests {
     use std::time::Instant;
 
     use ethers::types::U256;
+    use log::debug;
     use plonky2::field::types::Field;
     use rand::rngs::OsRng;
     use rand::Rng;
@@ -170,6 +171,7 @@ mod tests {
     use crate::backend::circuit::DefaultParameters;
     use crate::frontend::vars::U256Variable;
     use crate::prelude::*;
+    use crate::utils;
 
     type L = DefaultParameters;
     const D: usize = 2;
@@ -196,6 +198,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_select_index() {
+        utils::setup_logger();
         type F = GoldilocksField;
         const INPUT_SIZE: usize = 1000;
 
@@ -206,12 +209,12 @@ mod tests {
         builder.write(result);
 
         let num_gates = builder.api.num_gates();
-        println!("num_gates: {}", num_gates);
+        debug!("num_gates: {}", num_gates);
 
         let start = Instant::now();
         let circuit = builder.build();
         let duration = start.elapsed();
-        println!("Build time: {:?}", duration);
+        debug!("Build time: {:?}", duration);
 
         let mut input = circuit.input();
 
@@ -230,7 +233,7 @@ mod tests {
 
         let start = Instant::now();
         let (proof, mut output) = circuit.prove(&input);
-        println!("Prove time: {:?}", start.elapsed());
+        debug!("Prove time: {:?}", start.elapsed());
 
         circuit.verify(&proof, &input, &output);
 
@@ -239,6 +242,7 @@ mod tests {
 
     #[test]
     fn test_select_index_random_gate() {
+        utils::setup_logger();
         type F = GoldilocksField;
         const INPUT_SIZE: usize = 10;
 
@@ -249,12 +253,12 @@ mod tests {
         builder.write(result);
 
         let num_gates = builder.api.num_gates();
-        println!("num_gates: {}", num_gates);
+        debug!("num_gates: {}", num_gates);
 
         let start = Instant::now();
         let circuit = builder.build();
         let duration = start.elapsed();
-        println!("Build time: {:?}", duration);
+        debug!("Build time: {:?}", duration);
 
         let mut input = circuit.input();
 
@@ -273,7 +277,7 @@ mod tests {
 
         let start = Instant::now();
         let (proof, mut output) = circuit.prove(&input);
-        println!("Prove time: {:?}", start.elapsed());
+        debug!("Prove time: {:?}", start.elapsed());
 
         circuit.verify(&proof, &input, &output);
 

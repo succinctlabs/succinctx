@@ -1,5 +1,6 @@
 use anyhow::Result;
 use ethers::types::U256;
+use log::info;
 use num::BigInt;
 use reqwest::Client;
 use serde::Deserialize;
@@ -230,7 +231,7 @@ impl BeaconClient {
             "{}/api/beacon/validator/{}/{}",
             self.rpc_url, beacon_id, pubkey
         );
-        println!("{}", endpoint);
+        info!("{}", endpoint);
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
         let response: CustomResponse<GetBeaconValidator> = response.json().await?;
@@ -241,7 +242,7 @@ impl BeaconClient {
     /// Gets the balances root based on a beacon_id.
     pub async fn get_balances_root(&self, beacon_id: String) -> Result<GetBeaconBalancesRoot> {
         let endpoint = format!("{}/api/beacon/balance/{}", self.rpc_url, beacon_id);
-        println!("{}", endpoint);
+        info!("{}", endpoint);
         let client = Client::new();
         let response = client.get(endpoint).send().await?;
         let response: CustomResponse<GetBeaconBalancesRoot> = response.json().await?;
@@ -367,54 +368,60 @@ mod tests {
     use std::env;
 
     use anyhow::Result;
+    use log::debug;
 
     use super::*;
+    use crate::utils;
 
     #[tokio::test]
     #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validators_root_by_slot() -> Result<()> {
+        utils::setup_logger();
         dotenv::dotenv()?;
         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_validators_root(slot.to_string()).await?;
-        println!("{:?}", result);
+        debug!("{:?}", result);
         Ok(())
     }
 
     #[tokio::test]
     #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validators_root_by_block_root() -> Result<()> {
+        utils::setup_logger();
         dotenv::dotenv()?;
         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
         let result = client.get_validators_root(block_root.to_string()).await?;
-        println!("{:?}", result);
+        debug!("{:?}", result);
         Ok(())
     }
 
     #[tokio::test]
     #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validator_by_slot() -> Result<()> {
+        utils::setup_logger();
         dotenv::dotenv()?;
         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_validator(slot.to_string(), 0).await?;
-        println!("{:?}", result);
+        debug!("{:?}", result);
         Ok(())
     }
 
     #[tokio::test]
     #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_validator_by_block_root() -> Result<()> {
+        utils::setup_logger();
         dotenv::dotenv()?;
         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
         let result = client.get_validator(block_root.to_string(), 0).await?;
-        println!("{:?}", result);
+        debug!("{:?}", result);
         Ok(())
     }
 }
