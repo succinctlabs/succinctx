@@ -26,6 +26,7 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
         PublicInput::new(&self.io)
     }
 
+    /// Generates a mock proof.
     pub fn mock_prove(
         &self,
         input: &PublicInput<L, D>,

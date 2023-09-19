@@ -19,6 +19,7 @@ use super::generator::HintRef;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
+use crate::prelude::ArrayVariable;
 use crate::utils::eth::beacon::BeaconClient;
 
 /// The universal builder for building circuits using `plonky2x`.
@@ -168,9 +169,28 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::init(self)
     }
 
+    /// Initializes an array of variables with no value in the circuit.
+    pub fn init_array<V: CircuitVariable, const N: usize>(&mut self) -> ArrayVariable<V, N> {
+        ArrayVariable::init(self)
+    }
+
+    /// Initializes an array of variables with no value in the circuit without any validity checks.
+    pub fn init_array_unsafe<V: CircuitVariable, const N: usize>(&mut self) -> ArrayVariable<V, N> {
+        ArrayVariable::init_unsafe(self)
+    }
+
     /// Initializes a variable with a constant value in the circuit.
     pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) -> V {
         V::constant(self, value)
+    }
+
+    /// Initializes an array of variables with a constant value in the circuit.
+    pub fn constant_array<V: CircuitVariable, const N: usize>(
+        &mut self,
+        value: &[V::ValueType<L::Field>; N],
+    ) -> ArrayVariable<V, N> {
+        assert_eq!(value.len(), N);
+        ArrayVariable::constant(self, value.to_vec())
     }
 
     /// Asserts that the given variable is valid.
