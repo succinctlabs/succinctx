@@ -401,7 +401,7 @@ mod tests {
         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
-        let result = client.get_validators_root(slot.to_string()).await?;
+        let result = client.get_validators_root(slot.to_string())?;
         debug!("{:?}", result);
         Ok(())
     }
@@ -413,7 +413,7 @@ mod tests {
         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
-        let result = client.get_validators_root(block_root.to_string()).await?;
+        let result = client.get_validators_root(block_root.to_string())?;
         debug!("{:?}", result);
         Ok(())
     }
@@ -425,7 +425,7 @@ mod tests {
         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
-        let result = client.get_validator(slot.to_string(), 0).await?;
+        let result = client.get_validator(slot.to_string(), 0)?;
         debug!("{:?}", result);
         Ok(())
     }
@@ -437,7 +437,7 @@ mod tests {
         let rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
-        let result = client.get_validator(block_root.to_string(), 0).await?;
+        let result = client.get_validator(block_root.to_string(), 0)?;
         debug!("{:?}", result);
         Ok(())
     }
