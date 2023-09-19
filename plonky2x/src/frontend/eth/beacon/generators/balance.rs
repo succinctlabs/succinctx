@@ -149,27 +149,22 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
             .block_on(async {
                 match &self.input {
                     BeaconBalanceInput::IndexConst(idx) => {
-                        self.client
-                            .get_validator_balance_v2(hex!(block_root), *idx)
-                            .await
+                        self.client.get_validator_balance_v2(hex!(block_root), *idx)
                     }
                     BeaconBalanceInput::IndexVariable(idx) => {
                         let idx = idx.get(witness);
                         self.client
                             .get_validator_balance_v2(hex!(block_root), idx.as_u64())
-                            .await
                     }
                     BeaconBalanceInput::PubkeyConst(pubkey) => {
                         let pubkey = hex!(pubkey.0);
                         self.client
                             .get_validator_balance_by_pubkey_v2(hex!(block_root), pubkey)
-                            .await
                     }
                     BeaconBalanceInput::PubkeyVariable(pubkey) => {
                         let pubkey = hex!(pubkey.get(witness));
                         self.client
                             .get_validator_balance_by_pubkey_v2(hex!(block_root), pubkey)
-                            .await
                     }
                 }
             })

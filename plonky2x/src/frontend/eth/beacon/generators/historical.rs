@@ -74,7 +74,6 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let result = rt.block_on(async {
             self.client
                 .get_historical_block(hex!(block_root.as_bytes()).to_string(), offset.as_u64())
-                .await
                 .expect("failed to get validators root")
         });
 
