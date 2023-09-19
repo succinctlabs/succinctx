@@ -1,8 +1,5 @@
-use tokio::time::{sleep, Duration};
-
-use super::channel::HintChannel;
-use super::generator::AsyncHintGenerator;
-use super::hint::{AnyAsyncHint, AnyHint, AsyncHint};
+use super::generator::{AsyncGeneratorRef, AsyncHintData};
+use super::hint::AsyncHint;
 use crate::frontend::vars::{OutputVariableStream, VariableStream};
 use crate::prelude::{CircuitBuilder, PlonkParameters};
 
@@ -13,13 +10,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         hint: H,
     ) -> OutputVariableStream<L, D> {
         let output_stream = VariableStream::new();
-        let tx = self.hint_tx.clone();
-        let channel = HintChannel::new();
-
-        let generator =
-            AsyncHintGenerator::new(input_stream, output_stream.clone(), hint, tx, channel);
+        let generator = AsyncHintData::new(hint, input_stream, output_stream.clone());
         let hint_id = self.hints.len();
-        self.hints.push(Box::new(generator));
+        self.hints.push(Box::new(generator.clone()));
+
+        self.async_generators
+            .push(AsyncGeneratorRef::new(generator));
+        self.async_generators_indices.push(hint_id);
 
         OutputVariableStream::new(hint_id)
     }
@@ -29,6 +26,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 mod tests {
     use async_trait::async_trait;
     use serde::{Deserialize, Serialize};
+    use tokio::time::{sleep, Duration};
 
     use super::*;
     use crate::frontend::vars::ValueStream;
@@ -46,7 +44,7 @@ mod tests {
             output_stream: &mut ValueStream<L, D>,
         ) {
             let time = input_stream.read_value::<ByteVariable>();
-            // sleep(Duration::from_millis(time.into())).await;
+            sleep(Duration::from_millis(time.into())).await;
             output_stream.write_value::<ByteVariable>(time);
         }
     }
@@ -73,13 +71,13 @@ mod tests {
         input.write::<ByteVariable>(5u8);
 
         // Generate a proof.
-        let (proof, mut output) = circuit.prove_async_gen(input);
+        let (proof, mut output) = circuit.prove(&input);
 
-        // // Verify proof.
-        // // circuit.verify(&proof, &input, &output);
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
 
-        // // Read output.
-        // let byte_plus_one = output.read::<ByteVariable>();
-        // assert_eq!(byte_plus_one, 5u8);
+        // Read output.
+        let byte_plus_one = output.read::<ByteVariable>();
+        assert_eq!(byte_plus_one, 5u8);
     }
 }

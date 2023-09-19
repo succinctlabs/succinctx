@@ -2,8 +2,7 @@ use core::fmt::Debug;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
-use log::debug;
-use plonky2::iop::generator::{GeneratedValues, WitnessGenerator};
+use plonky2::iop::generator::{GeneratedValues, WitnessGenerator, WitnessGeneratorRef};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness};
 use tokio::sync::mpsc::UnboundedSender;
@@ -15,8 +14,26 @@ use crate::frontend::generator::HintGenerator;
 use crate::frontend::vars::{ValueStream, VariableStream};
 use crate::prelude::CircuitVariable;
 
+pub trait AsyncGeneratorData<L: PlonkParameters<D>, const D: usize>: HintGenerator<L, D> {
+    fn generator(
+        &self,
+        tx: UnboundedSender<HintInMessage<L, D>>,
+    ) -> WitnessGeneratorRef<L::Field, D>;
+}
+
 #[derive(Debug)]
-pub struct AsyncHintGenerator<L: PlonkParameters<D>, H, const D: usize> {
+pub struct AsyncGeneratorRef<L: PlonkParameters<D>, const D: usize>(
+    pub(crate) Box<dyn AsyncGeneratorData<L, D>>,
+);
+
+impl<L: PlonkParameters<D>, const D: usize> AsyncGeneratorRef<L, D> {
+    pub(crate) fn new<H: AsyncHint<L, D>>(generator_data: AsyncHintData<L, H, D>) -> Self {
+        Self(Box::new(generator_data))
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct AsyncHintGenerator<L: PlonkParameters<D>, H, const D: usize> {
     pub(crate) hint: H,
     pub(crate) tx: UnboundedSender<HintInMessage<L, D>>,
     pub(crate) channel: HintChannel<L, D>,
@@ -25,12 +42,51 @@ pub struct AsyncHintGenerator<L: PlonkParameters<D>, H, const D: usize> {
     pub(crate) waiting: AtomicBool,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct AsyncHintData<L, H, const D: usize> {
+    pub(crate) hint: H,
+    pub(crate) input_stream: VariableStream,
+    pub(crate) output_stream: VariableStream,
+    _marker: std::marker::PhantomData<L>,
+}
 
 impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> HintGenerator<L, D>
-    for AsyncHintGenerator<L, H, D>
+    for AsyncHintData<L, H, D>
 {
     fn output_stream_mut(&mut self) -> &mut VariableStream {
         &mut self.output_stream
+    }
+}
+
+impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncGeneratorData<L, D>
+    for AsyncHintData<L, H, D>
+{
+    fn generator(
+        &self,
+        tx: UnboundedSender<HintInMessage<L, D>>,
+    ) -> WitnessGeneratorRef<L::Field, D> {
+        WitnessGeneratorRef::new(self.generator(tx))
+    }
+}
+
+impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintData<L, H, D> {
+    pub fn new(hint: H, input_stream: VariableStream, output_stream: VariableStream) -> Self {
+        Self {
+            hint,
+            input_stream,
+            output_stream,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    fn generator(&self, tx: UnboundedSender<HintInMessage<L, D>>) -> AsyncHintGenerator<L, H, D> {
+        AsyncHintGenerator::new(
+            self.input_stream.clone(),
+            self.output_stream.clone(),
+            self.hint.clone(),
+            tx,
+            HintChannel::new(),
+        )
     }
 }
 
@@ -106,25 +162,15 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
         if !witness.contains_all(&self.watch_list()) {
             return false;
         }
-
-        debug!("AsyncHintGenerator::run");
         // check if the hint is already waiting for output.
         let waiting = self.waiting.load(Ordering::Relaxed);
-        debug!("waiting: {}", waiting);
 
         // If the hint is waiting, try to receive the output.
         if waiting {
-            debug!("try to receive output");
             let mut rx_out = self.channel.rx_out.lock().unwrap();
-            if let Some(mut output_stream) = rx_out.blocking_recv() {
-                debug!("output received");
+            if let Ok(mut output_stream) = rx_out.try_recv() {
                 let output_values = output_stream.read_all();
                 let output_vars = self.output_stream.real_all();
-                assert_eq!(output_values.len(), output_vars.len());
-
-                for (var, val) in output_vars.iter().zip(output_values) {
-                    var.set(out_buffer, *val)
-                }
                 assert_eq!(output_values.len(), output_vars.len());
 
                 for (var, val) in output_vars.iter().zip(output_values) {
@@ -136,7 +182,6 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
         }
         // if the hint is not waiting, send the input and update the waiting flag.
         else {
-            debug!("send input");
             let input_values = self
                 .input_stream
                 .real_all()
@@ -151,8 +196,48 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
             // update the waiting flag to `true`.
             self.waiting.store(true, Ordering::Relaxed);
 
-            debug!("waiting: {}", self.waiting.load(Ordering::Relaxed));
             false
         }
+    }
+}
+
+impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator<L::Field, D>
+    for AsyncHintData<L, H, D>
+{
+    fn id(&self) -> String {
+        H::id()
+    }
+
+    fn watch_list(&self) -> Vec<Target> {
+        self.input_stream.real_all().iter().map(|v| v.0).collect()
+    }
+
+    fn serialize(
+        &self,
+        _dst: &mut Vec<u8>,
+        _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<L::Field, D>,
+    ) -> plonky2::util::serialization::IoResult<()> {
+        unimplemented!("AsyncHintGenerator::serialize")
+    }
+
+    fn deserialize(
+        _src: &mut plonky2::util::serialization::Buffer,
+        _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<L::Field, D>,
+    ) -> plonky2::util::serialization::IoResult<Self>
+    where
+        Self: Sized,
+    {
+        unimplemented!("AsyncHintGenerator::deserialize")
+    }
+
+    fn run(
+        &self,
+        witness: &PartitionWitness<L::Field>,
+        _out_buffer: &mut GeneratedValues<L::Field>,
+    ) -> bool {
+        if !witness.contains_all(&self.watch_list()) {
+            return false;
+        }
+        true
     }
 }

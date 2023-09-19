@@ -3,25 +3,24 @@ pub mod io;
 mod proof;
 pub mod watch;
 
+use alloc::collections::BTreeMap;
 use std::collections::HashMap;
 
 use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
-use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
 use itertools::Itertools;
+use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
 use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 pub use self::io::CircuitIO;
-use super::generator::asynchronous::channel::HintInMessage;
-use super::generator::asynchronous::handler::HintHandler;
 use super::generator::HintGenerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
+use crate::frontend::generator::asynchronous::generator::AsyncGeneratorRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
 
@@ -35,8 +34,8 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintGenerator<L, D>>>,
-    pub(crate) hint_rx: UnboundedReceiver<HintInMessage<L, D>>,
-    pub(crate) hint_tx: UnboundedSender<HintInMessage<L, D>>,
+    pub(crate) async_generators: Vec<AsyncGeneratorRef<L, D>>,
+    pub(crate) async_generators_indices: Vec<usize>,
     pub sha256_requests: Vec<Vec<Target>>,
     pub sha256_responses: Vec<[Target; 32]>,
 }
@@ -56,7 +55,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
         let api = CircuitAPI::new(config);
-        let (hint_tx, hint_rx) = tokio::sync::mpsc::unbounded_channel();
         Self {
             api,
             io: CircuitIO::new(),
@@ -66,8 +64,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             debug: false,
             debug_variables: HashMap::new(),
             hints: Vec::new(),
-            hint_tx,
-            hint_rx,
+            async_generators: Vec::new(),
+            async_generators_indices: Vec::new(),
             sha256_requests: Vec::new(),
             sha256_responses: Vec::new(),
         }
@@ -117,8 +115,21 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             self.curta_constrain_sha256();
         }
 
+        for (index, gen_ref) in self
+            .async_generators_indices
+            .iter()
+            .zip(self.async_generators.iter_mut())
+        {
+            let new_output_stream = self.hints[*index].output_stream_mut();
+            let output_stream = gen_ref.0.output_stream_mut();
+            *output_stream = new_output_stream.clone();
+        }
+
         let hints = self.hints.drain(..).collect::<Vec<_>>();
-        let generators = hints.into_iter().map(|h| WitnessGeneratorRef(h)).collect::<Vec<_>>();
+        let generators = hints
+            .into_iter()
+            .map(|h| WitnessGeneratorRef(h))
+            .collect::<Vec<_>>();
         self.api.add_generators(generators);
 
         match self.io {
@@ -154,7 +165,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             _ => panic!("unsupported io type"),
         };
 
-        let mut data = self.api.build();
+        let data = self.api.build();
 
         let mut async_generator_indices = Vec::new();
 
@@ -164,16 +175,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             }
         }
 
-        for (_, watch) in data.prover_only.generator_indices_by_watches.iter_mut() {
-            watch.extend_from_slice(&async_generator_indices);
-        }
+        assert_eq!(async_generator_indices.len(), self.async_generators.len());
 
-        let hint_handler = HintHandler::new(self.hint_rx);
+        let mut async_generators = BTreeMap::new();
+        for (key, gen) in async_generator_indices.iter().zip(self.async_generators) {
+            async_generators.insert(*key, gen);
+        }
 
         CircuitBuild {
             data,
             io: self.io,
-            hint_handler,
+            async_generators,
         }
     }
 
