@@ -342,6 +342,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn to_be_bits<V: EvmVariable>(&mut self, variable: V) -> Vec<BoolVariable> {
         variable.to_be_bits(self)
     }
+
+    /// Takes a slice of bits and returns the number with little-endian bit representation as a Variable
+    pub fn le_sum(&mut self, bits: &[BoolVariable]) -> Variable {
+        let bits_in_booltarget = bits
+        .iter()
+        .map(|x| BoolTarget::new_unsafe(x.0.0))
+        .collect_vec();
+        Variable(self.api.le_sum(bits_in_booltarget.into_iter()))
+    }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Default for CircuitBuilder<L, D> {

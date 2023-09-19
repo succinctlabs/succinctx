@@ -1,23 +1,45 @@
-use std::marker::PhantomData;
-
+use plonky2::field::types::Field;
 use plonky2::hash::poseidon::PoseidonHash;
 use plonky2::iop::challenger::RecursiveChallenger;
 
-use super::generators::SubarrayEqualGenerator;
 use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, PlonkParameters, Variable};
 
-// Checks that a[a_offset:a_offset+len] = b[b_offset:b_offset+len]
-pub fn subarray_equal(a: &[u8], a_offset: usize, b: &[u8], b_offset: usize, len: usize) -> u8 {
-    for i in 0..len {
-        if a[a_offset + i] != b[b_offset + i] {
-            return 0;
-        }
-    }
-    1
-}
-
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    #[allow(unused_variables, dead_code)]
+    /// Generates a commitment for a subarray using RLC
+    fn commit_subarray(
+        &mut self,
+        arr: &[ByteVariable],
+        offset: Variable,
+        len: Variable,
+        random_value: Variable,
+    ) -> Variable {
+        let end_idx = self.add(offset, len);
+        let mut is_within_subarray: Variable = self.zero();
+        let mut commitment = self.zero();
+
+        let _one: Variable = self.one();
+        let mut current_multiplier = _one;
+        for idx in 0..arr.len() {
+            let idx_target = self.constant(L::Field::from_canonical_usize(idx));
+            // is_within_subarray is one if idx is in the range [offset..offset+len]
+            let is_at_start_idx = self.is_equal(idx_target, offset);
+            is_within_subarray = self.add(is_within_subarray, is_at_start_idx.0);
+            let is_at_end_idx = self.is_equal(idx_target, end_idx);
+            is_within_subarray = self.sub(is_within_subarray, is_at_end_idx.0);
+        
+            let to_be_multiplied = self.select(BoolVariable(is_within_subarray), random_value, _one);
+            current_multiplier = self.mul(current_multiplier, to_be_multiplied);
+
+            let le_value = arr[idx].to_variable(self);
+            let multiplied_value = self.mul(le_value, current_multiplier);
+            let random_value_if_in_range = self.mul(is_within_subarray, multiplied_value);
+            commitment = self.add(commitment, random_value_if_in_range);
+        }
+
+        commitment
+    }
+
+    /// Checks subarrays for equality using a random linear combination
     pub fn subarray_equal(
         &mut self,
         a: &[ByteVariable],
@@ -26,7 +48,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         b_offset: Variable,
         len: Variable,
     ) -> BoolVariable {
-        todo!();
+        let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
+        let challenger_seed = Vec::new();
+        challenger.observe_elements(&challenger_seed);
+        let challenge = Variable(challenger.get_challenge(&mut self.api));
+
+        let commitment_for_a = self.commit_subarray(a, a_offset, len, challenge);
+        let commitment_for_b = self.commit_subarray(b, b_offset, len, challenge);
+        self.is_equal(commitment_for_a, commitment_for_b)
     }
 
     #[allow(unused_variables, dead_code)]
@@ -38,32 +67,89 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         b_offset: Variable,
         len: Variable,
     ) {
-        // TODO: instead of using the SubarrayEqualGenerator below that doesn't actually check anything, implement an RLC check here
-        let generator: SubarrayEqualGenerator<L, D> = SubarrayEqualGenerator {
-            a: a.to_vec(),
-            a_offset,
-            b: b.to_vec(),
-            b_offset,
-            len,
-            _phantom: PhantomData::<L>,
-        };
-        self.add_simple_generator(generator);
-
-        // The following methods might be helpful
-        let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
-        let challenger_seed = Vec::new(); // TODO: have to "seed" the challenger with some random inputs from the circuit
-        challenger.observe_elements(&challenger_seed);
-
-        let random_variables = challenger.get_n_challenges(&mut self.api, 1);
-        let random_variable = random_variables[0];
-
-        // To convert from a Target to a Variable, just use Variable(my_target) to get a Variable
-
-        // TODO: now compute a commitment to a[a_offset:a_offset+len]
-        // TODO: now compute a commitment to b[b_offset:b_offset+len]
+        let subarrays_are_equal = self.subarray_equal(a, a_offset, b, b_offset, len);
+        let _true = self._true();
+        self.assert_is_equal(subarrays_are_equal, _true);
     }
 }
 
+#[cfg(test)]
 pub(crate) mod tests {
-    // TODO add a test for subarray_equal
+    use anyhow::Result;
+    use plonky2::field::types::Field;
+    use plonky2::iop::witness::PartialWitness;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+
+    use crate::frontend::builder::DefaultBuilder;
+    use crate::prelude::{ByteVariable, CircuitVariable, Variable};
+
+    impl Default for ByteVariable {
+        fn default() -> ByteVariable {
+            unsafe { std::mem::zeroed() }
+        }
+    }
+
+    #[test]
+    pub fn test_subarray_equal_should_succeed() -> Result<()> {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let mut builder = DefaultBuilder::new();
+
+        const MAX_LEN: usize = 15;
+        let mut a: [ByteVariable; MAX_LEN] = Default::default();
+        let mut b: [ByteVariable; MAX_LEN] = Default::default();
+
+        for i in 0..MAX_LEN {
+            a[i] = ByteVariable::constant(&mut builder, (i + 5) as u8);
+        }
+
+        for i in 0..MAX_LEN {
+            b[i] = ByteVariable::constant(&mut builder, i as u8);
+        }
+
+        let a_offset = builder.constant(F::ZERO);
+        let b_offset = builder.constant(F::from_canonical_usize(5));
+        let len: Variable = builder.constant(F::from_canonical_usize(5));
+        builder.assert_subarray_equal(&a, a_offset, &b, b_offset, len);
+
+        let pw = PartialWitness::new();
+        let circuit = builder.build();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof)
+    }
+
+    #[test]
+    #[should_panic]
+    pub fn test_subarray_equal_should_fail() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let mut builder = DefaultBuilder::new();
+
+        const MAX_LEN: usize = 15;
+        let mut a: [ByteVariable; MAX_LEN] = Default::default();
+        let mut b: [ByteVariable; MAX_LEN] = Default::default();
+
+        for i in 0..MAX_LEN {
+            a[i] = ByteVariable::constant(&mut builder, (i + 5) as u8);
+        }
+
+        for i in 0..MAX_LEN {
+            b[i] = ByteVariable::constant(&mut builder, i as u8);
+        }
+ 
+        // Modify 1 byte here
+        b[6] = ByteVariable::constant(&mut builder, 0);
+
+        let a_offset = builder.constant(F::ZERO);
+        let b_offset = builder.constant(F::from_canonical_usize(5));
+        let len: Variable = builder.constant(F::from_canonical_usize(5));
+        builder.assert_subarray_equal(&a, a_offset, &b, b_offset, len);
+
+        let pw = PartialWitness::new();
+        let circuit = builder.build();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap(); // panics
+    }
 }
