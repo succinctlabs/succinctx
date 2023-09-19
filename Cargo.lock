@@ -692,7 +692,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=john/curta-many-prove-debug#a65c0491b0dcf8375610684cd65213f7f08b9749"
+source = "git+https://github.com/succinctlabs/curta.git#7923a47de8955e846927f867c71f725895c635c8"
 dependencies = [
  "anyhow",
  "bincode",
