@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
+use plonky2::iop::generator::WitnessGeneratorRef;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoError, IoResult};
 
@@ -41,7 +41,7 @@ impl<L: PlonkParameters<D>, H: Hint<L, D>, const D: usize>
         let hint: H = bincode::deserialize(&bytes).map_err(|_| IoError)?;
         let hint_generator = HintSimpleGenerator::<L, H>::new(input_stream, output_stream, hint);
 
-        Ok(WitnessGeneratorRef::new(hint_generator.adapter()))
+        Ok(WitnessGeneratorRef::new(hint_generator))
     }
 
     fn write(

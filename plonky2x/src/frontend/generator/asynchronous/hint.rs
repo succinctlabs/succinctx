@@ -31,7 +31,7 @@ pub trait AsyncHint<L: PlonkParameters<D>, const D: usize>:
     /// By default, this is the type name of the hint. This function should be overwriten in case
     /// type names vary between compilation units.
     fn id() -> String {
-        format!("{:?}", std::any::type_name::<Self>()).to_string()
+        format!("--async generator: {:?}", std::any::type_name::<Self>()).to_string()
     }
 }
 

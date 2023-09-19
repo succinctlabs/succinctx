@@ -1,5 +1,6 @@
 use std::fs;
 
+use curta::maybe_rayon::rayon;
 use plonky2::field::types::PrimeField64;
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_data::CircuitData;
@@ -12,6 +13,7 @@ use super::input::PublicInput;
 use super::output::PublicOutput;
 use super::serialization::{GateRegistry, WitnessGeneratorRegistry};
 use crate::frontend::builder::CircuitIO;
+use crate::frontend::generator::asynchronous::handler::HintHandler;
 use crate::utils::hex;
 use crate::utils::serde::{BufferRead, BufferWrite};
 
@@ -22,6 +24,7 @@ use crate::utils::serde::{BufferRead, BufferWrite};
 pub struct CircuitBuild<L: PlonkParameters<D>, const D: usize> {
     pub data: CircuitData<L::Field, L::Config, D>,
     pub io: CircuitIO<D>,
+    pub hint_handler: HintHandler<L, D>,
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
@@ -42,6 +45,30 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         self.io.set_witness(&mut pw, input);
         let proof_with_pis = self.data.prove(pw).unwrap();
         let output = PublicOutput::from_proof_with_pis(&self.io, &proof_with_pis);
+        (proof_with_pis, output)
+    }
+
+    pub fn prove_async_gen(
+        self,
+        input: PublicInput<L, D>,
+    ) -> (
+        ProofWithPublicInputs<L::Field, L::Config, D>,
+        PublicOutput<L, D>,
+    ) {
+        let CircuitBuild { data, io, mut hint_handler } = self;
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        rayon::spawn(move || {
+            rt.block_on(async move {
+                hint_handler.run().await.unwrap();
+            });
+        });
+
+        let mut pw = PartialWitness::new();
+        io.set_witness(&mut pw, &input);
+        let proof_with_pis = data.prove(pw).unwrap();
+        let output = PublicOutput::from_proof_with_pis(&io, &proof_with_pis);
         (proof_with_pis, output)
     }
 
@@ -107,7 +134,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         let io = buffer.read_bytes()?;
         let io: CircuitIO<D> = bincode::deserialize(&io).unwrap();
 
-        Ok(CircuitBuild { data, io })
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let hint_handler = HintHandler::new(rx);
+        Ok(CircuitBuild {
+            data,
+            io,
+            hint_handler,
+        })
     }
 
     /// Saves the circuit to a file.

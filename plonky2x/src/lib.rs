@@ -5,6 +5,8 @@
 #![feature(trait_alias)]
 #![feature(decl_macro)]
 #![feature(core_intrinsics)]
+#![feature(async_fn_in_trait)]
+#![feature(trait_upcasting)]
 
 extern crate alloc;
 extern crate clap;

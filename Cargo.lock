@@ -2682,6 +2682,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "array-macro",
+ "async-trait",
  "backtrace",
  "base64 0.13.1",
  "bincode",

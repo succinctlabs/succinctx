@@ -8,14 +8,17 @@ use std::collections::HashMap;
 use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
-use plonky2::iop::generator::SimpleGenerator;
+use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
 use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 pub use self::io::CircuitIO;
-use super::generator::HintRef;
+use super::generator::asynchronous::channel::HintInMessage;
+use super::generator::asynchronous::handler::HintHandler;
+use super::generator::HintGenerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
@@ -30,7 +33,9 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub beacon_client: Option<BeaconClient>,
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
-    pub(crate) hints: Vec<Box<dyn HintRef<L, D>>>,
+    pub(crate) hints: Vec<Box<dyn HintGenerator<L, D>>>,
+    pub(crate) hint_rx: UnboundedReceiver<HintInMessage<L, D>>,
+    pub(crate) hint_tx: UnboundedSender<HintInMessage<L, D>>,
     pub sha256_requests: Vec<Vec<Target>>,
     pub sha256_responses: Vec<[Target; 32]>,
 }
@@ -50,6 +55,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
         let api = CircuitAPI::new(config);
+        let (hint_tx, hint_rx) = tokio::sync::mpsc::unbounded_channel();
         Self {
             api,
             io: CircuitIO::new(),
@@ -59,6 +65,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             debug: false,
             debug_variables: HashMap::new(),
             hints: Vec::new(),
+            hint_tx,
+            hint_rx,
             sha256_requests: Vec::new(),
             sha256_responses: Vec::new(),
         }
@@ -109,9 +117,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let hints = self.hints.drain(..).collect::<Vec<_>>();
-        for hint in hints {
-            hint.register(&mut self);
-        }
+        let generators = hints.into_iter().map(|h| WitnessGeneratorRef(h)).collect::<Vec<_>>();
+        self.api.add_generators(generators);
+
         match self.io {
             CircuitIO::Bytes(ref io) => {
                 let input = io
@@ -145,8 +153,27 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             _ => panic!("unsupported io type"),
         };
 
-        let data = self.api.build();
-        CircuitBuild { data, io: self.io }
+        let mut data = self.api.build();
+
+        let mut async_generator_indices = Vec::new();
+
+        for (i, generator) in data.prover_only.generators.iter().enumerate() {
+            if generator.0.id().starts_with("--async") {
+                async_generator_indices.push(i);
+            }
+        }
+
+        for (_, watch) in data.prover_only.generator_indices_by_watches.iter_mut() {
+            watch.extend_from_slice(&async_generator_indices);
+        }
+
+        let hint_handler = HintHandler::new(self.hint_rx);
+
+        CircuitBuild {
+            data,
+            io: self.io,
+            hint_handler,
+        }
     }
 
     pub fn mock_build(self) -> MockCircuitBuild<L, D> {
