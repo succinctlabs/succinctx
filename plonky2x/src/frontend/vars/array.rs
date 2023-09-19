@@ -155,6 +155,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         V::from_variables_unsafe(&selected_vars)
     }
+
+    pub fn get_fixed_subarray<const SIZE: usize>(
+        &mut self,
+        array: &[Variable],
+        start: Variable,
+    ) -> ArrayVariable<Variable, SIZE> {
+        let mut res = Vec::new();
+        for i in 0..SIZE {
+            let i_variable = self.constant(L::Field::from_canonical_usize(i));
+            let index = self.add(start, i_variable);
+            res.push(self.select_array(array, index));
+        }
+        ArrayVariable::new(res)
+    }
 }
 
 #[cfg(test)]
