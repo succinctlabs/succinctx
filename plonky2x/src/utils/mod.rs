@@ -5,8 +5,9 @@ pub mod poseidon;
 pub mod proof;
 pub mod serde;
 pub mod stream;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use log::LevelFilter;
+use log::{set_max_level, LevelFilter};
 
 pub macro bytes32($hex_literal:expr) {
     $hex_literal.parse::<ethers::types::H256>().unwrap()
@@ -59,4 +60,17 @@ pub fn setup_logger() {
                 .init();
         }
     });
+}
+
+static ORIGINAL_LEVEL: AtomicUsize = AtomicUsize::new(LevelFilter::Info as usize);
+
+pub fn disable_logging() {
+    let current_level = log::max_level() as usize;
+    ORIGINAL_LEVEL.store(current_level, Ordering::SeqCst);
+    set_max_level(LevelFilter::Off);
+}
+
+pub fn enable_logging() {
+    let original_level = ORIGINAL_LEVEL.load(Ordering::SeqCst);
+    set_max_level(unsafe { std::mem::transmute(original_level) });
 }

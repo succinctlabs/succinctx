@@ -49,9 +49,9 @@ use plonky2::util::serialization::{
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::eth::beacon::generators::{
-    BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
-    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator,
+    BeaconBalanceBatchWitnessGenerator, BeaconBalanceGenerator, BeaconBalanceWitnessGenerator,
+    BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconValidatorGenerator,
+    BeaconValidatorsGenerator, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -70,7 +70,7 @@ use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32Ari
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable};
+use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::Variable;
 
 /// A registry to store serializers for witness generators.
@@ -500,6 +500,10 @@ where
             L::CurtaConfig,
             D,
         >>(simple_stark_witness_generator_id);
+
+        r.register_hint::<BeaconBalanceWitnessGenerator>();
+
+        r.register_hint::<BeaconBalanceBatchWitnessGenerator<256>>();
 
         register_watch_generator!(
             r,

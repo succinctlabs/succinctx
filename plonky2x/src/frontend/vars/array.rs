@@ -29,6 +29,10 @@ impl<V: CircuitVariable, const N: usize> ArrayVariable<V, N> {
     pub fn as_vec(&self) -> Vec<V> {
         self.data.clone()
     }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
 }
 
 impl<V: CircuitVariable, const N: usize> Index<usize> for ArrayVariable<V, N> {

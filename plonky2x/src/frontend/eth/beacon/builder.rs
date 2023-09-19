@@ -1,7 +1,7 @@
 use super::generators::{
-    BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
-    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator,
+    BeaconBalanceBatchWitnessGenerator, BeaconBalanceGenerator, BeaconBalanceWitnessGenerator,
+    BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconValidatorGenerator,
+    BeaconValidatorsGenerator, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
 };
 use super::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -11,8 +11,10 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable};
-use crate::prelude::{ByteVariable, BytesVariable};
+use crate::frontend::vars::{
+    Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable, VariableStream,
+};
+use crate::prelude::{ArrayVariable, ByteVariable, BytesVariable};
 
 /// The gindex for blockRoot -> validatorsRoot.
 const VALIDATORS_ROOT_GINDEX: u64 = 363;
@@ -161,10 +163,27 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         balances: BeaconBalancesVariable,
         index: U64Variable,
     ) -> U64Variable {
-        let generator =
-            BeaconBalanceGenerator::new_with_index_variable(self, balances.block_root, index);
-        self.add_simple_generator(generator.clone());
-        generator.balance
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&balances.block_root);
+        input_stream.write(&index);
+
+        let hint = BeaconBalanceWitnessGenerator {};
+        let output_stream = self.hint(input_stream, hint);
+        output_stream.read::<U64Variable>(self)
+    }
+
+    /// Get a validator balance with no constraints.
+    pub fn beacon_get_balance_batch_witness<const B: usize>(
+        &mut self,
+        balances: BeaconBalancesVariable,
+        index: U64Variable,
+    ) -> ArrayVariable<U64Variable, B> {
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&balances.block_root);
+        input_stream.write(&index);
+        let hint = BeaconBalanceBatchWitnessGenerator::<B> {};
+        let output_stream = self.hint(input_stream, hint);
+        output_stream.read::<ArrayVariable<U64Variable, B>>(self)
     }
 
     /// Get a validator balance from a given deterministic index.

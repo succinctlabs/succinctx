@@ -28,20 +28,41 @@ impl Circuit for MapReduceCircuit {
             "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb"
         ));
         let balances_root = builder.beacon_get_balances(block_root);
-        let idxs = (0..8).map(U64::from).collect_vec();
+        let idxs = (0..1024).map(U64::from).collect_vec();
 
         let output = builder
-            .mapreduce::<BeaconBalancesVariable, U64Variable, Bytes32Variable, _, _, 4>(
+            .mapreduce::<BeaconBalancesVariable, U64Variable, Bytes32Variable, _, _, 256>(
                 balances_root,
                 idxs,
                 |balances_root, idxs, builder| {
-                    let b0 = builder.beacon_get_balance_witness(balances_root, idxs[0]);
-                    let b1 = builder.beacon_get_balance_witness(balances_root, idxs[1]);
-                    let b2 = builder.beacon_get_balance_witness(balances_root, idxs[2]);
-                    let b3 = builder.beacon_get_balance_witness(balances_root, idxs[3]);
-                    let leaf = builder.beacon_u64s_to_leaf([b0, b1, b2, b3]);
-                    builder.curta_sha256(&leaf.as_bytes());
-                    leaf
+                    // Witness balances.
+                    let balances =
+                        builder.beacon_get_balance_batch_witness::<256>(balances_root, idxs[0]);
+
+                    // Convert balances to leafs.
+                    let mut leafs = Vec::new();
+                    for i in 0..idxs.len() / 4 {
+                        let b0 = balances[i * 4];
+                        let b1 = balances[i * 4 + 1];
+                        let b2 = balances[i * 4 + 2];
+                        let b3 = balances[i * 4 + 3];
+                        let leaf = builder.beacon_u64s_to_leaf([b0, b1, b2, b3]);
+                        leafs.push(leaf);
+                    }
+
+                    // Reduce leafs to a single root.
+                    while leafs.len() != 1 {
+                        let mut tmp = Vec::new();
+                        for i in 0..leafs.len() / 2 {
+                            let mut input = Vec::new();
+                            input.extend(&leafs[i * 2].as_bytes());
+                            input.extend(&leafs[i * 2 + 1].as_bytes());
+                            tmp.push(builder.curta_sha256(&input));
+                        }
+                        leafs = tmp;
+                    }
+
+                    leafs[0]
                 },
                 |_, left, right, builder| builder.sha256_pair(left, right),
             );

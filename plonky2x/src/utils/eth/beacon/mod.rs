@@ -2,7 +2,7 @@ use core::time::Duration;
 
 use anyhow::Result;
 use ethers::types::U256;
-use log::info;
+use log::{debug, info};
 use num::BigInt;
 use reqwest::blocking::Client;
 use serde::Deserialize;
@@ -138,6 +138,12 @@ pub struct GetBeaconBalance {
 #[serde(rename_all = "camelCase")]
 pub struct GetBeaconBalanceWitness {
     pub balance: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconBalanceBatchWitness {
+    pub balances: Vec<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -294,6 +300,26 @@ impl BeaconClient {
             .send()?;
         let response: GetBeaconBalanceWitness = response.json()?;
         Ok(response.balance)
+    }
+
+    pub fn get_balance_batch_witness(
+        &self,
+        beacon_id: String,
+        start_idx: u64,
+        end_idx: u64,
+    ) -> Result<Vec<u64>> {
+        let endpoint = format!(
+            "{}/api/beacon/balance/{}/{},{}",
+            self.rpc_url, beacon_id, start_idx, end_idx
+        );
+        debug!("{}", endpoint);
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
+        let response: GetBeaconBalanceBatchWitness = response.json()?;
+        Ok(response.balances)
     }
 
     /// Gets the balance of a validator based on a beacon_id and validator index.

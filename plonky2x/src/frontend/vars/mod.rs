@@ -24,6 +24,7 @@ pub use super::uint::uint256::*;
 pub use super::uint::uint32::*;
 use crate::backend::circuit::{generate_witness, DefaultParameters, PlonkParameters};
 use crate::frontend::builder::CircuitBuilder;
+use crate::utils;
 
 pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     /// The underlying type of the variable if it were not in a circuit.
@@ -91,8 +92,10 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     fn nb_elements() -> usize {
         type L = DefaultParameters;
         const D: usize = 2;
+        utils::disable_logging();
         let mut builder = CircuitBuilder::<L, D>::new();
         let variable = builder.init::<Self>();
+        utils::enable_logging();
         variable.variables().len()
     }
 
@@ -100,12 +103,14 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     fn elements<L: PlonkParameters<D>, const D: usize>(
         value: Self::ValueType<L::Field>,
     ) -> Vec<L::Field> {
+        utils::disable_logging();
         let mut builder = CircuitBuilder::<L, D>::new();
         let variables = builder.constant::<Self>(value).variables();
         let circuit = builder.build();
         let pw = PartialWitness::new();
         let witness =
             generate_witness(pw, &circuit.data.prover_only, &circuit.data.common).unwrap();
+        utils::enable_logging();
         variables.iter().map(|v| v.get(&witness)).collect_vec()
     }
 
@@ -113,6 +118,7 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     fn from_elements<L: PlonkParameters<D>, const D: usize>(
         elements: &[L::Field],
     ) -> Self::ValueType<L::Field> {
+        utils::disable_logging();
         let mut builder = CircuitBuilder::<L, D>::new();
         let variable = builder.init::<Self>();
         let variables = variable.variables();
@@ -121,6 +127,7 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
         for i in 0..elements.len() {
             variables[i].set(&mut pw, elements[i])
         }
+        utils::enable_logging();
         variable.get(&pw)
     }
 }
