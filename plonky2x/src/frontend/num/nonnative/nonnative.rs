@@ -5,7 +5,7 @@ use core::marker::PhantomData;
 
 use num::{BigUint, Integer, One, Zero};
 use plonky2::field::extension::Extendable;
-use plonky2::field::types::{Field, PrimeField};
+use plonky2::field::types::PrimeField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::{BoolTarget, Target};
@@ -48,16 +48,7 @@ impl<FF: PrimeField> CircuitVariable for NonNativeTarget<FF> {
         builder: &mut CircuitBuilder<L, D>,
         value: Self::ValueType<L::Field>,
     ) -> Self {
-        let target = builder.api.constant_nonnative::<FF>(value);
-        let big_int_rep = value.to_canonical_biguint().to_u32_digits();
-        let variables = target.variables();
-        assert_eq!(variables.len(), big_int_rep.len());
-        for (i, variable) in variables.iter().enumerate() {
-            builder
-                .constants
-                .insert(*variable, L::Field::from_canonical_u32(big_int_rep[i]));
-        }
-        target
+        builder.api.constant_nonnative::<FF>(value)
     }
 
     fn variables(&self) -> Vec<Variable> {
