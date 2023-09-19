@@ -5,6 +5,7 @@ mod validator;
 mod validators;
 mod withdrawal;
 mod withdrawals;
+mod validator_witness;
 
 pub use balance::BeaconBalanceGenerator;
 pub use balances::BeaconBalancesGenerator;
