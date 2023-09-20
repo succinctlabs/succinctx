@@ -124,6 +124,6 @@ mod tests {
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
 
-        // MapReduceCircuit::test_serialization::<L, D>();
+        MapReduceCircuit::test_serialization::<L, D>();
     }
 }
