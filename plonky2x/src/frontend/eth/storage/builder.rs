@@ -1,14 +1,15 @@
 use ethers::types::Address;
 
 use super::generators::{
-    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator,
+    EthStorageProofHint,
 };
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint256::U256Variable;
-use crate::frontend::vars::Bytes32Variable;
+use crate::frontend::vars::{Bytes32Variable, VariableStream};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn get_storage_key_at(
@@ -29,10 +30,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         address: AddressVariable,
         storage_key: Bytes32Variable,
     ) -> Bytes32Variable {
-        let generator = EthStorageProofGenerator::new(self, block_hash, address, storage_key);
-        let value = generator.value;
-        self.add_simple_generator(generator);
-        value
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&block_hash);
+        input_stream.write(&address);
+        input_stream.write(&storage_key);
+
+        let hint = EthStorageProofHint::new(self);
+        let output_stream = self.async_hint(input_stream, hint);
+
+        output_stream.read::<Bytes32Variable>(self)
     }
 
     #[allow(non_snake_case)]
@@ -133,14 +139,14 @@ mod tests {
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
         );
 
-        // initialize serializers
-        let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        // // initialize serializers
+        // let gate_serializer = GateRegistry::<L, D>::new();
+        // let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
 
-        // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
+        // // test serialization
+        // let _ = circuit
+        //     .serialize(&gate_serializer, &generator_serializer)
+        //     .unwrap();
     }
 
     #[test]

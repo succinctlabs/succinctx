@@ -19,8 +19,8 @@ impl<L: PlonkParameters<D>, const D: usize> HintHandler<L, D> {
             let HintInMessage { hint, tx, inputs } = message;
 
             tokio::spawn(async move {
-            let outputs = hint.hint_fn(inputs).await;
-            tx.send(outputs).unwrap();
+                let outputs = hint.hint_fn(inputs).await;
+                tx.send(outputs).unwrap();
             });
         }
         Ok(())
