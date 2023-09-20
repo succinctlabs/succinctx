@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::Path;
+use std::time::Instant;
 
+use log::debug;
 use plonky2::field::types::PrimeField64;
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_data::CircuitData;
@@ -43,10 +45,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
+        let start_time = Instant::now();
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
         let proof_with_pis = self.data.prove(pw).unwrap();
         let output = PublicOutput::from_proof_with_pis(&self.io, &proof_with_pis);
+        let elapsed_time = start_time.elapsed();
+        debug!("proving took: {:?}", elapsed_time);
         (proof_with_pis, output)
     }
 

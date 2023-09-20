@@ -1,5 +1,6 @@
 use ethers::types::U64;
 use itertools::Itertools;
+use jemallocator::Jemalloc;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::VerifiableFunction;
@@ -9,11 +10,14 @@ use plonky2x::frontend::uint::uint64::U64Variable;
 use plonky2x::prelude::{Bytes32Variable, CircuitBuilder};
 use plonky2x::utils::bytes32;
 
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 /// An example source block root.
 const BLOCK_ROOT: &str = "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb";
 
 /// The number of balances to fetch.
-const NB_BALANCES: usize = 8192;
+const NB_BALANCES: usize = 512;
 
 /// The batch size for fetching balances and computing the local balance roots.
 const BATCH_SIZE: usize = 256;
