@@ -546,7 +546,6 @@ impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
         r.register::<ComparisonGate<L::Field, D>>();
         r.register::<U32AddManyGate<L::Field, D>>();
         r.register::<U32ArithmeticGate<L::Field, D>>();
-        r.register::<U32AddManyGate<L::Field, D>>();
         r.register::<U32SubtractionGate<L::Field, D>>();
         r.register::<U32RangeCheckGate<L::Field, D>>();
 
