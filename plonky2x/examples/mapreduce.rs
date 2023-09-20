@@ -18,7 +18,7 @@ static GLOBAL: Jemalloc = Jemalloc;
 const BLOCK_ROOT: &str = "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb";
 
 /// The number of balances to fetch.
-const NB_BALANCES: usize = 131072;
+const NB_BALANCES: usize = 1048576;
 
 /// The batch size for fetching balances and computing the local balance roots.
 const BATCH_SIZE: usize = 2048;
