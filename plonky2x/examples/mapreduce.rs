@@ -17,10 +17,10 @@ static GLOBAL: Jemalloc = Jemalloc;
 const BLOCK_ROOT: &str = "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb";
 
 /// The number of balances to fetch.
-const NB_BALANCES: usize = 512;
+const NB_BALANCES: usize = 8192;
 
 /// The batch size for fetching balances and computing the local balance roots.
-const BATCH_SIZE: usize = 256;
+const BATCH_SIZE: usize = 2048;
 
 struct MapReduceCircuit;
 
@@ -41,7 +41,7 @@ impl Circuit for MapReduceCircuit {
                 |balances_root, idxs, builder| {
                     // Witness balances.
                     let balances =
-                        builder.beacon_get_balance_batch_witness::<256>(balances_root, idxs[0]);
+                        builder.beacon_get_balance_batch_witness::<BATCH_SIZE>(balances_root, idxs[0]);
 
                     // Convert balances to leafs.
                     let mut leafs = Vec::new();
