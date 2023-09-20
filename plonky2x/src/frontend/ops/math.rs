@@ -20,6 +20,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     {
         lhs.add(rhs, self)
     }
+
+    pub fn add_many<T>(&mut self, values: &[T]) -> T
+    where
+        T: Add<L, D, T, Output = T> + Clone,
+    {
+        let mut sum = values[0].clone();
+        for i in 1..values.len() {
+            sum = self.add(sum, values[i].clone());
+        }
+        sum
+    }
 }
 
 /// The subtraction operation.

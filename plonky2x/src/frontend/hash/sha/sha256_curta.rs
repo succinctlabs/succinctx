@@ -153,6 +153,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         )
     }
 
+    pub fn curta_sha256_pair(
+        &mut self,
+        left: Bytes32Variable,
+        right: Bytes32Variable,
+    ) -> Bytes32Variable {
+        let mut input = Vec::new();
+        input.extend(&left.as_bytes());
+        input.extend(&right.as_bytes());
+        self.curta_sha256(&input)
+    }
+
     /// Executes a SHA256 hash on the given input. Note: input should be length MAX_NUM_CHUNKS * 64.
     pub fn curta_sha256_variable<const MAX_NUM_CHUNKS: usize>(
         &mut self,

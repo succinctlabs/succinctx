@@ -148,7 +148,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         );
         BeaconBalancesVariable {
             block_root,
-            balances_root: generator.balances_root,
+            root: generator.balances_root,
         }
     }
 
@@ -175,7 +175,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.ssz_verify_proof_const(block_root, partial_balances_root, &proof, gindex as u64);
         BeaconBalancesVariable {
             block_root,
-            balances_root: partial_balances_root,
+            root: partial_balances_root,
         }
     }
 
@@ -242,7 +242,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         gindex = self.add(gindex, offset);
 
         self.ssz_verify_proof(
-            balances.balances_root,
+            balances.root,
             generator.balance_leaf,
             &generator.proof,
             gindex,

@@ -1,5 +1,3 @@
-use std::env;
-
 use ethers::types::U64;
 use itertools::Itertools;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
@@ -10,9 +8,14 @@ use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
 use plonky2x::frontend::uint::uint64::U64Variable;
 use plonky2x::prelude::{Bytes32Variable, CircuitBuilder};
 use plonky2x::utils::bytes32;
-use plonky2x::utils::eth::beacon::BeaconClient;
 
+/// An example source block root.
+const BLOCK_ROOT: &str = "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb";
+
+/// The number of balances to fetch.
 const NB_BALANCES: usize = 512;
+
+/// The batch size for fetching balances and computing the local balance roots.
 const BATCH_SIZE: usize = 256;
 
 struct MapReduceCircuit;
@@ -23,19 +26,13 @@ impl Circuit for MapReduceCircuit {
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        let rpc_url = env::var("CONSENSUS_RPC_1").unwrap();
-        let client = BeaconClient::new(rpc_url);
-        builder.set_beacon_client(client);
-
-        let block_root = builder.constant::<Bytes32Variable>(bytes32!(
-            "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb"
-        ));
-        let balances_root = builder.beacon_get_partial_balances::<NB_BALANCES>(block_root);
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(BLOCK_ROOT));
+        let partial_balances = builder.beacon_get_partial_balances::<NB_BALANCES>(block_root);
         let idxs = (0..NB_BALANCES).map(U64::from).collect_vec();
 
         let output = builder
-            .mapreduce::<BeaconBalancesVariable, U64Variable, Bytes32Variable, _, _, BATCH_SIZE>(
-                balances_root,
+            .mapreduce::<BeaconBalancesVariable, U64Variable, (Bytes32Variable, U64Variable), _, _, BATCH_SIZE>(
+                partial_balances,
                 idxs,
                 |balances_root, idxs, builder| {
                     // Witness balances.
@@ -44,35 +41,37 @@ impl Circuit for MapReduceCircuit {
 
                     // Convert balances to leafs.
                     let mut leafs = Vec::new();
+                    let mut sum = builder.constant::<U64Variable>(U64::from(0));
                     for i in 0..idxs.len() / 4 {
-                        let b0 = balances[i * 4];
-                        let b1 = balances[i * 4 + 1];
-                        let b2 = balances[i * 4 + 2];
-                        let b3 = balances[i * 4 + 3];
-                        let leaf = builder.beacon_u64s_to_leaf([b0, b1, b2, b3]);
-                        leafs.push(leaf);
+                        let b = [
+                            balances[i * 4],
+                            balances[i * 4 + 1],
+                            balances[i * 4 + 2],
+                            balances[i * 4 + 3]
+                        ];
+                        sum = builder.add_many(&b);
+                        leafs.push(builder.beacon_u64s_to_leaf(b));
                     }
 
                     // Reduce leafs to a single root.
                     while leafs.len() != 1 {
                         let mut tmp = Vec::new();
                         for i in 0..leafs.len() / 2 {
-                            let mut input = Vec::new();
-                            input.extend(&leafs[i * 2].as_bytes());
-                            input.extend(&leafs[i * 2 + 1].as_bytes());
-                            let h = builder.curta_sha256(&input);
-                            tmp.push(h);
+                            tmp.push(builder.curta_sha256_pair(leafs[i*2], leafs[i*2+1]));
                         }
                         leafs = tmp;
                     }
 
-                    leafs[0]
+                    (leafs[0], sum)
                 },
-                |_, left, right, builder| builder.sha256_pair(left, right),
+                |_, left, right, builder| {
+                    // Reduce two roots to a single root and compute the sum of the two balances.
+                    (builder.sha256_pair(left.0, right.0), builder.add(left.1, right.1))
+                }
             );
 
-        builder.watch(&output, "output");
-        builder.watch(&balances_root, "balances");
+        builder.assert_is_equal(output.0, partial_balances.root);
+        builder.watch(&output.1, "total balance");
         builder.write(output);
     }
 
@@ -81,10 +80,22 @@ impl Circuit for MapReduceCircuit {
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        let id =
-            MapReduceGenerator::<L, BeaconBalancesVariable, U64Variable, Bytes32Variable, 4, D>::id(
-            );
-        registry.register_simple::<MapReduceGenerator<L, BeaconBalancesVariable, U64Variable, Bytes32Variable, 4, D>>(id);
+        let id = MapReduceGenerator::<
+            L,
+            BeaconBalancesVariable,
+            U64Variable,
+            (Bytes32Variable, U64Variable),
+            BATCH_SIZE,
+            D,
+        >::id();
+        registry.register_simple::<MapReduceGenerator<
+            L,
+            BeaconBalancesVariable,
+            U64Variable,
+            (Bytes32Variable, U64Variable),
+            BATCH_SIZE,
+            D,
+        >>(id);
     }
 }
 

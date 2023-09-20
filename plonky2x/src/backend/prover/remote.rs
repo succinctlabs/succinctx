@@ -65,7 +65,7 @@ impl RemoteProver {
         const MAX_RETRIES: usize = 500;
         let mut status = ProofRequestStatus::Pending;
         for i in 0..MAX_RETRIES {
-            sleep(Duration::from_secs(60)).await;
+            sleep(Duration::from_secs(10)).await;
             let request = service.get::<L, D>(proof_id)?;
             debug!(
                 "proof {:?}: status={:?}, nb_retries={}/{}",
@@ -116,7 +116,7 @@ impl RemoteProver {
 
         const MAX_RETRIES: usize = 500;
         for _ in 0..MAX_RETRIES {
-            sleep(Duration::from_secs(60)).await;
+            sleep(Duration::from_secs(10)).await;
             let request = service.get_batch::<L, D>(batch_id)?;
             if let Some(failed) = request.statuses.get(&ProofRequestStatus::Failure) {
                 if *failed > 0 {

@@ -4,6 +4,7 @@ mod proof;
 pub mod watch;
 
 use std::collections::HashMap;
+use std::env;
 
 use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
@@ -51,7 +52,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
         let api = CircuitAPI::new(config);
-        Self {
+        let mut builder = Self {
             api,
             io: CircuitIO::new(),
             beacon_client: None,
@@ -62,7 +63,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             hints: Vec::new(),
             sha256_requests: Vec::new(),
             sha256_responses: Vec::new(),
+        };
+
+        if let Ok(rpc_url) = env::var("CONSENSUS_RPC_1") {
+            let client = BeaconClient::new(rpc_url);
+            builder.set_beacon_client(client);
         }
+
+        builder
     }
 
     pub fn set_debug(&mut self) {
@@ -198,33 +206,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn register_public_inputs(&mut self, inputs: &[Variable]) {
         self.api
             .register_public_inputs(&inputs.iter().map(|v| v.0).collect_vec());
-    }
-
-    /// Add returns res = i1 + i2 + ...
-    pub fn add_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].0;
-        for i in 1..values.len() {
-            acc = self.api.add(acc, values[i].0);
-        }
-        acc.into()
-    }
-
-    /// Sub returns res = i1 - i2 - ...
-    pub fn sub_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].0;
-        for i in 1..values.len() {
-            acc = self.api.sub(acc, values[i].0);
-        }
-        acc.into()
-    }
-
-    /// Mul returns res = i1 * i2 * ...
-    pub fn mul_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].0;
-        for i in 1..values.len() {
-            acc = self.api.mul(acc, values[i].0);
-        }
-        acc.into()
     }
 
     /// Inverse returns res = 1 / i1.
