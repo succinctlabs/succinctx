@@ -34,6 +34,7 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHintRef<L, D> {
     }
 }
 
+/// The wintess generator for asynchronous hints.
 #[derive(Debug)]
 pub(crate) struct AsyncHintGenerator<L: PlonkParameters<D>, H, const D: usize> {
     pub(crate) hint: H,
@@ -44,6 +45,11 @@ pub(crate) struct AsyncHintGenerator<L: PlonkParameters<D>, H, const D: usize> {
     pub(crate) waiting: AtomicBool,
 }
 
+
+/// A dummy witness generator containing the hint data and input/output streams.
+/// 
+/// This struct is used to register the hint in the dependency graph and to create
+/// an `AsyncHintGenerator` during witness generation.
 #[derive(Debug, Clone)]
 pub(crate) struct AsyncHintData<L, H, const D: usize> {
     pub(crate) hint: H,

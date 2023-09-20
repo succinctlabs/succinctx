@@ -45,16 +45,15 @@ use crate::frontend::eth::beacon::vars::{
     BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
 use crate::frontend::eth::storage::generators::{
-    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator,
-    EthStorageProofHint,
+    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
+use crate::frontend::hash::bit_operations::XOR3Generator;
+use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::hint::asynchronous::generator::AsyncHintRef;
 use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
-use crate::frontend::hash::bit_operations::XOR3Generator;
-use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGenerator;
 use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
@@ -63,9 +62,9 @@ use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
 
-
-pub trait WitnessSerializer<L: PlonkParameters<D>, const D: usize> : WitnessGeneratorSerializer<L::Field, D> {
-
+pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
+    WitnessGeneratorSerializer<L::Field, D>
+{
     fn read_async_hint(&self, buf: &mut Buffer) -> IoResult<AsyncHintRef<L, D>>;
 
     fn write_async_hint(&self, buf: &mut Vec<u8>, hint: &AsyncHintRef<L, D>) -> IoResult<()>;

@@ -1,8 +1,8 @@
 pub mod builder;
 pub mod ecc;
 pub mod eth;
-pub mod hint;
 pub mod hash;
+pub mod hint;
 // pub mod mapreduce;
 pub mod merkle;
 pub mod num;

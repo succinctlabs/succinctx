@@ -24,7 +24,6 @@ use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable, ValueStream};
 use crate::utils::eth::get_provider;
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EthStorageProofHint<L: PlonkParameters<D>, const D: usize> {
     chain_id: u64,

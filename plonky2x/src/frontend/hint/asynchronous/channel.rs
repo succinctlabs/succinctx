@@ -6,12 +6,14 @@ use super::hint::AnyAsyncHint;
 use crate::frontend::vars::ValueStream;
 use crate::prelude::PlonkParameters;
 
+/// A channel for sending and receiving output data from the hint handler.
 #[derive(Debug)]
 pub struct HintChannel<L: PlonkParameters<D>, const D: usize> {
     pub(crate) rx_out: Mutex<UnboundedReceiver<ValueStream<L, D>>>,
     pub(crate) tx_out: UnboundedSender<ValueStream<L, D>>,
 }
 
+/// A message sent to the hint handler.
 #[derive(Debug)]
 pub struct HintInMessage<L: PlonkParameters<D>, const D: usize> {
     pub(crate) hint: Box<dyn AnyAsyncHint<L, D>>,

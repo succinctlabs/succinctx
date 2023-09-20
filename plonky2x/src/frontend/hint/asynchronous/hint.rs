@@ -7,18 +7,50 @@ use serde::Serialize;
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::ValueStream;
 
+/// An asynchronous hint.
+/// 
+/// This type of hint can used to perform asynchronous operations during witness generation.
+/// 
+/// # Example
+/// The following example shows how to use an asynchronous hint that gets an input byte, sleeps
+/// for the number of miliseconds specified by the byte, and then outputs the byte. 
+/// ```
+/// # use async_trait::async_trait;
+/// # use serde::{Deserialize, Serialize};
+/// # use tokio::time::{sleep, Duration};
+//  # use crate::frontend::vars::ValueStream;
+/// # use crate::prelude::{ByteVariable, DefaultBuilder};
+/// 
+/// #[derive(Debug, Clone, Serialize, Deserialize)]
+/// struct SleepHint;
+/// 
+/// #[async_trait]
+/// impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for SleepHint {
+///    async fn hint(
+///        &self,
+///        input_stream: &mut ValueStream<L, D>,
+///        output_stream: &mut ValueStream<L, D>,
+///     ) {
+///         let time = input_stream.read_value::<ByteVariable>();
+///         sleep(Duration::from_millis(time.into())).await;
+///         output_stream.write_value::<ByteVariable>(time);
+///     }
+/// }
+/// ```
 #[async_trait]
 pub trait AsyncHint<L: PlonkParameters<D>, const D: usize>:
     'static + Debug + Clone + Send + Sync + Serialize + DeserializeOwned
 {
-    /// the hint function.
+    /// The hint function.
     async fn hint(
         &self,
         input_stream: &mut ValueStream<L, D>,
         output_stream: &mut ValueStream<L, D>,
     );
 
-    /// a version of the hint method that owns the values.
+    /// A version of the hint function that owns the input stream and returns the output stream.
+    /// 
+    /// Only one of `hint` or `hint_fn` needs to be implemented. By default, `hint_fn` calls `hint`.
     async fn hint_fn(&self, input_stream: ValueStream<L, D>) -> ValueStream<L, D> {
         let mut output_stream = ValueStream::new();
         self.hint(&mut input_stream.clone(), &mut output_stream)

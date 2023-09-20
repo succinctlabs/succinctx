@@ -1,9 +1,10 @@
-use super::generator::{AsyncHintRef, AsyncHintData};
+use super::generator::{AsyncHintData, AsyncHintRef};
 use super::hint::AsyncHint;
 use crate::frontend::vars::{OutputVariableStream, VariableStream};
 use crate::prelude::{CircuitBuilder, PlonkParameters};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    /// Get the outputs of an asynchronous hint to the circuit.
     pub fn async_hint<H: AsyncHint<L, D>>(
         &mut self,
         input_stream: VariableStream,
@@ -14,8 +15,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let hint_id = self.hints.len();
         self.hints.push(Box::new(hint_data.clone()));
 
-        self.async_hints
-            .push(AsyncHintRef::new(hint_data));
+        self.async_hints.push(AsyncHintRef::new(hint_data));
         self.async_hints_indices.push(hint_id);
 
         OutputVariableStream::new(hint_id)
