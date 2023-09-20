@@ -188,7 +188,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Registers the given targets as public inputs.
-    pub fn register_public_inputs(&mut self, inputs: &[Variable]) {
+    pub(crate) fn register_public_inputs(&mut self, inputs: &[Variable]) {
         self.api
             .register_public_inputs(&inputs.iter().map(|v| v.0).collect_vec());
     }
