@@ -692,7 +692,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git#7923a47de8955e846927f867c71f725895c635c8"
+source = "git+https://github.com/succinctlabs/curta.git?branch=tamir/fix_scalar_mul_generator#1e5b0c6e5559e706f31de211d4e57ef67cb7b1c2"
 dependencies = [
  "anyhow",
  "bincode",

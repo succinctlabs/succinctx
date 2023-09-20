@@ -5,6 +5,7 @@ use core::marker::PhantomData;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
+use curta::chip::ec::edwards::scalar_mul::generator::SimpleScalarMulEd25519Generator;
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
@@ -488,6 +489,10 @@ where
         r.register_simple::<SHA256Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(
             sha256_generator,
         );
+
+        let scalar_mul_generator_id =
+            SimpleScalarMulEd25519Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
+        r.register_simple::<SimpleScalarMulEd25519Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(scalar_mul_generator_id);
 
         let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
             SHA256AirParameters<L::Field, L::CubicParams>,
