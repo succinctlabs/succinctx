@@ -77,7 +77,9 @@ use crate::frontend::num::nonnative::nonnative::{
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32ArithmeticGenerator};
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
-use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGate;
+use crate::frontend::num::u32::gates::range_check_u32::{
+    U32RangeCheckGate, U32RangeCheckGenerator,
+};
 use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGate;
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
@@ -543,6 +545,9 @@ where
 
         let id = "SimpleScalarMulEd25519HintGenerator";
         r.register_simple::<SimpleScalarMulEd25519HintGenerator<L::Field, D>>(id.to_string());
+
+        let id = U32RangeCheckGenerator::<L::Field, D>::id();
+        r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
 
         register_watch_generator!(
             r,
