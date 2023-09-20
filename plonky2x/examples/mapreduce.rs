@@ -1,6 +1,7 @@
 use ethers::types::U64;
 use itertools::Itertools;
 use jemallocator::Jemalloc;
+use log::debug;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::VerifiableFunction;
@@ -17,7 +18,7 @@ static GLOBAL: Jemalloc = Jemalloc;
 const BLOCK_ROOT: &str = "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb";
 
 /// The number of balances to fetch.
-const NB_BALANCES: usize = 8192;
+const NB_BALANCES: usize = 131072;
 
 /// The batch size for fetching balances and computing the local balance roots.
 const BATCH_SIZE: usize = 2048;
@@ -61,6 +62,7 @@ impl Circuit for MapReduceCircuit {
                     while leafs.len() != 1 {
                         let mut tmp = Vec::new();
                         for i in 0..leafs.len() / 2 {
+                            debug!("calling sha256 pair w/ curta");
                             tmp.push(builder.curta_sha256_pair(leafs[i*2], leafs[i*2+1]));
                         }
                         leafs = tmp;

@@ -2,6 +2,7 @@ use curta::chip::hash::sha::sha256::builder_gadget::{SHA256Builder, SHA256Builde
 use curta::chip::hash::sha::sha256::generator::SHA256HintGenerator;
 use curta::math::field::Field;
 use itertools::Itertools;
+use log::debug;
 use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
@@ -207,6 +208,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut nb_chunks = 0;
         let mut curr_rq = 0;
         let mut num_rqs = self.sha256_requests.len();
+        debug!("num_rqs: {}", num_rqs);
 
         let zero = self.constant::<ByteVariable>(0u8);
         let zero_chunk = [zero; 1];
@@ -253,6 +255,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             (0..nb_chunks / 1024)
                 .map(|_| self.api.init_sha256())
                 .collect_vec();
+        debug!("allocated {} curta sha256 gadgets", gadgets.len());
 
         let mut rq_idx = 0;
         for i in 0..gadgets.len() {
