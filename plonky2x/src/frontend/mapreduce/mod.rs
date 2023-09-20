@@ -16,6 +16,7 @@
 //! a proof for each reduction between two proofs until we have a single proof.
 
 pub mod generator;
+mod iterators;
 
 use core::fmt::Debug;
 use core::marker::PhantomData;
