@@ -346,6 +346,10 @@ macro_rules! register_powers_of_two {
         $r.register_hint::<$hint<16384>>();
         $r.register_hint::<$hint<32768>>();
         $r.register_hint::<$hint<65536>>();
+        $r.register_hint::<$hint<131072>>();
+        $r.register_hint::<$hint<262144>>();
+        $r.register_hint::<$hint<524288>>();
+        $r.register_hint::<$hint<1048576>>();
     };
 }
 
