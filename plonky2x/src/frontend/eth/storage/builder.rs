@@ -80,7 +80,7 @@ mod tests {
     use log::debug;
 
     use super::*;
-    use crate::backend::circuit::{DefaultParameters, GateRegistry, WitnessGeneratorRegistry};
+    use crate::backend::circuit::{DefaultParameters, GateRegistry, HintRegistry};
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthHeader, EthLog};
     use crate::prelude::DefaultBuilder;
@@ -140,11 +140,11 @@ mod tests {
 
         // // initialize serializers
         // let gate_serializer = GateRegistry::<L, D>::new();
-        // let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        // let hint_serializer = HintRegistry::<L, D>::new();
 
         // // test serialization
         // let _ = circuit
-        //     .serialize(&gate_serializer, &generator_serializer)
+        //     .serialize(&gate_serializer, &hint_serializer)
         //     .unwrap();
     }
 
@@ -197,11 +197,11 @@ mod tests {
 
         // initialize serializers
         let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let hint_serializer = HintRegistry::<L, D>::new();
 
         // test serialization
         let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
+            .serialize(&gate_serializer, &hint_serializer)
             .unwrap();
     }
 
@@ -271,11 +271,11 @@ mod tests {
 
         // initialize serializers
         let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let hint_serializer = HintRegistry::<L, D>::new();
 
         // test serialization
         let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
+            .serialize(&gate_serializer, &hint_serializer)
             .unwrap();
     }
 
@@ -339,11 +339,11 @@ mod tests {
 
         // initialize serializers
         let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let hint_serializer = HintRegistry::<L, D>::new();
 
         // test serialization
         let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
+            .serialize(&gate_serializer, &hint_serializer)
             .unwrap();
     }
 }

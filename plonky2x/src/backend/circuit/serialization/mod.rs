@@ -1,9 +1,9 @@
 pub mod gates;
-pub mod generators;
+pub mod hints;
 pub mod registry;
 
 pub use gates::GateRegistry;
-pub use generators::WitnessGeneratorRegistry;
+pub use hints::HintRegistry;
 pub use registry::Serializer;
 
 use super::PlonkParameters;
@@ -17,7 +17,7 @@ mod tests {
     use plonky2::util::serialization::{Buffer, GateSerializer, WitnessGeneratorSerializer};
 
     use crate::backend::circuit::serialization::gates::GateRegistry;
-    use crate::backend::circuit::serialization::generators::WitnessGeneratorRegistry;
+    use crate::backend::circuit::serialization::hints::HintRegistry;
     use crate::backend::circuit::DefaultParameters;
     use crate::prelude::CircuitBuilder;
 
@@ -30,7 +30,7 @@ mod tests {
         let builder = CircuitBuilder::<L, D>::new();
         let common_data = builder.build().data.common;
 
-        let registry = WitnessGeneratorRegistry::<L, D>::new();
+        let registry = HintRegistry::<L, D>::new();
         let raw_generator = WitnessGeneratorRef::new(ConstantGenerator::<F>::default().adapter());
 
         let mut bytes = Vec::<u8>::new();

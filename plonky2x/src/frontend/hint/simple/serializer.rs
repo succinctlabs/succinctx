@@ -11,6 +11,7 @@ use crate::frontend::vars::VariableStream;
 use crate::prelude::PlonkParameters;
 use crate::utils::serde::BufferRead;
 
+/// A serializer for simple hints.
 #[derive(Debug, Clone)]
 pub struct SimpleHintSerializer<L, H>(PhantomData<L>, PhantomData<H>);
 
@@ -103,17 +104,17 @@ mod tests {
 
         // Test the serialization
         let gate_serializer = GateRegistry::new();
-        let mut generator_serializer = WitnessGeneratorRegistry::new();
-        generator_serializer.register_hint::<AddSome>();
-        circuit.test_serializers(&gate_serializer, &generator_serializer);
+        let mut hint_serializer = HintRegistry::new();
+        hint_serializer.register_hint::<AddSome>();
+        circuit.test_serializers(&gate_serializer, &hint_serializer);
 
         // serialize, deserialize, and then generate a proof.
         let bytes = circuit
-            .serialize(&gate_serializer, &generator_serializer)
+            .serialize(&gate_serializer, &hint_serializer)
             .unwrap();
 
         let circuit =
-            CircuitBuild::deserialize(&bytes, &gate_serializer, &generator_serializer).unwrap();
+            CircuitBuild::deserialize(&bytes, &gate_serializer, &hint_serializer).unwrap();
 
         // generate a proof with the deserialized circuit.
         let (proof, mut output) = circuit.prove(&input);

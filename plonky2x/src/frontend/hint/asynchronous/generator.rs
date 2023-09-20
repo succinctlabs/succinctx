@@ -45,9 +45,8 @@ pub(crate) struct AsyncHintGenerator<L: PlonkParameters<D>, H, const D: usize> {
     pub(crate) waiting: AtomicBool,
 }
 
-
 /// A dummy witness generator containing the hint data and input/output streams.
-/// 
+///
 /// This struct is used to register the hint in the dependency graph and to create
 /// an `AsyncHintGenerator` during witness generation.
 #[derive(Debug, Clone)]
@@ -148,7 +147,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
         _dst: &mut Vec<u8>,
         _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<L::Field, D>,
     ) -> plonky2::util::serialization::IoResult<()> {
-        unimplemented!("AsyncHintGenerator::serialize")
+        unimplemented!("This witness generator is not serializable, the serialization is handled by 'AsyncHintData'")
     }
 
     fn deserialize(
@@ -158,7 +157,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
     where
         Self: Sized,
     {
-        unimplemented!("AsyncHintGenerator::deserialize")
+        unimplemented!("This witness generator is not deserializable, the deserialization is handled by 'AsyncHintData'")
     }
 
     fn run(

@@ -65,9 +65,18 @@ use crate::frontend::vars::Bytes32Variable;
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
     WitnessGeneratorSerializer<L::Field, D>
 {
-    fn read_async_hint(&self, buf: &mut Buffer) -> IoResult<AsyncHintRef<L, D>>;
+    fn read_async_hint(
+        &self,
+        buf: &mut Buffer,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<AsyncHintRef<L, D>>;
 
-    fn write_async_hint(&self, buf: &mut Vec<u8>, hint: &AsyncHintRef<L, D>) -> IoResult<()>;
+    fn write_async_hint(
+        &self,
+        buf: &mut Vec<u8>,
+        hint: &AsyncHintRef<L, D>,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<()>;
 }
 
 /// A registry to store serializers for witness generators.
@@ -75,7 +84,7 @@ pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
 /// New witness generators can be added to the registry by calling the `register` method,
 /// specifying the type and the generator's id.
 #[derive(Debug)]
-pub struct WitnessGeneratorRegistry<L: PlonkParameters<D>, const D: usize> {
+pub struct HintRegistry<L: PlonkParameters<D>, const D: usize> {
     generators: SerializationRegistry<String, L::Field, WitnessGeneratorRef<L::Field, D>, D>,
     async_hints: SerializationRegistry<String, L::Field, AsyncHintRef<L, D>, D>,
 }
@@ -117,7 +126,7 @@ impl<F: RichField + Extendable<D>, W: WitnessGenerator<F, D>, const D: usize>
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
     /// Registers a new witness generator with the given id.
     pub fn register_generator<W: WitnessGenerator<L::Field, D>>(&mut self, id: String) {
         let serializer = WitnessGeneratorSerializerFn::<W>(PhantomData);
@@ -140,7 +149,8 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
     pub fn register_async_hint<H: AsyncHint<L, D>>(&mut self) {
         let serializer = AsyncHintSerializer::<L, H>::new();
         let id = H::id();
-        self.generators.register(id, serializer).unwrap();
+        self.generators.register(id.clone(), serializer.clone()).unwrap();
+        self.async_hints.register(id, serializer).unwrap();
     }
 
     /// Creates a new registry with all the default generators that are used in a Plonky2x circuit.
@@ -331,7 +341,7 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorSerializer<L::Field, D>
-    for WitnessGeneratorRegistry<L, D>
+    for HintRegistry<L, D>
 {
     fn read_generator(
         &self,
@@ -339,12 +349,12 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorSerializer<L::Field,
         common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<WitnessGeneratorRef<L::Field, D>> {
         let idx = buf.read_usize()?;
-        let type_id = &self.generators.identifiers[idx];
+        let id = &self.generators.identifiers[idx];
 
         self.generators
             .registry
-            .get(type_id)
-            .unwrap_or_else(|| panic!("Generator type not registered {}", type_id))
+            .get(id)
+            .unwrap_or_else(|| panic!("Generator type not registered {}", id))
             .read(buf, common_data)
     }
 
@@ -354,19 +364,58 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorSerializer<L::Field,
         generator: &WitnessGeneratorRef<L::Field, D>,
         common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<()> {
-        let type_id = generator.0.id();
+        let id = generator.0.id();
         let idx = self
             .generators
             .index
-            .get(&type_id)
-            .unwrap_or_else(|| panic!("Generator type not registered {}", type_id));
+            .get(&id)
+            .unwrap_or_else(|| panic!("Generator type not registered {}", id));
         buf.write_usize(*idx)?;
 
         self.generators
             .registry
-            .get(&type_id)
-            .unwrap_or_else(|| panic!("Generator type not registered {}", type_id))
+            .get(&id)
+            .unwrap_or_else(|| panic!("Generator type not registered {}", id))
             .write(buf, generator, common_data)?;
+        Ok(())
+    }
+}
+
+impl<L: PlonkParameters<D>, const D: usize> HintSerializer<L, D> for HintRegistry<L, D> {
+    fn read_async_hint(
+        &self,
+        buf: &mut Buffer,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<AsyncHintRef<L, D>> {
+        let idx = buf.read_usize()?;
+        let id = &self.async_hints.identifiers[idx];
+
+        self.async_hints
+            .registry
+            .get(id)
+            .unwrap_or_else(|| panic!("Hint type not registered {}", id))
+            .read(buf, common_data)
+    }
+
+    fn write_async_hint(
+        &self,
+        buf: &mut Vec<u8>,
+        hint: &AsyncHintRef<L, D>,
+        common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<()> {
+        let id = hint.0.id();
+        let idx = self
+            .async_hints
+            .index
+            .get(&id)
+            .unwrap_or_else(|| panic!("Generator type not registered {}", id));
+        buf.write_usize(*idx)?;
+
+        self.async_hints
+            .registry
+            .get(&id)
+            .unwrap_or_else(|| panic!("Generator type not registered {}", id))
+            .write(buf, hint, common_data)?;
         Ok(())
     }
 }
@@ -377,7 +426,7 @@ mod tests {
     use plonky2::iop::generator::{ConstantGenerator, SimpleGenerator, WitnessGeneratorRef};
     use plonky2::util::serialization::{Buffer, WitnessGeneratorSerializer};
 
-    use crate::backend::circuit::serialization::generators::WitnessGeneratorRegistry;
+    use crate::backend::circuit::serialization::hints::HintRegistry;
     use crate::backend::circuit::DefaultParameters;
     use crate::prelude::CircuitBuilder;
 
@@ -390,7 +439,7 @@ mod tests {
         let builder = CircuitBuilder::<L, D>::new();
         let common_data = builder.build().data.common;
 
-        let registry = WitnessGeneratorRegistry::<L, D>::new();
+        let registry = HintRegistry::<L, D>::new();
         let raw_generator = WitnessGeneratorRef::new(ConstantGenerator::<F>::default().adapter());
 
         let mut bytes = Vec::<u8>::new();

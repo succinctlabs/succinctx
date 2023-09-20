@@ -8,22 +8,22 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::ValueStream;
 
 /// An asynchronous hint.
-/// 
+///
 /// This type of hint can used to perform asynchronous operations during witness generation.
-/// 
+///
 /// # Example
 /// The following example shows how to use an asynchronous hint that gets an input byte, sleeps
-/// for the number of miliseconds specified by the byte, and then outputs the byte. 
+/// for the number of miliseconds specified by the byte, and then outputs the byte.
 /// ```
 /// # use async_trait::async_trait;
 /// # use serde::{Deserialize, Serialize};
 /// # use tokio::time::{sleep, Duration};
 //  # use crate::frontend::vars::ValueStream;
 /// # use crate::prelude::{ByteVariable, DefaultBuilder};
-/// 
+///
 /// #[derive(Debug, Clone, Serialize, Deserialize)]
 /// struct SleepHint;
-/// 
+///
 /// #[async_trait]
 /// impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for SleepHint {
 ///    async fn hint(
@@ -49,7 +49,7 @@ pub trait AsyncHint<L: PlonkParameters<D>, const D: usize>:
     );
 
     /// A version of the hint function that owns the input stream and returns the output stream.
-    /// 
+    ///
     /// Only one of `hint` or `hint_fn` needs to be implemented. By default, `hint_fn` calls `hint`.
     async fn hint_fn(&self, input_stream: ValueStream<L, D>) -> ValueStream<L, D> {
         let mut output_stream = ValueStream::new();
@@ -62,11 +62,16 @@ pub trait AsyncHint<L: PlonkParameters<D>, const D: usize>:
     ///
     /// By default, this is the type name of the hint. This function should be overwriten in case
     /// type names vary between compilation units.
+    ///
+    /// The string must start with `--async` to be identified as an asynchronous hint.
     fn id() -> String {
-        format!("--async generator: {:?}", std::any::type_name::<Self>()).to_string()
+        format!("--async hint: {:?}", std::any::type_name::<Self>()).to_string()
     }
 }
 
+/// A version of `AsyncHint` that that is [object safe][1] and can be used as a trait object.
+///
+/// [1]: https://doc.rust-lang.org/reference/items/traits.html#object-safety
 #[async_trait]
 pub(crate) trait AnyAsyncHint<L: PlonkParameters<D>, const D: usize>:
     'static + Debug + Send + Send + Sync
@@ -77,6 +82,7 @@ pub(crate) trait AnyAsyncHint<L: PlonkParameters<D>, const D: usize>:
     }
 }
 
+/// A wrapper around an asynchronous hint that implements `AnyAsyncHint`.
 #[derive(Debug, Clone)]
 pub struct AnyHint<H>(pub H);
 

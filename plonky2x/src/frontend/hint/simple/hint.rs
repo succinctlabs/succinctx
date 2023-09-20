@@ -96,8 +96,8 @@ mod tests {
 
         // Test the serialization
         // let gate_serializer = GateRegistry::new();
-        // let mut generator_serializer = WitnessGeneratorRegistry::new();
-        // generator_serializer.register_hint::<AddSome>();
-        // circuit.test_serializers(&gate_serializer, &generator_serializer);
+        // let mut hint_serializer = HintRegistry::new();
+        // hint_serializer.register_hint::<AddSome>();
+        // circuit.test_serializers(&gate_serializer, &hint_serializer);
     }
 }
