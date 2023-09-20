@@ -12,9 +12,9 @@ use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::hex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BeaconBalanceWitnessGenerator {}
+pub struct BeaconBalanceWitnessHint {}
 
-impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconBalanceWitnessGenerator {
+impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconBalanceWitnessHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
         let header_root = input_stream.read_value::<Bytes32Variable>();
@@ -29,10 +29,10 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconBalanceWitnessG
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BeaconBalanceBatchWitnessGenerator<const B: usize> {}
+pub struct BeaconBalanceBatchWitnessHint<const B: usize> {}
 
 impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
-    for BeaconBalanceBatchWitnessGenerator<B>
+    for BeaconBalanceBatchWitnessHint<B>
 {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());

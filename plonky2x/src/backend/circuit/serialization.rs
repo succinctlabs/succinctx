@@ -49,9 +49,10 @@ use plonky2::util::serialization::{
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::eth::beacon::generators::{
-    BeaconBalanceBatchWitnessGenerator, BeaconBalanceGenerator, BeaconBalanceWitnessGenerator,
-    BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconValidatorGenerator,
-    BeaconValidatorsGenerator, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
+    BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator, BeaconBalanceWitnessHint,
+    BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
+    BeaconWithdrawalsGenerator,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -327,6 +328,27 @@ macro_rules! register_watch_generator {
     };
 }
 
+macro_rules! register_powers_of_two {
+    ($r:ident, $hint:ident) => {
+        $r.register_hint::<$hint<2>>();
+        $r.register_hint::<$hint<4>>();
+        $r.register_hint::<$hint<8>>();
+        $r.register_hint::<$hint<16>>();
+        $r.register_hint::<$hint<32>>();
+        $r.register_hint::<$hint<64>>();
+        $r.register_hint::<$hint<128>>();
+        $r.register_hint::<$hint<256>>();
+        $r.register_hint::<$hint<512>>();
+        $r.register_hint::<$hint<1024>>();
+        $r.register_hint::<$hint<2048>>();
+        $r.register_hint::<$hint<4096>>();
+        $r.register_hint::<$hint<8192>>();
+        $r.register_hint::<$hint<16384>>();
+        $r.register_hint::<$hint<32768>>();
+        $r.register_hint::<$hint<65536>>();
+    };
+}
+
 impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D>
 where
     <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
@@ -501,10 +523,10 @@ where
             D,
         >>(simple_stark_witness_generator_id);
 
-        r.register_hint::<BeaconBalanceWitnessGenerator>();
+        r.register_hint::<BeaconBalanceWitnessHint>();
 
-        r.register_hint::<BeaconBalanceBatchWitnessGenerator<256>>();
-
+        register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
+        register_powers_of_two!(r, BeaconPartialBalancesHint);
         register_watch_generator!(
             r,
             L,

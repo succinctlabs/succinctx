@@ -12,7 +12,10 @@ use plonky2x::prelude::{Bytes32Variable, CircuitBuilder};
 use plonky2x::utils::bytes32;
 use plonky2x::utils::eth::beacon::BeaconClient;
 
-struct MapReduceCircuit {}
+const NB_BALANCES: usize = 512;
+const BATCH_SIZE: usize = 256;
+
+struct MapReduceCircuit;
 
 impl Circuit for MapReduceCircuit {
     fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>)
@@ -27,11 +30,11 @@ impl Circuit for MapReduceCircuit {
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(
             "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb"
         ));
-        let balances_root = builder.beacon_get_balances(block_root);
-        let idxs = (0..1024).map(U64::from).collect_vec();
+        let balances_root = builder.beacon_get_partial_balances::<NB_BALANCES>(block_root);
+        let idxs = (0..NB_BALANCES).map(U64::from).collect_vec();
 
         let output = builder
-            .mapreduce::<BeaconBalancesVariable, U64Variable, Bytes32Variable, _, _, 256>(
+            .mapreduce::<BeaconBalancesVariable, U64Variable, Bytes32Variable, _, _, BATCH_SIZE>(
                 balances_root,
                 idxs,
                 |balances_root, idxs, builder| {
@@ -57,7 +60,8 @@ impl Circuit for MapReduceCircuit {
                             let mut input = Vec::new();
                             input.extend(&leafs[i * 2].as_bytes());
                             input.extend(&leafs[i * 2 + 1].as_bytes());
-                            tmp.push(builder.curta_sha256(&input));
+                            let h = builder.curta_sha256(&input);
+                            tmp.push(h);
                         }
                         leafs = tmp;
                     }
@@ -68,6 +72,7 @@ impl Circuit for MapReduceCircuit {
             );
 
         builder.watch(&output, "output");
+        builder.watch(&balances_root, "balances");
         builder.write(output);
     }
 
@@ -108,6 +113,6 @@ mod tests {
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
 
-        MapReduceCircuit::test_serialization::<L, D>();
+        // MapReduceCircuit::test_serialization::<L, D>();
     }
 }

@@ -124,6 +124,16 @@ pub struct GetBeaconBalancesRoot {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GetBeaconPartialBalancesRoot {
+    pub partial_balances_root: String,
+    #[serde(deserialize_with = "deserialize_bigint")]
+    pub gindex: BigInt,
+    pub depth: u64,
+    pub proof: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetBeaconBalance {
     pub balance: u64,
     pub balance_leaf: String,
@@ -287,6 +297,24 @@ impl BeaconClient {
         let client = Client::new();
         let response = client.get(endpoint).send()?;
         let response: CustomResponse<GetBeaconBalancesRoot> = response.json()?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets the partial balances root based on a beacon_id and the number of expected balances.
+    pub fn get_partial_balances_root(
+        &self,
+        beacon_id: String,
+        nb_balances: usize,
+    ) -> Result<GetBeaconPartialBalancesRoot> {
+        let endpoint = format!(
+            "{}/api/beacon/proof/partialBalance/{}/{}",
+            self.rpc_url, beacon_id, nb_balances
+        );
+        info!("{}", endpoint);
+        let client = Client::new();
+        let response = client.get(endpoint).send()?;
+        let response: CustomResponse<GetBeaconPartialBalancesRoot> = response.json()?;
         assert!(response.success);
         Ok(response.result)
     }
