@@ -5,6 +5,9 @@ use core::marker::PhantomData;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
+use curta::chip::ec::edwards::scalar_mul::generator::{
+    SimpleScalarMulEd25519Generator, SimpleScalarMulEd25519HintGenerator,
+};
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
@@ -522,6 +525,13 @@ where
 
         let id = NonNativeSubtractionGenerator::<L::Field, D, Ed25519Base>::default().id();
         r.register_simple::<NonNativeSubtractionGenerator<L::Field, D, Ed25519Base>>(id);
+
+        let id =
+            SimpleScalarMulEd25519Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
+        r.register_simple::<SimpleScalarMulEd25519Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(id);
+
+        let id = "SimpleScalarMulEd25519HintGenerator";
+        r.register_simple::<SimpleScalarMulEd25519HintGenerator<L::Field, D>>(id.to_string());
 
         register_watch_generator!(
             r,
