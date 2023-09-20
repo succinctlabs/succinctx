@@ -5,6 +5,10 @@ use core::marker::PhantomData;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
+use curta::chip::ec::edwards::scalar_mul::air::ScalarMulEd25519;
+use curta::chip::ec::edwards::scalar_mul::generator::{
+    SimpleScalarMulEd25519Generator, SimpleScalarMulEd25519HintGenerator,
+};
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
@@ -48,6 +52,7 @@ use plonky2::util::serialization::{
 
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
+use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
     BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
@@ -65,9 +70,19 @@ use crate::frontend::generator::simple::serializer::SimpleHintSerializer;
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
+use crate::frontend::num::nonnative::nonnative::{
+    NonNativeAdditionGenerator, NonNativeInverseGenerator, NonNativeMultipleAddsGenerator,
+    NonNativeMultiplicationGenerator, NonNativeSubtractionGenerator,
+};
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32ArithmeticGenerator};
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
+use crate::frontend::num::u32::gates::range_check_u32::{
+    U32RangeCheckGate, U32RangeCheckGenerator,
+};
+use crate::frontend::num::u32::gates::subtraction_u32::{
+    U32SubtractionGate, U32SubtractionGenerator,
+};
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
@@ -490,6 +505,17 @@ where
         );
 
         let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
+            ScalarMulEd25519<L::Field, L::CubicParams>,
+            L::CurtaConfig,
+            D,
+        >::id();
+        r.register_simple::<SimpleStarkWitnessGenerator<
+            ScalarMulEd25519<L::Field, L::CubicParams>,
+            L::CurtaConfig,
+            D,
+        >>(simple_stark_witness_generator_id);
+
+        let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
             SHA256AirParameters<L::Field, L::CubicParams>,
             L::CurtaConfig,
             D,
@@ -499,6 +525,34 @@ where
             L::CurtaConfig,
             D,
         >>(simple_stark_witness_generator_id);
+
+        let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519Base>::default().id();
+        r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519Base>>(id);
+
+        let id = NonNativeInverseGenerator::<L::Field, D, Ed25519Base>::default().id();
+        r.register_simple::<NonNativeInverseGenerator<L::Field, D, Ed25519Base>>(id);
+
+        let id = NonNativeMultipleAddsGenerator::<L::Field, D, Ed25519Base>::default().id();
+        r.register_simple::<NonNativeMultipleAddsGenerator<L::Field, D, Ed25519Base>>(id);
+
+        let id = NonNativeMultiplicationGenerator::<L::Field, D, Ed25519Base>::default().id();
+        r.register_simple::<NonNativeMultiplicationGenerator<L::Field, D, Ed25519Base>>(id);
+
+        let id = NonNativeSubtractionGenerator::<L::Field, D, Ed25519Base>::default().id();
+        r.register_simple::<NonNativeSubtractionGenerator<L::Field, D, Ed25519Base>>(id);
+
+        let id =
+            SimpleScalarMulEd25519Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
+        r.register_simple::<SimpleScalarMulEd25519Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(id);
+
+        let id = "SimpleScalarMulEd25519HintGenerator";
+        r.register_simple::<SimpleScalarMulEd25519HintGenerator<L::Field, D>>(id.to_string());
+
+        let id = U32RangeCheckGenerator::<L::Field, D>::id();
+        r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
+
+        let id = U32SubtractionGenerator::<L::Field, D>::id();
+        r.register_simple::<U32SubtractionGenerator<L::Field, D>>(id);
 
         register_watch_generator!(
             r,
@@ -544,6 +598,8 @@ impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
         r.register::<ComparisonGate<L::Field, D>>();
         r.register::<U32AddManyGate<L::Field, D>>();
         r.register::<U32ArithmeticGate<L::Field, D>>();
+        r.register::<U32SubtractionGate<L::Field, D>>();
+        r.register::<U32RangeCheckGate<L::Field, D>>();
 
         r
     }
