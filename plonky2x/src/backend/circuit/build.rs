@@ -8,7 +8,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::plonk::prover::prove_with_partition_witness;
 use plonky2::util::serialization::{
-    Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
+    Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer, Write,
 };
 use plonky2::util::timing::TimingTree;
 
