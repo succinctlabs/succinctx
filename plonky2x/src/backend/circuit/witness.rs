@@ -12,8 +12,8 @@ use plonky2::plonk::config::GenericConfig;
 use tokio::sync::mpsc::unbounded_channel;
 
 use super::PlonkParameters;
-use crate::frontend::generator::asynchronous::generator::AsyncGeneratorRef;
-use crate::frontend::generator::asynchronous::handler::HintHandler;
+use crate::frontend::hint::asynchronous::generator::AsyncHintRef;
+use crate::frontend::hint::asynchronous::handler::HintHandler;
 
 #[derive(Debug, Clone)]
 pub enum GenerateWitnessError {
@@ -123,7 +123,7 @@ pub fn generate_partial_witness_with_hints<'a, L: PlonkParameters<D>, const D: u
     inputs: PartialWitness<L::Field>,
     prover_data: &'a ProverOnlyCircuitData<L::Field, L::Config, D>,
     common_data: &'a CommonCircuitData<L::Field, D>,
-    async_generator_refs: &'a BTreeMap<usize, AsyncGeneratorRef<L, D>>,
+    async_generator_refs: &'a BTreeMap<usize, AsyncHintRef<L, D>>,
 ) -> PartitionWitness<'a, L::Field> {
     let config = &common_data.config;
     let generators = &prover_data.generators;

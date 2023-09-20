@@ -11,7 +11,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use super::channel::{HintChannel, HintInMessage};
 use super::hint::{AnyAsyncHint, AnyHint, AsyncHint};
 use crate::backend::circuit::PlonkParameters;
-use crate::frontend::generator::HintGenerator;
+use crate::frontend::hint::HintGenerator;
 use crate::frontend::vars::{ValueStream, VariableStream};
 use crate::prelude::CircuitVariable;
 use crate::utils::serde::BufferWrite;
@@ -24,11 +24,11 @@ pub trait AsyncGeneratorData<L: PlonkParameters<D>, const D: usize>: HintGenerat
 }
 
 #[derive(Debug)]
-pub struct AsyncGeneratorRef<L: PlonkParameters<D>, const D: usize>(
+pub struct AsyncHintRef<L: PlonkParameters<D>, const D: usize>(
     pub(crate) Box<dyn AsyncGeneratorData<L, D>>,
 );
 
-impl<L: PlonkParameters<D>, const D: usize> AsyncGeneratorRef<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> AsyncHintRef<L, D> {
     pub(crate) fn new<H: AsyncHint<L, D>>(generator_data: AsyncHintData<L, H, D>) -> Self {
         Self(Box::new(generator_data))
     }

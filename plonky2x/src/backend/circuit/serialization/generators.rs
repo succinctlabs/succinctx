@@ -45,14 +45,14 @@ use crate::frontend::eth::beacon::vars::{
     BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
 use crate::frontend::eth::storage::generators::{
-    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator,
     EthStorageProofHint,
 };
-use crate::frontend::generator::asynchronous::generator::AsyncGeneratorRef;
-use crate::frontend::generator::asynchronous::hint::AsyncHint;
-use crate::frontend::generator::asynchronous::serializer::AsyncHintSerializer;
-use crate::frontend::generator::simple::hint::Hint;
-use crate::frontend::generator::simple::serializer::SimpleHintSerializer;
+use crate::frontend::hint::asynchronous::generator::AsyncHintRef;
+use crate::frontend::hint::asynchronous::hint::AsyncHint;
+use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
+use crate::frontend::hint::simple::hint::Hint;
+use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
 use crate::frontend::hash::bit_operations::XOR3Generator;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
@@ -63,6 +63,14 @@ use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
 
+
+pub trait WitnessSerializer<L: PlonkParameters<D>, const D: usize> : WitnessGeneratorSerializer<L::Field, D> {
+
+    fn read_async_hint(&self, buf: &mut Buffer) -> IoResult<AsyncHintRef<L, D>>;
+
+    fn write_async_hint(&self, buf: &mut Vec<u8>, hint: &AsyncHintRef<L, D>) -> IoResult<()>;
+}
+
 /// A registry to store serializers for witness generators.
 ///
 /// New witness generators can be added to the registry by calling the `register` method,
@@ -70,7 +78,7 @@ use crate::frontend::vars::Bytes32Variable;
 #[derive(Debug)]
 pub struct WitnessGeneratorRegistry<L: PlonkParameters<D>, const D: usize> {
     generators: SerializationRegistry<String, L::Field, WitnessGeneratorRef<L::Field, D>, D>,
-    async_hints: SerializationRegistry<String, L::Field, AsyncGeneratorRef<L, D>, D>,
+    async_hints: SerializationRegistry<String, L::Field, AsyncHintRef<L, D>, D>,
 }
 
 macro_rules! register_watch_generator {
@@ -232,9 +240,6 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
         let wire_split_generator_id =
             SimpleGenerator::<L::Field, D>::id(&WireSplitGenerator::default());
         r.register_simple::<WireSplitGenerator>(wire_split_generator_id);
-
-        let eth_storage_proof_generator_id = EthStorageProofGenerator::<L, D>::id();
-        r.register_simple::<EthStorageProofGenerator<L, D>>(eth_storage_proof_generator_id);
 
         let eth_log_generator_id = EthLogGenerator::<L, D>::id();
         r.register_simple::<EthLogGenerator<L, D>>(eth_log_generator_id);

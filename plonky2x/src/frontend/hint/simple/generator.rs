@@ -7,7 +7,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoError, IoResult};
 
 use super::hint::Hint;
-use crate::frontend::generator::HintGenerator;
+use crate::frontend::hint::HintGenerator;
 use crate::frontend::vars::{ValueStream, VariableStream};
 use crate::prelude::{CircuitVariable, PlonkParameters};
 use crate::utils::serde::BufferWrite;

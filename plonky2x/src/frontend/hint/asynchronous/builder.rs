@@ -1,4 +1,4 @@
-use super::generator::{AsyncGeneratorRef, AsyncHintData};
+use super::generator::{AsyncHintRef, AsyncHintData};
 use super::hint::AsyncHint;
 use crate::frontend::vars::{OutputVariableStream, VariableStream};
 use crate::prelude::{CircuitBuilder, PlonkParameters};
@@ -10,13 +10,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         hint: H,
     ) -> OutputVariableStream<L, D> {
         let output_stream = VariableStream::new();
-        let generator = AsyncHintData::new(hint, input_stream, output_stream.clone());
+        let hint_data = AsyncHintData::new(hint, input_stream, output_stream.clone());
         let hint_id = self.hints.len();
-        self.hints.push(Box::new(generator.clone()));
+        self.hints.push(Box::new(hint_data.clone()));
 
-        self.async_generators
-            .push(AsyncGeneratorRef::new(generator));
-        self.async_generators_indices.push(hint_id);
+        self.async_hints
+            .push(AsyncHintRef::new(hint_data));
+        self.async_hints_indices.push(hint_id);
 
         OutputVariableStream::new(hint_id)
     }

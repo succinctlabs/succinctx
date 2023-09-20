@@ -17,10 +17,10 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
-use super::generator::HintGenerator;
+use super::hint::HintGenerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
-use crate::frontend::generator::asynchronous::generator::AsyncGeneratorRef;
+use crate::frontend::hint::asynchronous::generator::AsyncHintRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
 
@@ -34,8 +34,8 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintGenerator<L, D>>>,
-    pub(crate) async_generators: Vec<AsyncGeneratorRef<L, D>>,
-    pub(crate) async_generators_indices: Vec<usize>,
+    pub(crate) async_hints: Vec<AsyncHintRef<L, D>>,
+    pub(crate) async_hints_indices: Vec<usize>,
     pub sha256_requests: Vec<Vec<Target>>,
     pub sha256_responses: Vec<[Target; 32]>,
 }
@@ -64,8 +64,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             debug: false,
             debug_variables: HashMap::new(),
             hints: Vec::new(),
-            async_generators: Vec::new(),
-            async_generators_indices: Vec::new(),
+            async_hints: Vec::new(),
+            async_hints_indices: Vec::new(),
             sha256_requests: Vec::new(),
             sha256_responses: Vec::new(),
         }
@@ -116,9 +116,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         for (index, gen_ref) in self
-            .async_generators_indices
+            .async_hints_indices
             .iter()
-            .zip(self.async_generators.iter_mut())
+            .zip(self.async_hints.iter_mut())
         {
             let new_output_stream = self.hints[*index].output_stream_mut();
             let output_stream = gen_ref.0.output_stream_mut();
@@ -167,25 +167,25 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let data = self.api.build();
 
-        let mut async_generator_indices = Vec::new();
+        let mut async_hint_indices = Vec::new();
 
         for (i, generator) in data.prover_only.generators.iter().enumerate() {
             if generator.0.id().starts_with("--async") {
-                async_generator_indices.push(i);
+                async_hint_indices.push(i);
             }
         }
 
-        assert_eq!(async_generator_indices.len(), self.async_generators.len());
+        assert_eq!(async_hint_indices.len(), self.async_hints.len());
 
-        let mut async_generators = BTreeMap::new();
-        for (key, gen) in async_generator_indices.iter().zip(self.async_generators) {
-            async_generators.insert(*key, gen);
+        let mut async_hints = BTreeMap::new();
+        for (key, gen) in async_hint_indices.iter().zip(self.async_hints) {
+            async_hints.insert(*key, gen);
         }
 
         CircuitBuild {
             data,
             io: self.io,
-            async_generators,
+            async_hints,
         }
     }
 

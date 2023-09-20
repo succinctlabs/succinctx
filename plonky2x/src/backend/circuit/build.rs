@@ -18,7 +18,7 @@ use super::output::PublicOutput;
 use super::serialization::{GateRegistry, WitnessGeneratorRegistry};
 use super::witness::generate_partial_witness_with_hints;
 use crate::frontend::builder::CircuitIO;
-use crate::frontend::generator::asynchronous::generator::AsyncGeneratorRef;
+use crate::frontend::hint::asynchronous::generator::AsyncHintRef;
 use crate::utils::hex;
 use crate::utils::serde::{BufferRead, BufferWrite};
 
@@ -29,7 +29,7 @@ use crate::utils::serde::{BufferRead, BufferWrite};
 pub struct CircuitBuild<L: PlonkParameters<D>, const D: usize> {
     pub data: CircuitData<L::Field, L::Config, D>,
     pub io: CircuitIO<D>,
-    pub async_generators: BTreeMap<usize, AsyncGeneratorRef<L, D>>,
+    pub async_hints: BTreeMap<usize, AsyncHintRef<L, D>>,
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
@@ -52,7 +52,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
             pw,
             &self.data.prover_only,
             &self.data.common,
-            &self.async_generators,
+            &self.async_hints,
         );
         let proof_with_pis = prove_with_partition_witness::<L::Field, L::Config, D>(
             &self.data.prover_only,
@@ -107,9 +107,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         buffer.write_bytes(&io)?;
 
         // serialize the async generator map
-        let map_size = self.async_generators.len();
+        let map_size = self.async_hints.len();
         buffer.write_usize(map_size)?;
-        for (key, gen_data) in self.async_generators.iter() {
+        for (key, gen_data) in self.async_hints.iter() {
             buffer.write_usize(*key)?;
             gen_data.0.serialize(&mut buffer, &self.data.common)?;
         }
@@ -136,12 +136,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         let io: CircuitIO<D> = bincode::deserialize(&io).unwrap();
 
         // TODO: deserialize the async generator map
-        let async_generators = BTreeMap::new();
+        let async_hints = BTreeMap::new();
 
         Ok(CircuitBuild {
             data,
             io,
-            async_generators,
+            async_hints,
         })
     }
 
