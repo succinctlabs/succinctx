@@ -43,6 +43,7 @@ pub enum ProofRequestStatus {
     Success,
     Cancelled,
     Timeout,
+    Requested,
 }
 
 /// The response from submitting a proof request.
