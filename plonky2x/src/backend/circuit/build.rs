@@ -7,7 +7,7 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::plonk::prover::prove_with_partition_witness;
-use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, Write};
+use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, Read, Write};
 use plonky2::util::timing::TimingTree;
 
 use super::config::PlonkParameters;
@@ -108,9 +108,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         // serialize the async generator map
         let map_size = self.async_hints.len();
         buffer.write_usize(map_size)?;
-        for (key, gen_data) in self.async_hints.iter() {
+        for (key, hint_data) in self.async_hints.iter() {
             buffer.write_usize(*key)?;
-            gen_data.0.serialize(&mut buffer, &self.data.common)?;
+            hint_serializer.write_async_hint(&mut buffer, hint_data, &self.data.common)?;
         }
 
         Ok(buffer)
@@ -134,8 +134,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         let io = buffer.read_bytes()?;
         let io: CircuitIO<D> = bincode::deserialize(&io).unwrap();
 
-        // TODO: deserialize the async generator map
-        let async_hints = BTreeMap::new();
+        let mut async_hints = BTreeMap::new();
+        let map_size = buffer.read_usize()?;
+        for _ in 0..map_size {
+            let key = buffer.read_usize()?;
+            let hint_data = hint_serializer.read_async_hint(&mut buffer, &data.common)?;
+            async_hints.insert(key, hint_data);
+        }
 
         Ok(CircuitBuild {
             data,

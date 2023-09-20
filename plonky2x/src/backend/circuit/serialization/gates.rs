@@ -30,6 +30,8 @@ use crate::frontend::hash::bit_operations::XOR3Gate;
 use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGate;
 use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGate;
 use crate::frontend::num::u32::gates::comparison::ComparisonGate;
+use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGate;
+use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGate;
 
 /// A registry to store serializers for gates.
 ///
@@ -112,6 +114,8 @@ impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
         r.register::<ComparisonGate<L::Field, D>>();
         r.register::<U32AddManyGate<L::Field, D>>();
         r.register::<U32ArithmeticGate<L::Field, D>>();
+        r.register::<U32SubtractionGate<L::Field, D>>();
+        r.register::<U32RangeCheckGate<L::Field, D>>();
 
         r
     }

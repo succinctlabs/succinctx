@@ -80,7 +80,7 @@ mod tests {
     use log::debug;
 
     use super::*;
-    use crate::backend::circuit::{DefaultParameters, GateRegistry, HintRegistry};
+    use crate::backend::circuit::{CircuitBuild, DefaultParameters, GateRegistry, HintRegistry};
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthHeader, EthLog};
     use crate::prelude::DefaultBuilder;
@@ -138,14 +138,23 @@ mod tests {
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
         );
 
-        // // initialize serializers
-        // let gate_serializer = GateRegistry::<L, D>::new();
-        // let hint_serializer = HintRegistry::<L, D>::new();
+        // initialize serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let hint_serializer = HintRegistry::<L, D>::new();
 
-        // // test serialization
-        // let _ = circuit
-        //     .serialize(&gate_serializer, &hint_serializer)
-        //     .unwrap();
+        // test serialization
+        let bytes = circuit
+            .serialize(&gate_serializer, &hint_serializer)
+            .unwrap();
+
+        let circuit =
+            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &hint_serializer).unwrap();
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
     }
 
     #[test]
