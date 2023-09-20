@@ -7,7 +7,9 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::plonk::prover::prove_with_partition_witness;
-use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, WitnessGeneratorSerializer};
+use plonky2::util::serialization::{
+    Buffer, GateSerializer, IoResult, Read, WitnessGeneratorSerializer, Write,
+};
 use plonky2::util::timing::TimingTree;
 
 use super::config::PlonkParameters;
@@ -104,6 +106,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         let io = bincode::serialize(&self.io).unwrap();
         buffer.write_bytes(&io)?;
 
+        // serialize the async generator map
+        let map_size = self.async_generators.len();
+        buffer.write_usize(map_size)?;
+        for (key, gen_data) in self.async_generators.iter() {
+            buffer.write_usize(*key)?;
+            gen_data.0.serialize(&mut buffer, &self.data.common)?;
+        }
+
         Ok(buffer)
     }
 
@@ -125,7 +135,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         let io = buffer.read_bytes()?;
         let io: CircuitIO<D> = bincode::deserialize(&io).unwrap();
 
-        //TODO: deseialize
+        // TODO: deserialize the async generator map
         let async_generators = BTreeMap::new();
 
         Ok(CircuitBuild {

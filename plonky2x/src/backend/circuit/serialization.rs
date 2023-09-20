@@ -59,7 +59,10 @@ use crate::frontend::eth::beacon::vars::{
 };
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+    EthStorageProofHint,
 };
+use crate::frontend::generator::asynchronous::hint::AsyncHint;
+use crate::frontend::generator::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::generator::simple::hint::Hint;
 use crate::frontend::generator::simple::serializer::SimpleHintSerializer;
 use crate::frontend::hash::bit_operations::{XOR3Gate, XOR3Generator};
@@ -212,6 +215,12 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
 
     pub fn register_hint<H: Hint<L, D>>(&mut self) {
         let serializer = SimpleHintSerializer::<L, H>::new();
+        let id = H::id();
+        self.0.register(id, serializer).unwrap();
+    }
+
+    pub fn register_async_hint<H: AsyncHint<L, D>>(&mut self) {
+        let serializer = AsyncHintSerializer::<L, H>::new();
         let id = H::id();
         self.0.register(id, serializer).unwrap();
     }
@@ -499,6 +508,8 @@ where
             L::CurtaConfig,
             D,
         >>(simple_stark_witness_generator_id);
+
+        r.register_async_hint::<EthStorageProofHint<L, D>>();
 
         register_watch_generator!(
             r,

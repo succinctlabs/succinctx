@@ -1,8 +1,7 @@
 use ethers::types::Address;
 
 use super::generators::{
-    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator,
-    EthStorageProofHint,
+    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::backend::circuit::PlonkParameters;
@@ -139,14 +138,14 @@ mod tests {
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
         );
 
-        // // initialize serializers
-        // let gate_serializer = GateRegistry::<L, D>::new();
-        // let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        // initialize serializers
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
 
-        // // test serialization
-        // let _ = circuit
-        //     .serialize(&gate_serializer, &generator_serializer)
-        //     .unwrap();
+        // test serialization
+        let _ = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
     }
 
     #[test]

@@ -5,6 +5,7 @@ use anyhow::Result;
 use plonky2::iop::generator::{GeneratedValues, WitnessGenerator, WitnessGeneratorRef};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness};
+use plonky2::util::serialization::IoError;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::channel::{HintChannel, HintInMessage};
@@ -13,6 +14,7 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::generator::HintGenerator;
 use crate::frontend::vars::{ValueStream, VariableStream};
 use crate::prelude::CircuitVariable;
+use crate::utils::serde::BufferWrite;
 
 pub trait AsyncGeneratorData<L: PlonkParameters<D>, const D: usize>: HintGenerator<L, D> {
     fn generator(
@@ -214,10 +216,14 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
 
     fn serialize(
         &self,
-        _dst: &mut Vec<u8>,
+        dst: &mut Vec<u8>,
         _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<L::Field, D>,
     ) -> plonky2::util::serialization::IoResult<()> {
-        unimplemented!("AsyncHintGenerator::serialize")
+        self.input_stream.serialize_to_writer(dst)?;
+        self.output_stream.serialize_to_writer(dst)?;
+
+        let bytes = bincode::serialize(&self.hint).map_err(|_| IoError)?;
+        dst.write_bytes(&bytes)
     }
 
     fn deserialize(
@@ -227,7 +233,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
     where
         Self: Sized,
     {
-        unimplemented!("AsyncHintGenerator::deserialize")
+        unimplemented!("Hints are not deserializable through the plonky2 crate, only directly through the witness registry")
     }
 
     fn run(
