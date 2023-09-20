@@ -80,7 +80,9 @@ use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGen
 use crate::frontend::num::u32::gates::range_check_u32::{
     U32RangeCheckGate, U32RangeCheckGenerator,
 };
-use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGate;
+use crate::frontend::num::u32::gates::subtraction_u32::{
+    U32SubtractionGate, U32SubtractionGenerator,
+};
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
@@ -548,6 +550,9 @@ where
 
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
+
+        let id = U32SubtractionGenerator::<L::Field, D>::id();
+        r.register_simple::<U32SubtractionGenerator<L::Field, D>>(id);
 
         register_watch_generator!(
             r,
