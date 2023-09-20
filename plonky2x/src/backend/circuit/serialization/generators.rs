@@ -82,6 +82,9 @@ macro_rules! register_watch_generator {
     };
 }
 
+/// A serializer for a plonky2 witness generator.
+///
+/// This function keeps track of the generator type and the `serialize` and `deserialize` methods.
 #[derive(Debug, Clone)]
 pub struct WitnessGeneratorSerializerFn<W>(PhantomData<W>);
 
@@ -119,12 +122,14 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
         self.register_generator::<SimpleGeneratorAdapter<L::Field, SG, D>>(id)
     }
 
+    /// Registers a hint into the registry.
     pub fn register_hint<H: Hint<L, D>>(&mut self) {
         let serializer = SimpleHintSerializer::<L, H>::new();
         let id = H::id();
         self.generators.register(id, serializer).unwrap();
     }
 
+    /// Registers an asynchronous hint into the registry.
     pub fn register_async_hint<H: AsyncHint<L, D>>(&mut self) {
         let serializer = AsyncHintSerializer::<L, H>::new();
         let id = H::id();
@@ -138,9 +143,6 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorRegistry<L, D> {
             generators: SerializationRegistry::new(),
             async_hints: SerializationRegistry::new(),
         };
-
-        // let dummy_proof_id = DummyProofGenerator::<L::Field, L::Config, D>::default().id();
-        // r.register_simple::<DummyProofGenerator<L::Field, L::Config, D>>(dummy_proof_id);
 
         let arithmetic_generator_id = ArithmeticBaseGenerator::<L::Field, D>::default().id();
         r.register_simple::<ArithmeticBaseGenerator<L::Field, D>>(arithmetic_generator_id);
@@ -362,5 +364,39 @@ impl<L: PlonkParameters<D>, const D: usize> WitnessGeneratorSerializer<L::Field,
             .unwrap_or_else(|| panic!("Generator type not registered {}", type_id))
             .write(buf, generator, common_data)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::iop::generator::{ConstantGenerator, SimpleGenerator, WitnessGeneratorRef};
+    use plonky2::util::serialization::{Buffer, WitnessGeneratorSerializer};
+
+    use crate::backend::circuit::serialization::generators::WitnessGeneratorRegistry;
+    use crate::backend::circuit::DefaultParameters;
+    use crate::prelude::CircuitBuilder;
+
+    type L = DefaultParameters;
+    type F = GoldilocksField;
+    const D: usize = 2;
+
+    #[test]
+    fn test_witness_generator_serialization() {
+        let builder = CircuitBuilder::<L, D>::new();
+        let common_data = builder.build().data.common;
+
+        let registry = WitnessGeneratorRegistry::<L, D>::new();
+        let raw_generator = WitnessGeneratorRef::new(ConstantGenerator::<F>::default().adapter());
+
+        let mut bytes = Vec::<u8>::new();
+        registry
+            .write_generator(&mut bytes, &raw_generator, &common_data)
+            .unwrap();
+
+        let mut buffer = Buffer::new(&bytes);
+
+        let read_generator = registry.read_generator(&mut buffer, &common_data).unwrap();
+        assert_eq!(raw_generator, read_generator);
     }
 }

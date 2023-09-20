@@ -39,7 +39,6 @@ pub struct GateRegistry<L: PlonkParameters<D>, const D: usize>(
     SerializationRegistry<TypeId, L::Field, GateRef<L::Field, D>, D>,
 );
 
-
 /// A serializer for a specific gate type.
 #[derive(Clone)]
 pub struct GateSerializerFn<G>(PhantomData<G>);
@@ -83,7 +82,9 @@ impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
         // self.0.index.insert(type_id, self.0.current_index);
         // self.0.current_index += 1;
 
-        self.0.register(type_id, GateSerializerFn::<G>(PhantomData)).unwrap();
+        self.0
+            .register(type_id, GateSerializerFn::<G>(PhantomData))
+            .unwrap();
     }
 
     /// Creates a new registry with all the default gates that are used in a Plonky2x circuit.
@@ -153,5 +154,42 @@ impl<L: PlonkParameters<D>, const D: usize> GateSerializer<L::Field, D> for Gate
             .unwrap_or_else(|| panic!("Gate type not registered {:?}", gate))
             .write(buf, gate, common_data)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::gates::arithmetic_base::ArithmeticGate;
+    use plonky2::gates::gate::GateRef;
+    use plonky2::util::serialization::{Buffer, GateSerializer};
+
+    use crate::backend::circuit::serialization::gates::GateRegistry;
+    use crate::backend::circuit::DefaultParameters;
+    use crate::prelude::CircuitBuilder;
+
+    type L = DefaultParameters;
+    type F = GoldilocksField;
+    const D: usize = 2;
+
+    #[test]
+    fn test_gate_serialization() {
+        let builder = CircuitBuilder::<L, D>::new();
+        let common_data = builder.build().data.common;
+
+        let registry = GateRegistry::<L, D>::new();
+
+        let raw_gate: GateRef<F, D> =
+            GateRef::new(ArithmeticGate::new_from_config(&common_data.config));
+
+        let mut bytes = Vec::<u8>::new();
+        registry
+            .write_gate(&mut bytes, &raw_gate, &common_data)
+            .unwrap();
+
+        let mut buffer = Buffer::new(&bytes);
+        let read_gate = registry.read_gate(&mut buffer, &common_data).unwrap();
+
+        assert_eq!(raw_gate, read_gate);
     }
 }

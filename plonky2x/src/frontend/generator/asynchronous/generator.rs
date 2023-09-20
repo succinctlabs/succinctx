@@ -238,12 +238,9 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
 
     fn run(
         &self,
-        witness: &PartitionWitness<L::Field>,
+        _witness: &PartitionWitness<L::Field>,
         _out_buffer: &mut GeneratedValues<L::Field>,
     ) -> bool {
-        if !witness.contains_all(&self.watch_list()) {
-            return false;
-        }
         true
     }
 }

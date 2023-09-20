@@ -150,17 +150,20 @@ pub fn generate_partial_witness_with_hints<'a, L: PlonkParameters<D>, const D: u
 
     let mut buffer = GeneratedValues::empty();
 
+    // Create a channel for communicating between the hint handler and the generators.
     let (tx, rx) = unbounded_channel();
+    // initialize the hint handler.
     let mut hint_handler = HintHandler::<L, D>::new(rx);
 
+    // Initialize the async generators.
     let async_generators = BTreeMap::from_iter(
         async_generator_refs
             .iter()
             .map(|(i, g)| (*i, g.0.generator(tx.clone()))),
     );
 
+    // Spawn a runtime and run the hint handler.
     let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
-
     rayon::spawn(move || {
         rt.block_on(hint_handler.run()).unwrap();
     });

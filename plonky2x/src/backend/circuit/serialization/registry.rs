@@ -20,7 +20,7 @@ pub trait Serializer<F: RichField + Extendable<D>, T, const D: usize>: 'static {
     ) -> IoResult<()>;
 }
 
-/// A registry for storing serializers for objects.
+/// A registry for storing serializers of objects.
 pub(crate) struct SerializationRegistry<K: Hash, F: RichField + Extendable<D>, T, const D: usize> {
     pub registry: HashMap<K, Box<dyn Serializer<F, T, D>>>,
     pub index: HashMap<K, usize>,
@@ -53,7 +53,7 @@ impl<F: RichField + Extendable<D>, K: PartialEq + Eq + Hash + Clone, T: Any, con
         }
     }
 
-    /// Returns the serializer for the given object type.
+    /// Registers a new serializer for the given object type.
     pub fn register<S: Serializer<F, T, D>>(&mut self, key: K, serializer: S) -> Result<()> {
         let exists = self.registry.insert(key.clone(), Box::new(serializer));
 
