@@ -3,5 +3,5 @@ mod storage;
 
 pub use block::EthBlockGenerator;
 pub use storage::{
-    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator, EthStorageProofHint,
+    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
