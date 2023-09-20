@@ -5,6 +5,7 @@ use core::marker::PhantomData;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
+use curta::chip::ec::edwards::scalar_mul::air::ScalarMulEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::{
     SimpleScalarMulEd25519Generator, SimpleScalarMulEd25519HintGenerator,
 };
@@ -51,7 +52,6 @@ use plonky2::util::serialization::{
 
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
-use crate::frontend::ecc::ed25519::curve::ed25519::Ed25519;
 use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
@@ -499,6 +499,17 @@ where
         r.register_simple::<SHA256Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(
             sha256_generator,
         );
+
+        let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
+            ScalarMulEd25519<L::Field, L::CubicParams>,
+            L::CurtaConfig,
+            D,
+        >::id();
+        r.register_simple::<SimpleStarkWitnessGenerator<
+            ScalarMulEd25519<L::Field, L::CubicParams>,
+            L::CurtaConfig,
+            D,
+        >>(simple_stark_witness_generator_id);
 
         let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
             SHA256AirParameters<L::Field, L::CubicParams>,
