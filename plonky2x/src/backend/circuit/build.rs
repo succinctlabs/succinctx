@@ -17,7 +17,7 @@ use super::serialization::hints::HintSerializer;
 use super::serialization::{GateRegistry, HintRegistry};
 use super::witness::{generate_witness_with_hints, generate_witness_with_hints_async};
 use crate::frontend::builder::CircuitIO;
-use crate::frontend::hint::asynchronous::generator::AsyncHintRef;
+use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::utils::hex;
 use crate::utils::serde::{BufferRead, BufferWrite};
 
@@ -28,7 +28,7 @@ use crate::utils::serde::{BufferRead, BufferWrite};
 pub struct CircuitBuild<L: PlonkParameters<D>, const D: usize> {
     pub data: CircuitData<L::Field, L::Config, D>,
     pub io: CircuitIO<D>,
-    pub async_hints: BTreeMap<usize, AsyncHintRef<L, D>>,
+    pub async_hints: BTreeMap<usize, AsyncHintDataRef<L, D>>,
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {

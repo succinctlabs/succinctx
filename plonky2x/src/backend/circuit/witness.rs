@@ -12,7 +12,7 @@ use plonky2::plonk::config::GenericConfig;
 use tokio::sync::mpsc::unbounded_channel;
 
 use super::PlonkParameters;
-use crate::frontend::hint::asynchronous::generator::AsyncHintRef;
+use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::hint::asynchronous::handler::HintHandler;
 
 #[derive(Debug, Clone)]
@@ -123,7 +123,7 @@ pub fn generate_witness_with_hints<'a, L: PlonkParameters<D>, const D: usize>(
     inputs: PartialWitness<L::Field>,
     prover_data: &'a ProverOnlyCircuitData<L::Field, L::Config, D>,
     common_data: &'a CommonCircuitData<L::Field, D>,
-    async_generator_refs: &'a BTreeMap<usize, AsyncHintRef<L, D>>,
+    async_generator_refs: &'a BTreeMap<usize, AsyncHintDataRef<L, D>>,
 ) -> Result<PartitionWitness<'a, L::Field>> {
     // If async hints are present, set up the a handler and initialize
     // the generators with the handler's communication channel.
@@ -155,7 +155,7 @@ pub async fn generate_witness_with_hints_async<'a, L: PlonkParameters<D>, const 
     inputs: PartialWitness<L::Field>,
     prover_data: &'a ProverOnlyCircuitData<L::Field, L::Config, D>,
     common_data: &'a CommonCircuitData<L::Field, D>,
-    async_generator_refs: &'a BTreeMap<usize, AsyncHintRef<L, D>>,
+    async_generator_refs: &'a BTreeMap<usize, AsyncHintDataRef<L, D>>,
 ) -> Result<PartitionWitness<'a, L::Field>> {
     // If async hints are present, set up the a handler and initialize
     // the generators with the handler's communication channel.

@@ -24,11 +24,11 @@ pub trait AsyncGeneratorData<L: PlonkParameters<D>, const D: usize>: HintGenerat
 }
 
 #[derive(Debug)]
-pub struct AsyncHintRef<L: PlonkParameters<D>, const D: usize>(
+pub struct AsyncHintDataRef<L: PlonkParameters<D>, const D: usize>(
     pub(crate) Box<dyn AsyncGeneratorData<L, D>>,
 );
 
-impl<L: PlonkParameters<D>, const D: usize> AsyncHintRef<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> AsyncHintDataRef<L, D> {
     pub(crate) fn new<H: AsyncHint<L, D>>(generator_data: AsyncHintData<L, H, D>) -> Self {
         Self(Box::new(generator_data))
     }

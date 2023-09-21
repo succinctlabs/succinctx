@@ -54,7 +54,7 @@ use crate::frontend::eth::storage::generators::{
 };
 use crate::frontend::hash::bit_operations::XOR3Generator;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
-use crate::frontend::hint::asynchronous::generator::AsyncHintRef;
+use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::hint::simple::hint::Hint;
@@ -80,12 +80,12 @@ pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
         &self,
         buf: &mut Buffer,
         common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<AsyncHintRef<L, D>>;
+    ) -> IoResult<AsyncHintDataRef<L, D>>;
 
     fn write_async_hint(
         &self,
         buf: &mut Vec<u8>,
-        hint: &AsyncHintRef<L, D>,
+        hint: &AsyncHintDataRef<L, D>,
         common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<()>;
 }
@@ -97,7 +97,7 @@ pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
 #[derive(Debug)]
 pub struct HintRegistry<L: PlonkParameters<D>, const D: usize> {
     generators: SerializationRegistry<String, L::Field, WitnessGeneratorRef<L::Field, D>, D>,
-    async_hints: SerializationRegistry<String, L::Field, AsyncHintRef<L, D>, D>,
+    async_hints: SerializationRegistry<String, L::Field, AsyncHintDataRef<L, D>, D>,
 }
 
 macro_rules! register_watch_generator {
@@ -437,7 +437,7 @@ impl<L: PlonkParameters<D>, const D: usize> HintSerializer<L, D> for HintRegistr
         &self,
         buf: &mut Buffer,
         common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<AsyncHintRef<L, D>> {
+    ) -> IoResult<AsyncHintDataRef<L, D>> {
         let idx = buf.read_usize()?;
         let id = &self.async_hints.identifiers[idx];
 
@@ -451,7 +451,7 @@ impl<L: PlonkParameters<D>, const D: usize> HintSerializer<L, D> for HintRegistr
     fn write_async_hint(
         &self,
         buf: &mut Vec<u8>,
-        hint: &AsyncHintRef<L, D>,
+        hint: &AsyncHintDataRef<L, D>,
         common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<()> {
         let id = hint.0.id();

@@ -4,7 +4,7 @@ use plonky2::iop::generator::WitnessGeneratorRef;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoError, IoResult};
 
-use super::generator::{AsyncHintData, AsyncHintRef};
+use super::generator::{AsyncHintData, AsyncHintDataRef};
 use super::hint::AsyncHint;
 use crate::backend::circuit::Serializer;
 use crate::frontend::vars::VariableStream;
@@ -55,13 +55,13 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize>
 }
 
 impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize>
-    Serializer<L::Field, AsyncHintRef<L, D>, D> for AsyncHintSerializer<L, H>
+    Serializer<L::Field, AsyncHintDataRef<L, D>, D> for AsyncHintSerializer<L, H>
 {
     fn read(
         &self,
         buf: &mut Buffer,
         _common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<AsyncHintRef<L, D>> {
+    ) -> IoResult<AsyncHintDataRef<L, D>> {
         let input_stream = VariableStream::deserialize_from_reader(buf)?;
         let output_stream = VariableStream::deserialize_from_reader(buf)?;
 
@@ -69,13 +69,13 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize>
         let hint: H = bincode::deserialize(&bytes).map_err(|_| IoError)?;
         let hint_data = AsyncHintData::<L, H, D>::new(hint, input_stream, output_stream);
 
-        Ok(AsyncHintRef::new(hint_data))
+        Ok(AsyncHintDataRef::new(hint_data))
     }
 
     fn write(
         &self,
         buf: &mut Vec<u8>,
-        object: &AsyncHintRef<L, D>,
+        object: &AsyncHintDataRef<L, D>,
         common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<()> {
         object.0.serialize(buf, common_data)

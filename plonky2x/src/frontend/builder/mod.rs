@@ -20,7 +20,7 @@ pub use self::io::CircuitIO;
 use super::hint::HintGenerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
-use crate::frontend::hint::asynchronous::generator::AsyncHintRef;
+use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
 
@@ -34,7 +34,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintGenerator<L, D>>>,
-    pub(crate) async_hints: Vec<AsyncHintRef<L, D>>,
+    pub(crate) async_hints: Vec<AsyncHintDataRef<L, D>>,
     pub(crate) async_hints_indices: Vec<usize>,
     pub sha256_requests: Vec<Vec<Target>>,
     pub sha256_responses: Vec<[Target; 32]>,
