@@ -26,10 +26,8 @@ pub struct BeaconValidatorsHint {
 }
 
 impl BeaconValidatorsHint {
-    pub fn new(client : BeaconClient) -> Self {
-        Self {
-            client,
-        }
+    pub fn new(client: BeaconClient) -> Self {
+        Self { client }
     }
 }
 

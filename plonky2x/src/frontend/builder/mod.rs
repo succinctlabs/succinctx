@@ -193,11 +193,79 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         if !self.sha256_requests.is_empty() {
             self.curta_constrain_sha256();
         }
-        let mock_circuit = self.api.mock_build();
+
+        for (index, gen_ref) in self
+            .async_hints_indices
+            .iter()
+            .zip(self.async_hints.iter_mut())
+        {
+            let new_output_stream = self.hints[*index].output_stream_mut();
+            let output_stream = gen_ref.0.output_stream_mut();
+            *output_stream = new_output_stream.clone();
+        }
+
+        let hints = self.hints.drain(..).collect::<Vec<_>>();
+        let generators = hints
+            .into_iter()
+            .map(|h| WitnessGeneratorRef(h))
+            .collect::<Vec<_>>();
+        self.api.add_generators(generators);
+
+        match self.io {
+            CircuitIO::Bytes(ref io) => {
+                let input = io
+                    .input
+                    .iter()
+                    .flat_map(|b| b.variables())
+                    .collect::<Vec<_>>();
+                let output = io
+                    .output
+                    .iter()
+                    .flat_map(|b| b.variables())
+                    .collect::<Vec<_>>();
+                self.register_public_inputs(input.as_slice());
+                self.register_public_inputs(output.as_slice());
+            }
+            CircuitIO::Elements(ref io) => {
+                let input = io
+                    .input
+                    .iter()
+                    .flat_map(|b| b.variables())
+                    .collect::<Vec<_>>();
+                let output = io
+                    .output
+                    .iter()
+                    .flat_map(|b| b.variables())
+                    .collect::<Vec<_>>();
+                self.register_public_inputs(input.as_slice());
+                self.register_public_inputs(output.as_slice());
+            }
+            CircuitIO::None() => {}
+            _ => panic!("unsupported io type"),
+        };
+
+        let mock_data = self.api.mock_build();
+
+        let mut async_hint_indices = Vec::new();
+
+        for (i, generator) in mock_data.prover_only.generators.iter().enumerate() {
+            if generator.0.id().starts_with("--async") {
+                async_hint_indices.push(i);
+            }
+        }
+
+        assert_eq!(async_hint_indices.len(), self.async_hints.len());
+
+        let mut async_hints = BTreeMap::new();
+        for (key, gen) in async_hint_indices.iter().zip(self.async_hints) {
+            async_hints.insert(*key, gen);
+        }
+
         MockCircuitBuild {
-            data: mock_circuit,
+            data: mock_data,
             io: self.io,
             debug_variables: self.debug_variables,
+            async_hints,
         }
     }
 

@@ -14,7 +14,7 @@ pub use self::input::PublicInput;
 pub use self::mock::MockCircuitBuild;
 pub use self::output::PublicOutput;
 pub use self::serialization::{GateRegistry, HintRegistry, Serializer};
-pub use self::witness::{generate_witness, generate_witness_async, generate_witness_mock};
+pub use self::witness::{generate_witness, generate_witness_async};
 use crate::prelude::CircuitBuilder;
 
 pub trait Circuit {

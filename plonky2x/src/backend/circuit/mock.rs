@@ -1,3 +1,4 @@
+use alloc::collections::BTreeMap;
 use std::collections::HashMap;
 
 use plonky2::iop::witness::{PartialWitness, PartitionWitness};
@@ -5,9 +6,10 @@ use plonky2::plonk::circuit_data::MockCircuitData;
 
 use super::input::PublicInput;
 use super::output::PublicOutput;
-use super::witness::{generate_witness_mock, GenerateWitnessError};
+use super::witness::generate_witness;
 use super::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
+use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 
 /// A mock circuit that can be used for testing.
 ///
@@ -18,6 +20,7 @@ pub struct MockCircuitBuild<L: PlonkParameters<D>, const D: usize> {
     pub data: MockCircuitData<L::Field, L::Config, D>,
     pub io: CircuitIO<D>,
     pub debug_variables: HashMap<usize, String>,
+    pub async_hints: BTreeMap<usize, AsyncHintDataRef<L, D>>,
 }
 
 impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
@@ -37,12 +40,13 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
         self.io.set_witness(&mut pw, input);
 
         // Generate the rest of witness.
-        let witness = match generate_witness_mock(pw, &self.data.prover_only, &self.data.common) {
-            Ok(witness) => witness,
-            Err(GenerateWitnessError::GeneratorsNotRun(targets)) => {
-                panic!("generators not run: {:?}", targets)
-            }
-        };
+        let witness = generate_witness(
+            pw,
+            &self.data.prover_only,
+            &self.data.common,
+            &self.async_hints,
+        )
+        .unwrap();
 
         // Get the output from the witness.
         let output = PublicOutput::from_witness(&self.io, &witness);

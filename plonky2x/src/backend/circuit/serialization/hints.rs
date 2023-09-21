@@ -42,8 +42,8 @@ use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
-    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator, BeaconValidatorsHint,
+    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconValidatorsHint,
+    BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
