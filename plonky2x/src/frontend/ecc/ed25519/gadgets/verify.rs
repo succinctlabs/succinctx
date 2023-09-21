@@ -36,7 +36,7 @@ pub const DUMMY_SIGNATURE: [u8; 64] = [
     10,
 ];
 
-pub fn to_be_bits(msg: Vec<u8>) -> Vec<bool> {
+pub fn to_be_bits(msg: &[u8]) -> Vec<bool> {
     let mut res = Vec::new();
     msg.iter().for_each(|char| {
         for j in 0..8 {
@@ -158,7 +158,7 @@ impl<L: PlonkParameters<D>, const D: usize> TendermintSignature<L, D> for Circui
                 dummy_target.message_byte_length,
             );
 
-            // TODO: REMOVE THESE CONSTRAINTS AFTER VERIFY_VARIABLE_SIGNATURES_CIRCUIT is ported
+            // TODO: Simplify these constraints after verify_variable_signatures_circuit uses CircuitVariable
             // TODO: Check the endianness of msg if this fails
             let msg_bool_targets = self.to_be_bits(msg);
             for j in 0..MAX_MESSAGE_BYTE_LENGTH * 8 {
@@ -228,14 +228,14 @@ pub(crate) mod tests {
         let validator_active = builder.read::<ArrayVariable<BoolVariable, 1>>();
         let msg_bytes_variable =
             builder.read::<ArrayVariable<BytesVariable<VALIDATOR_MESSAGE_BYTES_LENGTH_MAX>, 1>>();
-        let msg_bit_length_t = builder.read::<ArrayVariable<U32Variable, 1>>();
+        let msg_byte_length = builder.read::<ArrayVariable<U32Variable, 1>>();
         let eddsa_sig_target = builder.read::<ArrayVariable<EDDSASignatureTarget<Curve>, 1>>();
         let eddsa_pub_key_target = builder.read::<ArrayVariable<AffinePointTarget<Curve>, 1>>();
 
         builder.verify_signatures::<1, VALIDATOR_MESSAGE_BYTES_LENGTH_MAX>(
             &validator_active.as_vec(),
             msg_bytes_variable.as_vec(),
-            msg_bit_length_t.as_vec(),
+            msg_byte_length.as_vec(),
             eddsa_sig_target.as_vec(),
             eddsa_pub_key_target.as_vec(),
         );
@@ -245,8 +245,6 @@ pub(crate) mod tests {
         let mut new_msg_bytes = msg_bytes.clone();
 
         new_msg_bytes.resize(VALIDATOR_MESSAGE_BYTES_LENGTH_MAX, 0u8);
-
-        let msg_bit_length_t = msg_bytes.len() as u32 * 8;
 
         let pub_key_uncompressed: AffinePoint<Curve> =
             AffinePoint::new_from_compressed_point(&pub_key_bytes);
@@ -259,7 +257,7 @@ pub(crate) mod tests {
         let sig = EDDSASignature { r: sig_r, s: sig_s };
 
         assert!(verify_message(
-            &to_be_bits(msg_bytes),
+            &to_be_bits(&msg_bytes),
             &sig,
             &EDDSAPublicKey(pub_key_uncompressed)
         ));
@@ -269,7 +267,7 @@ pub(crate) mod tests {
         input.write::<ArrayVariable<BoolVariable, 1>>(vec![true]);
         input
             .write::<ArrayVariable<BytesVariable<124>, 1>>(vec![new_msg_bytes.try_into().unwrap()]);
-        input.write::<ArrayVariable<U32Variable, 1>>(vec![msg_bit_length_t]);
+        input.write::<ArrayVariable<U32Variable, 1>>(vec![msg_bytes.len() as u32]);
         input.write::<ArrayVariable<EDDSASignatureTarget<Curve>, 1>>(vec![
             EDDSASignatureTargetValue { r: sig_r, s: sig_s },
         ]);
