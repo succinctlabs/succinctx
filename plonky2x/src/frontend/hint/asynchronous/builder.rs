@@ -44,7 +44,13 @@ mod tests {
             output_stream: &mut ValueStream<L, D>,
         ) {
             let time = input_stream.read_value::<ByteVariable>();
-            sleep(Duration::from_millis(time.into())).await;
+            if time == 20 {
+                panic!("Test panic, immediate failure");
+            }
+            sleep(Duration::from_secs(time.into())).await;
+            if time == 10 {
+                panic!("Test panic, delayed failure");
+            }
             output_stream.write_value::<ByteVariable>(time);
         }
     }
@@ -71,9 +77,52 @@ mod tests {
         input.write::<ByteVariable>(5u8);
 
         // Generate a proof.
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let (proof, mut output) = circuit.prove(&input);
 
-        let (proof, mut output) = rt.block_on(circuit.prove_async(&input));
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
+
+        // Read output.
+        let byte_plus_one = output.read::<ByteVariable>();
+        assert_eq!(byte_plus_one, 5u8);
+    }
+
+    #[test]
+    #[should_panic]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_failure_async_hint() {
+        setup_logger();
+        let mut builder = DefaultBuilder::new();
+
+        let time = builder.read::<ByteVariable>();
+
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&time);
+
+        let hint = TestAsyncGenerator {};
+        let output_stream = builder.async_hint(input_stream.clone(), hint.clone());
+        let back_time = output_stream.read::<ByteVariable>(&mut builder);
+        builder.write(back_time);
+
+        // runing a few in parallel to make sure the tests takes roughly the duratio of one sleep.
+        let mut fail_input_stream = VariableStream::new();
+        let fail_time = builder.constant::<ByteVariable>(10u8);
+        fail_input_stream.write(&fail_time);
+        let output_stream = builder.async_hint(fail_input_stream, hint.clone());
+        let _ = output_stream.read::<ByteVariable>(&mut builder);
+        let output_stream = builder.async_hint(input_stream.clone(), hint.clone());
+        let _ = output_stream.read::<ByteVariable>(&mut builder);
+        let output_stream = builder.async_hint(input_stream, hint);
+        let _ = output_stream.read::<ByteVariable>(&mut builder);
+
+        let circuit = builder.build();
+
+        // Write to the circuit input.
+        let mut input = circuit.input();
+        input.write::<ByteVariable>(5u8);
+
+        // Generate a proof.
+        let (proof, mut output) = circuit.prove(&input);
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);

@@ -2,7 +2,6 @@ use alloc::collections::BTreeMap;
 
 use anyhow::{anyhow, Error, Result};
 use curta::maybe_rayon::rayon;
-use log::debug;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, WitnessGeneratorRef};
@@ -11,6 +10,7 @@ use plonky2::iop::witness::{PartialWitness, PartitionWitness, Witness, WitnessWr
 use plonky2::plonk::circuit_data::{CommonCircuitData, ProverOnlyCircuitData};
 use plonky2::plonk::config::GenericConfig;
 use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::oneshot;
 
 use super::PlonkParameters;
 use crate::frontend::hint::asynchronous::generator::{AsyncHintDataRef, AsyncHintRef};
@@ -128,6 +128,7 @@ pub fn generate_witness<'a, L: PlonkParameters<D>, const D: usize>(
 ) -> Result<PartitionWitness<'a, L::Field>> {
     // If async hints are present, set up the a handler and initialize
     // the generators with the handler's communication channel.
+    let (tx_handler_error, rx_handler_error) = oneshot::channel();
     let async_generators = match async_generator_refs.is_empty() {
         true => BTreeMap::new(),
         false => {
@@ -138,7 +139,10 @@ pub fn generate_witness<'a, L: PlonkParameters<D>, const D: usize>(
             // Spawn a runtime and run the hint handler.
             let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
             rayon::spawn(move || {
-                rt.block_on(hint_handler.run()).unwrap();
+                let result = rt.block_on(hint_handler.run());
+                if let Err(e) = result {
+                    tx_handler_error.send(e).unwrap();
+                }
             });
 
             BTreeMap::from_iter(
@@ -149,7 +153,13 @@ pub fn generate_witness<'a, L: PlonkParameters<D>, const D: usize>(
         }
     };
 
-    fill_witness_values::<L, D>(inputs, prover_data, common_data, async_generators)
+    fill_witness_values::<L, D>(
+        inputs,
+        prover_data,
+        common_data,
+        async_generators,
+        rx_handler_error,
+    )
 }
 
 pub async fn generate_witness_async<'a, L: PlonkParameters<D>, const D: usize>(
@@ -160,6 +170,7 @@ pub async fn generate_witness_async<'a, L: PlonkParameters<D>, const D: usize>(
 ) -> Result<PartitionWitness<'a, L::Field>> {
     // If async hints are present, set up the a handler and initialize
     // the generators with the handler's communication channel.
+    let (tx_handler_error, rx_handler_error) = oneshot::channel();
     let async_generators = match async_generator_refs.is_empty() {
         true => BTreeMap::new(),
         false => {
@@ -170,8 +181,8 @@ pub async fn generate_witness_async<'a, L: PlonkParameters<D>, const D: usize>(
             // Spawn a runtime and run the hint handler.
             tokio::spawn(async move {
                 let result = hint_handler.run().await;
-                if result.is_err() {
-                    debug!("Hint handler failed");
+                if let Err(e) = result {
+                    tx_handler_error.send(e).unwrap();
                 }
             });
 
@@ -184,7 +195,13 @@ pub async fn generate_witness_async<'a, L: PlonkParameters<D>, const D: usize>(
     };
 
     tokio::task::block_in_place(move || {
-        fill_witness_values::<L, D>(inputs, prover_data, common_data, async_generators)
+        fill_witness_values::<L, D>(
+            inputs,
+            prover_data,
+            common_data,
+            async_generators,
+            rx_handler_error,
+        )
     })
 }
 
@@ -194,6 +211,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
     prover_data: &'a ProverOnlyCircuitData<L::Field, L::Config, D>,
     common_data: &'a CommonCircuitData<L::Field, D>,
     async_generators: BTreeMap<usize, AsyncHintRef<L, D>>,
+    mut rx_handler_error: oneshot::Receiver<Error>,
 ) -> Result<PartitionWitness<'a, L::Field>> {
     let config = &common_data.config;
     let generators = &prover_data.generators;
@@ -229,6 +247,9 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
             }
 
             if let Some(async_gen) = async_generators.get(&generator_idx) {
+                if let Ok(e) = rx_handler_error.try_recv() {
+                    return Err(e);
+                }
                 let finished = async_gen.0.run(&witness, &mut buffer)?;
                 if finished {
                     generator_is_expired[generator_idx] = true;

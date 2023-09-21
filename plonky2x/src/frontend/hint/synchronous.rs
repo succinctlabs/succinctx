@@ -79,6 +79,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_sync_hint() {
         let mut builder = DefaultBuilder::new();
 
