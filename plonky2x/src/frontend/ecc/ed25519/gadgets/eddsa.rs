@@ -93,6 +93,8 @@ pub const fn calculate_eddsa_num_chunks(msg_len_bits: usize) -> usize {
     ((msg_len_bits + COMPRESSED_SIG_AND_PK_LEN_BITS + LENGTH_BITS_128 + 1) / CHUNK_BITS_1024) + 1
 }
 
+// Note: This function should not be used outside of succinctx.
+// TODO: Migrate to CircuitVariable
 pub fn curta_batch_eddsa_verify_variable<
     F: RichField + Extendable<D>,
     C: Curve,
@@ -253,6 +255,8 @@ pub fn curta_batch_eddsa_verify_variable<
     }
 }
 
+// Note: This function should not be used outside of succinctx.
+// TODO: Migrate to CircuitVariable
 pub fn curta_batch_eddsa_verify<
     F: RichField + Extendable<D>,
     C: Curve,
