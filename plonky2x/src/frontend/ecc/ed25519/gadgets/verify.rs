@@ -36,39 +36,27 @@ pub const DUMMY_SIGNATURE: [u8; 64] = [
     10,
 ];
 
-pub fn to_be_bits(msg: &[u8]) -> Vec<bool> {
-    let mut res = Vec::new();
-    msg.iter().for_each(|char| {
-        for j in 0..8 {
-            if (char & (1 << (7 - j))) != 0 {
-                res.push(true);
-            } else {
-                res.push(false);
-            }
-        }
-    });
-    res
-}
-
 pub trait EDDSABatchVerify<L: PlonkParameters<D>, const D: usize> {
     type Curve: Curve;
     type ScalarField: PrimeField;
 
-    /// Returns the dummy targets
+    /// Dummy targets are used for inactive validators and will always verify.
+    /// Invokers of verify_signatures must ensure the valid signatures are constrained correctly.
     fn get_dummy_targets<const MAX_MESSAGE_BYTE_LENGTH: usize>(
         &mut self,
     ) -> DummySignatureTarget<Self::Curve, MAX_MESSAGE_BYTE_LENGTH>;
 
     /// Verifies the signatures of the validators in the validator set.
+    /// validator_active is a bit vector of length VALIDATOR_SET_SIZE_MAX, where each bit indicates whether the corresponding validator signed this round.
+    /// message_byte_lengths is a vector of length VALIDATOR_SET_SIZE_MAX, where each element is the (variable) byte length of the corresponding message.
     fn verify_signatures<
         const VALIDATOR_SET_SIZE_MAX: usize,
         const MAX_MESSAGE_BYTE_LENGTH: usize,
     >(
         &mut self,
-        // This message should be range-checked before being passed in.
         validator_active: &[BoolVariable],
         messages: Vec<BytesVariable<MAX_MESSAGE_BYTE_LENGTH>>,
-        message_bit_lengths: Vec<U32Variable>,
+        message_byte_lengths: Vec<U32Variable>,
         eddsa_sig_targets: Vec<EDDSASignatureTarget<Self::Curve>>,
         eddsa_pubkey_targets: Vec<AffinePointTarget<Self::Curve>>,
     );
@@ -81,19 +69,15 @@ impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBu
     fn get_dummy_targets<const MAX_MESSAGE_BYTE_LENGTH: usize>(
         &mut self,
     ) -> DummySignatureTarget<Self::Curve, MAX_MESSAGE_BYTE_LENGTH> {
-        // Convert the dummy public key to a target
         let pub_key_uncompressed: AffinePoint<Self::Curve> =
             AffinePoint::new_from_compressed_point(&DUMMY_PUBLIC_KEY);
+        let pubkey = self.constant::<AffinePointTarget<Self::Curve>>(pub_key_uncompressed);
 
         let sig_r: AffinePoint<Self::Curve> =
             AffinePoint::new_from_compressed_point(&DUMMY_SIGNATURE[0..32]);
         assert!(sig_r.is_valid());
-
         let sig_s_biguint = BigUint::from_bytes_le(&DUMMY_SIGNATURE[32..64]);
         let sig_s = Ed25519Scalar::from_noncanonical_biguint(sig_s_biguint);
-
-        let pubkey = self.constant::<AffinePointTarget<Self::Curve>>(pub_key_uncompressed);
-
         let signature = EDDSASignatureTarget {
             r: self.constant::<AffinePointTarget<Self::Curve>>(sig_r),
             s: self.constant::<NonNativeTarget<Self::ScalarField>>(sig_s),
@@ -101,14 +85,13 @@ impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBu
 
         let message = self.zero::<BytesVariable<MAX_MESSAGE_BYTE_LENGTH>>();
 
-        // TODO: Change to DUMMY_MSG_LENGTH_BYTES once verify_variable_signatures uses CircuitVariable.
-        let dummy_msg_length = self.constant::<U32Variable>(DUMMY_MSG_LENGTH_BYTES);
+        let dummy_msg_byte_length = self.constant::<U32Variable>(DUMMY_MSG_LENGTH_BYTES);
 
         DummySignatureTarget {
             pubkey,
             signature,
             message,
-            message_byte_length: dummy_msg_length,
+            message_byte_length: dummy_msg_byte_length,
         }
     }
 
@@ -136,8 +119,8 @@ impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBu
             MAX_MESSAGE_BYTE_LENGTH,
         >(&mut self.api, messages.len());
 
+        // If the validator is active, use the corresponding signature and public key. Otherwise, use the dummy signature and public key.
         for i in 0..VALIDATOR_SET_SIZE_MAX {
-            // Select the correct pubkey based on whether the validator signed this round.
             let eddsa_pubkey = self.select(
                 validator_active[i],
                 eddsa_pubkey_targets[i].clone(),
@@ -159,18 +142,15 @@ impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBu
             );
 
             // TODO: Simplify these constraints after verify_variable_signatures_circuit uses CircuitVariable
-            // TODO: Check the endianness of msg if this fails
             let msg_bool_targets = self.to_be_bits(msg);
             for j in 0..MAX_MESSAGE_BYTE_LENGTH * 8 {
                 self.api
                     .connect(eddsa_target.msgs[i][j].target, msg_bool_targets[j].0 .0);
             }
 
-            // TODO: verify_variable_signatures_circuit expects bit length, remove bit_length in future
+            // TODO: verify_variable_signatures_circuit expects bit length, will be removed in future
             let eight_u32 = self.constant::<U32Variable>(8);
             let bit_length = self.mul(byte_length, eight_u32);
-            self.watch(&bit_length, "bit_length");
-
             self.api
                 .connect(eddsa_target.msgs_bit_lengths[i], bit_length.0 .0);
 
@@ -198,6 +178,7 @@ pub(crate) mod tests {
     use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
     use crate::frontend::ecc::ed25519::gadgets::eddsa::EDDSASignatureTargetValue;
     use crate::prelude::{ArrayVariable, DefaultBuilder};
+    use crate::utils::to_be_bits;
 
     #[test]
     fn test_generate_signature() {
