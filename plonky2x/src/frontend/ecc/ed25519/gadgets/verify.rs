@@ -50,7 +50,7 @@ pub fn to_be_bits(msg: &[u8]) -> Vec<bool> {
     res
 }
 
-pub trait TendermintSignature<L: PlonkParameters<D>, const D: usize> {
+pub trait EDDSABatchVerify<L: PlonkParameters<D>, const D: usize> {
     type Curve: Curve;
     type ScalarField: PrimeField;
 
@@ -74,7 +74,7 @@ pub trait TendermintSignature<L: PlonkParameters<D>, const D: usize> {
     );
 }
 
-impl<L: PlonkParameters<D>, const D: usize> TendermintSignature<L, D> for CircuitBuilder<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBuilder<L, D> {
     type Curve = Ed25519;
     type ScalarField = Ed25519Scalar;
 
