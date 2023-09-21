@@ -166,7 +166,7 @@ mod tests {
         let rpc_url = env::var("RPC_1").unwrap();
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
 
-        let num_requests = 10;
+        let num_requests = 100;
 
         // This is the circuit definition
         let mut builder = DefaultBuilder::new();

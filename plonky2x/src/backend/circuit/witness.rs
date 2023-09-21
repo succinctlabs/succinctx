@@ -1,10 +1,10 @@
 use alloc::collections::BTreeMap;
 
-use anyhow::Result;
+use anyhow::{anyhow, Error, Result};
 use curta::maybe_rayon::rayon;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::generator::GeneratedValues;
+use plonky2::iop::generator::{GeneratedValues, WitnessGeneratorRef};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CommonCircuitData, ProverOnlyCircuitData};
@@ -119,16 +119,89 @@ pub fn generate_witness<
     Ok(witness)
 }
 
-pub fn generate_partial_witness_with_hints<'a, L: PlonkParameters<D>, const D: usize>(
+pub fn generate_witness_with_hints<'a, L: PlonkParameters<D>, const D: usize>(
     inputs: PartialWitness<L::Field>,
     prover_data: &'a ProverOnlyCircuitData<L::Field, L::Config, D>,
     common_data: &'a CommonCircuitData<L::Field, D>,
     async_generator_refs: &'a BTreeMap<usize, AsyncHintRef<L, D>>,
-) -> PartitionWitness<'a, L::Field> {
+) -> Result<PartitionWitness<'a, L::Field>> {
+    // If async hints are present, set up the a handler and initialize
+    // the generators with the handler's communication channel.
+    let async_generators = match async_generator_refs.is_empty() {
+        true => BTreeMap::new(),
+        false => {
+            let (tx, rx) = unbounded_channel();
+            // initialize the hint handler.
+            let mut hint_handler = HintHandler::<L, D>::new(rx);
+
+            // Spawn a runtime and run the hint handler.
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
+            rayon::spawn(move || {
+                rt.block_on(hint_handler.run()).unwrap();
+            });
+
+            BTreeMap::from_iter(
+                async_generator_refs
+                    .iter()
+                    .map(|(i, g)| (*i, g.0.generator(tx.clone()))),
+            )
+        }
+    };
+
+    fill_witness_values::<L, D>(inputs, prover_data, common_data, async_generators)
+}
+
+pub async fn generate_witness_with_hints_async<'a, L: PlonkParameters<D>, const D: usize>(
+    inputs: PartialWitness<L::Field>,
+    prover_data: &'a ProverOnlyCircuitData<L::Field, L::Config, D>,
+    common_data: &'a CommonCircuitData<L::Field, D>,
+    async_generator_refs: &'a BTreeMap<usize, AsyncHintRef<L, D>>,
+) -> Result<PartitionWitness<'a, L::Field>> {
+    // If async hints are present, set up the a handler and initialize
+    // the generators with the handler's communication channel.
+    let async_generators = match async_generator_refs.is_empty() {
+        true => BTreeMap::new(),
+        false => {
+            let (tx, rx) = unbounded_channel();
+            // initialize the hint handler.
+            let mut hint_handler = HintHandler::<L, D>::new(rx);
+
+            // Spawn a runtime and run the hint handler.
+            tokio::spawn(async move { hint_handler.run().await.unwrap() });
+
+            BTreeMap::from_iter(
+                async_generator_refs
+                    .iter()
+                    .map(|(i, g)| (*i, g.0.generator(tx.clone()))),
+            )
+        }
+    };
+
+    tokio::task::block_in_place(move || {
+        fill_witness_values::<L, D>(inputs, prover_data, common_data, async_generators)
+    })
+}
+
+/// Fill in the witness after intiializing async generators.
+fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
+    inputs: PartialWitness<L::Field>,
+    prover_data: &'a ProverOnlyCircuitData<L::Field, L::Config, D>,
+    common_data: &'a CommonCircuitData<L::Field, D>,
+    async_generators: BTreeMap<usize, WitnessGeneratorRef<L::Field, D>>,
+) -> Result<PartitionWitness<'a, L::Field>> {
     let config = &common_data.config;
     let generators = &prover_data.generators;
     let generator_indices_by_watches = &prover_data.generator_indices_by_watches;
 
+    // Build a list of "pending" generators which are queued to be run. Initially, all generators
+    // are queued.
+    let mut pending_generator_indices: Vec<_> = (0..generators.len()).collect();
+
+    // We also track a list of "expired" generators which have already returned false.
+    let mut generator_is_expired = vec![false; generators.len()];
+    let mut remaining_generators = generators.len();
+
+    let mut buffer = GeneratedValues::empty();
     let mut witness = PartitionWitness::new(
         config.num_wires,
         common_data.degree(),
@@ -138,35 +211,6 @@ pub fn generate_partial_witness_with_hints<'a, L: PlonkParameters<D>, const D: u
     for (t, v) in inputs.target_values.into_iter() {
         witness.set_target(t, v);
     }
-
-    // Build a list of "pending" generators which are queued to be run. Initially, all generators
-    // are queued.
-    let mut pending_generator_indices: Vec<_> = (0..generators.len()).collect();
-
-    // We also track a list of "expired" generators which have already returned false.
-    let mut generator_is_expired = vec![false; generators.len()];
-    let mut remaining_generators = generators.len();
-    let mut remaining_async_generators = async_generator_refs.len();
-
-    let mut buffer = GeneratedValues::empty();
-
-    // Create a channel for communicating between the hint handler and the generators.
-    let (tx, rx) = unbounded_channel();
-    // initialize the hint handler.
-    let mut hint_handler = HintHandler::<L, D>::new(rx);
-
-    // Initialize the async generators.
-    let async_generators = BTreeMap::from_iter(
-        async_generator_refs
-            .iter()
-            .map(|(i, g)| (*i, g.0.generator(tx.clone()))),
-    );
-
-    // Spawn a runtime and run the hint handler.
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
-    rayon::spawn(move || {
-        rt.block_on(hint_handler.run()).unwrap();
-    });
 
     // Keep running generators until we fail to make progress.
     while !pending_generator_indices.is_empty() {
@@ -178,20 +222,19 @@ pub fn generate_partial_witness_with_hints<'a, L: PlonkParameters<D>, const D: u
                 continue;
             }
 
-            let finished = generators[generator_idx].0.run(&witness, &mut buffer);
-            if finished {
-                generator_is_expired[generator_idx] = true;
-                remaining_generators -= 1;
-            }
-
             if let Some(async_gen) = async_generators.get(&generator_idx) {
                 let finished = async_gen.0.run(&witness, &mut buffer);
                 if finished {
-                    remaining_async_generators -= 1;
+                    generator_is_expired[generator_idx] = true;
+                    remaining_generators -= 1;
                 } else {
                     next_pending_generator_indices.push(generator_idx);
-                    generator_is_expired[generator_idx] = false;
-                    remaining_generators += 1;
+                }
+            } else {
+                let finished = generators[generator_idx].0.run(&witness, &mut buffer);
+                if finished {
+                    generator_is_expired[generator_idx] = true;
+                    remaining_generators -= 1;
                 }
             }
 
@@ -218,17 +261,42 @@ pub fn generate_partial_witness_with_hints<'a, L: PlonkParameters<D>, const D: u
         pending_generator_indices = next_pending_generator_indices;
     }
 
-    assert_eq!(
-        remaining_generators, 0,
-        "{} generators weren't run",
-        remaining_generators,
-    );
+    if remaining_generators > 0 {
+        return Err(get_generator_error::<L, D>(
+            &witness,
+            generators,
+            generator_is_expired,
+        ));
+    }
 
-    assert_eq!(
-        remaining_async_generators, 0,
-        "{} async generators weren't run",
-        remaining_async_generators,
-    );
+    Ok(witness)
+}
 
-    witness
+#[inline]
+fn get_generator_error<L: PlonkParameters<D>, const D: usize>(
+    witness: &PartitionWitness<L::Field>,
+    generators: &[WitnessGeneratorRef<L::Field, D>],
+    generator_is_expired: Vec<bool>,
+) -> Error {
+    let mut generators_not_run = Vec::new();
+    let mut unpopulated_targets = Vec::new();
+    for i in 0..generator_is_expired.len() {
+        if !generator_is_expired[i] {
+            let generator = &generators[i];
+            generators_not_run.push(generator.0.id());
+            let watch_list = generator.0.watch_list();
+            for t in watch_list {
+                if witness.try_get_target(t).is_none() {
+                    unpopulated_targets.push(t);
+                }
+            }
+        }
+    }
+    anyhow!(
+        "Witness generation failed \n
+        generators not run: {:?} \n
+        unpopulated targets: {:?}",
+        generators_not_run,
+        unpopulated_targets
+    )
 }

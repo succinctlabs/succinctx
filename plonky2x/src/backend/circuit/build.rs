@@ -15,7 +15,7 @@ use super::input::PublicInput;
 use super::output::PublicOutput;
 use super::serialization::hints::HintSerializer;
 use super::serialization::{GateRegistry, HintRegistry};
-use super::witness::generate_partial_witness_with_hints;
+use super::witness::{generate_witness_with_hints, generate_witness_with_hints_async};
 use crate::frontend::builder::CircuitIO;
 use crate::frontend::hint::asynchronous::generator::AsyncHintRef;
 use crate::utils::hex;
@@ -47,12 +47,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
     ) {
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
-        let partition_witness = generate_partial_witness_with_hints(
+        let partition_witness = generate_witness_with_hints(
             pw,
             &self.data.prover_only,
             &self.data.common,
             &self.async_hints,
-        );
+        )
+        .unwrap();
         let proof_with_pis = prove_with_partition_witness::<L::Field, L::Config, D>(
             &self.data.prover_only,
             &self.data.common,
@@ -62,6 +63,38 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         .unwrap();
         let output = PublicOutput::from_proof_with_pis(&self.io, &proof_with_pis);
         (proof_with_pis, output)
+    }
+
+    /// Generates a proof for the circuit. The proof can be verified using `verify`.
+    pub async fn prove_async(
+        &self,
+        input: &PublicInput<L, D>,
+    ) -> (
+        ProofWithPublicInputs<L::Field, L::Config, D>,
+        PublicOutput<L, D>,
+    ) {
+        let mut pw = PartialWitness::new();
+        self.io.set_witness(&mut pw, input);
+        let partition_witness = generate_witness_with_hints_async(
+            pw,
+            &self.data.prover_only,
+            &self.data.common,
+            &self.async_hints,
+        )
+        .await
+        .unwrap();
+
+        tokio::task::block_in_place(|| {
+            let proof_with_pis = prove_with_partition_witness::<L::Field, L::Config, D>(
+                &self.data.prover_only,
+                &self.data.common,
+                partition_witness,
+                &mut TimingTree::default(),
+            )
+            .unwrap();
+            let output = PublicOutput::from_proof_with_pis(&self.io, &proof_with_pis);
+            (proof_with_pis, output)
+        })
     }
 
     /// Verifies a proof for the circuit.

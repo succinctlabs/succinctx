@@ -71,7 +71,9 @@ mod tests {
         input.write::<ByteVariable>(5u8);
 
         // Generate a proof.
-        let (proof, mut output) = circuit.prove(&input);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let (proof, mut output) = rt.block_on(circuit.prove_async(&input));
 
         // Verify proof.
         circuit.verify(&proof, &input, &output);
