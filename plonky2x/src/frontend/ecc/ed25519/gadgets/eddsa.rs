@@ -93,7 +93,7 @@ pub const fn calculate_eddsa_num_chunks(msg_len_bits: usize) -> usize {
     ((msg_len_bits + COMPRESSED_SIG_AND_PK_LEN_BITS + LENGTH_BITS_128 + 1) / CHUNK_BITS_1024) + 1
 }
 
-pub fn verify_variable_signatures_circuit<
+pub fn curta_batch_eddsa_verify_variable<
     F: RichField + Extendable<D>,
     C: Curve,
     E: CubicParameters<F>,
@@ -253,7 +253,7 @@ pub fn verify_variable_signatures_circuit<
     }
 }
 
-pub fn verify_signatures_circuit<
+pub fn curta_batch_eddsa_verify<
     F: RichField + Extendable<D>,
     C: Curve,
     E: CubicParameters<F>,
@@ -405,7 +405,7 @@ mod tests {
     use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
     use crate::frontend::ecc::ed25519::gadgets::eddsa::{
-        verify_signatures_circuit, verify_variable_signatures_circuit,
+        curta_batch_eddsa_verify, curta_batch_eddsa_verify_variable,
     };
     use crate::frontend::num::biguint::WitnessBigUint;
     use crate::utils;
@@ -482,7 +482,7 @@ mod tests {
 
         assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
 
-        let eddsa_target = verify_signatures_circuit::<F, Curve, E, SC, D>(
+        let eddsa_target = curta_batch_eddsa_verify::<F, Curve, E, SC, D>(
             &mut builder,
             1,
             msg.len().try_into().unwrap(),
@@ -556,7 +556,7 @@ mod tests {
         let mut pw = PartialWitness::new();
         let mut builder = BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
 
-        let eddsa_target = verify_signatures_circuit::<F, Curve, E, SC, D>(
+        let eddsa_target = curta_batch_eddsa_verify::<F, Curve, E, SC, D>(
             &mut builder,
             msgs.len(),
             msg_len.try_into().unwrap(),
@@ -653,11 +653,10 @@ mod tests {
         const MAX_MSG_LEN_BYTES: usize = 128;
         const MAX_MSG_LEN_BITS: usize = MAX_MSG_LEN_BYTES * 8;
         // Length of sig.r and pk_compressed in hash_msg
-        let eddsa_target =
-            verify_variable_signatures_circuit::<F, Curve, E, SC, D, MAX_MSG_LEN_BYTES>(
-                &mut builder,
-                msgs.len(),
-            );
+        let eddsa_target = curta_batch_eddsa_verify_variable::<F, Curve, E, SC, D, MAX_MSG_LEN_BYTES>(
+            &mut builder,
+            msgs.len(),
+        );
 
         for i in 0..msgs.len() {
             let msg_bits = to_bits(msgs[i].to_vec());
