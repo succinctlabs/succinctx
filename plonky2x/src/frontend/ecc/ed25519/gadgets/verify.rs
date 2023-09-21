@@ -101,7 +101,6 @@ impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBu
         const MAX_MESSAGE_BYTE_LENGTH: usize,
     >(
         &mut self,
-        // This message should be range-checked before being passed in.
         validator_active: &[BoolVariable],
         messages: Vec<BytesVariable<MAX_MESSAGE_BYTE_LENGTH>>,
         message_byte_lengths: Vec<U32Variable>,
