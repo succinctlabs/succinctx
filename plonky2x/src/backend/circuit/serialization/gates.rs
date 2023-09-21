@@ -71,19 +71,6 @@ impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
     /// Registers a new gate.
     pub fn register<G: AnyGate<L::Field, D>>(&mut self) {
         let type_id = TypeId::of::<G>();
-        // let exists = self
-        //     .0
-        //     .registry
-        //     .insert(type_id, Box::new(GateSerializerFn::<G>(PhantomData)));
-
-        // if exists.is_some() {
-        //     panic!("Gate type already registered");
-        // }
-
-        // self.0.identifiers.push(type_id);
-        // self.0.index.insert(type_id, self.0.current_index);
-        // self.0.current_index += 1;
-
         self.0
             .register(type_id, GateSerializerFn::<G>(PhantomData))
             .unwrap();
