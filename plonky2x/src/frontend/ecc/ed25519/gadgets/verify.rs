@@ -243,7 +243,60 @@ pub(crate) mod tests {
             .expect("failed to verify signature");
     }
 
-    fn verify_eddsa_signature(msg_bytes: Vec<u8>, pub_key_bytes: Vec<u8>, sig_bytes: Vec<u8>) {
+    fn verify_eddsa_signature<const MSG_BYTES_LENGTH: usize>(
+        msg_bytes: Vec<u8>,
+        pub_key_bytes: Vec<u8>,
+        sig_bytes: Vec<u8>,
+    ) {
+        type Curve = Ed25519;
+
+        let mut builder = DefaultBuilder::new();
+
+        let msg = builder.read::<ArrayVariable<BytesVariable<MSG_BYTES_LENGTH>, 1>>();
+        let signature = builder.read::<ArrayVariable<EDDSASignatureTarget<Curve>, 1>>();
+        let pubkey = builder.read::<ArrayVariable<AffinePointTarget<Curve>, 1>>();
+
+        builder.batch_eddsa_verify::<1, MSG_BYTES_LENGTH>(
+            msg.as_vec(),
+            signature.as_vec(),
+            pubkey.as_vec(),
+        );
+
+        let circuit = builder.build();
+
+        let pub_key_uncompressed: AffinePoint<Curve> =
+            AffinePoint::new_from_compressed_point(&pub_key_bytes);
+
+        let sig_r = AffinePoint::new_from_compressed_point(&sig_bytes[0..32]);
+        assert!(sig_r.is_valid());
+
+        let sig_s_biguint = BigUint::from_bytes_le(&sig_bytes[32..64]);
+        let sig_s = Ed25519Scalar::from_noncanonical_biguint(sig_s_biguint);
+        let sig = EDDSASignature { r: sig_r, s: sig_s };
+
+        assert!(verify_message(
+            &to_be_bits(&msg_bytes),
+            &sig,
+            &EDDSAPublicKey(pub_key_uncompressed)
+        ));
+        println!("verified signature");
+
+        let mut input = circuit.input();
+        input.write::<ArrayVariable<BytesVariable<124>, 1>>(vec![msg_bytes.try_into().unwrap()]);
+        input.write::<ArrayVariable<EDDSASignatureTarget<Curve>, 1>>(vec![
+            EDDSASignatureTargetValue { r: sig_r, s: sig_s },
+        ]);
+        input.write::<ArrayVariable<AffinePointTarget<Curve>, 1>>(vec![pub_key_uncompressed]);
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    fn verify_conditional_eddsa_signature(
+        msg_bytes: Vec<u8>,
+        pub_key_bytes: Vec<u8>,
+        sig_bytes: Vec<u8>,
+        active: bool,
+    ) {
         type Curve = Ed25519;
 
         let mut builder = DefaultBuilder::new();
@@ -289,7 +342,7 @@ pub(crate) mod tests {
         println!("verified signature");
 
         let mut input = circuit.input();
-        input.write::<ArrayVariable<BoolVariable, 1>>(vec![true]);
+        input.write::<ArrayVariable<BoolVariable, 1>>(vec![active]);
         input
             .write::<ArrayVariable<BytesVariable<124>, 1>>(vec![new_msg_bytes.try_into().unwrap()]);
         input.write::<ArrayVariable<U32Variable, 1>>(vec![msg_bytes.len() as u32]);
@@ -303,33 +356,35 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_verify_eddsa_signature_1() {
+    fn test_verify_eddsa_signature_conditional_active() {
         let msg = "6c080211f82a00000000000022480a2036f2d954fe1ba37c5036cb3c6b366d0daf68fccbaa370d9490361c51a0a38b61122408011220cddf370e891591c9d912af175c966cd8dfa44b2c517e965416b769eb4b9d5d8d2a0c08f6b097a50610dffbcba90332076d6f6368612d33";
         let pubkey = "de25aec935b10f657b43fa97e5a8d4e523bdb0f9972605f0b064eff7b17048ba";
         let sig = "091576e9e3ad0e5ba661f7398e1adb3976ba647b579b8e4a224d1d02b591ade6aedb94d3bf55d258f089d6413155a57adfd4932418a798c2d68b29850f6fb50b";
         let msg_bytes = hex::decode(msg).unwrap();
         let pub_key_bytes = hex::decode(pubkey).unwrap();
         let sig_bytes = hex::decode(sig).unwrap();
-        verify_eddsa_signature(msg_bytes, pub_key_bytes, sig_bytes)
+        verify_conditional_eddsa_signature(msg_bytes, pub_key_bytes, sig_bytes, true)
     }
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_verify_eddsa_signature_2() {
+    fn test_verify_eddsa_signature_conditional_dummy() {
+        verify_conditional_eddsa_signature(
+            DUMMY_MSG.to_vec(),
+            DUMMY_PUBLIC_KEY.to_vec(),
+            DUMMY_SIGNATURE.to_vec(),
+            false,
+        )
+    }
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_verify_eddsa_signature_fixed() {
+        const MSG_BYTES_LENGTH: usize = 117;
         let msg = "74080211612b00000000000019010000000000000022480a205047a5a855854ca8bc610fb47ee849084c04fe25a2f037a07de6ae343c55216b122408011220cb05d8adc7c24d55f06d3bd0aea50620d3f0d73a9656a9073cc47a959a0961672a0b08acbd97a50610b1a5f31132076d6f6368612d33";
         let pubkey = "de25aec935b10f657b43fa97e5a8d4e523bdb0f9972605f0b064eff7b17048ba";
         let sig = "b4ea1e808fa88073ae8fe9d9d33d99ae7990cb148c81f2158e56c90aa45d9c3457aaffb875853956b0093ab1b3606b4eb450f5b476e54c508375a25c78376e0d";
         let msg_bytes = hex::decode(msg).unwrap();
         let pub_key_bytes = hex::decode(pubkey).unwrap();
         let sig_bytes = hex::decode(sig).unwrap();
-        verify_eddsa_signature(msg_bytes, pub_key_bytes, sig_bytes)
-    }
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_verify_eddsa_signature_dummy() {
-        verify_eddsa_signature(
-            DUMMY_MSG.to_vec(),
-            DUMMY_PUBLIC_KEY.to_vec(),
-            DUMMY_SIGNATURE.to_vec(),
-        )
+        verify_eddsa_signature::<MSG_BYTES_LENGTH>(msg_bytes, pub_key_bytes, sig_bytes)
     }
 }
