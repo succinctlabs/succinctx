@@ -1,7 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::needless_range_loop)]
 #![allow(incomplete_features)]
-#![feature(generic_const_exprs)]
 #![feature(trait_alias)]
 #![feature(decl_macro)]
 #![feature(core_intrinsics)]
