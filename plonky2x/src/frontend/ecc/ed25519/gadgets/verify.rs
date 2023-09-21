@@ -13,14 +13,13 @@ use crate::frontend::vars::U32Variable;
 use crate::prelude::{BoolVariable, BytesVariable, CircuitBuilder, Field, PlonkParameters};
 
 pub struct DummySignatureTarget<C: Curve, const MAX_MESSAGE_LENGTH: usize> {
-    // TODO: Change back to EDDSAPublicKeyTarget after type alias on EDDSAPublicKeyTarget
     pub pubkey: AffinePointTarget<C>,
     pub signature: EDDSASignatureTarget<C>,
     pub message: BytesVariable<MAX_MESSAGE_LENGTH>,
     pub message_byte_length: U32Variable,
 }
 
-// Private key is [0u8; 32]
+// DUMMY_PRIVATE_KEY is [0u8; 32].
 pub const DUMMY_PUBLIC_KEY: [u8; 32] = [
     59, 106, 39, 188, 206, 182, 164, 45, 98, 163, 168, 208, 42, 111, 13, 115, 101, 50, 21, 119, 29,
     226, 67, 166, 58, 192, 72, 161, 139, 89, 218, 41,
@@ -28,7 +27,8 @@ pub const DUMMY_PUBLIC_KEY: [u8; 32] = [
 pub const DUMMY_MSG: [u8; 32] = [0u8; 32];
 pub const DUMMY_MSG_LENGTH_BYTES: u32 = 32;
 pub const DUMMY_MSG_LENGTH_BITS: u32 = 256;
-// dummy_msg signed by the dummy private key
+
+// Produced by signing DUMMY_MSG with DUMMY_PRIVATE_KEY.
 pub const DUMMY_SIGNATURE: [u8; 64] = [
     61, 161, 235, 223, 169, 110, 221, 24, 29, 190, 54, 89, 209, 192, 81, 196, 49, 240, 86, 165,
     173, 106, 151, 166, 13, 92, 202, 16, 70, 4, 56, 120, 53, 70, 70, 30, 49, 40, 95, 197, 159, 145,
@@ -258,8 +258,7 @@ pub(crate) mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_verify_round_absent_eddsa_signature() {
-        // First signature from block 11000
+    fn test_verify_eddsa_signature_1() {
         let msg = "6c080211f82a00000000000022480a2036f2d954fe1ba37c5036cb3c6b366d0daf68fccbaa370d9490361c51a0a38b61122408011220cddf370e891591c9d912af175c966cd8dfa44b2c517e965416b769eb4b9d5d8d2a0c08f6b097a50610dffbcba90332076d6f6368612d33";
         let pubkey = "de25aec935b10f657b43fa97e5a8d4e523bdb0f9972605f0b064eff7b17048ba";
         let sig = "091576e9e3ad0e5ba661f7398e1adb3976ba647b579b8e4a224d1d02b591ade6aedb94d3bf55d258f089d6413155a57adfd4932418a798c2d68b29850f6fb50b";
@@ -270,8 +269,7 @@ pub(crate) mod tests {
     }
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_verify_round_present_eddsa_signature() {
-        // First signature from block 11105 (round present)
+    fn test_verify_eddsa_signature_2() {
         let msg = "74080211612b00000000000019010000000000000022480a205047a5a855854ca8bc610fb47ee849084c04fe25a2f037a07de6ae343c55216b122408011220cb05d8adc7c24d55f06d3bd0aea50620d3f0d73a9656a9073cc47a959a0961672a0b08acbd97a50610b1a5f31132076d6f6368612d33";
         let pubkey = "de25aec935b10f657b43fa97e5a8d4e523bdb0f9972605f0b064eff7b17048ba";
         let sig = "b4ea1e808fa88073ae8fe9d9d33d99ae7990cb148c81f2158e56c90aa45d9c3457aaffb875853956b0093ab1b3606b4eb450f5b476e54c508375a25c78376e0d";
@@ -282,7 +280,7 @@ pub(crate) mod tests {
     }
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_verify_dummy_signature() {
+    fn test_verify_eddsa_signature_dummy() {
         verify_eddsa_signature(
             DUMMY_MSG.to_vec(),
             DUMMY_PUBLIC_KEY.to_vec(),
