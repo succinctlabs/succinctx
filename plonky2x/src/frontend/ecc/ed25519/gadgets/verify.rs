@@ -169,6 +169,8 @@ impl<L: PlonkParameters<D>, const D: usize> TendermintSignature<L, D> for Circui
             // TODO: verify_variable_signatures_circuit expects bit length, remove bit_length in future
             let eight_u32 = self.constant::<U32Variable>(8);
             let bit_length = self.mul(byte_length, eight_u32);
+            self.watch(&bit_length, "bit_length");
+
             self.api
                 .connect(eddsa_target.msgs_bit_lengths[i], bit_length.0 .0);
 
