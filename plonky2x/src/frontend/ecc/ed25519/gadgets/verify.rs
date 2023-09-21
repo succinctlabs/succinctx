@@ -56,7 +56,7 @@ pub trait EDDSABatchVerify<L: PlonkParameters<D>, const D: usize> {
 
     /// Verifies NUM_SIGS EdDSA signatures. is_active is a bit vector of length NUM_SIGS, where each bit indicates whether to verify the corresponding signature.
     /// message_byte_lengths is a vector of length NUM_SIGS, where each element is the (variable) byte length of the corresponding message.
-    fn select_batch_eddsa_verify<const NUM_SIGS: usize, const MAX_MESSAGE_BYTE_LENGTH: usize>(
+    fn conditional_batch_eddsa_verify<const NUM_SIGS: usize, const MAX_MESSAGE_BYTE_LENGTH: usize>(
         &mut self,
         is_active: &[BoolVariable],
         messages: Vec<BytesVariable<MAX_MESSAGE_BYTE_LENGTH>>,
@@ -141,7 +141,10 @@ impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBu
     }
 
     /// Verifies signatures marked with is_active.
-    fn select_batch_eddsa_verify<const NUM_SIGS: usize, const MAX_MESSAGE_BYTE_LENGTH: usize>(
+    fn conditional_batch_eddsa_verify<
+        const NUM_SIGS: usize,
+        const MAX_MESSAGE_BYTE_LENGTH: usize,
+    >(
         &mut self,
         is_active: &[BoolVariable],
         messages: Vec<BytesVariable<MAX_MESSAGE_BYTE_LENGTH>>,
@@ -254,7 +257,7 @@ pub(crate) mod tests {
         let eddsa_sig_target = builder.read::<ArrayVariable<EDDSASignatureTarget<Curve>, 1>>();
         let eddsa_pub_key_target = builder.read::<ArrayVariable<AffinePointTarget<Curve>, 1>>();
 
-        builder.select_batch_eddsa_verify::<1, MESSAGE_BYTES_LENGTH_MAX>(
+        builder.conditional_batch_eddsa_verify::<1, MESSAGE_BYTES_LENGTH_MAX>(
             &is_active.as_vec(),
             msg_bytes_variable.as_vec(),
             msg_byte_length.as_vec(),
