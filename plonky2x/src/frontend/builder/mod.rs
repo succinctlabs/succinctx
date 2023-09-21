@@ -19,8 +19,20 @@ pub use self::io::CircuitIO;
 use super::generator::HintRef;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
+use crate::frontend::hash::blake2::blake2b_curta::CurtaBlake2BRequest;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
+
+
+pub enum CurtaRequest {
+    Sha256(Vec<Target>),
+    Blake2b(CurtaBlake2BRequest),
+}
+
+pub enum CurtaResponse {
+    Sha256([Target; 32]),
+    Blake2b([Target; 32]),
+}
 
 /// The universal builder for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
@@ -32,8 +44,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintRef<L, D>>>,
-    pub sha256_requests: Vec<Vec<Target>>,
-    pub sha256_responses: Vec<[Target; 32]>,
+    pub curta_requests: Vec<CurtaRequest>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
@@ -60,8 +71,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             debug: false,
             debug_variables: HashMap::new(),
             hints: Vec::new(),
-            sha256_requests: Vec::new(),
-            sha256_responses: Vec::new(),
+            curta_requests: Vec::new(),
         }
     }
 

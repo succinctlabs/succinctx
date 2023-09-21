@@ -11,22 +11,6 @@ use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn bytes_to_target(&mut self, input: &[ByteVariable]) -> Vec<Target> {
-        let mut bytes = Vec::new();
-        for i in 0..input.len() {
-            let mut byte = self.api.zero();
-            let targets = input[i].targets();
-            for j in 0..8 {
-                let bit = targets[j];
-                byte = self
-                    .api
-                    .mul_const_add(L::Field::from_canonical_u8(1 << (7 - j)), bit, byte);
-            }
-            bytes.push(byte);
-        }
-        bytes
-    }
-
     /// Pad the given input according to the SHA-256 spec.
     pub fn curta_sha256_pad(&mut self, input: &[ByteVariable]) -> Vec<ByteVariable> {
         let mut bits = input
