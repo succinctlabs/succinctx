@@ -2,7 +2,7 @@ use core::fmt::Debug;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
-use plonky2::iop::generator::{GeneratedValues, WitnessGenerator, WitnessGeneratorRef};
+use plonky2::iop::generator::{GeneratedValues, WitnessGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness};
 use plonky2::util::serialization::IoError;
@@ -13,14 +13,32 @@ use super::hint::{AnyAsyncHint, AnyHint, AsyncHint};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::hint::HintGenerator;
 use crate::frontend::vars::{ValueStream, VariableStream};
-use crate::prelude::CircuitVariable;
+use crate::prelude::{CircuitVariable, Variable};
 use crate::utils::serde::BufferWrite;
 
 pub trait AsyncGeneratorData<L: PlonkParameters<D>, const D: usize>: HintGenerator<L, D> {
-    fn generator(
+    fn generator(&self, tx: UnboundedSender<HintInMessage<L, D>>) -> AsyncHintRef<L, D>;
+}
+
+pub trait AsyncHintRunner<L: PlonkParameters<D>, const D: usize>:
+    'static + Debug + Send + Sync
+{
+    fn watch_list(&self) -> &[Variable];
+
+    fn run(
         &self,
-        tx: UnboundedSender<HintInMessage<L, D>>,
-    ) -> WitnessGeneratorRef<L::Field, D>;
+        witness: &PartitionWitness<L::Field>,
+        out_buffer: &mut GeneratedValues<L::Field>,
+    ) -> Result<bool>;
+}
+
+#[derive(Debug)]
+pub struct AsyncHintRef<L, const D: usize>(pub Box<dyn AsyncHintRunner<L, D>>);
+
+impl<L: PlonkParameters<D>, const D: usize> AsyncHintRef<L, D> {
+    pub fn new<H: AsyncHintRunner<L, D>>(hint: H) -> Self {
+        Self(Box::new(hint))
+    }
 }
 
 #[derive(Debug)]
@@ -68,11 +86,8 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> HintGenerator<L,
 impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncGeneratorData<L, D>
     for AsyncHintData<L, H, D>
 {
-    fn generator(
-        &self,
-        tx: UnboundedSender<HintInMessage<L, D>>,
-    ) -> WitnessGeneratorRef<L::Field, D> {
-        WitnessGeneratorRef::new(self.generator(tx))
+    fn generator(&self, tx: UnboundedSender<HintInMessage<L, D>>) -> AsyncHintRef<L, D> {
+        AsyncHintRef::new(self.generator(tx))
     }
 }
 
@@ -131,43 +146,21 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintGenerat
     }
 }
 
-impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator<L::Field, D>
+impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<L, D>
     for AsyncHintGenerator<L, H, D>
 {
-    fn id(&self) -> String {
-        H::id()
-    }
-
-    fn watch_list(&self) -> Vec<Target> {
-        self.input_stream.real_all().iter().map(|v| v.0).collect()
-    }
-
-    fn serialize(
-        &self,
-        _dst: &mut Vec<u8>,
-        _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<L::Field, D>,
-    ) -> plonky2::util::serialization::IoResult<()> {
-        unimplemented!("This witness generator is not serializable, the serialization is handled by 'AsyncHintData'")
-    }
-
-    fn deserialize(
-        _src: &mut plonky2::util::serialization::Buffer,
-        _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<L::Field, D>,
-    ) -> plonky2::util::serialization::IoResult<Self>
-    where
-        Self: Sized,
-    {
-        unimplemented!("This witness generator is not deserializable, the deserialization is handled by 'AsyncHintData'")
+    fn watch_list(&self) -> &[Variable] {
+        self.input_stream.real_all()
     }
 
     fn run(
         &self,
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
-    ) -> bool {
+    ) -> Result<bool> {
         // check if all the inputs has been set.
-        if !witness.contains_all(&self.watch_list()) {
-            return false;
+        if !self.watch_list().iter().all(|v| witness.contains(v.0)) {
+            return Ok(false);
         }
         // check if the hint is already waiting for output.
         let waiting = self.waiting.load(Ordering::Relaxed);
@@ -183,9 +176,9 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
                 for (var, val) in output_vars.iter().zip(output_values) {
                     var.set(out_buffer, *val)
                 }
-                return true;
+                return Ok(true);
             }
-            false
+            Ok(false)
         }
         // if the hint is not waiting, send the input and update the waiting flag.
         else {
@@ -203,7 +196,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
             // update the waiting flag to `true`.
             self.waiting.store(true, Ordering::Relaxed);
 
-            false
+            Ok(false)
         }
     }
 }

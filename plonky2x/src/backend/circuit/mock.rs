@@ -5,7 +5,7 @@ use plonky2::plonk::circuit_data::MockCircuitData;
 
 use super::input::PublicInput;
 use super::output::PublicOutput;
-use super::witness::{generate_witness, GenerateWitnessError};
+use super::witness::{generate_witness_mock, GenerateWitnessError};
 use super::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
 
@@ -37,7 +37,7 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
         self.io.set_witness(&mut pw, input);
 
         // Generate the rest of witness.
-        let witness = match generate_witness(pw, &self.data.prover_only, &self.data.common) {
+        let witness = match generate_witness_mock(pw, &self.data.prover_only, &self.data.common) {
             Ok(witness) => witness,
             Err(GenerateWitnessError::GeneratorsNotRun(targets)) => {
                 panic!("generators not run: {:?}", targets)

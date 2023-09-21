@@ -15,7 +15,7 @@ use super::input::PublicInput;
 use super::output::PublicOutput;
 use super::serialization::hints::HintSerializer;
 use super::serialization::{GateRegistry, HintRegistry};
-use super::witness::{generate_witness_with_hints, generate_witness_with_hints_async};
+use super::witness::{generate_witness, generate_witness_async};
 use crate::frontend::builder::CircuitIO;
 use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::utils::hex;
@@ -47,7 +47,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
     ) {
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
-        let partition_witness = generate_witness_with_hints(
+        let partition_witness = generate_witness(
             pw,
             &self.data.prover_only,
             &self.data.common,
@@ -75,7 +75,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
     ) {
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
-        let partition_witness = generate_witness_with_hints_async(
+        let partition_witness = generate_witness_async(
             pw,
             &self.data.prover_only,
             &self.data.common,
