@@ -189,7 +189,6 @@ impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBu
 pub(crate) mod tests {
     use num::BigUint;
     use plonky2::field::types::Field;
-    use tendermint::private_key;
 
     use super::*;
     use crate::frontend::ecc::ed25519::curve::curve_types::AffinePoint;
@@ -203,9 +202,8 @@ pub(crate) mod tests {
     #[test]
     fn test_generate_signature() {
         let priv_key_bytes = [0u8; 32];
-        let signing_key =
-            private_key::Ed25519::try_from(&priv_key_bytes[..]).expect("failed to create key");
-        let signing_key = ed25519_consensus::SigningKey::try_from(signing_key).unwrap();
+        let signing_key = ed25519_consensus::SigningKey::try_from(&priv_key_bytes[..])
+            .expect("failed to create key");
 
         let verification_key = signing_key.verification_key();
 
