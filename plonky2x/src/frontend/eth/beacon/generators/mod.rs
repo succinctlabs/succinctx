@@ -11,6 +11,8 @@ pub use balance::BeaconBalanceGenerator;
 pub use balances::BeaconBalancesGenerator;
 pub use historical::BeaconHistoricalBlockGenerator;
 pub use validator::BeaconValidatorGenerator;
-pub use validators::BeaconValidatorsGenerator;
+pub use validators::{BeaconValidatorsGenerator, BeaconValidatorsHint};
 pub use withdrawal::BeaconWithdrawalGenerator;
 pub use withdrawals::BeaconWithdrawalsGenerator;
+
+pub(crate) use self::validators::DEPTH;

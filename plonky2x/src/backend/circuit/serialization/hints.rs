@@ -43,7 +43,7 @@ use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
     BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator,
+    BeaconWithdrawalsGenerator, BeaconValidatorsHint,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -372,6 +372,8 @@ impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
 
         let id = U32SubtractionGenerator::<L::Field, D>::id();
         r.register_simple::<U32SubtractionGenerator<L::Field, D>>(id);
+
+        r.register_async_hint::<BeaconValidatorsHint>();
 
         register_watch_generator!(
             r,
