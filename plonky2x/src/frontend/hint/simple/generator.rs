@@ -71,7 +71,11 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> WitnessGenerator<L::F
 
         let output_values = output_stream.read_all();
         let output_vars = self.output_stream.real_all();
-        assert_eq!(output_values.len(), output_vars.len());
+        assert_eq!(
+            output_values.len(),
+            output_vars.len(),
+            "Hint output stream length does not match output variables length"
+        );
 
         for (var, val) in output_vars.iter().zip(output_values) {
             var.set(out_buffer, *val)

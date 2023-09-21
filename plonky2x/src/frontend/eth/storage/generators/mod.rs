@@ -2,4 +2,6 @@ mod block;
 mod storage;
 
 pub use block::EthBlockGenerator;
-pub use storage::{EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint};
+pub use storage::{
+    EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator, EthStorageProofHint,
+};

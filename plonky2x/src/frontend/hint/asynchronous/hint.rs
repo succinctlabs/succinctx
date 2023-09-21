@@ -18,8 +18,10 @@ use crate::frontend::vars::ValueStream;
 /// # use async_trait::async_trait;
 /// # use serde::{Deserialize, Serialize};
 /// # use tokio::time::{sleep, Duration};
-//  # use crate::frontend::vars::ValueStream;
-/// # use crate::prelude::{ByteVariable, DefaultBuilder};
+//  # use plonky2x::frontend::vars::ValueStream;
+/// # use plonky2x::frontend::vars::ValueStream;
+/// # use plonky2x::prelude::*;
+/// # use plonky2x::frontend::hint::asynchronous::hint::AsyncHint;
 ///
 /// #[derive(Debug, Clone, Serialize, Deserialize)]
 /// struct SleepHint;

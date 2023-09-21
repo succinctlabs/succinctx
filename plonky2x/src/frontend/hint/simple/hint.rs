@@ -93,11 +93,5 @@ mod tests {
         // Read output.
         let byte_plus_one = output.read::<ByteVariable>();
         assert_eq!(byte_plus_one, 7u8);
-
-        // Test the serialization
-        // let gate_serializer = GateRegistry::new();
-        // let mut hint_serializer = HintRegistry::new();
-        // hint_serializer.register_hint::<AddSome>();
-        // circuit.test_serializers(&gate_serializer, &hint_serializer);
     }
 }

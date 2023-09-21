@@ -160,6 +160,67 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
+    fn test_many_eth_get_storage_at() {
+        utils::setup_logger();
+        dotenv::dotenv().ok();
+        let rpc_url = env::var("RPC_1").unwrap();
+        let provider = Provider::<Http>::try_from(rpc_url).unwrap();
+
+        let num_requests = 1000;
+
+        // This is the circuit definition
+        let mut builder = DefaultBuilder::new();
+        builder.set_execution_client(provider);
+
+        for _ in 0..num_requests {
+            let block_hash = builder.evm_read::<Bytes32Variable>();
+            let address = builder.evm_read::<AddressVariable>();
+            let location = builder.evm_read::<Bytes32Variable>();
+            let value = builder.eth_get_storage_at(block_hash, address, location);
+            builder.evm_write(value);
+        }
+
+        // Build your circuit.
+        let circuit = builder.build();
+
+        // Write to the circuit input.
+        // These values are taken from Ethereum block https://etherscan.io/block/17880427
+        let mut input = circuit.input();
+        for _ in 0..num_requests {
+            // block hash
+            input.evm_write::<Bytes32Variable>(bytes32!(
+                "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
+            ));
+            // address
+            input.evm_write::<AddressVariable>(address!(
+                "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"
+            ));
+            // location
+            input.evm_write::<Bytes32Variable>(bytes32!(
+                "0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"
+            ));
+        }
+
+        // Generate a proof.
+        let (proof, mut output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
+
+        // Read output.
+        for _ in 0..num_requests {
+            let circuit_value = output.evm_read::<Bytes32Variable>();
+            debug!("{:?}", circuit_value);
+            assert_eq!(
+                circuit_value,
+                bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
+            );
+        }
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    #[allow(non_snake_case)]
     fn test_get_storage_key_at() {
         utils::setup_logger();
         dotenv::dotenv().ok();
