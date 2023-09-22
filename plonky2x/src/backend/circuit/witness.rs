@@ -4,10 +4,7 @@
 //! added functionality to have non-blocking witness generation for asynchronous hints and
 //! computationally expensive generators.
 //!
-//!
 //! [1] : https://github.com/mir-protocol/plonky2/blob/main/plonky2/src/iop/generator.rs#L19
-//!
-//!
 
 use alloc::collections::BTreeMap;
 
@@ -31,14 +28,14 @@ pub fn generate_witness<'a, L: PlonkParameters<D>, const D: usize>(
     common_data: &'a CommonCircuitData<L::Field, D>,
     async_generator_refs: &'a BTreeMap<usize, AsyncHintDataRef<L, D>>,
 ) -> Result<PartitionWitness<'a, L::Field>> {
-    // If async hints are present, set up the a handler and initialize
-    // the generators with the handler's communication channel.
+    // If async hints are present, set up the a handler and initialize the generators with the
+    // handler's communication channel.
     let (tx_handler_error, rx_handler_error) = oneshot::channel();
     let async_generators = match async_generator_refs.is_empty() {
         true => BTreeMap::new(),
         false => {
             let (tx, rx) = unbounded_channel();
-            // initialize the hint handler.
+            // Initialize the hint handler.
             let mut hint_handler = HintHandler::<L, D>::new(rx);
 
             // Spawn a runtime and run the hint handler.
@@ -73,14 +70,14 @@ pub async fn generate_witness_async<'a, L: PlonkParameters<D>, const D: usize>(
     common_data: &'a CommonCircuitData<L::Field, D>,
     async_generator_refs: &'a BTreeMap<usize, AsyncHintDataRef<L, D>>,
 ) -> Result<PartitionWitness<'a, L::Field>> {
-    // If async hints are present, set up the a handler and initialize
-    // the generators with the handler's communication channel.
+    // If async hints are present, set up the a handler and initialize the generators with the
+    // handler's communication channel.
     let (tx_handler_error, rx_handler_error) = oneshot::channel();
     let async_generators = match async_generator_refs.is_empty() {
         true => BTreeMap::new(),
         false => {
             let (tx, rx) = unbounded_channel();
-            // initialize the hint handler.
+            // Initialize the hint handler.
             let mut hint_handler = HintHandler::<L, D>::new(rx);
 
             // Spawn a runtime and run the hint handler.
