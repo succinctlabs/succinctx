@@ -160,6 +160,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Executes a SHA256 hash on the given input with a mutable accelerator.
     /// Note: Should only be called by curta_constrain_sha256.
+    /// TODO: Remove this function once bug with mut ref to accelerator in curta_constrain_sha256 is fixed.
     fn curta_sha256_with_accelerator(
         &mut self,
         input: &[ByteVariable],
