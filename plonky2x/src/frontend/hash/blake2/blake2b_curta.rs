@@ -6,7 +6,6 @@ use crate::frontend::builder::CurtaRequest;
 use crate::frontend::hash::bit_operations::{
     convert_byte_target_to_byte_var, convert_byte_var_to_target,
 };
-use crate::frontend::uint::uint32::U32Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable, Div};
@@ -21,32 +20,22 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn curta_blake2b_pad<const MAX_NUM_CHUNKS: usize>(
         &mut self,
         message: &[ByteVariable],
-    ) -> Vec<ByteVariable> {
+    ) -> &[ByteVariable] {
         // TODO: Currently, Curta does not support no-ops over BLAKE2B chunks. Until Curta BLAKE2B supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
+        if (message.len() % 128 == 0) && (!message.len() == 0) {
+            message
+        } else {
+            let padlen = 128 - (message.len() % 128);
 
-        let mut padded_message = Vec::new();
-        let num_chunks = (message.len() + 127) / 128;
-        let num_chunks = std::cmp::min(num_chunks, MAX_NUM_CHUNKS);
-        let num_chunks = self.constant::<U32Variable>(num_chunks as u32);
-        let num_chunks = self.mul(num_chunks, self.constant::<U32Variable>(128u32));
-        let num_chunks = self.sub(num_chunks, self.constant::<U32Variable>(1u32));
+            let mut padded_message = Vec::new();
+            padded_message.extend(message);
 
-        for i in 0..num_chunks {
-            let mut chunk = Vec::new();
-            for j in 0..128 {
-                let index = i * 128 + j;
-                if index < message.len() {
-                    chunk.push(message[index]);
-                } else if index == message.len() {
-                    chunk.push(self.constant::<ByteVariable>(128u8));
-                } else {
-                    chunk.push(self.constant::<ByteVariable>(0u8));
-                }
+            for i in 0..padlen {
+                padded_message.push(self.constant::<ByteVariable>(0u8));
             }
-            padded_message.extend(chunk);
-        }
 
-        padded_message
+            padded_message.as_slice()
+        }
     }
 
     /// Executes a BLAKE2B hash on the given message.
