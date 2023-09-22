@@ -109,8 +109,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.beacon_client = Some(client);
     }
 
-    /// Build the circuit.
-    pub fn build(mut self) -> CircuitBuild<L, D> {
+    /// Adds all the constraints nedded before building the circuit and registering hints.
+    fn pre_build(&mut self) {
         if !self.sha256_requests.is_empty() {
             self.curta_constrain_sha256();
         }
@@ -164,23 +164,36 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             CircuitIO::None() => {}
             _ => panic!("unsupported io type"),
         };
+    }
 
-        let data = self.api.build();
-
+    /// Constructs a map of async hints according to their generator indices.
+    fn async_hint_map(
+        generators: &[WitnessGeneratorRef<L::Field, D>],
+        async_hints: Vec<AsyncHintDataRef<L, D>>,
+    ) -> BTreeMap<usize, AsyncHintDataRef<L, D>> {
         let mut async_hint_indices = Vec::new();
 
-        for (i, generator) in data.prover_only.generators.iter().enumerate() {
+        for (i, generator) in generators.iter().enumerate() {
             if generator.0.id().starts_with("--async") {
                 async_hint_indices.push(i);
             }
         }
 
-        assert_eq!(async_hint_indices.len(), self.async_hints.len());
+        assert_eq!(async_hint_indices.len(), async_hints.len());
 
-        let mut async_hints = BTreeMap::new();
-        for (key, gen) in async_hint_indices.iter().zip(self.async_hints) {
-            async_hints.insert(*key, gen);
+        let mut async_hints_map = BTreeMap::new();
+        for (key, gen) in async_hint_indices.iter().zip(async_hints) {
+            async_hints_map.insert(*key, gen);
         }
+
+        async_hints_map
+    }
+
+    /// Build the circuit.
+    pub fn build(mut self) -> CircuitBuild<L, D> {
+        self.pre_build();
+        let data = self.api.build();
+        let async_hints = Self::async_hint_map(&data.prover_only.generators, self.async_hints);
 
         CircuitBuild {
             data,
@@ -190,76 +203,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     pub fn mock_build(mut self) -> MockCircuitBuild<L, D> {
-        if !self.sha256_requests.is_empty() {
-            self.curta_constrain_sha256();
-        }
-
-        for (index, gen_ref) in self
-            .async_hints_indices
-            .iter()
-            .zip(self.async_hints.iter_mut())
-        {
-            let new_output_stream = self.hints[*index].output_stream_mut();
-            let output_stream = gen_ref.0.output_stream_mut();
-            *output_stream = new_output_stream.clone();
-        }
-
-        let hints = self.hints.drain(..).collect::<Vec<_>>();
-        let generators = hints
-            .into_iter()
-            .map(|h| WitnessGeneratorRef(h))
-            .collect::<Vec<_>>();
-        self.api.add_generators(generators);
-
-        match self.io {
-            CircuitIO::Bytes(ref io) => {
-                let input = io
-                    .input
-                    .iter()
-                    .flat_map(|b| b.variables())
-                    .collect::<Vec<_>>();
-                let output = io
-                    .output
-                    .iter()
-                    .flat_map(|b| b.variables())
-                    .collect::<Vec<_>>();
-                self.register_public_inputs(input.as_slice());
-                self.register_public_inputs(output.as_slice());
-            }
-            CircuitIO::Elements(ref io) => {
-                let input = io
-                    .input
-                    .iter()
-                    .flat_map(|b| b.variables())
-                    .collect::<Vec<_>>();
-                let output = io
-                    .output
-                    .iter()
-                    .flat_map(|b| b.variables())
-                    .collect::<Vec<_>>();
-                self.register_public_inputs(input.as_slice());
-                self.register_public_inputs(output.as_slice());
-            }
-            CircuitIO::None() => {}
-            _ => panic!("unsupported io type"),
-        };
-
+        self.pre_build();
         let mock_data = self.api.mock_build();
-
-        let mut async_hint_indices = Vec::new();
-
-        for (i, generator) in mock_data.prover_only.generators.iter().enumerate() {
-            if generator.0.id().starts_with("--async") {
-                async_hint_indices.push(i);
-            }
-        }
-
-        assert_eq!(async_hint_indices.len(), self.async_hints.len());
-
-        let mut async_hints = BTreeMap::new();
-        for (key, gen) in async_hint_indices.iter().zip(self.async_hints) {
-            async_hints.insert(*key, gen);
-        }
+        let async_hints = Self::async_hint_map(&mock_data.prover_only.generators, self.async_hints);
 
         MockCircuitBuild {
             data: mock_data,

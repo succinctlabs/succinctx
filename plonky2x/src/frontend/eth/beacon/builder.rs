@@ -52,9 +52,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let validators_root = output_stream.read::<Bytes32Variable>(self);
         let proof = array![_ => output_stream.read::<Bytes32Variable>(self); DEPTH];
-        // let generator =
-        //     BeaconValidatorsGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
-        // self.add_simple_generator(generator.clone());
         self.ssz_verify_proof_const(block_root, validators_root, &proof, VALIDATORS_ROOT_GINDEX);
         BeaconValidatorsVariable {
             block_root,
