@@ -31,7 +31,6 @@ pub fn convert_byte_target_to_byte_var<F: RichField + Extendable<D>, const D: us
         .low_bits(byte_target, 8, 8)
         .iter()
         .map(|x| x.target)
-        .rev()
         .collect_vec()
         .try_into()
         .expect("Expected 8 bits.  Should never happen");
