@@ -143,7 +143,30 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let accelerator = self
             .sha256_accelerator
             .as_mut()
-            .expect("blake2b accelerator should exist");
+            .expect("sha256 accelerator should exist");
+        let bytes = padded_input
+            .iter()
+            .map(|x| convert_byte_var_to_target(*x, &mut self.api))
+            .collect::<Vec<_>>();
+
+        accelerator.sha256_requests.push(bytes);
+        let digest = self.api.add_virtual_target_arr::<32>();
+        accelerator.sha256_responses.push(digest);
+
+        let bytes: [ByteVariable; 32] =
+            digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
+        bytes.into()
+    }
+
+    /// Executes a SHA256 hash on the given input with a mutable accelerator.
+    /// Note: Should only be called by curta_constrain_sha256.
+    /// TODO: Remove this function once bug with mut ref to accelerator in curta_constrain_sha256 is fixed.
+    fn curta_sha256_with_accelerator(
+        &mut self,
+        input: &[ByteVariable],
+        accelerator: &mut Sha256Accelerator<L, D>,
+    ) -> Bytes32Variable {
+        let padded_input = self.curta_sha256_pad(input);
 
         let bytes = padded_input
             .iter()
@@ -156,7 +179,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let bytes: [ByteVariable; 32] =
             digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
-
         bytes.into()
     }
 
@@ -188,8 +210,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let accelerator = self
             .sha256_accelerator
             .as_mut()
-            .expect("blake2b accelerator should exist");
-
+            .expect("sha256 accelerator should exist");
         let bytes = padded_input
             .iter()
             .map(|x| convert_byte_var_to_target(*x, &mut self.api))
@@ -201,7 +222,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let bytes: [ByteVariable; 32] =
             digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
-
         bytes.into()
     }
 
@@ -249,7 +269,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // If the number of chunks is not a multiple of 1024, pad the gadget with dummy chunks.
         while nb_chunks % 1024 != 0 {
-            self.curta_sha256(&zero_chunk);
+            self.curta_sha256_with_accelerator(&zero_chunk, accelerator);
             nb_chunks += 1;
         }
 
@@ -307,7 +327,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha256_curta() {
+    fn test_sha256_curta_fixed_single() {
         env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
