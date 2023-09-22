@@ -118,7 +118,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let sha256_accelerator = self.sha256_accelerator.clone();
-        if let Some(accelerator) = sha256_accelerator {
+        if let Some(mut accelerator) = sha256_accelerator {
             accelerator.build(&mut self);
         }
 
@@ -170,7 +170,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let sha256_accelerator = self.sha256_accelerator.clone();
-        if let Some(accelerator) = sha256_accelerator {
+        if let Some(mut accelerator) = sha256_accelerator {
             accelerator.build(&mut self);
         }
 
