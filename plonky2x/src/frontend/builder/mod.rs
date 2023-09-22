@@ -44,7 +44,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintRef<L, D>>>,
     pub curta_requests: Vec<CurtaRequest>,
-    pub curta_contraint_fn: HashSet<fn(&mut CircuitBuilder<L, D>)>,
+    pub curta_contraint_fn: HashSet<fn(&mut Self)>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
@@ -285,7 +285,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         variable.to_be_bits(self)
     }
 
-    pub fn register_curta_contraint(&mut self, f: fn(&mut Self)) {
+    pub fn register_curta_contraint_fn(&mut self, f: fn(&mut Self)) {
         self.curta_contraint_fn.insert(f);
     }
 }

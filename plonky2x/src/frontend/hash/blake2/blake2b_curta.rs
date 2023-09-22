@@ -1,4 +1,5 @@
 use curta::chip::hash::blake::blake2b::builder_gadget::{BLAKE2BBuilder, BLAKE2BBuilderGadget};
+use curta::chip::hash::blake::blake2b::generator::BLAKE2BAirParameters;
 use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
@@ -17,24 +18,24 @@ pub struct CurtaBlake2BRequest {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn curta_blake2b_pad<const MAX_NUM_CHUNKS: usize>(
+    pub fn curta_blake2b_pad<'a, const MAX_NUM_CHUNKS: usize>(
         &mut self,
         message: &[ByteVariable],
-    ) -> &[ByteVariable] {
+    ) -> Vec<ByteVariable> {
         // TODO: Currently, Curta does not support no-ops over BLAKE2B chunks. Until Curta BLAKE2B supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
         if (message.len() % 128 == 0) && (!message.len() == 0) {
-            message
+            message.to_vec()
         } else {
             let padlen = 128 - (message.len() % 128);
 
             let mut padded_message = Vec::new();
             padded_message.extend(message);
 
-            for i in 0..padlen {
+            for _i in 0..padlen {
                 padded_message.push(self.constant::<ByteVariable>(0u8));
             }
 
-            padded_message.as_slice()
+            padded_message
         }
     }
 
@@ -65,7 +66,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         };
         self.curta_requests
             .push(CurtaRequest::Blake2b(curta_blake2b_request));
-        self.register_curta_contraint(CircuitBuilder::curta_constrain_blake2b);
+        self.register_curta_contraint_fn(CircuitBuilder::curta_constrain_blake2b);
 
         let bytes: [ByteVariable; 32] =
             digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
@@ -81,30 +82,31 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         for curta_req in self.curta_requests.iter() {
             match curta_req {
                 CurtaRequest::Blake2b(curta_blake2b_req) => {
-                    padded_messages.extend(curta_blake2b_req.message);
+                    padded_messages.extend(curta_blake2b_req.message.clone());
                     msg_lengths.push(curta_blake2b_req.message_len);
                     digests.extend(curta_blake2b_req.digest);
                 }
                 _ => {}
             }
         }
+        let mut blake2b_builder_gadget: BLAKE2BBuilderGadget<
+            BLAKE2BAirParameters<L::Field, L::CubicParams>,
+        > = self.api.init_blake2b();
+        blake2b_builder_gadget
+            .padded_messages
+            .extend(padded_messages.clone());
+        blake2b_builder_gadget.msg_lengths.extend(msg_lengths);
+        blake2b_builder_gadget.digests.extend(digests);
 
         // For now, only allow 1 blake2b curta proof per circuit
-        let max_num_chunks = BLAKE2BBuilderGadget::max_num_chunks();
+        let max_num_chunks = blake2b_builder_gadget.max_num_chunks();
         assert!(
             padded_messages.len() <= max_num_chunks * 128,
             "Too many chunks for Curta BLAKE2B"
         );
 
-        let blake2b_builder_gadget = BLAKE2BBuilderGadget {
-            padded_messages,
-            msg_lengths,
-            digests,
-            _marker: core::marker::PhantomData,
-        };
-
         self.api
-            .constrain_blake2b_gadget::<L::CurtaConfig>(blake2b_builder_gadget);
+            .constrain_blake2b_gadget::<L::CubicParams, L::CurtaConfig>(blake2b_builder_gadget);
     }
 }
 
@@ -114,7 +116,7 @@ mod tests {
 
     use crate::backend::circuit::DefaultParameters;
     use crate::frontend::vars::Bytes32Variable;
-    use crate::prelude::{ByteVariable, CircuitBuilder};
+    use crate::prelude::CircuitBuilder;
     use crate::utils::bytes32;
 
     type L = DefaultParameters;
@@ -128,8 +130,8 @@ mod tests {
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<L, D>::new();
-        let zero = builder.constant::<ByteVariable>(0u8);
-        let result = builder.curta_sha256(&[zero; 1]);
+        let zero = builder.zero();
+        let result = builder.curta_blake2b_variable::<1>(&[], zero);
         builder.watch(&result, "result");
 
         let expected_digest =
