@@ -4,6 +4,7 @@ mod remote;
 mod service;
 
 use anyhow::Result;
+use async_trait::async_trait;
 pub use env::EnvProver;
 pub use local::LocalProver;
 use plonky2::plonk::proof::ProofWithPublicInputs;
@@ -13,6 +14,7 @@ pub use service::ProofService;
 use super::circuit::{CircuitBuild, PlonkParameters, PublicInput, PublicOutput};
 
 /// Basic methods for generating proofs from circuits.
+#[async_trait]
 pub trait Prover {
     /// Creates a new instance of the prover.
     fn new() -> Self;
