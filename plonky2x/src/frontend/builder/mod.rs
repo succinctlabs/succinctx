@@ -3,7 +3,7 @@ pub mod io;
 mod proof;
 pub mod watch;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
@@ -17,21 +17,11 @@ use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
 use super::generator::HintRef;
+use super::hash::blake2::blake2b_curta::Blake2bAccelerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
-use crate::frontend::hash::blake2::blake2b_curta::CurtaBlake2BRequest;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
-
-pub enum CurtaRequest {
-    Sha256(Vec<Target>),
-    Blake2b(CurtaBlake2BRequest),
-}
-
-pub enum CurtaResponse {
-    Sha256([Target; 32]),
-    Blake2b([Target; 32]),
-}
 
 /// The universal builder for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
@@ -43,8 +33,12 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintRef<L, D>>>,
-    pub curta_requests: Vec<CurtaRequest>,
-    pub curta_contraint_fn: HashSet<fn(&mut Self)>,
+
+    // Right now we only have 2 accelerator, so just have
+    // individual fields for them.
+    // If we start adding more, then we should have a hashmap
+    // of accelerators
+    pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
@@ -71,8 +65,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             debug: false,
             debug_variables: HashMap::new(),
             hints: Vec::new(),
-            curta_requests: Vec::new(),
-            curta_contraint_fn: HashSet::new(),
+            blake2b_accelerator: None,
         }
     }
 
@@ -116,10 +109,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Build the circuit.
     pub fn build(mut self) -> CircuitBuild<L, D> {
-        if self.curta_contraint_fn.len() > 0 {
-            for f in self.curta_contraint_fn.iter() {
-                f(&mut self);
-            }
+        let blake2b_accelerator = self.blake2b_accelerator.clone();
+        if let Some(accelerator) = blake2b_accelerator {
+            accelerator.build(&mut self);
         }
 
         let hints = self.hints.drain(..).collect::<Vec<_>>();
@@ -164,10 +156,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     pub fn mock_build(mut self) -> MockCircuitBuild<L, D> {
-        if self.curta_contraint_fn.len() > 0 {
-            for f in self.curta_contraint_fn.iter() {
-                f(&mut self);
-            }
+        let blake2b_accelerator = self.blake2b_accelerator.clone();
+        if let Some(accelerator) = blake2b_accelerator {
+            accelerator.build(&mut self);
         }
 
         let mock_circuit = self.api.mock_build();
@@ -283,10 +274,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn to_be_bits<V: EvmVariable>(&mut self, variable: V) -> Vec<BoolVariable> {
         variable.to_be_bits(self)
-    }
-
-    pub fn register_curta_contraint_fn(&mut self, f: fn(&mut Self)) {
-        self.curta_contraint_fn.insert(f);
     }
 }
 

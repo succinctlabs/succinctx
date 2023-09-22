@@ -1,9 +1,10 @@
+use core::marker::PhantomData;
+
 use curta::chip::hash::blake::blake2b::builder_gadget::{BLAKE2BBuilder, BLAKE2BBuilderGadget};
 use curta::chip::hash::blake::blake2b::generator::BLAKE2BAirParameters;
 use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
-use crate::frontend::builder::CurtaRequest;
 use crate::frontend::hash::bit_operations::{
     convert_byte_target_to_byte_var, convert_byte_var_to_target,
 };
@@ -11,14 +12,27 @@ use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable, Div};
 
+#[derive(Debug, Clone)]
 pub struct CurtaBlake2BRequest {
     message: Vec<Target>,
     message_len: Target,
     digest: [Target; 32],
 }
 
+#[derive(Debug, Clone)]
+pub struct Blake2bAccelerator<L: PlonkParameters<D>, const D: usize> {
+    pub requests: Vec<CurtaBlake2BRequest>,
+    _marker: PhantomData<L>,
+}
+
+impl<L: PlonkParameters<D>, const D: usize> Blake2bAccelerator<L, D> {
+    pub fn build(&self, builder: &mut CircuitBuilder<L, D>) {
+        builder.curta_constrain_blake2b(self);
+    }
+}
+
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn curta_blake2b_pad<'a, const MAX_NUM_CHUNKS: usize>(
+    pub fn curta_blake2b_pad<const MAX_NUM_CHUNKS: usize>(
         &mut self,
         message: &[ByteVariable],
     ) -> Vec<ByteVariable> {
@@ -59,14 +73,25 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let message_len_target = message_len.targets()[0];
         let digest = self.api.add_virtual_target_arr::<32>();
 
+        if self.blake2b_accelerator.is_none() {
+            self.blake2b_accelerator = Some(Blake2bAccelerator::<L, D> {
+                requests: Vec::new(),
+                _marker: PhantomData,
+            });
+        }
+
+        let accelerator = self
+            .blake2b_accelerator
+            .as_mut()
+            .expect("blake2b accelerator should exist");
+
         let curta_blake2b_request = CurtaBlake2BRequest {
             message: message_target_bytes,
             message_len: message_len_target,
             digest,
         };
-        self.curta_requests
-            .push(CurtaRequest::Blake2b(curta_blake2b_request));
-        self.register_curta_contraint_fn(CircuitBuilder::curta_constrain_blake2b);
+
+        accelerator.requests.push(curta_blake2b_request);
 
         let bytes: [ByteVariable; 32] =
             digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
@@ -74,21 +99,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         bytes.into()
     }
 
-    pub fn curta_constrain_blake2b(&mut self) {
+    pub fn curta_constrain_blake2b(&mut self, accelerator: &Blake2bAccelerator<L, D>) {
         let mut padded_messages = Vec::new();
         let mut msg_lengths = Vec::new();
         let mut digests = Vec::new();
 
-        for curta_req in self.curta_requests.iter() {
-            match curta_req {
-                CurtaRequest::Blake2b(curta_blake2b_req) => {
-                    padded_messages.extend(curta_blake2b_req.message.clone());
-                    msg_lengths.push(curta_blake2b_req.message_len);
-                    digests.extend(curta_blake2b_req.digest);
-                }
-                _ => {}
-            }
+        for curta_req in accelerator.requests.iter() {
+            padded_messages.extend(curta_req.message.clone());
+            msg_lengths.push(curta_req.message_len);
+            digests.extend(curta_req.digest);
         }
+
         let mut blake2b_builder_gadget: BLAKE2BBuilderGadget<
             BLAKE2BAirParameters<L::Field, L::CubicParams>,
         > = self.api.init_blake2b();
