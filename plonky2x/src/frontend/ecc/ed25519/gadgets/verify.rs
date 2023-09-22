@@ -282,7 +282,9 @@ pub(crate) mod tests {
         println!("verified signature");
 
         let mut input = circuit.input();
-        input.write::<ArrayVariable<BytesVariable<124>, 1>>(vec![msg_bytes.try_into().unwrap()]);
+        input.write::<ArrayVariable<BytesVariable<MSG_BYTES_LENGTH>, 1>>(vec![msg_bytes
+            .try_into()
+            .unwrap()]);
         input.write::<ArrayVariable<EDDSASignatureTarget<Curve>, 1>>(vec![
             EDDSASignatureTargetValue { r: sig_r, s: sig_s },
         ]);
