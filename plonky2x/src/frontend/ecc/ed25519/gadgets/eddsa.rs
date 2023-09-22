@@ -257,6 +257,8 @@ pub fn curta_batch_eddsa_verify_variable<
 
 // Note: This function should not be used outside of succinctx.
 // TODO: Migrate to CircuitVariable
+// TODO: If there is one shared message length for all signed messages, then we can optimize this function with sha512, instead of variable_sha512.
+// TODO: If there is one shared message for all signed messages, then we can optimize this function by computing the sha512 once.
 pub fn curta_batch_eddsa_verify<
     F: RichField + Extendable<D>,
     C: Curve,
