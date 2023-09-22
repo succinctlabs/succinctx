@@ -1,5 +1,5 @@
 {
     "preset": "plonky2",
     "build_command": "rm -rf ./build && mkdir build && rustup override set nightly && RUST_LOG=debug cargo run --release --example mapreduce build && cp ./target/release/examples/mapreduce ./build/mapreduce",
-    "prove_command": "./build/mapreduce prove --input-json input.json"
+    "prove_command": "RUST_LOG=debug ./build/mapreduce prove --input-json input.json"
 }

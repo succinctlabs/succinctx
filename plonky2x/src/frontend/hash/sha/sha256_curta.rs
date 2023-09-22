@@ -271,6 +271,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     &self.sha256_requests[rq_idx],
                     self.sha256_responses[rq_idx],
                 );
+
                 self.add_simple_generator(hint);
                 gadget
                     .digests

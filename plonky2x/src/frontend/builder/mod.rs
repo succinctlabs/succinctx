@@ -123,6 +123,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         for hint in hints {
             hint.register(&mut self);
         }
+
         match self.io {
             CircuitIO::Bytes(ref io) => {
                 let input = io
@@ -164,6 +165,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         };
 
         let data = self.api.build();
+
         CircuitBuild { data, io: self.io }
     }
 

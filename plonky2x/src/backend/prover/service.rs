@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+use core::time::Duration;
 use std::collections::HashMap;
 use std::env;
 use std::net::ToSocketAddrs;
@@ -113,6 +114,7 @@ impl ProofService {
         debug!("sending get request: url={}", endpoint);
         self.client
             .get(endpoint)
+            .timeout(Duration::from_secs(300))
             .send()?
             .json()
             .map_err(|e| e.into())
@@ -126,7 +128,12 @@ impl ProofService {
     {
         let endpoint = format!("{}{}", self.base_url, route);
         debug!("sending post request: url={}, input={:?}", endpoint, input);
-        let response = self.client.post(endpoint).json(&input).send()?;
+        let response = self
+            .client
+            .post(endpoint)
+            .timeout(Duration::from_secs(300))
+            .json(&input)
+            .send()?;
         let text = response.text()?;
         debug!("response: {:?}", text);
         Ok(serde_json::from_str(&text).unwrap())

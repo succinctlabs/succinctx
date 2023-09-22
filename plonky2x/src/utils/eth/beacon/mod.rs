@@ -313,7 +313,10 @@ impl BeaconClient {
         );
         info!("{}", endpoint);
         let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
         let response: CustomResponse<GetBeaconPartialBalancesRoot> = response.json()?;
         assert!(response.success);
         Ok(response.result)
