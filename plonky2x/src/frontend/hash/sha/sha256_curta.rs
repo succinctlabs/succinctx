@@ -2,15 +2,12 @@ use core::marker::PhantomData;
 
 use curta::chip::hash::sha::sha256::builder_gadget::{SHA256Builder, SHA256BuilderGadget};
 use curta::chip::hash::sha::sha256::generator::SHA256HintGenerator;
-use curta::math::field::Field;
 use itertools::Itertools;
 use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
+use crate::frontend::hash::bit_operations::convert_byte_var_to_target;
 use crate::frontend::hash::bit_operations::util::u64_to_bits;
-use crate::frontend::hash::bit_operations::{
-    convert_byte_target_to_byte_var, convert_byte_var_to_target,
-};
 use crate::frontend::uint::uint32::U32Variable;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable};
