@@ -1,8 +1,6 @@
 use curta::chip::hash::sha::sha256::builder_gadget::{SHA256Builder, SHA256BuilderGadget};
 use curta::chip::hash::sha::sha256::generator::SHA256HintGenerator;
-use curta::math::field::Field;
 use itertools::Itertools;
-use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::hash::bit_operations::util::u64_to_bits;

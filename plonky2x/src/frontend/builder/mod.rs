@@ -3,7 +3,7 @@ pub mod io;
 mod proof;
 pub mod watch;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
@@ -22,7 +22,6 @@ use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild,
 use crate::frontend::hash::blake2::blake2b_curta::CurtaBlake2BRequest;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
-
 
 pub enum CurtaRequest {
     Sha256(Vec<Target>),
@@ -45,6 +44,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintRef<L, D>>>,
     pub curta_requests: Vec<CurtaRequest>,
+    pub curta_contraint_fn: HashSet<fn(&mut CircuitBuilder<L, D>)>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
@@ -72,6 +72,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             debug_variables: HashMap::new(),
             hints: Vec::new(),
             curta_requests: Vec::new(),
+            curta_contraint_fn: HashSet::new(),
         }
     }
 
@@ -115,8 +116,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Build the circuit.
     pub fn build(mut self) -> CircuitBuild<L, D> {
-        if !self.sha256_requests.is_empty() {
-            self.curta_constrain_sha256();
+        if self.curta_contraint_fn.len() > 0 {
+            for f in self.curta_contraint_fn.iter() {
+                f(&mut self);
+            }
         }
 
         let hints = self.hints.drain(..).collect::<Vec<_>>();
@@ -161,9 +164,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     pub fn mock_build(mut self) -> MockCircuitBuild<L, D> {
-        if !self.sha256_requests.is_empty() {
-            self.curta_constrain_sha256();
+        if self.curta_contraint_fn.len() > 0 {
+            for f in self.curta_contraint_fn.iter() {
+                f(&mut self);
+            }
         }
+
         let mock_circuit = self.api.mock_build();
         MockCircuitBuild {
             data: mock_circuit,
@@ -277,6 +283,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn to_be_bits<V: EvmVariable>(&mut self, variable: V) -> Vec<BoolVariable> {
         variable.to_be_bits(self)
+    }
+
+    pub fn register_curta_contraint(&mut self, f: fn(&mut Self)) {
+        self.curta_contraint_fn.insert(f);
     }
 }
 

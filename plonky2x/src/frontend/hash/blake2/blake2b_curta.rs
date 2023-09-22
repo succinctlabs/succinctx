@@ -7,8 +7,9 @@ use crate::frontend::hash::bit_operations::{
     convert_byte_target_to_byte_var, convert_byte_var_to_target,
 };
 use crate::frontend::uint::uint32::U32Variable;
+use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable};
+use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable, Div};
 
 pub struct CurtaBlake2BRequest {
     message: Vec<Target>,
@@ -17,22 +18,54 @@ pub struct CurtaBlake2BRequest {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn curta_blake2b_pad<const MAX_NUM_CHUNKS: usize>(
+        &mut self,
+        message: &[ByteVariable],
+    ) -> Vec<ByteVariable> {
+        // TODO: Currently, Curta does not support no-ops over BLAKE2B chunks. Until Curta BLAKE2B supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
+
+        let mut padded_message = Vec::new();
+        let num_chunks = (message.len() + 127) / 128;
+        let num_chunks = std::cmp::min(num_chunks, MAX_NUM_CHUNKS);
+        let num_chunks = self.constant::<U32Variable>(num_chunks as u32);
+        let num_chunks = self.mul(num_chunks, self.constant::<U32Variable>(128u32));
+        let num_chunks = self.sub(num_chunks, self.constant::<U32Variable>(1u32));
+
+        for i in 0..num_chunks {
+            let mut chunk = Vec::new();
+            for j in 0..128 {
+                let index = i * 128 + j;
+                if index < message.len() {
+                    chunk.push(message[index]);
+                } else if index == message.len() {
+                    chunk.push(self.constant::<ByteVariable>(128u8));
+                } else {
+                    chunk.push(self.constant::<ByteVariable>(0u8));
+                }
+            }
+            padded_message.extend(chunk);
+        }
+
+        padded_message
+    }
+
     /// Executes a BLAKE2B hash on the given message.
     pub fn curta_blake2b_variable<const MAX_NUM_CHUNKS: usize>(
         &mut self,
         message: &[ByteVariable],
-        message_len: U32Variable,
+        message_len: U64Variable,
     ) -> Bytes32Variable {
         // TODO: Currently, Curta does not support no-ops over BLAKE2B chunks. Until Curta BLAKE2B supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
-        let expected_last_chunk_num = self.constant::<U32Variable>((MAX_NUM_CHUNKS - 1) as u32);
-        let last_chunk_num = self.div(message_len, self.constant::<U32Variable>(128u32));
+        let expected_last_chunk_num = self.constant::<U64Variable>((MAX_NUM_CHUNKS - 1).into());
+        let last_chunk_num = message_len.div(self.constant::<U64Variable>(128.into()), self);
         self.assert_is_equal(expected_last_chunk_num, last_chunk_num);
 
         let padded_message = self.curta_blake2b_pad::<MAX_NUM_CHUNKS>(message);
 
         let message_target_bytes = padded_message
             .iter()
-            .map(|x| convert_byte_var_to_target(x, &mut self.api));
+            .map(|x| convert_byte_var_to_target(*x, &mut self.api))
+            .collect::<Vec<_>>();
         let message_len_target = message_len.targets()[0];
         let digest = self.api.add_virtual_target_arr::<32>();
 
@@ -43,7 +76,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         };
         self.curta_requests
             .push(CurtaRequest::Blake2b(curta_blake2b_request));
-        self.register_curta_contraint(self::curta_contrain_blake2b);
+        self.register_curta_contraint(CircuitBuilder::curta_constrain_blake2b);
 
         let bytes: [ByteVariable; 32] =
             digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
@@ -81,7 +114,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             _marker: core::marker::PhantomData,
         };
 
-        self.api.constrain_blake2b_gadget::<L::CurtaConfig>(gadget);
+        self.api
+            .constrain_blake2b_gadget::<L::CurtaConfig>(blake2b_builder_gadget);
     }
 }
 

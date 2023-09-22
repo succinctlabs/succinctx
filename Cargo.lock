@@ -682,7 +682,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/blake2b_generator#e82f01828da765582e6b7143e437c45cc5c3d4be"
+source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/blake2b_generator#7525c2b79a16603067449a044a89b49abbcd028e"
 dependencies = [
  "anyhow",
  "bincode",
