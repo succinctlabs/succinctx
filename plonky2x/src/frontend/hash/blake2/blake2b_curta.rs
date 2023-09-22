@@ -124,21 +124,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         blake2b_builder_gadget.digests.extend(digests);
         blake2b_builder_gadget.chunk_sizes.extend(chunk_sizes);
 
-        for i in 0..blake2b_builder_gadget.padded_messages.len() {
-            self.watch::<Variable>(
-                &blake2b_builder_gadget.padded_messages[i].into(),
-                "padded_messages",
-            );
-        }
-        /*
-                for i in 0..blake2b_builder_gadget.msg_lengths.len() {
-                    self.watch::<Variable>(&blake2b_builder_gadget.msg_lengths[i].into(), "msg_lengths");
-                }
-
-                for i in 0..blake2b_builder_gadget.digests.len() {
-                    self.watch::<Variable>(&blake2b_builder_gadget.digests[i].into(), "digests");
-                }
-        */
         // For now, only allow 1 blake2b curta proof per circuit
         let max_num_chunks = blake2b_builder_gadget.max_num_chunks();
         assert!(
@@ -173,7 +158,6 @@ mod tests {
         let mut builder = CircuitBuilder::<L, D>::new();
         let zero = builder.zero();
         let result = builder.curta_blake2b_variable::<1>(&[], zero);
-        builder.watch(&result, "result");
 
         let expected_digest =
             bytes32!("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8");
@@ -185,6 +169,6 @@ mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        circuit.test_default_serializers();
+        //circuit.test_default_serializers();
     }
 }

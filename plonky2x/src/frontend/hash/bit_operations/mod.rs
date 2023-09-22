@@ -34,9 +34,10 @@ pub fn convert_byte_target_to_byte_var<F: RichField + Extendable<D>, const D: us
         .collect_vec()
         .try_into()
         .expect("Expected 8 bits.  Should never happen");
-    let bool_variables: [BoolVariable; 8] = le_bits.map(|x| x.into());
+    let mut bool_variables: [BoolVariable; 8] = le_bits.map(|x| x.into());
 
-    // Need to reverse it to big endiend
+    // Need to reverse it to big endian
+    bool_variables.reverse();
     ByteVariable::from_be_bits(bool_variables)
 }
 
