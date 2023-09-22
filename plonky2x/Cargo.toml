@@ -54,3 +54,7 @@ plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = [
     "gate_testing",
 ] }
 env_logger = "0.10.0"
+
+
+[patch.'https://github.com/succinctlabs/curta.git']
+curta = { path = "../../curta/curta" }
