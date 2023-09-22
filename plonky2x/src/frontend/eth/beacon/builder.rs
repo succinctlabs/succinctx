@@ -253,8 +253,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         branch: &[Bytes32Variable],
         gindex: U64Variable,
     ) {
-        // let expected_root = self.ssz_restore_merkle_root(leaf, branch, gindex);
-        // self.assert_is_equal(root, expected_root);
+        let expected_root = self.ssz_restore_merkle_root(leaf, branch, gindex);
+        self.assert_is_equal(root, expected_root);
     }
 
     /// Verify a simple serialize (ssz) merkle proof with a constant index.
@@ -283,14 +283,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let left = branch[i].as_bytes();
             let right = hash.as_bytes();
 
-            let mut data = [self.init::<ByteVariable>(); 64];
+            let mut data = [self.init_unsafe::<ByteVariable>(); 64];
             data[..32].copy_from_slice(&left);
             data[32..].copy_from_slice(&right);
-            let case1 = self.sha256(&data);
+            let case1 = self.curta_sha256(&data);
 
             data[..32].copy_from_slice(&right);
             data[32..].copy_from_slice(&left);
-            let case2 = self.sha256(&data);
+            let case2 = self.curta_sha256(&data);
 
             hash = self.select(bits[i], case1, case2);
         }
@@ -311,10 +311,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             } else {
                 (hash.as_bytes(), branch[i].as_bytes())
             };
-            let mut data = [ByteVariable::init(self); 64];
+            let mut data = [ByteVariable::init_unsafe(self); 64];
             data[..32].copy_from_slice(&first);
             data[32..].copy_from_slice(&second);
-            hash = self.sha256(&data);
+            hash = self.curta_sha256(&data);
         }
         hash
     }

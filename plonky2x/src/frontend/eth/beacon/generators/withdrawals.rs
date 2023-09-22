@@ -1,7 +1,6 @@
 use core::marker::PhantomData;
 use std::env;
 
-use array_macro::array;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
@@ -22,7 +21,7 @@ pub struct BeaconWithdrawalsGenerator<L: PlonkParameters<D>, const D: usize> {
     client: BeaconClient,
     block_root: Bytes32Variable,
     pub withdrawals_root: Bytes32Variable,
-    pub proof: [Bytes32Variable; DEPTH],
+    pub proof: Vec<Bytes32Variable>,
     _phantom: PhantomData<L>,
 }
 
@@ -36,7 +35,9 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconWithdrawalsGenerator<L, D> {
             client,
             block_root,
             withdrawals_root: builder.init::<Bytes32Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            proof: (0..DEPTH)
+                .map(|_| builder.init::<Bytes32Variable>())
+                .collect::<Vec<_>>(),
             _phantom: Default::default(),
         }
     }
@@ -67,7 +68,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         let rt = Runtime::new().expect("failed to create tokio runtime");
         let result = rt.block_on(async {
             self.client
-                .get_withdrawals_root(hex!(block_root.as_bytes()).to_string())
+                .get_withdrawals(hex!(block_root.as_bytes()).to_string())
                 .expect("failed to get validators root")
         });
 
@@ -109,7 +110,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
             client,
             block_root,
             withdrawals_root,
-            proof: proof.try_into().unwrap(),
+            proof,
             _phantom: Default::default(),
         })
     }

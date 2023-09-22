@@ -57,6 +57,7 @@ use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
     BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
+use crate::frontend::eth::mpt::generators::LeGenerator;
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
 };
@@ -68,6 +69,9 @@ use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::u32::gates::add_many_u32::{U32AddManyGate, U32AddManyGenerator};
 use crate::frontend::num::u32::gates::arithmetic_u32::{U32ArithmeticGate, U32ArithmeticGenerator};
 use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGenerator};
+use crate::frontend::num::u32::gates::subtraction_u32::{
+    U32SubtractionGate, U32SubtractionGenerator,
+};
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
@@ -475,6 +479,9 @@ where
         let u32_add_many_generator_id = U32AddManyGenerator::<L::Field, D>::id();
         r.register_simple::<U32AddManyGenerator<L::Field, D>>(u32_add_many_generator_id);
 
+        let u32_subtraction_generator_id = U32SubtractionGenerator::<L::Field, D>::id();
+        r.register_simple::<U32SubtractionGenerator<L::Field, D>>(u32_subtraction_generator_id);
+
         let comparison_generator_id = ComparisonGenerator::<L::Field, D>::id();
         r.register_simple::<ComparisonGenerator<L::Field, D>>(comparison_generator_id);
 
@@ -484,10 +491,14 @@ where
         let sha256_hint_generator_id = SHA256HintGenerator::id();
         r.register_simple::<SHA256HintGenerator>(sha256_hint_generator_id);
 
-        let sha256_generator = SHA256Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
+        let sha256_generator_id =
+            SHA256Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
         r.register_simple::<SHA256Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(
-            sha256_generator,
+            sha256_generator_id,
         );
+
+        let le_generator_id = LeGenerator::<L, D>::id();
+        r.register_simple::<LeGenerator<L, D>>(le_generator_id);
 
         let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
             SHA256AirParameters<L::Field, L::CubicParams>,
@@ -544,6 +555,7 @@ impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
         r.register::<ComparisonGate<L::Field, D>>();
         r.register::<U32AddManyGate<L::Field, D>>();
         r.register::<U32ArithmeticGate<L::Field, D>>();
+        r.register::<U32SubtractionGate<L::Field, D>>();
 
         r
     }

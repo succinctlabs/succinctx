@@ -1,7 +1,6 @@
 use core::marker::PhantomData;
 use std::env;
 
-use array_macro::array;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
@@ -26,7 +25,7 @@ pub struct BeaconHistoricalBlockGenerator<F: RichField + Extendable<D>, const D:
     block_root: Bytes32Variable,
     offset: U64Variable,
     pub historical_block_root: Bytes32Variable,
-    pub proof: [Bytes32Variable; DEPTH],
+    pub proof: Vec<Bytes32Variable>,
     _phantom: PhantomData<F>,
 }
 
@@ -42,7 +41,9 @@ impl<F: RichField + Extendable<D>, const D: usize> BeaconHistoricalBlockGenerato
             block_root,
             offset,
             historical_block_root: builder.init::<Bytes32Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            proof: (0..DEPTH)
+                .map(|_| builder.init::<Bytes32Variable>())
+                .collect::<Vec<_>>(),
             _phantom: Default::default(),
         }
     }
@@ -111,7 +112,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
             block_root,
             offset,
             historical_block_root,
-            proof: proof.try_into().unwrap(),
+            proof,
             _phantom: Default::default(),
         })
     }

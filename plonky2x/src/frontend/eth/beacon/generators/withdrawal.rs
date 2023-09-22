@@ -9,7 +9,6 @@ use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
-use tokio::runtime::Runtime;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
@@ -79,12 +78,10 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         let block_root = self.withdrawals.block_root.get(witness);
         let idx = self.idx.get(witness);
 
-        let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result = rt.block_on(async {
-            self.client
-                .get_withdrawal(hex!(block_root.as_bytes()).to_string(), idx.as_u64())
-                .expect("failed to get validators root")
-        });
+        let result = self
+            .client
+            .get_withdrawal(hex!(block_root.as_bytes()).to_string(), idx.as_u64())
+            .expect("failed to get validators root");
 
         info!("{}", result.withdrawal.amount);
         let withdrawal = BeaconWithdrawalValue {
