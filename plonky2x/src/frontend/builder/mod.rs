@@ -18,6 +18,7 @@ use tokio::runtime::Runtime;
 pub use self::io::CircuitIO;
 use super::generator::HintRef;
 use super::hash::blake2::blake2b_curta::Blake2bAccelerator;
+use super::hash::sha::sha256_curta::Sha256Accelerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
@@ -39,6 +40,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     // If we start adding more, then we should have a hashmap
     // of accelerators
     pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
+    pub sha256_accelerator: Option<Sha256Accelerator<L, D>>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
@@ -66,6 +68,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             debug_variables: HashMap::new(),
             hints: Vec::new(),
             blake2b_accelerator: None,
+            sha256_accelerator: None,
         }
     }
 
@@ -114,6 +117,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             accelerator.build(&mut self);
         }
 
+        let sha256_accelerator = self.sha256_accelerator.clone();
+        if let Some(accelerator) = sha256_accelerator {
+            accelerator.build(&mut self);
+        }
+
         let hints = self.hints.drain(..).collect::<Vec<_>>();
         for hint in hints {
             hint.register(&mut self);
@@ -158,6 +166,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn mock_build(mut self) -> MockCircuitBuild<L, D> {
         let blake2b_accelerator = self.blake2b_accelerator.clone();
         if let Some(accelerator) = blake2b_accelerator {
+            accelerator.build(&mut self);
+        }
+
+        let sha256_accelerator = self.sha256_accelerator.clone();
+        if let Some(accelerator) = sha256_accelerator {
             accelerator.build(&mut self);
         }
 
