@@ -6,8 +6,10 @@ use itertools::Itertools;
 use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
-use crate::frontend::hash::bit_operations::convert_byte_var_to_target;
 use crate::frontend::hash::bit_operations::util::u64_to_bits;
+use crate::frontend::hash::bit_operations::{
+    convert_byte_target_to_byte_var, convert_byte_var_to_target,
+};
 use crate::frontend::uint::uint32::U32Variable;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable};
@@ -151,21 +153,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let digest = self.api.add_virtual_target_arr::<32>();
         accelerator.sha256_responses.push(digest);
 
-        Bytes32Variable::from_targets(
-            &digest
-                .into_iter()
-                .flat_map(|byte| {
-                    let mut bits = self
-                        .api
-                        .low_bits(byte, 8, 8)
-                        .into_iter()
-                        .map(|b| b.target)
-                        .collect_vec();
-                    bits.reverse();
-                    bits
-                })
-                .collect_vec(),
-        )
+        let bytes: [ByteVariable; 32] =
+            digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
+        bytes.into()
     }
 
     /// Executes a SHA256 hash on the given input. (Assumes it's not padded)
@@ -185,21 +175,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let digest = self.api.add_virtual_target_arr::<32>();
         accelerator.sha256_responses.push(digest);
 
-        Bytes32Variable::from_targets(
-            &digest
-                .into_iter()
-                .flat_map(|byte| {
-                    let mut bits = self
-                        .api
-                        .low_bits(byte, 8, 8)
-                        .into_iter()
-                        .map(|b| b.target)
-                        .collect_vec();
-                    bits.reverse();
-                    bits
-                })
-                .collect_vec(),
-        )
+        let bytes: [ByteVariable; 32] =
+            digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
+        bytes.into()
     }
 
     /// Executes a SHA256 hash on the given input. Note: input should be length MAX_NUM_CHUNKS * 64.
@@ -240,21 +218,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let digest = self.api.add_virtual_target_arr::<32>();
         accelerator.sha256_responses.push(digest);
 
-        Bytes32Variable::from_targets(
-            &digest
-                .into_iter()
-                .flat_map(|byte| {
-                    let mut bits = self
-                        .api
-                        .low_bits(byte, 8, 8)
-                        .into_iter()
-                        .map(|b| b.target)
-                        .collect_vec();
-                    bits.reverse();
-                    bits
-                })
-                .collect_vec(),
-        )
+        let bytes: [ByteVariable; 32] =
+            digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
+        bytes.into()
     }
 
     pub fn curta_constrain_sha256(&mut self, accelerator: &mut Sha256Accelerator<L, D>) {
