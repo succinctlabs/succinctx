@@ -69,6 +69,7 @@ mod tests {
         let mut builder = DefaultBuilder::new();
 
         let a = builder.read::<ByteVariable>();
+        let c = builder.read::<ByteVariable>();
 
         let mut input_stream = VariableStream::new();
         input_stream.write(&a);
@@ -78,11 +79,19 @@ mod tests {
         let b = output_stream.read::<ByteVariable>(&mut builder);
         builder.write(b);
 
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&c);
+        let hint = AddSome { amount: 3 };
+        let output_stream = builder.hint(input_stream, hint);
+        let d = output_stream.read::<ByteVariable>(&mut builder);
+        builder.write(d);
+
         let circuit = builder.build();
 
         // Write to the circuit input.
         let mut input = circuit.input();
         input.write::<ByteVariable>(5u8);
+        input.write::<ByteVariable>(1u8);
 
         // Generate a proof.
         let (proof, mut output) = circuit.prove(&input);
@@ -91,7 +100,9 @@ mod tests {
         circuit.verify(&proof, &input, &output);
 
         // Read output.
-        let byte_plus_one = output.read::<ByteVariable>();
-        assert_eq!(byte_plus_one, 7u8);
+        let byte_plus_two = output.read::<ByteVariable>();
+        let c_plus_3 = output.read::<ByteVariable>();
+        assert_eq!(byte_plus_two, 7u8);
+        assert_eq!(c_plus_3, 4u8);
     }
 }
