@@ -10,7 +10,7 @@ use crate::frontend::hash::bit_operations::{
 };
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable, Div, Variable};
+use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable, Div};
 
 #[derive(Debug, Clone)]
 pub struct CurtaBlake2BRequest {
@@ -169,6 +169,6 @@ mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        //circuit.test_default_serializers();
+        circuit.test_default_serializers();
     }
 }
