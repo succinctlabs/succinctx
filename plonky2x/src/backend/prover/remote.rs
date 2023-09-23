@@ -2,6 +2,7 @@ use core::time::Duration;
 use std::env;
 
 use anyhow::{anyhow, Result};
+use async_trait::async_trait;
 use futures::future::join_all;
 use itertools::Itertools;
 use log::debug;
@@ -20,6 +21,7 @@ pub struct RemoteProver {
     pub client: Client,
 }
 
+#[async_trait]
 impl Prover for RemoteProver {
     fn new() -> Self {
         Self {

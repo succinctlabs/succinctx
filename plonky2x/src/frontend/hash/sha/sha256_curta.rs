@@ -317,9 +317,7 @@ mod tests {
     use crate::backend::circuit::{CircuitBuild, DefaultParameters};
     use crate::frontend::uint::uint32::U32Variable;
     use crate::frontend::vars::Bytes32Variable;
-    use crate::prelude::{
-        ByteVariable, BytesVariable, CircuitBuilder, GateRegistry, WitnessGeneratorRegistry,
-    };
+    use crate::prelude::{ByteVariable, BytesVariable, CircuitBuilder, GateRegistry, HintRegistry};
     use crate::utils::{bytes, bytes32};
 
     type L = DefaultParameters;
@@ -405,13 +403,12 @@ mod tests {
 
         let circuit = builder.build();
         let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let hint_serializer = HintRegistry::<L, D>::new();
         let bytes = circuit
-            .serialize(&gate_serializer, &generator_serializer)
+            .serialize(&gate_serializer, &hint_serializer)
             .unwrap();
         let circuit =
-            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer)
-                .unwrap();
+            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &hint_serializer).unwrap();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);

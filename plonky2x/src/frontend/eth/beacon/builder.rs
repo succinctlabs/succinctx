@@ -1,7 +1,9 @@
+use array_macro::array;
+
 use super::generators::{
     BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
-    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator,
+    BeaconValidatorGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
+    BeaconWithdrawalsGenerator, DEPTH,
 };
 use super::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -11,7 +13,9 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable};
+use crate::frontend::vars::{
+    Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable, VariableStream,
+};
 use crate::prelude::{ByteVariable, BytesVariable};
 
 /// The gindex for blockRoot -> validatorsRoot.
@@ -41,18 +45,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         block_root: Bytes32Variable,
     ) -> BeaconValidatorsVariable {
-        let generator =
-            BeaconValidatorsGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
-        self.add_simple_generator(generator.clone());
-        self.ssz_verify_proof_const(
-            block_root,
-            generator.validators_root,
-            &generator.proof,
-            VALIDATORS_ROOT_GINDEX,
-        );
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&block_root);
+        let hint = BeaconValidatorsHint::new(self.beacon_client.clone().unwrap());
+        let output_stream = self.async_hint(input_stream, hint);
+
+        let validators_root = output_stream.read::<Bytes32Variable>(self);
+        let proof = array![_ => output_stream.read::<Bytes32Variable>(self); DEPTH];
+        self.ssz_verify_proof_const(block_root, validators_root, &proof, VALIDATORS_ROOT_GINDEX);
         BeaconValidatorsVariable {
             block_root,
-            validators_root: generator.validators_root,
+            validators_root,
         }
     }
 
