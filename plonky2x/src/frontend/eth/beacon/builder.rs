@@ -1,3 +1,5 @@
+use ethers::types::U64;
+
 use super::generators::{
     BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
     BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
@@ -32,8 +34,11 @@ const BALANCE_BASE_GINDEX: u64 = 549755813888;
 /// The gindex for withdrawalsRoot -> withdrawals[i].
 const WITHDRAWAL_BASE_GINDEX: u64 = 32;
 
-/// The gindex for blockRoot -> historicalBlockSummaries[i].
-const HISTORICAL_BLOCK_SUMMARIES_BASE_GINDEX: u64 = 25434259456;
+/// The gindex for blockRoot -> historicalSummaries[0].
+const HISTORICAL_SUMMARIES_BASE_GINDEX: u64 = 12717129728;
+
+/// The gindex for historicalSummaries[i] -> block_summary/block_roots -> block_roots[0].
+const HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX: u64 = 16384;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Get the validators for a given block root.
@@ -223,23 +228,38 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn beacon_get_historical_block(
         &mut self,
         block_root: Bytes32Variable,
-        offset: U64Variable,
+        target_slot: U64Variable,
     ) -> Bytes32Variable {
         let generator = BeaconHistoricalBlockGenerator::new(
             self,
             self.beacon_client.clone().unwrap(),
             block_root,
-            offset,
+            target_slot,
         );
         self.add_simple_generator(generator.clone());
-        let mut gindex =
-            self.constant::<U64Variable>(HISTORICAL_BLOCK_SUMMARIES_BASE_GINDEX.into());
-        gindex = self.add(gindex, offset);
+        let mut historical_summary_gindex =
+            self.constant::<U64Variable>(HISTORICAL_SUMMARIES_BASE_GINDEX.into());
+        let capella_slot = self.constant::<U64Variable>(U64::from(6209536));
+        let slots_since_capella = self.sub(target_slot, capella_slot);
+        let slots_per_epoch = self.constant::<U64Variable>(U64::from(8192));
+        let historical_summary_index = self.div(slots_since_capella, slots_per_epoch);
+        historical_summary_gindex = self.add(historical_summary_gindex, historical_summary_index);
         self.ssz_verify_proof(
             block_root,
+            generator.historical_summary_root,
+            &generator.historical_summary_proof,
+            historical_summary_gindex,
+        );
+
+        let mut block_root_gindex =
+            self.constant::<U64Variable>(HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX.into());
+        let slots_within_epoch = self.rem(target_slot, slots_per_epoch);
+        block_root_gindex = self.add(block_root_gindex, slots_within_epoch);
+        self.ssz_verify_proof(
+            generator.historical_summary_root,
             generator.historical_block_root,
-            &generator.proof,
-            gindex,
+            &generator.block_root_proof,
+            block_root_gindex,
         );
         generator.historical_block_root
     }

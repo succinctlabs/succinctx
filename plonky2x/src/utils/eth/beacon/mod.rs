@@ -179,7 +179,9 @@ pub struct GetBeaconWithdrawal {
 #[serde(rename_all = "camelCase")]
 pub struct GetBeaconHistoricalBlock {
     pub historical_block_root: String,
-    pub proof: Vec<String>,
+    pub historical_summary_root: String,
+    pub historical_summary_proof: Vec<String>,
+    pub block_root_proof: Vec<String>,
     #[serde(deserialize_with = "deserialize_bigint")]
     pub gindex: BigInt,
     pub depth: u64,
