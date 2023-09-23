@@ -10,6 +10,3 @@ incremental = true
 
 [profile.bench]
 opt-level = 3
-
-[patch.'https://github.com/succinctlabs/curta.git']
-curta = { path = "../curta/curta" }
