@@ -181,7 +181,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         self._hash_keccak256_f1600(&mut state);
 
         // other blocks
-        for k in 0..num_actual_blocks {
+        for k in 0..num_actual_blocks - 1 {
             // xor
             let input_start = (k + 1) * chunks_len * 2;
             for (i, s) in state.iter().enumerate() {
