@@ -14,7 +14,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         mapping_location: U256Variable,
         map_key: Bytes32Variable,
     ) -> Bytes32Variable {
-        //NOTE: we assumed the `map_key` and 'mapping_location' is a fixed length input left padded to 32 bytes
+        //NOTE: we assume the `map_key` and 'mapping_location' is a fixed length input left padded to 32 bytes
         let mapping_location = mapping_location.encode(self);
         let encoded = [map_key.as_bytes().to_vec(), mapping_location].concat();
         self.keccak256(encoded.as_slice())
