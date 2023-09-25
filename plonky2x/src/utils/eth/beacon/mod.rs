@@ -79,6 +79,16 @@ struct BeaconValidatorBalance {
     pub balance: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconPartialValidatorsRoot {
+    pub partial_validators_root: String,
+    #[serde(deserialize_with = "deserialize_bigint")]
+    pub gindex: BigInt,
+    pub depth: u64,
+    pub proof: Vec<String>,
+}
+
 /// The result returned from `/api/beacon/proof/validator/[beacon_id]`.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -110,6 +120,12 @@ pub struct GetBeaconValidator {
 #[serde(rename_all = "camelCase")]
 pub struct GetBeaconValidatorWitness {
     pub validator: BeaconValidator,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconValidatorBatchWitness {
+    pub validators: Vec<BeaconValidator>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -216,12 +232,31 @@ impl BeaconClient {
         let parsed: Value = response.json()?;
 
         if let Value::Object(data) = &parsed["data"] {
-            if let Value::Object(data2) = &data["data"] {
-                return Ok(data2["root"].as_str().unwrap().to_string());
-            }
+            return Ok(data["root"].as_str().unwrap().to_string());
         }
 
         Err(anyhow::anyhow!("failed to parse response"))
+    }
+
+    /// Gets the partial balances root based on a beacon_id and the number of expected balances.
+    pub fn get_partial_validators_root(
+        &self,
+        beacon_id: String,
+        nb_balances: usize,
+    ) -> Result<GetBeaconPartialValidatorsRoot> {
+        let endpoint = format!(
+            "{}/api/beacon/proof/partialValidator/{}/{}",
+            self.rpc_url, beacon_id, nb_balances
+        );
+        info!("{}", endpoint);
+        let client = Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
+        let response: CustomResponse<GetBeaconPartialValidatorsRoot> = response.json()?;
+        assert!(response.success);
+        Ok(response.result)
     }
 
     /// Gets the validators root based on a beacon_id and the SSZ proof from
@@ -251,6 +286,26 @@ impl BeaconClient {
         let response: CustomResponse<GetBeaconValidatorWitness> = response.json()?;
         assert!(response.success);
         Ok(response.result)
+    }
+
+    pub fn get_validator_batch_witness(
+        &self,
+        beacon_id: String,
+        start_idx: u64,
+        end_idx: u64,
+    ) -> Result<Vec<BeaconValidator>> {
+        let endpoint = format!(
+            "{}/api/beacon/validator/{}/{},{}",
+            self.rpc_url, beacon_id, start_idx, end_idx
+        );
+        debug!("{}", endpoint);
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::from_secs(300))
+            .send()?;
+        let response: GetBeaconValidatorBatchWitness = response.json()?;
+        Ok(response.validators)
     }
 
     /// Gets the state of a validator based on a beacon_id and index, including the SSZ proof from

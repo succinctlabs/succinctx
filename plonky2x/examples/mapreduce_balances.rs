@@ -1,6 +1,5 @@
 use ethers::types::U64;
 use itertools::Itertools;
-use log::debug;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::VerifiableFunction;
@@ -20,9 +19,9 @@ const NB_BALANCES: usize = 1048576;
 /// The batch size for fetching balances and computing the local balance roots.
 const BATCH_SIZE: usize = 2048;
 
-struct MapReduceCircuit;
+struct MapReduceBalanceCircuit;
 
-impl Circuit for MapReduceCircuit {
+impl Circuit for MapReduceBalanceCircuit {
     fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
@@ -39,7 +38,7 @@ impl Circuit for MapReduceCircuit {
                 |balances_root, idxs, builder| {
                     // Witness balances.
                     let balances =
-                        builder.beacon_get_balance_batch_witness::<BATCH_SIZE>(balances_root, idxs[0]);
+                        builder.beacon_witness_balance_batch::<BATCH_SIZE>(balances_root, idxs[0]);
 
                     // Convert balances to leafs.
                     let mut leafs = Vec::new();
@@ -59,7 +58,6 @@ impl Circuit for MapReduceCircuit {
                     while leafs.len() != 1 {
                         let mut tmp = Vec::new();
                         for i in 0..leafs.len() / 2 {
-                            debug!("calling sha256 pair w/ curta");
                             tmp.push(builder.curta_sha256_pair(leafs[i*2], leafs[i*2+1]));
                         }
                         leafs = tmp;
@@ -103,7 +101,7 @@ impl Circuit for MapReduceCircuit {
 }
 
 fn main() {
-    VerifiableFunction::<MapReduceCircuit>::entrypoint();
+    VerifiableFunction::<MapReduceBalanceCircuit>::entrypoint();
 }
 
 #[cfg(test)]
@@ -120,13 +118,13 @@ mod tests {
         env_logger::try_init().unwrap_or_default();
 
         let mut builder = CircuitBuilder::<L, D>::new();
-        MapReduceCircuit::define(&mut builder);
+        MapReduceBalanceCircuit::define(&mut builder);
         let circuit = builder.build();
 
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
 
-        MapReduceCircuit::test_serialization::<L, D>();
+        MapReduceBalanceCircuit::test_serialization::<L, D>();
     }
 }

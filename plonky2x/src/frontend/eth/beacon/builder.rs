@@ -1,8 +1,8 @@
 use super::generators::{
     BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator, BeaconBalanceWitnessHint,
     BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
-    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator,
+    BeaconPartialValidatorsHint, BeaconValidatorBatchWitnessHint, BeaconValidatorGenerator,
+    BeaconValidatorsGenerator, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
 };
 use super::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -48,9 +48,38 @@ const VALIDATOR_REGISTRY_LIMIT_LOG2: usize = 40;
 /// The depth of the proof from the blockRoot -> balancesRoot;
 const BALANCES_PROOF_DEPTH: usize = 8;
 
+const VALIDATORS_GINDEX: usize = 43;
+
 const BALANCES_GINDEX: usize = 44;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    /// Get the first B validators for a given block root.
+    pub fn beacon_get_partial_validators<const B: usize>(
+        &mut self,
+        block_root: Bytes32Variable,
+    ) -> BeaconValidatorsVariable {
+        let b_log2 = (B as f64).log2().ceil() as usize;
+        let hint = BeaconPartialValidatorsHint::<B> {};
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&block_root);
+
+        let output_stream = self.hint(input_stream, hint);
+        let partial_validators_root = output_stream.read::<Bytes32Variable>(self);
+        let nb_branches = BALANCES_PROOF_DEPTH + (VALIDATOR_REGISTRY_LIMIT_LOG2 + 1 - b_log2);
+        let mut proof = Vec::new();
+        for _ in 0..nb_branches {
+            proof.push(output_stream.read::<Bytes32Variable>(self));
+        }
+
+        let gindex = VALIDATORS_GINDEX * (2usize.pow(41 - b_log2 as u32));
+        let gindex = concat_g_indices(&[STATE_ROOT_GINDEX as usize, gindex]);
+        self.ssz_verify_proof_const(block_root, partial_validators_root, &proof, gindex as u64);
+        BeaconValidatorsVariable {
+            block_root,
+            validators_root: partial_validators_root,
+        }
+    }
+
     /// Get the validators for a given block root.
     pub fn beacon_get_validators(
         &mut self,
@@ -90,6 +119,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             gindex,
         );
         generator.validator
+    }
+
+    /// Witness the first B validators from a given start index.
+    pub fn beacon_witness_validator_batch_<const B: usize>(
+        &mut self,
+        balances: BeaconValidatorsVariable,
+        start_idx: U64Variable,
+    ) -> ArrayVariable<BeaconValidatorVariable, B> {
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&balances.block_root);
+        input_stream.write(&start_idx);
+        let hint = BeaconValidatorBatchWitnessHint::<B> {};
+        let output_stream = self.hint(input_stream, hint);
+        output_stream.read::<ArrayVariable<BeaconValidatorVariable, B>>(self)
     }
 
     /// Get a validator from a given deterministic index.
@@ -152,7 +195,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
     }
 
-    /// Get the partial balances for a given block root.
+    /// Get the first B balances for a given block root.
     pub fn beacon_get_partial_balances<const B: usize>(
         &mut self,
         block_root: Bytes32Variable,
@@ -212,15 +255,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         output_stream.read::<U64Variable>(self)
     }
 
-    /// Get a validator balance with no constraints.
-    pub fn beacon_get_balance_batch_witness<const B: usize>(
+    /// Witness the first B balances from a given start index.
+    pub fn beacon_witness_balance_batch<const B: usize>(
         &mut self,
         balances: BeaconBalancesVariable,
-        index: U64Variable,
+        start_idx: U64Variable,
     ) -> ArrayVariable<U64Variable, B> {
         let mut input_stream = VariableStream::new();
         input_stream.write(&balances.block_root);
-        input_stream.write(&index);
+        input_stream.write(&start_idx);
         let hint = BeaconBalanceBatchWitnessHint::<B> {};
         let output_stream = self.hint(input_stream, hint);
         output_stream.read::<ArrayVariable<U64Variable, B>>(self)
@@ -411,11 +454,25 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn ssz_hash_tree_root<V: SSZVariable>(&mut self, variable: V) -> Bytes32Variable {
         variable.hash_tree_root(self)
     }
+
+    pub fn ssz_hash_leafs(&mut self, leafs: &[Bytes32Variable]) -> Bytes32Variable {
+        let mut leafs = leafs.to_vec();
+        while leafs.len() != 1 {
+            let mut tmp = Vec::new();
+            for i in 0..leafs.len() / 2 {
+                tmp.push(self.curta_sha256_pair(leafs[i * 2], leafs[i * 2 + 1]));
+            }
+            leafs = tmp;
+        }
+        leafs[0]
+    }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
     use std::env;
+
+    use log::debug;
 
     use crate::backend::circuit::DefaultParameters;
     use crate::frontend::builder::CircuitBuilder;
@@ -427,6 +484,30 @@ pub(crate) mod tests {
 
     type L = DefaultParameters;
     const D: usize = 2;
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_beacon_get_partial_validators() {
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root().unwrap();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let validators = builder.beacon_get_partial_validators::<512>(block_root);
+        builder.watch(&validators, "validators");
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
+    }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -529,6 +610,32 @@ pub(crate) mod tests {
         let validators = builder.beacon_get_validators(block_root);
         let (_, validator) = builder.beacon_get_validator_by_pubkey(validators, pubkey);
         builder.assert_is_equal(validator.pubkey, pubkey);
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_beacon_get_validator_batch_witness() {
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root().unwrap();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+        builder.set_beacon_client(client);
+
+        let zero = builder.constant::<U64Variable>(0.into());
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let validators = builder.beacon_get_validators(block_root);
+        let validators = builder.beacon_witness_validator_batch_::<512>(validators, zero);
+        debug!("validators_len: {}", validators.len());
 
         let circuit = builder.build();
         let input = circuit.input();

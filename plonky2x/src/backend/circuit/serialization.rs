@@ -51,8 +51,8 @@ use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::eth::beacon::generators::{
     BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator, BeaconBalanceWitnessHint,
     BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
-    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator,
+    BeaconPartialValidatorsHint, BeaconValidatorBatchWitnessHint, BeaconValidatorGenerator,
+    BeaconValidatorsGenerator, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -72,7 +72,7 @@ use crate::frontend::num::u32::gates::comparison::{ComparisonGate, ComparisonGen
 use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::Variable;
+use crate::prelude::{BoolVariable, Variable};
 
 /// A registry to store serializers for witness generators.
 ///
@@ -531,11 +531,14 @@ where
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
         register_powers_of_two!(r, BeaconPartialBalancesHint);
+        register_powers_of_two!(r, BeaconValidatorBatchWitnessHint);
+        register_powers_of_two!(r, BeaconPartialValidatorsHint);
         register_watch_generator!(
             r,
             L,
             D,
             Variable,
+            BoolVariable,
             U64Variable,
             U256Variable,
             Bytes32Variable,
