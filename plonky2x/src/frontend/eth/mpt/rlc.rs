@@ -5,7 +5,7 @@ use plonky2::iop::challenger::RecursiveChallenger;
 use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, PlonkParameters, Variable};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    /// Generates a commitment for a subarray using RLC
+    /// Generates a commitment for a subarray using RLC.
     fn commit_subarray(
         &mut self,
         arr: &[ByteVariable],
@@ -17,17 +17,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut is_within_subarray: Variable = self.zero();
         let mut commitment = self.zero();
 
-        let _one: Variable = self.one();
-        let mut current_multiplier = _one;
+        let one: Variable = self.one();
+        let mut current_multiplier = one;
         for idx in 0..arr.len() {
             let idx_target = self.constant(L::Field::from_canonical_usize(idx));
-            // is_within_subarray is one if idx is in the range [offset..offset+len]
+            // is_within_subarray is one if idx is in the range [offset..offset+len].
             let is_at_start_idx = self.is_equal(idx_target, offset);
             is_within_subarray = self.add(is_within_subarray, is_at_start_idx.0);
             let is_at_end_idx = self.is_equal(idx_target, end_idx);
             is_within_subarray = self.sub(is_within_subarray, is_at_end_idx.0);
         
-            let to_be_multiplied = self.select(BoolVariable(is_within_subarray), random_value, _one);
+            let to_be_multiplied = self.select(BoolVariable(is_within_subarray), random_value, one);
             current_multiplier = self.mul(current_multiplier, to_be_multiplied);
 
             let le_value = arr[idx].to_variable(self);
@@ -39,7 +39,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         commitment
     }
 
-    /// Checks subarrays for equality using a random linear combination
+    /// Checks subarrays for equality using a random linear combination.
     pub fn subarray_equal(
         &mut self,
         a: &[ByteVariable],
@@ -75,9 +75,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use anyhow::Result;
     use plonky2::field::types::Field;
-    use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use crate::frontend::builder::DefaultBuilder;
@@ -90,7 +88,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    pub fn test_subarray_equal_should_succeed() -> Result<()> {
+    pub fn test_subarray_equal_should_succeed() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -108,15 +106,22 @@ pub(crate) mod tests {
             b[i] = ByteVariable::constant(&mut builder, i as u8);
         }
 
-        let a_offset = builder.constant(F::ZERO);
+        let a_offset: Variable = builder.constant(F::ZERO);
         let b_offset = builder.constant(F::from_canonical_usize(5));
         let len: Variable = builder.constant(F::from_canonical_usize(5));
         builder.assert_subarray_equal(&a, a_offset, &b, b_offset, len);
 
-        let pw = PartialWitness::new();
+        // Build your circuit.
         let circuit = builder.build();
-        let proof = circuit.data.prove(pw).unwrap();
-        circuit.data.verify(proof)
+
+        // Write to the circuit input.
+        let input = circuit.input();
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output)
     }
 
     #[test]
@@ -139,7 +144,7 @@ pub(crate) mod tests {
             b[i] = ByteVariable::constant(&mut builder, i as u8);
         }
  
-        // Modify 1 byte here
+        // Modify 1 byte here.
         b[6] = ByteVariable::constant(&mut builder, 0);
 
         let a_offset = builder.constant(F::ZERO);
@@ -147,9 +152,16 @@ pub(crate) mod tests {
         let len: Variable = builder.constant(F::from_canonical_usize(5));
         builder.assert_subarray_equal(&a, a_offset, &b, b_offset, len);
 
-        let pw = PartialWitness::new();
+        // Build your circuit.
         let circuit = builder.build();
-        let proof = circuit.data.prove(pw).unwrap();
-        circuit.data.verify(proof).unwrap(); // panics
+
+        // Write to the circuit input.
+        let input = circuit.input();
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output)
     }
 }
