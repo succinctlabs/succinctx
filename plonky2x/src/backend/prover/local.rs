@@ -1,4 +1,5 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::Prover;
@@ -8,6 +9,7 @@ use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput, Public
 #[derive(Debug, Clone)]
 pub struct LocalProver;
 
+#[async_trait]
 impl Prover for LocalProver {
     fn new() -> Self {
         Self {}
