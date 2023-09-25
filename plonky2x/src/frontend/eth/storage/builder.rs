@@ -1,25 +1,21 @@
 use ethers::types::Address;
 
-use super::generators::{
-    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
-};
+use super::generators::{EthBlockGenerator, EthLogGenerator, EthStorageProofHint};
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
-use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::vars::{Bytes32Variable, VariableStream};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn get_storage_key_at(
         &mut self,
-        mapping_location: U256Variable,
+        mapping_location: Bytes32Variable,
         map_key: Bytes32Variable,
     ) -> Bytes32Variable {
-        let generator = EthStorageKeyGenerator::new(self, mapping_location, map_key);
-        let value = generator.value;
-        self.add_simple_generator(generator);
-        value
+        //NOTE: we assumed the `map_key` and 'mapping_location' is a fixed length input left padded to 32 bytes
+        let encoded = [map_key.as_bytes(), mapping_location.as_bytes()].concat();
+        self.keccak256(encoded.as_slice())
     }
 
     #[allow(non_snake_case)]
@@ -226,7 +222,7 @@ mod tests {
         dotenv::dotenv().ok();
         // This is the circuit definition
         let mut builder = DefaultBuilder::new();
-        let mapping_location = builder.read::<U256Variable>();
+        let mapping_location = builder.read::<Bytes32Variable>();
         let map_key = builder.read::<Bytes32Variable>();
 
         let value = builder.get_storage_key_at(mapping_location, map_key);
@@ -237,9 +233,10 @@ mod tests {
 
         // Write to the circuit input.
         let mut input = circuit.input();
-        let mapping_location = U256::from("0x0");
+        let mapping_location =
+            bytes32!("0x0000000000000000000000000000000000000000000000000000000000000000");
         // mapping_location
-        input.write::<U256Variable>(mapping_location);
+        input.write::<Bytes32Variable>(mapping_location);
 
         let map_key =
             bytes32!("0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe");
@@ -248,7 +245,7 @@ mod tests {
 
         debug!(
             "storage key: {:?}",
-            get_map_storage_location(mapping_location.as_u128(), map_key)
+            get_map_storage_location(mapping_location.to_low_u64_le() as u128, map_key)
         );
 
         // Generate a proof.
