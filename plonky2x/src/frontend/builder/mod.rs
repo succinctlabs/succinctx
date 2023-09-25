@@ -39,10 +39,8 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub(crate) async_hints: Vec<AsyncHintDataRef<L, D>>,
     pub(crate) async_hints_indices: Vec<usize>,
 
-    // Right now we only have 2 accelerator, so just have
-    // individual fields for them.
-    // If we start adding more, then we should have a hashmap
-    // of accelerators
+    // We currently have only two accelerators, so we just have individual fields for each one.
+    // If we start adding more, then we should have a hashmap of accelerators.
     pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
     pub sha256_accelerator: Option<Sha256Accelerator<L, D>>,
 }

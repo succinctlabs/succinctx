@@ -33,11 +33,13 @@ impl<L: PlonkParameters<D>, const D: usize> Blake2bAccelerator<L, D> {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    /// Pads a BLAKE2B input
     pub fn curta_blake2b_pad<const MAX_NUM_CHUNKS: usize>(
         &mut self,
         message: &[ByteVariable],
     ) -> Vec<ByteVariable> {
-        // TODO: Currently, Curta does not support no-ops over BLAKE2B chunks. Until Curta BLAKE2B supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
+        // TODO: Currently, Curta does not support no-ops over BLAKE2B chunks. Until Curta BLAKE2B
+        // supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
         if (message.len() % 128 == 0) && (!message.len() == 0) {
             message.to_vec()
         } else {
@@ -60,7 +62,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         message: &[ByteVariable],
         message_len: U64Variable,
     ) -> Bytes32Variable {
-        // TODO: Currently, Curta does not support no-ops over BLAKE2B chunks. Until Curta BLAKE2B supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
+        // TODO: Currently, Curta does not support no-ops over BLAKE2B chunks. Until Curta BLAKE2B
+        // supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
         let expected_last_chunk_num = self.constant::<U64Variable>((MAX_NUM_CHUNKS - 1).into());
         let last_chunk_num = message_len.div(self.constant::<U64Variable>(128.into()), self);
         self.assert_is_equal(expected_last_chunk_num, last_chunk_num);
@@ -101,6 +104,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         bytes.into()
     }
 
+    /// Verifies a blake2b curta instance
     pub fn curta_constrain_blake2b(&mut self, accelerator: &Blake2bAccelerator<L, D>) {
         let mut padded_messages = Vec::new();
         let mut msg_lengths = Vec::new();

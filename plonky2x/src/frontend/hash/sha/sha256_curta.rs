@@ -59,6 +59,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Pad the given variable length input according to the SHA-256 spec.
+    ///
     /// Input should be length MAX_NUM_CHUNKS * 64.
     /// Input byte length should be at most MAX_NUM_CHUNKS * 64 - 9.
     pub fn curta_sha256_pad_variable_length<const MAX_NB_CHUNKS: usize>(
@@ -159,6 +160,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Executes a SHA256 hash on the given input with a mutable accelerator.
+    ///
     /// Note: Should only be called by curta_constrain_sha256.
     /// TODO: Remove this function once bug with mut ref to accelerator in curta_constrain_sha256 is fixed.
     fn curta_sha256_with_accelerator(
