@@ -7,9 +7,6 @@ use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::hash::bit_operations::util::u64_to_bits;
-use crate::frontend::hash::bit_operations::{
-    convert_byte_target_to_byte_var, convert_byte_var_to_target,
-};
 use crate::frontend::uint::uint32::U32Variable;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable};
@@ -141,21 +138,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             });
         }
 
+        let bytes = padded_input
+            .iter()
+            .map(|x| x.to_target(self))
+            .collect::<Vec<_>>();
+
         let accelerator = self
             .sha256_accelerator
             .as_mut()
             .expect("sha256 accelerator should exist");
-        let bytes = padded_input
-            .iter()
-            .map(|x| convert_byte_var_to_target(*x, &mut self.api))
-            .collect::<Vec<_>>();
-
         accelerator.sha256_requests.push(bytes);
         let digest = self.api.add_virtual_target_arr::<32>();
         accelerator.sha256_responses.push(digest);
 
-        let bytes: [ByteVariable; 32] =
-            digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
+        let bytes: [ByteVariable; 32] = digest.map(|x| ByteVariable::from_target(self, x));
         bytes.into()
     }
 
@@ -172,15 +168,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let bytes = padded_input
             .iter()
-            .map(|x| convert_byte_var_to_target(*x, &mut self.api))
+            .map(|x| x.to_target(self))
             .collect::<Vec<_>>();
 
         accelerator.sha256_requests.push(bytes);
         let digest = self.api.add_virtual_target_arr::<32>();
         accelerator.sha256_responses.push(digest);
 
-        let bytes: [ByteVariable; 32] =
-            digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
+        let bytes: [ByteVariable; 32] = digest.map(|x| ByteVariable::from_target(self, x));
         bytes.into()
     }
 
@@ -209,21 +204,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             });
         }
 
+        let bytes = padded_input
+            .iter()
+            .map(|x| x.to_target(self))
+            .collect::<Vec<_>>();
+
         let accelerator = self
             .sha256_accelerator
             .as_mut()
             .expect("sha256 accelerator should exist");
-        let bytes = padded_input
-            .iter()
-            .map(|x| convert_byte_var_to_target(*x, &mut self.api))
-            .collect::<Vec<_>>();
-
         accelerator.sha256_requests.push(bytes);
         let digest = self.api.add_virtual_target_arr::<32>();
         accelerator.sha256_responses.push(digest);
 
-        let bytes: [ByteVariable; 32] =
-            digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
+        let bytes: [ByteVariable; 32] = digest.map(|x| ByteVariable::from_target(self, x));
         bytes.into()
     }
 
@@ -250,7 +244,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     let padded_input = self.curta_sha256_pad(&zero_chunk);
                     let bytes = padded_input
                         .iter()
-                        .map(|x| convert_byte_var_to_target(*x, &mut self.api))
+                        .map(|x| x.to_target(self))
                         .collect::<Vec<_>>();
 
                     // Insert a dummy request and response.

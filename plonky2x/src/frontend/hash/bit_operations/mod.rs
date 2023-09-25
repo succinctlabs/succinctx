@@ -1,6 +1,5 @@
 use core::marker::PhantomData;
 
-use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::gates::gate::Gate;
@@ -20,37 +19,6 @@ pub mod util;
 use util::{biguint_to_bits_target, bits_to_biguint_target};
 
 use crate::frontend::num::biguint::CircuitBuilderBiguint;
-use crate::prelude::{BoolVariable, ByteVariable, CircuitVariable};
-
-pub fn convert_byte_target_to_byte_var<F: RichField + Extendable<D>, const D: usize>(
-    byte_target: Target,
-    plonky2_builder: &mut CircuitBuilder<F, D>,
-) -> ByteVariable {
-    // Note that we are assuming that the target is a byte
-    let le_bits: [Target; 8] = plonky2_builder
-        .low_bits(byte_target, 8, 8)
-        .iter()
-        .map(|x| x.target)
-        .collect_vec()
-        .try_into()
-        .expect("Expected 8 bits.  Should never happen");
-    let mut bool_variables: [BoolVariable; 8] = le_bits.map(|x| x.into());
-
-    // Need to reverse it to big endian
-    bool_variables.reverse();
-    ByteVariable::from_be_bits(bool_variables)
-}
-
-pub fn convert_byte_var_to_target<F: RichField + Extendable<D>, const D: usize>(
-    byte_var: ByteVariable,
-    plonky2_builder: &mut CircuitBuilder<F, D>,
-) -> Target {
-    let le_bits = byte_var.as_le_bits();
-    let le_targets = le_bits
-        .iter()
-        .map(|x| BoolTarget::new_unsafe(x.variables()[0].0));
-    plonky2_builder.le_sum(le_targets)
-}
 
 /*
 a ^ b ^ c = a+b+c - 2*a*b - 2*a*c - 2*b*c + 4*a*b*c

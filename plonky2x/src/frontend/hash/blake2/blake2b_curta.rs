@@ -5,9 +5,6 @@ use curta::chip::hash::blake::blake2b::generator::BLAKE2BAirParameters;
 use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
-use crate::frontend::hash::bit_operations::{
-    convert_byte_target_to_byte_var, convert_byte_var_to_target,
-};
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable, Div};
@@ -72,7 +69,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let message_target_bytes = padded_message
             .iter()
-            .map(|x| convert_byte_var_to_target(*x, &mut self.api))
+            .map(|x| x.to_target(self))
             .collect::<Vec<_>>();
         let message_len_target = message_len.targets()[0];
         let digest = self.api.add_virtual_target_arr::<32>();
@@ -98,8 +95,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         accelerator.requests.push(curta_blake2b_request);
 
-        let bytes: [ByteVariable; 32] =
-            digest.map(|x| convert_byte_target_to_byte_var(x, &mut self.api));
+        let bytes: [ByteVariable; 32] = digest.map(|x| ByteVariable::from_target(self, x));
 
         bytes.into()
     }
