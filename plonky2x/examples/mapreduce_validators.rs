@@ -8,7 +8,6 @@ use plonky2x::backend::function::VerifiableFunction;
 use plonky2x::frontend::eth::beacon::vars::{BeaconBalancesVariable, BeaconValidatorsVariable};
 use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
 use plonky2x::frontend::uint::uint64::U64Variable;
-use plonky2x::frontend::vars::SSZVariable;
 use plonky2x::prelude::{Bytes32Variable, CircuitBuilder, HintRegistry};
 use plonky2x::utils::bytes32;
 

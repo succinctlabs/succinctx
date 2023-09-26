@@ -1,7 +1,6 @@
 use std::env;
 
 use ethers::types::H256;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::eth::beacon::vars::{
