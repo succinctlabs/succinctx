@@ -208,7 +208,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut nb_chunks = 0;
         let mut curr_rq = 0;
         let mut num_rqs = self.sha256_requests.len();
-        debug!("num_rqs: {}", num_rqs);
 
         let zero = self.constant::<ByteVariable>(0u8);
         let zero_chunk = [zero; 1];

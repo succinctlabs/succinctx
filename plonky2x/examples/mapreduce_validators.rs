@@ -20,10 +20,10 @@ const LIDO_WITHDRAWAL_CREDENTIALS: &str =
 const BLOCK_ROOT: &str = "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb";
 
 /// The number of balances to fetch.
-const NB_VALIDATORS: usize = 8;
+const NB_VALIDATORS: usize = 512;
 
 /// The batch size for fetching balances and computing the local balance roots.
-const BATCH_SIZE: usize = 4;
+const BATCH_SIZE: usize = 256;
 
 struct MapReduceValidatorCircuit;
 
@@ -147,6 +147,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use plonky2x::prelude::DefaultParameters;
+    use plonky2x::utils;
 
     use super::*;
 

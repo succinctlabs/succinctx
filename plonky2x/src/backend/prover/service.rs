@@ -5,7 +5,7 @@ use std::env;
 use std::net::ToSocketAddrs;
 
 use anyhow::Result;
-use log::debug;
+use log::{debug, trace};
 use reqwest::blocking::Client;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -111,7 +111,7 @@ impl ProofService {
         O: DeserializeOwned,
     {
         let endpoint = format!("{}{}", self.base_url, route);
-        debug!("sending get request: url={}", endpoint);
+        trace!("sending get request: url={}", endpoint);
         self.client
             .get(endpoint)
             .timeout(Duration::from_secs(300))
@@ -127,7 +127,7 @@ impl ProofService {
         O: DeserializeOwned,
     {
         let endpoint = format!("{}{}", self.base_url, route);
-        debug!("sending post request: url={}, input={:?}", endpoint, input);
+        trace!("sending post request: url={}, input={:?}", endpoint, input);
         let response = self
             .client
             .post(endpoint)

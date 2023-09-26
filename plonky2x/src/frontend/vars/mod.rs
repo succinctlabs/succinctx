@@ -107,6 +107,7 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
         let mut builder = CircuitBuilder::<L, D>::new();
         let variables = builder.constant::<Self>(value).variables();
         let circuit = builder.build();
+        utils::enable_logging();
         let pw = PartialWitness::new();
         let witness = generate_witness(
             pw,

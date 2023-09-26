@@ -11,7 +11,6 @@ use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
 use itertools::Itertools;
-use log::debug;
 use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
@@ -121,7 +120,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Adds all the constraints nedded before building the circuit and registering hints.
     fn pre_build(&mut self) {
         if !self.sha256_requests.is_empty() {
-            debug!("curta constraining sha256");
             self.curta_constrain_sha256();
         }
 
