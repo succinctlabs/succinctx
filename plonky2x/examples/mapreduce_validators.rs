@@ -49,7 +49,7 @@ impl Circuit for MapReduceValidatorCircuit {
             idxs,
             |(validators_root, balances_root), idxs, builder| {
                 // Witness validators.
-                let (validator_roots, validators) = 
+                let (validator_roots, validators) =
                     builder.beacon_witness_compressed_validator_batch::<BATCH_SIZE>(
                         validators_root,
                         idxs[0]
