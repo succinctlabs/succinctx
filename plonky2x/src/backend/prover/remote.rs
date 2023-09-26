@@ -115,7 +115,11 @@ impl RemoteProver {
         let (batch_id, proof_ids) = service.submit_batch(&requests)?;
 
         const MAX_RETRIES: usize = 500;
-        for _ in 0..MAX_RETRIES {
+        for i in 0..MAX_RETRIES {
+            debug!(
+                "querying for batch status: batch_id={}, nb_retries={}/{}",
+                batch_id, i, MAX_RETRIES
+            );
             sleep(Duration::from_secs(10)).await;
             let request = service.get_batch::<L, D>(batch_id)?;
             if let Some(failed) = request.statuses.get(&ProofRequestStatus::Failure) {
