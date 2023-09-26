@@ -9,8 +9,9 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 use super::{BoolVariable, CircuitVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-/// A variable in the circuit representing a fixed length array of variables.
-/// We use this to avoid stack overflow arrays associated with fixed-length arrays.
+
+/// A variable in the circuit representing a fixed length array of variables. We use this to avoid
+/// stack overflow arrays associated with fixed-length arrays.
 #[derive(Debug, Clone)]
 pub struct ArrayVariable<V: CircuitVariable, const N: usize> {
     pub data: Vec<V>,
@@ -28,6 +29,11 @@ impl<V: CircuitVariable, const N: usize> ArrayVariable<V, N> {
 
     pub fn as_vec(&self) -> Vec<V> {
         self.data.clone()
+    }
+
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.data.len()
     }
 }
 

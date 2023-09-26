@@ -4,47 +4,54 @@ mod remote;
 mod service;
 
 use anyhow::Result;
-use async_trait::async_trait;
 pub use env::EnvProver;
 pub use local::LocalProver;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 pub use remote::RemoteProver;
-pub use service::ProofService;
+pub use service::{BatchProofId, ProofId, ProofService};
 
-use super::circuit::{CircuitBuild, PlonkParameters, PublicInput, PublicOutput};
+use super::circuit::{PlonkParameters, PublicOutput};
 
-/// Basic methods for generating proofs from circuits.
-#[async_trait]
-pub trait Prover {
-    /// Creates a new instance of the prover.
-    fn new() -> Self;
-
-    /// Generates a proof with the given input.
-    async fn prove<L: PlonkParameters<D>, const D: usize>(
-        &self,
-        circuit: &CircuitBuild<L, D>,
-        input: &PublicInput<L, D>,
-    ) -> Result<(
+#[allow(clippy::large_enum_variant)]
+pub enum ProverOutput<L: PlonkParameters<D>, const D: usize> {
+    Local(
         ProofWithPublicInputs<L::Field, L::Config, D>,
         PublicOutput<L, D>,
-    )>;
+    ),
+    Remote(ProofId),
+}
 
-    /// Generates a batch of proofs with the given input.
-    async fn batch_prove<L: PlonkParameters<D>, const D: usize>(
-        &self,
-        circuit: &CircuitBuild<L, D>,
-        inputs: &[PublicInput<L, D>],
+pub enum ProverOutputs<L: PlonkParameters<D>, const D: usize> {
+    Local(
+        Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
+        Vec<PublicOutput<L, D>>,
+    ),
+    Remote(Vec<ProofId>),
+}
+
+impl<L: PlonkParameters<D>, const D: usize> ProverOutputs<L, D> {
+    #[allow(clippy::type_complexity)]
+    pub fn materialize(
+        self,
     ) -> Result<(
         Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
         Vec<PublicOutput<L, D>>,
     )> {
-        let mut proofs = Vec::new();
-        let mut outputs = Vec::new();
-        for input in inputs {
-            let (proof, output) = self.prove(circuit, input).await?;
-            proofs.push(proof);
-            outputs.push(output);
-        }
+        let (proofs, outputs) = match self {
+            ProverOutputs::Local(proofs, outputs) => (proofs, outputs),
+            ProverOutputs::Remote(proof_ids) => {
+                let service = ProofService::new_from_env();
+                let mut proofs = Vec::new();
+                let mut outputs = Vec::new();
+                for proof_id in proof_ids {
+                    let response = service.get::<L, D>(proof_id).unwrap();
+                    let (proof, output) = response.result.unwrap().as_proof_and_output();
+                    proofs.push(proof);
+                    outputs.push(output);
+                }
+                (proofs, outputs)
+            }
+        };
         Ok((proofs, outputs))
     }
 }

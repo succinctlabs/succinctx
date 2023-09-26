@@ -63,10 +63,7 @@ mod tests {
     #[test]
     fn test_circuit_function_field_input_json() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let path = format!(
-            "{}/examples/circuit_function_field_input.json",
-            root.display()
-        );
+        let path = format!("{}/examples/field.json", root.display());
         Function::test::<L, D>(path);
     }
 }

@@ -64,10 +64,7 @@ mod tests {
     #[test]
     fn test_circuit_function_evm_input_json() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let path = format!(
-            "{}/examples/circuit_function_evm_input.json",
-            root.display()
-        );
+        let path = format!("{}/examples/evm.json", root.display());
         Function::test::<F, C, D>(path);
     }
 }
