@@ -5,8 +5,7 @@ use curta::math::field::Field;
 use super::generators::*;
 use crate::frontend::vars::Nibbles;
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, PlonkParameters,
-    Variable,
+    ArrayVariable, ByteVariable, Bytes32Variable, CircuitBuilder, PlonkParameters, Variable,
 };
 
 pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usize>(
@@ -43,17 +42,6 @@ pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usi
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn le(&mut self, lhs: Variable, rhs: Variable) -> BoolVariable {
-        let generator: LeGenerator<L, D> = LeGenerator {
-            lhs,
-            rhs,
-            output: self.init::<BoolVariable>(),
-            _phantom: PhantomData,
-        };
-        self.add_simple_generator(generator.clone());
-        generator.output
-    }
-
     pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
         let generator: ByteToVariableGenerator<L, D> = ByteToVariableGenerator {
             lhs,

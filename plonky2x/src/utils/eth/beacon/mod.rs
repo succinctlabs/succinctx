@@ -178,13 +178,11 @@ pub struct GetBeaconWithdrawal {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetBeaconHistoricalBlock {
-    pub historical_block_root: String,
-    pub historical_summary_root: String,
-    pub historical_summary_proof: Vec<String>,
-    pub block_root_proof: Vec<String>,
-    #[serde(deserialize_with = "deserialize_bigint")]
-    pub gindex: BigInt,
-    pub depth: u64,
+    pub target_block_root: String,
+    pub far_slot_historical_summary_root: String,
+    pub far_slot_historical_summary_proof: Vec<String>,
+    pub far_slot_block_root_proof: Vec<String>,
+    pub close_slot_block_root_proof: Vec<String>,
 }
 
 impl BeaconClient {
@@ -219,7 +217,7 @@ impl BeaconClient {
     pub fn get_validators_root(&self, beacon_id: String) -> Result<GetBeaconValidatorsRoot> {
         let endpoint = format!("{}/api/beacon/proof/validator/{}", self.rpc_url, beacon_id);
         let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = client.get(endpoint).timeout(Duration::new(120, 0)).send()?;
         let response: CustomResponse<GetBeaconValidatorsRoot> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -363,8 +361,9 @@ impl BeaconClient {
 
     pub fn get_withdrawals(&self, beacon_id: String) -> Result<GetBeaconWithdrawals> {
         let endpoint = format!("{}/api/beacon/proof/withdrawal/{}", self.rpc_url, beacon_id);
+        info!("{}", endpoint);
         let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = client.get(endpoint).timeout(Duration::new(120, 0)).send()?;
         let response: CustomResponse<GetBeaconWithdrawals> = response.json()?;
         assert!(response.success);
         Ok(response.result)

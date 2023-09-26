@@ -1,20 +1,22 @@
 use ethers::types::U64;
 
 use super::generators::{
-    BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
-    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator,
+    BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHeaderHint,
+    BeaconHistoricalBlockGenerator, BeaconValidatorGenerator, BeaconValidatorsGenerator,
+    BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
 };
 use super::vars::{
-    BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
-    BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
+    BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
+    BeaconValidatorsVariable, BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable};
-use crate::prelude::{ByteVariable, BytesVariable};
+use crate::frontend::vars::{
+    Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable, VariableStream,
+};
+use crate::prelude::{BoolVariable, ByteVariable, BytesVariable};
 
 /// The gindex for blockRoot -> validatorsRoot.
 const VALIDATORS_ROOT_GINDEX: u64 = 363;
@@ -34,11 +36,23 @@ const BALANCE_BASE_GINDEX: u64 = 549755813888;
 /// The gindex for withdrawalsRoot -> withdrawals[i].
 const WITHDRAWAL_BASE_GINDEX: u64 = 32;
 
-/// The gindex for blockRoot -> historicalSummaries[0].
+/// The gindex for blockRoot -> state -> state.historicalSummaries[0].
 const HISTORICAL_SUMMARIES_BASE_GINDEX: u64 = 12717129728;
 
-/// The gindex for historicalSummaries[i] -> block_summary/block_roots -> block_roots[0].
+/// The gindex for state.historicalSummaries[i] -> block_summary/block_roots -> block_roots[0].
 const HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX: u64 = 16384;
+
+/// The gindex for blockRoot -> state -> state.block_roots[0].
+const CLOSE_SLOT_BLOCK_ROOT_GINDEX: u64 = 303104;
+
+/// Beacon chain constant SLOTS_PER_EPOCH.
+const SLOTS_PER_EPOCH: u64 = 32;
+
+/// Beacon chain constant SLOTS_PER_HISTORICAL_ROOT.
+const SLOTS_PER_HISTORICAL_ROOT: u64 = 8192;
+
+/// Beacon chain constant CAPELLA_FORK_EPOCH. (mainnet specific)
+const CAPELLA_FORK_EPOCH: u64 = 194048;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Get the validators for a given block root.
@@ -219,12 +233,25 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.add_simple_generator(generator.clone());
         let mut gindex = self.constant::<U64Variable>(WITHDRAWAL_BASE_GINDEX.into());
         gindex = self.add(gindex, idx);
-        let leaf = self.ssz_hash_tree_root(generator.withdrawal.clone());
+        let leaf = self.ssz_hash_tree_root(generator.withdrawal);
         self.ssz_verify_proof(withdrawals.withdrawals_root, leaf, &generator.proof, gindex);
         generator.withdrawal
     }
 
-    /// Get a historical block root within 8192 blocks of the current block.
+    /// Get block header from block root.
+    pub fn beacon_get_block_header(&mut self, block_root: Bytes32Variable) -> BeaconHeaderVariable {
+        let mut slot_hint_input = VariableStream::new();
+        slot_hint_input.write(&block_root);
+        let slot_hint_output = self.hint(slot_hint_input, BeaconHeaderHint {});
+        let header = slot_hint_output.read::<BeaconHeaderVariable>(self);
+
+        let restored_root = self.ssz_hash_tree_root(header);
+        self.assert_is_equal(block_root, restored_root);
+
+        header
+    }
+
+    /// Get a historical block root using state.block_roots for close slots and historical_summaries for slots > 8192 slots away.
     pub fn beacon_get_historical_block(
         &mut self,
         block_root: Bytes32Variable,
@@ -237,31 +264,66 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             target_slot,
         );
         self.add_simple_generator(generator.clone());
+
+        // Use close slot logic if (source - target) < 8192
+        let source_slot = self.beacon_get_block_header(block_root).slot;
+        let source_sub_target = self.sub(source_slot, target_slot);
+        let slots_per_historical =
+            self.constant::<U64Variable>(U64::from(SLOTS_PER_HISTORICAL_ROOT));
+        let one_u64 = self.constant::<U64Variable>(U64::from(1));
+        let slots_per_historical_sub_one = self.sub(slots_per_historical, one_u64);
+        let is_close_slot = self.le(source_sub_target, slots_per_historical_sub_one);
+
+        let block_roots_array_index = self.rem(target_slot, slots_per_historical);
+
+        // Close slot logic
+        let mut close_slot_block_root_gindex =
+            self.constant::<U64Variable>(CLOSE_SLOT_BLOCK_ROOT_GINDEX.into());
+        close_slot_block_root_gindex =
+            self.add(close_slot_block_root_gindex, block_roots_array_index);
+        let restored_close_slot_block_root = self.ssz_restore_merkle_root(
+            generator.target_block_root,
+            &generator.close_slot_block_root_proof,
+            close_slot_block_root_gindex,
+        );
+        let valid_close_slot = self.is_equal(restored_close_slot_block_root, block_root);
+
+        // Far slot logic
+        let capella_slot =
+            self.constant::<U64Variable>(U64::from(CAPELLA_FORK_EPOCH * SLOTS_PER_EPOCH));
+        let slots_since_capella = self.sub(target_slot, capella_slot);
+        let historical_summary_array_index = self.div(slots_since_capella, slots_per_historical);
         let mut historical_summary_gindex =
             self.constant::<U64Variable>(HISTORICAL_SUMMARIES_BASE_GINDEX.into());
-        let capella_slot = self.constant::<U64Variable>(U64::from(6209536));
-        let slots_since_capella = self.sub(target_slot, capella_slot);
-        let slots_per_epoch = self.constant::<U64Variable>(U64::from(8192));
-        let historical_summary_index = self.div(slots_since_capella, slots_per_epoch);
-        historical_summary_gindex = self.add(historical_summary_gindex, historical_summary_index);
-        self.ssz_verify_proof(
-            block_root,
-            generator.historical_summary_root,
-            &generator.historical_summary_proof,
+        historical_summary_gindex =
+            self.add(historical_summary_gindex, historical_summary_array_index);
+        let restored_far_slot_block_root = self.ssz_restore_merkle_root(
+            generator.far_slot_historical_summary_root,
+            &generator.far_slot_historical_summary_proof,
             historical_summary_gindex,
         );
+        let valid_far_slot_block_root = self.is_equal(restored_far_slot_block_root, block_root);
 
-        let mut block_root_gindex =
+        let mut far_slot_block_root_gindex =
             self.constant::<U64Variable>(HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX.into());
-        let slots_within_epoch = self.rem(target_slot, slots_per_epoch);
-        block_root_gindex = self.add(block_root_gindex, slots_within_epoch);
-        self.ssz_verify_proof(
-            generator.historical_summary_root,
-            generator.historical_block_root,
-            &generator.block_root_proof,
-            block_root_gindex,
+        far_slot_block_root_gindex = self.add(far_slot_block_root_gindex, block_roots_array_index);
+        let restored_far_slot_historical_root = self.ssz_restore_merkle_root(
+            generator.target_block_root,
+            &generator.far_slot_block_root_proof,
+            far_slot_block_root_gindex,
         );
-        generator.historical_block_root
+        let valid_far_slot_historical_root = self.is_equal(
+            restored_far_slot_historical_root,
+            generator.far_slot_historical_summary_root,
+        );
+        let valid_far_slot = self.and(valid_far_slot_block_root, valid_far_slot_historical_root);
+
+        let valid = self.select(is_close_slot, valid_close_slot, valid_far_slot);
+
+        let true_bool = self.constant::<BoolVariable>(true);
+        self.assert_is_equal(valid, true_bool);
+
+        generator.target_block_root
     }
 
     /// Verify a simple serialize (ssz) merkle proof with a dynamic index.
