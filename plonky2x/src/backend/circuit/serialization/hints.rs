@@ -377,9 +377,6 @@ impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
 
-        let id = U32SubtractionGenerator::<L::Field, D>::id();
-        r.register_simple::<U32SubtractionGenerator<L::Field, D>>(id);
-
         r.register_async_hint::<BeaconValidatorsHint>();
 
         register_watch_generator!(
