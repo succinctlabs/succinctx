@@ -104,15 +104,6 @@ pub struct HintRegistry<L: PlonkParameters<D>, const D: usize> {
     async_hints: SerializationRegistry<String, L::Field, AsyncHintDataRef<L, D>, D>,
 }
 
-macro_rules! register_watch_generator {
-    ($registry:ident, $l:ty, $d:ty, $($type:ty),*) => {
-        $(
-            let generator_id = WatchGenerator::<$l, $d, $type>::id();
-            $registry.register_simple::<WatchGenerator<$l, $d, $type>>(generator_id);
-        )*
-    };
-}
-
 /// A serializer for a plonky2 witness generator.
 ///
 /// This function keeps track of the generator type and the `serialize` and `deserialize` methods.
