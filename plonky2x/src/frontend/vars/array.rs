@@ -11,7 +11,7 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
+use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use super::{BoolVariable, ByteVariable, CircuitVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
@@ -281,17 +281,41 @@ impl<
 
     fn serialize(
         &self,
-        _dst: &mut Vec<u8>,
+        dst: &mut Vec<u8>,
         _common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<()> {
-        unimplemented!();
+        dst.write_target_vec(&self.array.as_vec().iter().map(|x| x.0).collect_vec())?;
+        dst.write_target(self.array_size.0)?;
+        dst.write_target_vec(&self.sub_array.as_vec().iter().map(|x| x.0).collect_vec())?;
+        dst.write_target(self.start_idx.0)
     }
 
     fn deserialize(
-        _src: &mut Buffer,
+        src: &mut Buffer,
         _common_data: &CommonCircuitData<L::Field, D>,
     ) -> IoResult<Self> {
-        unimplemented!();
+        let array = ArrayVariable::from(
+            src.read_target_vec()?
+                .iter()
+                .map(|x| Variable::from(*x))
+                .collect_vec(),
+        );
+        let array_size = Variable::from(src.read_target()?);
+        let sub_array = ArrayVariable::from(
+            src.read_target_vec()?
+                .iter()
+                .map(|x| Variable::from(*x))
+                .collect_vec(),
+        );
+        let start_idx = Variable::from(src.read_target()?);
+
+        Ok(Self {
+            array,
+            array_size,
+            sub_array,
+            start_idx,
+            _marker: PhantomData,
+        })
     }
 
     fn dependencies(&self) -> Vec<Target> {
