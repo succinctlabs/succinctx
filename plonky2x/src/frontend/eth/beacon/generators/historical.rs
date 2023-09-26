@@ -16,7 +16,7 @@ use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
 use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::{bytes32, hex};
 
-const CLOSE_SLOT_BLOCK_ROOT_DEPTH: usize = 18;
+const CLOSE_SLOT_BLOCK_ROOT_DEPTH: usize = 21;
 const FAR_SLOT_HISTORICAL_SUMMARY_DEPTH: usize = 33;
 const FAR_SLOT_BLOCK_ROOT_DEPTH: usize = 14;
 
@@ -92,6 +92,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
         self.target_block_root
             .set(out_buffer, bytes32!(result.target_block_root));
+
         for i in 0..CLOSE_SLOT_BLOCK_ROOT_DEPTH {
             self.close_slot_block_root_proof[i]
                 .set(out_buffer, bytes32!(result.close_slot_block_root_proof[i]));
