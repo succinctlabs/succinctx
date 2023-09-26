@@ -79,7 +79,7 @@ impl Circuit for MapReduceValidatorCircuit {
                 let mut balance_leafs = Vec::new();
                 let zero = builder.constant::<U64Variable>(U64::from(0));
                 let mut sum = builder.constant::<U64Variable>(U64::from(0));
-                for i in 0..idxs.len() / 4 { 
+                for i in 0..idxs.len() / 4 {
                     let balances = [
                         balances[i*4],
                         balances[i*4+1],
@@ -103,7 +103,7 @@ impl Circuit for MapReduceValidatorCircuit {
                 // Return the respective accumulators and partial sum.
                 (validators_acc, balances_acc, sum)
             },
-            |_, left, right, builder| { 
+            |_, left, right, builder| {
                 (
                     builder.sha256_pair(left.0, right.0),
                     builder.sha256_pair(left.1, right.1),
@@ -117,9 +117,8 @@ impl Circuit for MapReduceValidatorCircuit {
         builder.watch(&output.2, "total balance");
     }
 
-    fn register_generators<L: PlonkParameters<D>, const D: usize>(
-        registry: &mut HintRegistry<L, D>,
-    ) where
+    fn register_generators<L: PlonkParameters<D>, const D: usize>(registry: &mut HintRegistry<L, D>)
+    where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         let id = MapReduceGenerator::<
