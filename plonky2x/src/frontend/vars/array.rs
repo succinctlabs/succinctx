@@ -172,7 +172,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn get_fixed_subarray<const MAX_ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
-        array: ArrayVariable<Variable, MAX_ARRAY_SIZE>,
+        array: &ArrayVariable<Variable, MAX_ARRAY_SIZE>,
         array_size: Variable,
         start_idx: Variable,
         seed: &ArrayVariable<ByteVariable, 15>, // TODO: Seed it with 120 bits.  Need to figure out if this is secure.
@@ -486,7 +486,7 @@ mod tests {
         let start_idx = builder.constant(F::from_canonical_usize(15));
         let seed = builder.read::<ArrayVariable<ByteVariable, 15>>();
         let result = builder.get_fixed_subarray::<MAX_ARRAY_SIZE, SUB_ARRAY_SIZE>(
-            array, array_size, start_idx, &seed,
+            &array, array_size, start_idx, &seed,
         );
         builder.write(result);
 
