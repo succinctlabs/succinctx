@@ -13,7 +13,7 @@ use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
-use super::{BoolVariable, CircuitVariable, Variable};
+use super::{BoolVariable, CircuitVariable, Variable, ByteVariable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::prelude::{Add, Mul, Sub};
@@ -169,7 +169,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         array: ArrayVariable<Variable, MAX_ARRAY_SIZE>,
         array_size: Variable,
         start_idx: Variable,
-        seed: &[Variable],
+        seed: &ArrayVariable<ByteVariable, 15>, // TODO: Seed it with 120 bits.  Need to figure out if this is secure.
     ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
         // TODO:  Need to add check that array_size is less than MAX_ARRAY_SIZE.
         // TODO:  Need to add check that start_idx + SUB_ARRAY_SIZE is less than array_size.
@@ -185,7 +185,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         });
 
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
-        challenger.observe_elements(&seed.iter().map(|x| x.0).collect_vec());
+        for seed_chunk in seed.as_vec().chunks(5) {
+            let seed_element_bits = seed_chunk.iter().flat_map(|x| x.as_bool_targets()).collect_vec();
+            let seed_element = self.api.le_sum(seed_element_bits.iter());
+            challenger.observe_element(seed_element);
+        }
 
         for _i in 0..2 {
             let challenges = challenger
@@ -447,7 +451,8 @@ mod tests {
         let array = builder.read::<ArrayVariable<Variable, MAX_ARRAY_SIZE>>();
         let array_size = builder.read::<Variable>();
         let start_idx = builder.constant(F::from_canonical_usize(15));
-        let result = builder.get_fixed_subarray::<MAX_ARRAY_SIZE, SUB_ARRAY_SIZE>(array, array_size, start_idx, &[array_size]);
+        let seed = builder.read::<ArrayVariable<ByteVariable, 15>>();
+        let result = builder.get_fixed_subarray::<MAX_ARRAY_SIZE, SUB_ARRAY_SIZE>(array, array_size, start_idx, &seed);
         builder.write(result);
 
         let circuit = builder.build();
@@ -460,9 +465,15 @@ mod tests {
         }
         let array_size_input = F::from_canonical_usize(80);
 
+        let mut seed_input = [0u8; 15];
+        for elem in seed_input.iter_mut() {
+            *elem = rng.gen();
+        }
+
         let mut input = circuit.input();
         input.write::<ArrayVariable<Variable, MAX_ARRAY_SIZE>>(array_input.to_vec());
         input.write::<Variable>(array_size_input);
+        input.write::<ArrayVariable<ByteVariable, 15>>(seed_input.to_vec());
 
         let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
