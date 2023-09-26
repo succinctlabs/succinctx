@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 
 use array_macro::array;
+use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::BoolTarget;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{Witness, WitnessWrite};
 use serde::{Deserialize, Serialize};
 
@@ -132,6 +133,40 @@ impl ByteVariable {
 
     pub fn from_be_bits(bits: [BoolVariable; 8]) -> ByteVariable {
         ByteVariable(bits)
+    }
+
+    /// Creates a ByteVariable from a Target.
+    pub fn from_target<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        byte_target: Target,
+    ) -> Self {
+        builder.api.range_check(byte_target, 8);
+
+        let le_bits: [Target; 8] = builder
+            .api
+            .low_bits(byte_target, 8, 8)
+            .iter()
+            .map(|x| x.target)
+            .collect_vec()
+            .try_into()
+            .expect("Expected 8 bits.  Should never happen");
+        let mut bool_variables: [BoolVariable; 8] = le_bits.map(|x| x.into());
+
+        // Need to reverse it to big endian
+        bool_variables.reverse();
+        ByteVariable::from_be_bits(bool_variables)
+    }
+
+    /// Creates a Target from a ByteVariable.
+    pub fn to_variable<L: PlonkParameters<D>, const D: usize>(
+        self: ByteVariable,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Variable {
+        let le_bits = self.as_le_bits();
+        let le_targets = le_bits
+            .iter()
+            .map(|x| BoolTarget::new_unsafe(x.variables()[0].0));
+        Variable::from(builder.api.le_sum(le_targets))
     }
 }
 

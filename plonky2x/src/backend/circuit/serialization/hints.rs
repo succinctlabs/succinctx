@@ -5,6 +5,9 @@ use curta::chip::ec::edwards::scalar_mul::air::ScalarMulEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::{
     SimpleScalarMulEd25519Generator, SimpleScalarMulEd25519HintGenerator,
 };
+use curta::chip::hash::blake::blake2b::generator::{
+    BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
+};
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
@@ -418,6 +421,24 @@ where
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
 
         r.register_async_hint::<BeaconValidatorsHint>();
+
+        let blake2b_hint_generator_id = BLAKE2BHintGenerator::id();
+        r.register_simple::<BLAKE2BHintGenerator>(blake2b_hint_generator_id);
+
+        let blake2b_generator = BLAKE2BGenerator::<
+            L::Field,
+            L::CubicParams,
+            L::CurtaConfig,
+            D,
+            BLAKE2BAirParameters<L::Field, L::CubicParams>,
+        >::id();
+        r.register_simple::<BLAKE2BGenerator<
+            L::Field,
+            L::CubicParams,
+            L::CurtaConfig,
+            D,
+            BLAKE2BAirParameters<L::Field, L::CubicParams>,
+        >>(blake2b_generator);
 
         register_watch_generator!(
             r,
