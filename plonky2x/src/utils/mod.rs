@@ -1,5 +1,6 @@
 use std::sync::Once;
 pub mod eth;
+pub mod hash;
 pub mod lido;
 pub mod poseidon;
 pub mod proof;
