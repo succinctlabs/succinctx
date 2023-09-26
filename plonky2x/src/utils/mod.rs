@@ -1,10 +1,14 @@
 use std::sync::Once;
 pub mod eth;
 pub mod lido;
+pub mod poseidon;
+pub mod proof;
+pub mod reqwest;
 pub mod serde;
 pub mod stream;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use log::LevelFilter;
+use log::{set_max_level, LevelFilter};
 
 pub macro bytes32($hex_literal:expr) {
     $hex_literal.parse::<ethers::types::H256>().unwrap()
@@ -64,11 +68,22 @@ static INIT: Once = Once::new();
 
 pub fn setup_logger() {
     INIT.call_once(|| {
-        if std::env::args().any(|arg| arg == "--show-output") {
-            env_logger::Builder::from_default_env()
-                .format_timestamp(None)
-                .filter_level(LevelFilter::Trace)
-                .init();
-        }
+        env_logger::Builder::from_default_env()
+            .format_timestamp(None)
+            .filter_level(LevelFilter::Trace)
+            .init();
     });
+}
+
+static ORIGINAL_LEVEL: AtomicUsize = AtomicUsize::new(LevelFilter::Info as usize);
+
+pub fn disable_logging() {
+    let current_level = log::max_level() as usize;
+    ORIGINAL_LEVEL.store(current_level, Ordering::SeqCst);
+    set_max_level(LevelFilter::Off);
+}
+
+pub fn enable_logging() {
+    let original_level = ORIGINAL_LEVEL.load(Ordering::SeqCst);
+    set_max_level(unsafe { std::mem::transmute(original_level) });
 }

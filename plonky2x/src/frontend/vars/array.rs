@@ -17,6 +17,7 @@ use super::{BoolVariable, ByteVariable, CircuitVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::prelude::{Add, Mul, Sub};
+
 /// A variable in the circuit representing a fixed length array of variables.
 /// We use this to avoid stack overflow arrays associated with fixed-length arrays.
 #[derive(Debug, Clone)]
@@ -36,6 +37,11 @@ impl<V: CircuitVariable, const N: usize> ArrayVariable<V, N> {
 
     pub fn as_vec(&self) -> Vec<V> {
         self.data.clone()
+    }
+
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.data.len()
     }
 }
 
