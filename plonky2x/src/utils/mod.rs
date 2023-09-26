@@ -3,6 +3,7 @@ pub mod eth;
 pub mod lido;
 pub mod poseidon;
 pub mod proof;
+pub mod reqwest;
 pub mod serde;
 pub mod stream;
 use std::sync::atomic::{AtomicUsize, Ordering};

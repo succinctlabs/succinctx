@@ -9,12 +9,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::serde_as;
 
+use crate::utils::reqwest::ReqwestClient;
 use crate::utils::serde::deserialize_bigint;
 
 /// A client used for connecting and querying a beacon node.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BeaconClient {
     rpc_url: String,
+    client: ReqwestClient,
 }
 
 /// The data format returned by official Eth Beacon Node APIs.
@@ -221,7 +223,10 @@ pub struct GetBeaconHistoricalBlock {
 impl BeaconClient {
     /// Creates a new BeaconClient based on a rpc url.
     pub fn new(rpc_url: String) -> Self {
-        Self { rpc_url }
+        Self {
+            rpc_url,
+            client: ReqwestClient::new(),
+        }
     }
 
     /// Gets the block root at `head`.
@@ -232,8 +237,7 @@ impl BeaconClient {
     /// Gets the latest block root at `head` asynchronously.
     pub fn get_finalized_block_root(&self) -> Result<String> {
         let endpoint = format!("{}/eth/v1/beacon/headers/finalized", self.rpc_url);
-        let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let parsed: Value = response.json()?;
 
         if let Value::Object(data) = &parsed["data"] {
@@ -286,8 +290,7 @@ impl BeaconClient {
             "{}/api/beacon/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
-        let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconValidatorWitness> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -304,11 +307,7 @@ impl BeaconClient {
             self.rpc_url, beacon_id, start_idx, end_idx
         );
         debug!("{}", endpoint);
-        let client = reqwest::blocking::Client::new();
-        let response = client
-            .get(endpoint)
-            .timeout(Duration::from_secs(300))
-            .send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: GetBeaconValidatorBatchWitness = response.json()?;
         Ok(response.validators)
     }
@@ -324,8 +323,7 @@ impl BeaconClient {
             "{}/api/beacon/proof/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
-        let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconValidator> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -354,8 +352,7 @@ impl BeaconClient {
     pub fn get_balances_root(&self, beacon_id: String) -> Result<GetBeaconBalancesRoot> {
         let endpoint = format!("{}/api/beacon/proof/balance/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconBalancesRoot> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -423,8 +420,7 @@ impl BeaconClient {
             "{}/api/beacon/proof/balance/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
-        let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconBalance> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -440,8 +436,7 @@ impl BeaconClient {
             "{}/api/beacon/proof/balance/{}/{}",
             self.rpc_url, beacon_id, pubkey
         );
-        let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconBalance> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -458,8 +453,7 @@ impl BeaconClient {
             "{}/eth/v1/beacon/states/{}/validator_balances?id={}",
             self.rpc_url, beacon_id, validator_idx
         );
-        let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: BeaconData<Vec<BeaconValidatorBalance>> = response.json()?;
         let balance = response.data[0].balance.parse::<u64>()?;
         Ok(U256::from(balance))
@@ -476,8 +470,7 @@ impl BeaconClient {
             "{}/eth/v1/beacon/states/{}/validator_balances?id={}",
             self.rpc_url, beacon_id, pubkey
         );
-        let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: BeaconData<Vec<BeaconValidatorBalance>> = response.json()?;
         let balance = response.data[0].balance.parse::<u64>()?;
         Ok(U256::from(balance))
@@ -498,8 +491,7 @@ impl BeaconClient {
             "{}/api/beacon/proof/withdrawal/{}/{}",
             self.rpc_url, beacon_id, idx
         );
-        let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconWithdrawal> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -526,8 +518,7 @@ impl BeaconClient {
     pub fn get_header(&self, beacon_id: String) -> Result<BeaconHeader> {
         let endpoint = format!("{}/eth/v1/beacon/headers/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client.get(endpoint).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let parsed: BeaconData<BeaconHeaderContainer> = response.json()?;
 
         Ok(parsed.data.header.message)
