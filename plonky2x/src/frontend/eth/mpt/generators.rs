@@ -19,10 +19,16 @@ pub struct LeGenerator<L: PlonkParameters<D>, const D: usize> {
     pub _phantom: PhantomData<L>,
 }
 
+impl<L: PlonkParameters<D>, const D: usize> LeGenerator<L, D> {
+    pub fn id() -> String {
+        "LeGenerator".to_string()
+    }
+}
+
 // TODO: add LeGenerator to macro
 impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for LeGenerator<L, D> {
     fn id(&self) -> String {
-        "LeGenerator".to_string()
+        Self::id()
     }
 
     fn dependencies(&self) -> Vec<Target> {
