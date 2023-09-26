@@ -6,8 +6,10 @@ use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::{ByteVariable, BytesVariable, CircuitVariable, EvmVariable};
-use crate::prelude::Variable;
+use crate::frontend::vars::{
+    ByteVariable, BytesVariable, CircuitVariable, EvmVariable, SSZVariable,
+};
+use crate::prelude::{Bytes32Variable, Variable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BLSPubkeyVariable(pub BytesVariable<48>);
@@ -122,5 +124,18 @@ impl EvmVariable for AddressVariable {
 
     fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
         H160::from_slice(bytes)
+    }
+}
+
+impl SSZVariable for AddressVariable {
+    fn hash_tree_root<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Bytes32Variable {
+        let mut bytes = self.encode(builder);
+        bytes.reverse();
+        let zero = builder.constant::<ByteVariable>(0);
+        bytes.extend([zero; 12]);
+        Bytes32Variable(BytesVariable::<32>(bytes.try_into().unwrap()))
     }
 }

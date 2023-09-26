@@ -8,7 +8,7 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
-use crate::frontend::vars::{CircuitVariable, EvmVariable, U32Variable, Variable};
+use crate::frontend::vars::{CircuitVariable, EvmVariable, SSZVariable, U32Variable, Variable};
 use crate::prelude::*;
 
 pub trait Uint<const N: usize>: Debug + Clone + Copy + Sync + Send + 'static {
@@ -156,6 +156,22 @@ impl<U: Uint<N>, const N: usize> EvmVariable for U32NVariable<U, N> {
 
     fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
         U::from_big_endian(bytes)
+    }
+}
+
+impl<U: Uint<N>, const N: usize> SSZVariable for U32NVariable<U, N> {
+    fn hash_tree_root<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Bytes32Variable {
+        let mut bytes = self.encode(builder);
+        bytes.reverse();
+        // Note: doesn't work for > 256 bits
+        if bytes.len() < 32 {
+            let zero = builder.constant::<ByteVariable>(0);
+            bytes.extend(vec![zero; 32 - bytes.len()]);
+        }
+        Bytes32Variable(BytesVariable::<32>(bytes.try_into().unwrap()))
     }
 }
 
@@ -378,6 +394,27 @@ impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Rem<L, D
             limbs,
             _marker: core::marker::PhantomData,
         }
+    }
+}
+
+impl<L: PlonkParameters<D>, const D: usize, U: Uint<N>, const N: usize> Le<L, D>
+    for U32NVariable<U, N>
+{
+    fn le(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
+        let mut le_acc = BoolVariable::constant(builder, false);
+        let mut equal_so_far = BoolVariable::constant(builder, true);
+        for i in 0..N {
+            // Start with most significant limb
+            let lhs = self.limbs[N - i - 1];
+            let rhs = rhs.limbs[N - i - 1];
+            let lhs = U32Variable(lhs.0);
+            let rhs = U32Variable(rhs.0);
+            let le = builder.le(lhs, rhs);
+            le_acc = builder.select(equal_so_far, le, le_acc);
+            let equal = builder.is_equal(lhs, rhs);
+            equal_so_far = builder.and(equal_so_far, equal);
+        }
+        builder.or(le_acc, equal_so_far)
     }
 }
 

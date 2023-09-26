@@ -167,7 +167,7 @@ impl SSZVariable for BeaconValidatorVariable {
         let mut pubkey_serialized = self.pubkey.0 .0.to_vec();
         pubkey_serialized.extend([zero; 16]);
 
-        let tmp = builder.sha256(&pubkey_serialized);
+        let tmp = builder.curta_sha256(&pubkey_serialized);
         let mut a1 = tmp.0 .0.to_vec();
         a1.extend(self.withdrawal_credentials.0 .0.to_vec());
 
@@ -189,16 +189,16 @@ impl SSZVariable for BeaconValidatorVariable {
         tmp.reverse();
         a4.extend(&tmp);
 
-        let mut b1 = builder.sha256(&a1).0 .0.to_vec();
-        b1.extend(builder.sha256(&a2).0 .0.to_vec());
+        let mut b1 = builder.curta_sha256(&a1).0 .0.to_vec();
+        b1.extend(builder.curta_sha256(&a2).0 .0.to_vec());
 
-        let mut b2 = builder.sha256(&a3).0 .0.to_vec();
-        b2.extend(builder.sha256(&a4).0 .0.to_vec());
+        let mut b2 = builder.curta_sha256(&a3).0 .0.to_vec();
+        b2.extend(builder.curta_sha256(&a4).0 .0.to_vec());
 
-        let mut c1 = builder.sha256(&b1).0 .0.to_vec();
-        c1.extend(builder.sha256(&b2).0 .0.to_vec());
+        let mut c1 = builder.curta_sha256(&b1).0 .0.to_vec();
+        c1.extend(builder.curta_sha256(&b2).0 .0.to_vec());
 
-        builder.sha256(&c1)
+        builder.curta_sha256(&c1)
     }
 }
 
