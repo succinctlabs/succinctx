@@ -3,7 +3,7 @@ use std::env;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::eth::beacon::vars::BeaconValidatorVariable;
-use crate::frontend::generator::simple::hint::Hint;
+use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::ValueStream;
 use crate::prelude::{Bytes32Variable, PlonkParameters};

@@ -1,8 +1,9 @@
+use array_macro::array;
 use ethers::types::U64;
 
 use super::generators::{
     BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHeaderHint,
-    BeaconHistoricalBlockGenerator, BeaconValidatorGenerator, BeaconValidatorsGenerator,
+    BeaconHistoricalBlockGenerator, BeaconValidatorGenerator, BeaconValidatorsHint,
     BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
 };
 use super::vars::{
@@ -60,18 +61,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         block_root: Bytes32Variable,
     ) -> BeaconValidatorsVariable {
-        let generator =
-            BeaconValidatorsGenerator::new(self, self.beacon_client.clone().unwrap(), block_root);
-        self.add_simple_generator(generator.clone());
-        self.ssz_verify_proof_const(
-            block_root,
-            generator.validators_root,
-            &generator.proof,
-            VALIDATORS_ROOT_GINDEX,
-        );
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&block_root);
+        let hint = BeaconValidatorsHint::new(self.beacon_client.clone().unwrap());
+        let output_stream = self.async_hint(input_stream, hint);
+
+        let validators_root = output_stream.read::<Bytes32Variable>(self);
+        let proof = array![_ => output_stream.read::<Bytes32Variable>(self); 8];
+        self.ssz_verify_proof_const(block_root, validators_root, &proof, VALIDATORS_ROOT_GINDEX);
         BeaconValidatorsVariable {
             block_root,
-            validators_root: generator.validators_root,
+            validators_root,
         }
     }
 

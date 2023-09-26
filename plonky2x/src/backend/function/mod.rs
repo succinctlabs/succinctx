@@ -28,7 +28,7 @@ use crate::backend::circuit::{
 use crate::backend::function::cli::{Args, Commands};
 use crate::backend::wrapper::wrap::WrappedCircuit;
 use crate::frontend::builder::CircuitIO;
-use crate::prelude::{CircuitBuilder, GateRegistry, WitnessGeneratorRegistry};
+use crate::prelude::{CircuitBuilder, GateRegistry, HintRegistry};
 
 const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
 
@@ -60,7 +60,7 @@ impl<C: Circuit> VerifiableFunction<C> {
         info!("> Degree: {}", circuit.data.common.degree());
         info!("> Number of Gates: {}", circuit.data.common.gates.len());
         let path = format!("{}/main.circuit", args.build_dir);
-        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
         C::add_generators::<L, D>(&mut generator_registry);
         C::add_gates::<L, D>(&mut gate_registry);
@@ -129,7 +129,7 @@ impl<C: Circuit> VerifiableFunction<C> {
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
         C::add_generators::<L, D>(&mut generator_registry);
         C::add_gates::<L, D>(&mut gate_registry);
@@ -162,7 +162,7 @@ impl<C: Circuit> VerifiableFunction<C> {
     {
         let path = format!("{}/main.circuit", args.build_dir);
         info!("Loading circuit from {}...", path);
-        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
         C::add_generators::<InnerParameters, D>(&mut generator_registry);
         C::add_gates::<InnerParameters, D>(&mut gate_registry);

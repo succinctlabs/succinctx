@@ -1,6 +1,7 @@
 use std::env;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::local::LocalProver;
@@ -12,6 +13,7 @@ use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput, Public
 /// can either be `remote` or `local`.
 pub struct EnvProver;
 
+#[async_trait]
 impl Prover for EnvProver {
     fn new() -> Self {
         Self {}

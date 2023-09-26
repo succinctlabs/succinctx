@@ -4,7 +4,7 @@ use ethers::types::U64;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::eth::beacon::vars::{BeaconHeaderValue, BeaconHeaderVariable};
-use crate::frontend::generator::simple::hint::Hint;
+use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::vars::ValueStream;
 use crate::prelude::{Bytes32Variable, PlonkParameters};
 use crate::utils::eth::beacon::BeaconClient;

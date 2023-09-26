@@ -5,14 +5,14 @@ use ethers::types::U256;
 use log::info;
 use num::BigInt;
 use reqwest::blocking::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::serde_as;
 
 use crate::utils::serde::deserialize_bigint;
 
 /// A client used for connecting and querying a beacon node.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BeaconClient {
     rpc_url: String,
 }
@@ -25,12 +25,6 @@ struct BeaconData<T> {
     #[allow(unused)]
     pub finalized: bool,
     pub data: T,
-}
-
-/// The format returned by official Eth Beacon Node APIs.
-#[derive(Debug, Deserialize)]
-struct BeaconResponse<T> {
-    data: BeaconData<T>,
 }
 
 /// All custom endpoints return a response with this format.

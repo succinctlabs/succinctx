@@ -13,6 +13,6 @@ pub use balances::BeaconBalancesGenerator;
 pub use header::BeaconHeaderHint;
 pub use historical::BeaconHistoricalBlockGenerator;
 pub use validator::BeaconValidatorGenerator;
-pub use validators::BeaconValidatorsGenerator;
+pub use validators::{BeaconValidatorsGenerator, BeaconValidatorsHint};
 pub use withdrawal::BeaconWithdrawalGenerator;
 pub use withdrawals::BeaconWithdrawalsGenerator;
