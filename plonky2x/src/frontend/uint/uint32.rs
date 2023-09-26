@@ -10,6 +10,7 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use crate::frontend::num::u32::gadgets::multiple_comparison::list_le_circuit;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
 use crate::prelude::*;
 
@@ -108,6 +109,14 @@ impl EvmVariable for U32Variable {
             value |= (bytes[i] as u32) << ((4 - i - 1) * 8);
         }
         value
+    }
+}
+
+impl<L: PlonkParameters<D>, const D: usize> Le<L, D> for U32Variable {
+    fn le(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
+        BoolVariable(Variable(
+            list_le_circuit(&mut builder.api, self.targets(), rhs.targets(), 32).target,
+        ))
     }
 }
 

@@ -12,5 +12,5 @@ use crate::prelude::Variable;
 #[derive(Debug, Clone, Copy, CircuitVariable)]
 pub struct BeaconBalancesVariable {
     pub block_root: Bytes32Variable,
-    pub balances_root: Bytes32Variable,
+    pub root: Bytes32Variable,
 }

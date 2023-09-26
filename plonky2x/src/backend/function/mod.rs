@@ -62,8 +62,8 @@ impl<C: Circuit> VerifiableFunction<C> {
         let path = format!("{}/main.circuit", args.build_dir);
         let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
-        C::add_generators::<L, D>(&mut generator_registry);
-        C::add_gates::<L, D>(&mut gate_registry);
+        C::register_generators::<L, D>(&mut generator_registry);
+        C::register_gates::<L, D>(&mut gate_registry);
         circuit.save(&path, &gate_registry, &generator_registry);
         info!("Successfully saved circuit to disk at {}.", path);
 
@@ -131,11 +131,25 @@ impl<C: Circuit> VerifiableFunction<C> {
         info!("Loading circuit from {}...", path);
         let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
-        C::add_generators::<L, D>(&mut generator_registry);
-        C::add_gates::<L, D>(&mut gate_registry);
-        let circuit =
+        C::register_generators::<L, D>(&mut generator_registry);
+        C::register_gates::<L, D>(&mut gate_registry);
+        let mut circuit =
             CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap();
         info!("Successfully loaded circuit.");
+
+        if let ProofRequest::RecursiveProofs(ref request) = request {
+            if circuit.id() != request.data.circuit_id {
+                let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
+                circuit =
+                    CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap()
+            }
+        } else if let ProofRequest::Elements(ref request) = request {
+            if circuit.id() != request.data.circuit_id {
+                let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
+                circuit =
+                    CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap()
+            }
+        }
 
         let input = request.input();
         let (proof, output) = circuit.prove(&input);
@@ -143,9 +157,9 @@ impl<C: Circuit> VerifiableFunction<C> {
 
         let result = ProofResult::from_proof_output(proof, output);
         let json = serde_json::to_string_pretty(&result).unwrap();
-        let mut file = File::create("plonky2x_output.json").unwrap();
+        let mut file = File::create("output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
-        info!("Successfully saved proof to disk at plonky2x_output.json.");
+        info!("Successfully saved proof to disk at output.json.");
     }
 
     fn prove_wrapped<
@@ -164,8 +178,8 @@ impl<C: Circuit> VerifiableFunction<C> {
         info!("Loading circuit from {}...", path);
         let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
-        C::add_generators::<InnerParameters, D>(&mut generator_registry);
-        C::add_gates::<InnerParameters, D>(&mut gate_registry);
+        C::register_generators::<InnerParameters, D>(&mut generator_registry);
+        C::register_gates::<InnerParameters, D>(&mut gate_registry);
         let circuit =
             CircuitBuild::<InnerParameters, D>::load(&path, &gate_registry, &generator_registry)
                 .unwrap();
@@ -226,6 +240,7 @@ impl<C: Circuit> VerifiableFunction<C> {
         type L = DefaultParameters;
         const D: usize = 2;
 
+        dotenv::dotenv().ok();
         env_logger::try_init().unwrap_or_default();
 
         let args = Args::parse();

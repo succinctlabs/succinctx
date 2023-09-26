@@ -4,7 +4,9 @@ use ethers::types::H256;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{ByteVariable, BytesVariable, CircuitVariable, EvmVariable, U256Variable, Variable};
+use super::{
+    ByteVariable, BytesVariable, CircuitVariable, EvmVariable, SSZVariable, U256Variable, Variable,
+};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
@@ -103,6 +105,16 @@ impl EvmVariable for Bytes32Variable {
 
     fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
         H256::from_slice(bytes)
+    }
+}
+
+impl SSZVariable for Bytes32Variable {
+    fn hash_tree_root<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Bytes32Variable {
+        let bytes = self.encode(builder);
+        Bytes32Variable(BytesVariable::<32>(bytes.try_into().unwrap()))
     }
 }
 

@@ -3,6 +3,7 @@ use core::marker::PhantomData;
 use curta::chip::hash::sha::sha256::builder_gadget::{SHA256Builder, SHA256BuilderGadget};
 use curta::chip::hash::sha::sha256::generator::SHA256HintGenerator;
 use itertools::Itertools;
+use log::debug;
 use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
@@ -179,6 +180,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         bytes.into()
     }
 
+    pub fn curta_sha256_pair(
+        &mut self,
+        left: Bytes32Variable,
+        right: Bytes32Variable,
+    ) -> Bytes32Variable {
+        let mut input = Vec::new();
+        input.extend(&left.as_bytes());
+        input.extend(&right.as_bytes());
+        self.curta_sha256(&input)
+    }
+
     /// Executes a SHA256 hash on the given input. Note: input should be length MAX_NUM_CHUNKS * 64.
     pub fn curta_sha256_variable<const MAX_NUM_CHUNKS: usize>(
         &mut self,
@@ -274,6 +286,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             (0..nb_chunks / 1024)
                 .map(|_| self.api.init_sha256())
                 .collect_vec();
+        debug!("allocated {} curta sha256 gadgets", gadgets.len());
 
         let mut rq_idx = 0;
         for i in 0..gadgets.len() {
@@ -289,6 +302,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     &accelerator.sha256_requests[rq_idx],
                     accelerator.sha256_responses[rq_idx],
                 );
+
                 self.add_simple_generator(hint);
                 gadget
                     .digests
@@ -338,11 +352,18 @@ mod tests {
         builder.assert_is_equal(result, expected_digest);
 
         let circuit = builder.build();
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = HintRegistry::<L, D>::new();
+        let bytes = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
+        let circuit =
+            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer)
+                .unwrap();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        // TODO: Add back once curta serialization is implemented.
-        // circuit.test_default_serializers();
+        circuit.test_default_serializers();
     }
 
     #[test]

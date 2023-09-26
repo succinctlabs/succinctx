@@ -1,6 +1,9 @@
 use alloc::collections::BTreeMap;
 use std::fs;
+use std::path::Path;
+use std::time::Instant;
 
+use log::debug;
 use plonky2::field::types::PrimeField64;
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_data::CircuitData;
@@ -44,7 +47,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
     ) -> (
         ProofWithPublicInputs<L::Field, L::Config, D>,
         PublicOutput<L, D>,
-    ) {
+    )
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
+        let start_time = Instant::now();
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
         let partition_witness = generate_witness(
@@ -62,6 +70,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         )
         .unwrap();
         let output = PublicOutput::from_proof_with_pis(&self.io, &proof_with_pis);
+        let elapsed_time = start_time.elapsed();
+        debug!("proving took: {:?}", elapsed_time);
         (proof_with_pis, output)
     }
 
@@ -72,7 +82,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
     ) -> (
         ProofWithPublicInputs<L::Field, L::Config, D>,
         PublicOutput<L, D>,
-    ) {
+    )
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
         let partition_witness = generate_witness_async(
@@ -189,6 +203,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         gate_serializer: &impl GateSerializer<L::Field, D>,
         hint_serializer: &impl HintSerializer<L, D>,
     ) {
+        let path = Path::new(path);
+        if let Some(parent_dir) = path.parent() {
+            if !parent_dir.exists() {
+                fs::create_dir_all(parent_dir).unwrap();
+            }
+        }
         let bytes = self.serialize(gate_serializer, hint_serializer).unwrap();
         fs::write(path, bytes).unwrap();
     }

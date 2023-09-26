@@ -37,6 +37,7 @@ use plonky2::iop::generator::{
     SimpleGeneratorAdapter, WitnessGenerator, WitnessGeneratorRef,
 };
 use plonky2::plonk::circuit_data::CommonCircuitData;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSerializer, Write};
 
 use super::registry::{SerializationRegistry, Serializer};
@@ -44,14 +45,17 @@ use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
-    BeaconBalanceGenerator, BeaconBalancesGenerator, BeaconHistoricalBlockGenerator,
-    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconValidatorsHint,
-    BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
+    BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator, BeaconBalanceWitnessHint,
+    BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconPartialValidatorsHint, BeaconValidatorBatchWitnessHint, BeaconValidatorGenerator,
+    BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
+    BeaconWithdrawalsGenerator,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
     BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
+use crate::frontend::eth::mpt::generators::LeGenerator;
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
@@ -72,9 +76,9 @@ use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
 use crate::frontend::num::u32::gates::comparison::ComparisonGenerator;
 use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
 use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
-use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::Bytes32Variable;
+use crate::frontend::vars::{Bytes32Variable, U256Variable};
+use crate::prelude::{BoolVariable, Variable};
 
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
     WitnessGeneratorSerializer<L::Field, D>
@@ -101,15 +105,6 @@ pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
 pub struct HintRegistry<L: PlonkParameters<D>, const D: usize> {
     generators: SerializationRegistry<String, L::Field, WitnessGeneratorRef<L::Field, D>, D>,
     async_hints: SerializationRegistry<String, L::Field, AsyncHintDataRef<L, D>, D>,
-}
-
-macro_rules! register_watch_generator {
-    ($registry:ident, $l:ty, $d:ty, $($type:ty),*) => {
-        $(
-            let generator_id = WatchGenerator::<$l, $d, $type>::id();
-            $registry.register_simple::<WatchGenerator<$l, $d, $type>>(generator_id);
-        )*
-    };
 }
 
 /// A serializer for a plonky2 witness generator.
@@ -168,7 +163,46 @@ impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
             .unwrap();
         self.async_hints.register(id, serializer).unwrap();
     }
+}
 
+macro_rules! register_watch_generator {
+    ($registry:ident, $l:ty, $d:ty, $($type:ty),*) => {
+        $(
+            let generator_id = WatchGenerator::<$l, $d, $type>::id();
+            $registry.register_simple::<WatchGenerator<$l, $d, $type>>(generator_id);
+        )*
+    };
+}
+
+macro_rules! register_powers_of_two {
+    ($r:ident, $hint:ident) => {
+        $r.register_hint::<$hint<2>>();
+        $r.register_hint::<$hint<4>>();
+        $r.register_hint::<$hint<8>>();
+        $r.register_hint::<$hint<16>>();
+        $r.register_hint::<$hint<32>>();
+        $r.register_hint::<$hint<64>>();
+        $r.register_hint::<$hint<128>>();
+        $r.register_hint::<$hint<256>>();
+        $r.register_hint::<$hint<512>>();
+        $r.register_hint::<$hint<1024>>();
+        $r.register_hint::<$hint<2048>>();
+        $r.register_hint::<$hint<4096>>();
+        $r.register_hint::<$hint<8192>>();
+        $r.register_hint::<$hint<16384>>();
+        $r.register_hint::<$hint<32768>>();
+        $r.register_hint::<$hint<65536>>();
+        $r.register_hint::<$hint<131072>>();
+        $r.register_hint::<$hint<262144>>();
+        $r.register_hint::<$hint<524288>>();
+        $r.register_hint::<$hint<1048576>>();
+    };
+}
+
+impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D>
+where
+    <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+{
     /// Creates a new registry with all the default generators that are used in a Plonky2x circuit.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
@@ -311,6 +345,9 @@ impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
         let u32_add_many_generator_id = U32AddManyGenerator::<L::Field, D>::id();
         r.register_simple::<U32AddManyGenerator<L::Field, D>>(u32_add_many_generator_id);
 
+        let u32_subtraction_generator_id = U32SubtractionGenerator::<L::Field, D>::id();
+        r.register_simple::<U32SubtractionGenerator<L::Field, D>>(u32_subtraction_generator_id);
+
         let comparison_generator_id = ComparisonGenerator::<L::Field, D>::id();
         r.register_simple::<ComparisonGenerator<L::Field, D>>(comparison_generator_id);
 
@@ -320,11 +357,15 @@ impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
         let sha256_hint_generator_id = SHA256HintGenerator::id();
         r.register_simple::<SHA256HintGenerator>(sha256_hint_generator_id);
 
-        let sha256_generator = SHA256Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
+        let sha256_generator_id =
+            SHA256Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
         r.register_simple::<SHA256Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(
-            sha256_generator,
+            sha256_generator_id,
         );
 
+        let le_generator_id = LeGenerator::<L, D>::id();
+        r.register_simple::<LeGenerator<L, D>>(le_generator_id);
+
         let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
             ScalarMulEd25519<L::Field, L::CubicParams>,
             L::CurtaConfig,
@@ -347,6 +388,12 @@ impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
             D,
         >>(simple_stark_witness_generator_id);
 
+        r.register_hint::<BeaconBalanceWitnessHint>();
+
+        register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
+        register_powers_of_two!(r, BeaconPartialBalancesHint);
+        register_powers_of_two!(r, BeaconValidatorBatchWitnessHint);
+        register_powers_of_two!(r, BeaconPartialValidatorsHint);
         r.register_async_hint::<EthStorageProofHint<L, D>>();
         let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519Base>::default().id();
         r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519Base>>(id);
@@ -373,9 +420,6 @@ impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
 
-        let id = U32SubtractionGenerator::<L::Field, D>::id();
-        r.register_simple::<U32SubtractionGenerator<L::Field, D>>(id);
-
         r.register_async_hint::<BeaconValidatorsHint>();
 
         let blake2b_hint_generator_id = BLAKE2BHintGenerator::id();
@@ -400,6 +444,8 @@ impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
             r,
             L,
             D,
+            Variable,
+            BoolVariable,
             U64Variable,
             U256Variable,
             Bytes32Variable,

@@ -5,6 +5,7 @@ pub mod watch;
 
 use alloc::collections::BTreeMap;
 use std::collections::HashMap;
+use std::env;
 
 use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
@@ -60,7 +61,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
         let api = CircuitAPI::new(config);
-        Self {
+        let mut builder = Self {
             api,
             io: CircuitIO::new(),
             beacon_client: None,
@@ -73,7 +74,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             async_hints_indices: Vec::new(),
             blake2b_accelerator: None,
             sha256_accelerator: None,
+        };
+
+        if let Ok(rpc_url) = env::var("CONSENSUS_RPC_1") {
+            let client = BeaconClient::new(rpc_url);
+            builder.set_beacon_client(client);
         }
+
+        builder
     }
 
     pub fn set_debug(&mut self) {
@@ -172,8 +180,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 self.register_public_inputs(input.as_slice());
                 self.register_public_inputs(output.as_slice());
             }
+            CircuitIO::RecursiveProofs(ref io) => {
+                let output = io
+                    .output
+                    .iter()
+                    .flat_map(|b| b.variables())
+                    .collect::<Vec<_>>();
+                self.register_public_inputs(output.as_slice());
+            }
             CircuitIO::None() => {}
-            _ => panic!("unsupported io type"),
         };
     }
 
@@ -205,7 +220,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.pre_build();
         let data = self.api.build();
         let async_hints = Self::async_hint_map(&data.prover_only.generators, self.async_hints);
-
         CircuitBuild {
             data,
             io: self.io,
@@ -236,7 +250,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::init(self)
     }
 
-    /// Initializes a variable with a value from the circuit input without any validity checks.
+    /// Initializes a variable with no value in the circuit without any validity checks.
     pub fn init_unsafe<V: CircuitVariable>(&mut self) -> V {
         V::init_unsafe(self)
     }
@@ -255,33 +269,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn register_public_inputs(&mut self, inputs: &[Variable]) {
         self.api
             .register_public_inputs(&inputs.iter().map(|v| v.0).collect_vec());
-    }
-
-    /// Add returns res = i1 + i2 + ...
-    pub fn add_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].0;
-        for i in 1..values.len() {
-            acc = self.api.add(acc, values[i].0);
-        }
-        acc.into()
-    }
-
-    /// Sub returns res = i1 - i2 - ...
-    pub fn sub_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].0;
-        for i in 1..values.len() {
-            acc = self.api.sub(acc, values[i].0);
-        }
-        acc.into()
-    }
-
-    /// Mul returns res = i1 * i2 * ...
-    pub fn mul_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].0;
-        for i in 1..values.len() {
-            acc = self.api.mul(acc, values[i].0);
-        }
-        acc.into()
     }
 
     /// Inverse returns res = 1 / i1.

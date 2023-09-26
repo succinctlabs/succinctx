@@ -1,7 +1,11 @@
 //! Arithmetic operations.
 
+use core::marker::PhantomData;
+
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::eth::mpt::generators::LeGenerator;
+use crate::prelude::{BoolVariable, Variable};
 
 /// The addition operation.
 ///
@@ -19,6 +23,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         Lhs: Add<L, D, Rhs>,
     {
         lhs.add(rhs, self)
+    }
+
+    pub fn add_many<T>(&mut self, values: &[T]) -> T
+    where
+        T: Add<L, D, T, Output = T> + Clone,
+    {
+        let mut sum = values[0].clone();
+        for i in 1..values.len() {
+            sum = self.add(sum, values[i].clone());
+        }
+        sum
     }
 }
 
@@ -135,5 +150,34 @@ pub trait One<L: PlonkParameters<D>, const D: usize> {
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn one<T: One<L, D>>(&mut self) -> T {
         T::one(self)
+    }
+}
+
+/// The less than or equal operation. (<=)
+///
+/// Types implementing this trait can be used within the `builder.le(lhs, rhs)` method.
+pub trait Le<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
+    fn le(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> BoolVariable;
+}
+
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn le<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
+    where
+        Lhs: Le<L, D, Rhs>,
+    {
+        lhs.le(rhs, self)
+    }
+}
+
+impl<L: PlonkParameters<D>, const D: usize> Le<L, D> for Variable {
+    fn le(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
+        let generator: LeGenerator<L, D> = LeGenerator {
+            lhs: self,
+            rhs,
+            output: builder.init::<BoolVariable>(),
+            _phantom: PhantomData,
+        };
+        builder.add_simple_generator(generator.clone());
+        generator.output
     }
 }
