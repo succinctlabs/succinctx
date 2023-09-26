@@ -1,7 +1,8 @@
 use core::time::Duration;
 
 use anyhow::Result;
-use ethers::types::U256;
+use ethers::types::{H256, U256};
+use itertools::Itertools;
 use log::{debug, info};
 use num::BigInt;
 use reqwest::blocking::Client;
@@ -9,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::serde_as;
 
+use crate::utils::hash::sha256;
 use crate::utils::reqwest::ReqwestClient;
 use crate::utils::serde::deserialize_bigint;
 
@@ -73,6 +75,71 @@ pub struct BeaconValidator {
     pub activation_epoch: u64,
     pub exit_epoch: String,
     pub withdrawable_epoch: String,
+}
+
+impl BeaconValidator {
+    pub fn ssz_merkelize(&self) -> (H256, Vec<H256>) {
+        let pubkey_bytes = hex::decode(&self.pubkey.as_str()[2..]).unwrap();
+        let mut pubkey_p1 = [0u8; 32];
+        pubkey_p1.copy_from_slice(&pubkey_bytes[..32]);
+        let mut pubkey_p2 = [0u8; 32];
+        pubkey_p2[0..16].copy_from_slice(&pubkey_bytes[32..]);
+        let pubkey = sha256(&[pubkey_p1, pubkey_p2].concat());
+
+        let withdrawal_credentials_bytes =
+            hex::decode(&self.withdrawal_credentials.as_str()[2..]).unwrap();
+        let mut withdrawal_credentials = [0u8; 32];
+        withdrawal_credentials.copy_from_slice(&withdrawal_credentials_bytes[..]);
+
+        let effective_balance_bytes = self.effective_balance.to_le_bytes();
+        let mut effective_balance = [0u8; 32];
+        effective_balance[0..8].copy_from_slice(&effective_balance_bytes);
+
+        let mut slashed = [0u8; 32];
+        slashed[0] = if self.slashed { 1u8 } else { 0u8 };
+
+        let activation_eligibility_epoch_bytes = self.activation_eligibility_epoch.to_le_bytes();
+        let mut activation_eligibility_epoch = [0u8; 32];
+        activation_eligibility_epoch[0..8].copy_from_slice(&activation_eligibility_epoch_bytes);
+
+        let activation_epoch_bytes = self.activation_epoch.to_le_bytes();
+        let mut activation_epoch = [0u8; 32];
+        activation_epoch[0..8].copy_from_slice(&activation_epoch_bytes);
+
+        let (_, exit_epoch_bytes) = self.exit_epoch.parse::<BigInt>().unwrap().to_bytes_le();
+        let mut exit_epoch = [0u8; 32];
+        exit_epoch[0..exit_epoch_bytes.len()].copy_from_slice(&exit_epoch_bytes);
+
+        let (_, withdrawable_epoch_bytes) = self
+            .withdrawable_epoch
+            .parse::<BigInt>()
+            .unwrap()
+            .to_bytes_le();
+        let mut withdrawable_epoch = [0u8; 32];
+        withdrawable_epoch[0..withdrawable_epoch_bytes.len()]
+            .copy_from_slice(&withdrawable_epoch_bytes);
+
+        let h11 = sha256(&[pubkey, withdrawal_credentials].concat());
+        let h12 = sha256(&[effective_balance, slashed].concat());
+        let h13 = sha256(&[activation_eligibility_epoch, activation_epoch].concat());
+        let h14 = sha256(&[exit_epoch, withdrawable_epoch].concat());
+        let h21 = sha256(&[h11, h12].concat());
+        let h22 = sha256(&[h13, h14].concat());
+        let h31 = sha256(&[h21, h22].concat());
+
+        (
+            H256::from(&h31),
+            vec![h11, h12, h13, h14, h21, h22, h31]
+                .iter()
+                .map(H256::from)
+                .collect_vec(),
+        )
+    }
+
+    pub fn ssz_hash_tree_root(&self) -> H256 {
+        let (root, _) = self.ssz_merkelize();
+        root
+    }
 }
 
 /// The beacon validator balance returned by the official Beacon Node API.
@@ -536,6 +603,22 @@ mod tests {
 
     use super::*;
     use crate::utils;
+
+    #[test]
+    fn test_validator_hash_tree_root() {
+        let validator = BeaconValidator {
+            pubkey: "0x2a2c40d5177456d2b260cf39ee5426c2ce04096d1970aa4afe8306f1e24d1e1b5f1860d228b46ef0f7b01950b34aef17".to_string(),
+            withdrawal_credentials: "0xfad764748d2fb342f8e9f88ea2ffb9833b7c2e8ae1f78921057e4749688cd13b".to_string(),
+            effective_balance: 6,
+            slashed: true,
+            activation_eligibility_epoch: 6,
+            activation_epoch: 7,
+            exit_epoch: "0".to_string(),
+            withdrawable_epoch: "0".to_string()
+        };
+        let root = validator.ssz_hash_tree_root();
+        println!("{}", root);
+    }
 
     #[cfg_attr(feature = "ci", ignore)]
     #[test]

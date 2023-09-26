@@ -44,9 +44,9 @@ use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator, BeaconBalanceWitnessHint,
     BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
-    BeaconPartialValidatorsHint, BeaconValidatorBatchWitnessHint, BeaconValidatorGenerator,
+    BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator,
+    BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -389,8 +389,9 @@ where
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
         register_powers_of_two!(r, BeaconPartialBalancesHint);
-        register_powers_of_two!(r, BeaconValidatorBatchWitnessHint);
+        register_powers_of_two!(r, BeaconValidatorBatchHint);
         register_powers_of_two!(r, BeaconPartialValidatorsHint);
+        register_powers_of_two!(r, CompressedBeaconValidatorBatchHint);
         r.register_async_hint::<EthStorageProofHint<L, D>>();
         let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519Base>::default().id();
         r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519Base>>(id);

@@ -20,10 +20,10 @@ const LIDO_WITHDRAWAL_CREDENTIALS: &str =
 const BLOCK_ROOT: &str = "0x4f1dd351f11a8350212b534b3fca619a2a95ad8d9c16129201be4a6d73698adb";
 
 /// The number of balances to fetch.
-const NB_VALIDATORS: usize = 32768;
+const NB_VALIDATORS: usize = 1024;
 
 /// The batch size for fetching balances and computing the local balance roots.
-const BATCH_SIZE: usize = 256;
+const BATCH_SIZE: usize = 512;
 
 struct MapReduceValidatorCircuit;
 
@@ -50,10 +50,11 @@ impl Circuit for MapReduceValidatorCircuit {
             idxs,
             |(validators_root, balances_root), idxs, builder| {
                 // Witness validators.
-                let validators = builder.beacon_witness_validator_batch_::<BATCH_SIZE>(
-                    validators_root,
-                    idxs[0]
-                );
+                let (validator_roots, validators) = 
+                    builder.beacon_witness_compressed_validator_batch::<BATCH_SIZE>(
+                        validators_root,
+                        idxs[0]
+                    );
 
                 // Witness balances.
                 let balances = builder.beacon_witness_balance_batch::<BATCH_SIZE>(
@@ -68,7 +69,7 @@ impl Circuit for MapReduceValidatorCircuit {
                 let mut validator_leafs = Vec::new();
                 let mut is_lido_validator = Vec::new();
                 for i in 0..validators.len() {
-                    validator_leafs.push(validators[i].hash_tree_root(builder));
+                    validator_leafs.push(validator_roots[i]);
                     is_lido_validator.push(builder.is_equal(
                         validators[i].withdrawal_credentials,
                         lido_withdrawal_credentials
