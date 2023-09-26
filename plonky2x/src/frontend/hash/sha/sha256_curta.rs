@@ -140,7 +140,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let bytes = padded_input
             .iter()
-            .map(|x| x.to_target(self))
+            .map(|x| x.to_variable(self).0)
             .collect::<Vec<_>>();
 
         let accelerator = self
@@ -168,7 +168,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let bytes = padded_input
             .iter()
-            .map(|x| x.to_target(self))
+            .map(|x| x.to_variable(self).0)
             .collect::<Vec<_>>();
 
         accelerator.sha256_requests.push(bytes);
@@ -206,7 +206,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let bytes = padded_input
             .iter()
-            .map(|x| x.to_target(self))
+            .map(|x| x.to_variable(self).0)
             .collect::<Vec<_>>();
 
         let accelerator = self
@@ -244,7 +244,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     let padded_input = self.curta_sha256_pad(&zero_chunk);
                     let bytes = padded_input
                         .iter()
-                        .map(|x| x.to_target(self))
+                        .map(|x| x.to_variable(self).0)
                         .collect::<Vec<_>>();
 
                     // Insert a dummy request and response.

@@ -69,7 +69,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let message_target_bytes = padded_message
             .iter()
-            .map(|x| x.to_target(self))
+            .map(|x| x.to_variable(self).0)
             .collect::<Vec<_>>();
         let message_len_target = message_len.targets()[0];
         let digest = self.api.add_virtual_target_arr::<32>();

@@ -158,15 +158,15 @@ impl ByteVariable {
     }
 
     /// Creates a Target from a ByteVariable.
-    pub fn to_target<L: PlonkParameters<D>, const D: usize>(
+    pub fn to_variable<L: PlonkParameters<D>, const D: usize>(
         self: ByteVariable,
         builder: &mut CircuitBuilder<L, D>,
-    ) -> Target {
+    ) -> Variable {
         let le_bits = self.as_le_bits();
         let le_targets = le_bits
             .iter()
             .map(|x| BoolTarget::new_unsafe(x.variables()[0].0));
-        builder.api.le_sum(le_targets)
+        Variable::from(builder.api.le_sum(le_targets))
     }
 }
 
