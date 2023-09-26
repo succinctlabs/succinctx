@@ -177,10 +177,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let sub_array = self.init::<ArrayVariable<Variable, SUB_ARRAY_SIZE>>();
 
         self.add_simple_generator(SubArrayExtractor::<L, D, MAX_ARRAY_SIZE, SUB_ARRAY_SIZE> {
-            array,
+            array: array.clone(),
             array_size,
             start_idx,
-            sub_array,
+            sub_array: sub_array.clone(),
             _marker: PhantomData,
         });
 
@@ -207,7 +207,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 within_sub_array = within_sub_array.sub(at_end_idx.variables()[0], self);
 
                 let mut subarray_idx = j_target.sub(start_idx, self);
-                subarray_idx = subarray_idx.sub(within_sub_array, self);
+                subarray_idx = subarray_idx.mul(within_sub_array, self);
                 let challenge = self.select_array(&challenges, subarray_idx);
                 let mut product = self.mul(array[j], challenge);
                 product = within_sub_array.mul(product, self);
@@ -226,6 +226,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         sub_array
+    }
+
+    pub fn array_contains<V: CircuitVariable>(&mut self, array: &[V], element: V) -> BoolVariable {
+        let mut accumulator = self.constant::<Variable>(L::Field::from_canonical_usize(0));
+
+        for i in 0..array.len() {
+            let element_equal = self.is_equal(array[i].clone(), element.clone());
+            accumulator = self.add(accumulator, element_equal.0);
+        }
+
+        let one = self.constant::<Variable>(L::Field::from_canonical_usize(1));
+        self.le(one, accumulator)
     }
 }
 
@@ -273,6 +285,7 @@ impl<
         let mut dependencies = Vec::new();
         dependencies.extend(self.array.as_vec().iter().map(|x| x.0).collect_vec());
         dependencies.push(self.array_size.0);
+        dependencies.push(self.start_idx.0);
         dependencies
     }
 
@@ -285,22 +298,13 @@ impl<
         let start_idx = witness.get_target(self.start_idx.0).to_canonical_u64() as usize;
         let end_idx = start_idx + SUB_ARRAY_SIZE;
 
+        assert!(array_size <= MAX_ARRAY_SIZE);
+        assert!(end_idx <= array_size);
+
         for i in start_idx..end_idx {
             let element = self.array[i].get(witness);
-            self.sub_array[i].set(out_buffer, element);
+            self.sub_array[i-start_idx].set(out_buffer, element);
         }
-    }
-
-    pub fn array_contains<V: CircuitVariable>(&mut self, array: &[V], element: V) -> BoolVariable {
-        let mut accumulator = self.constant::<Variable>(L::Field::from_canonical_usize(0));
-
-        for i in 0..array.len() {
-            let element_equal = self.is_equal(array[i].clone(), element.clone());
-            accumulator = self.add(accumulator, element_equal.0);
-        }
-
-        let one = self.constant::<Variable>(L::Field::from_canonical_usize(1));
-        self.le(one, accumulator)
     }
 }
 
@@ -443,7 +447,7 @@ mod tests {
         let array = builder.read::<ArrayVariable<Variable, MAX_ARRAY_SIZE>>();
         let array_size = builder.read::<Variable>();
         let start_idx = builder.constant(F::from_canonical_usize(15));
-        let result = builder.get_fixed_subarray(array, array_size, start_idx, &[array_size]);
+        let result = builder.get_fixed_subarray::<MAX_ARRAY_SIZE, SUB_ARRAY_SIZE>(array, array_size, start_idx, &[array_size]);
         builder.write(result);
 
         let circuit = builder.build();
