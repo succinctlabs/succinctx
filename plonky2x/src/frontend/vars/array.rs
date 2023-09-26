@@ -13,7 +13,7 @@ use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
-use super::{BoolVariable, CircuitVariable, Variable, ByteVariable};
+use super::{BoolVariable, ByteVariable, CircuitVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::prelude::{Add, Mul, Sub};
@@ -186,7 +186,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
         for seed_chunk in seed.as_vec().chunks(5) {
-            let seed_element_bits = seed_chunk.iter().flat_map(|x| x.as_bool_targets()).collect_vec();
+            let seed_element_bits = seed_chunk
+                .iter()
+                .flat_map(|x| x.as_bool_targets())
+                .collect_vec();
             let seed_element = self.api.le_sum(seed_element_bits.iter());
             challenger.observe_element(seed_element);
         }
@@ -307,7 +310,7 @@ impl<
 
         for i in start_idx..end_idx {
             let element = self.array[i].get(witness);
-            self.sub_array[i-start_idx].set(out_buffer, element);
+            self.sub_array[i - start_idx].set(out_buffer, element);
         }
     }
 }
@@ -452,7 +455,9 @@ mod tests {
         let array_size = builder.read::<Variable>();
         let start_idx = builder.constant(F::from_canonical_usize(15));
         let seed = builder.read::<ArrayVariable<ByteVariable, 15>>();
-        let result = builder.get_fixed_subarray::<MAX_ARRAY_SIZE, SUB_ARRAY_SIZE>(array, array_size, start_idx, &seed);
+        let result = builder.get_fixed_subarray::<MAX_ARRAY_SIZE, SUB_ARRAY_SIZE>(
+            array, array_size, start_idx, &seed,
+        );
         builder.write(result);
 
         let circuit = builder.build();
