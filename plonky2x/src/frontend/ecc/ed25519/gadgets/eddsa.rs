@@ -46,7 +46,7 @@ pub struct EDDSATargets<C: Curve> {
 #[derive(Clone, Debug)]
 pub struct EDDSAVariableTargets<C: Curve> {
     pub msgs: Vec<Vec<BoolTarget>>,
-    pub msgs_lengths: Vec<Target>,
+    pub msgs_bit_lengths: Vec<Target>,
     pub sigs: Vec<EDDSASignatureTarget<C>>,
     pub pub_keys: Vec<EDDSAPublicKeyTarget<C>>,
 }
@@ -89,30 +89,34 @@ fn biguint_from_le_bytes<F: RichField + Extendable<D>, const D: usize>(
     BigUintTarget { limbs: u32_targets }
 }
 
-pub const fn calculate_eddsa_num_chunks(msg_len: usize) -> usize {
-    ((msg_len + COMPRESSED_SIG_AND_PK_LEN_BITS + LENGTH_BITS_128 + 1) / CHUNK_BITS_1024) + 1
+pub const fn calculate_eddsa_num_chunks(msg_len_bits: usize) -> usize {
+    ((msg_len_bits + COMPRESSED_SIG_AND_PK_LEN_BITS + LENGTH_BITS_128 + 1) / CHUNK_BITS_1024) + 1
 }
 
-pub fn verify_variable_signatures_circuit<
+// Note: This function should not be used outside of succinctx.
+// TODO: Migrate to CircuitVariable
+pub fn curta_batch_eddsa_verify_variable<
     F: RichField + Extendable<D>,
     C: Curve,
     E: CubicParameters<F>,
     Config: CurtaConfig<D, F = F, FE = F::Extension>,
     const D: usize,
-    // Maximum length of a signed message in bits.
-    const MAX_MSG_LEN_BITS: usize,
+    // Maximum length of a signed message in bytes.
+    const MAX_MSG_LENGTH_BYTES: usize,
 >(
     builder: &mut BaseCircuitBuilder<F, D>,
     num_sigs: usize,
 ) -> EDDSAVariableTargets<C> {
     assert!(num_sigs > 0 && num_sigs <= MAX_NUM_SIGS);
 
+    let max_msg_len_bits = MAX_MSG_LENGTH_BYTES * 8;
+
     // Note: This will calculate number of chunks in the message, including the compressed sig and pk bits (512 bits).
-    let max_num_chunks: usize = calculate_eddsa_num_chunks(MAX_MSG_LEN_BITS);
+    let max_num_chunks: usize = calculate_eddsa_num_chunks(max_msg_len_bits);
 
     // Create the eddsa circuit's virtual targets.
     let mut msgs = Vec::new();
-    let mut msgs_lengths = Vec::new();
+    let mut msgs_bit_lengths = Vec::new();
     let mut sigs = Vec::new();
     let mut pub_keys = Vec::new();
     let mut curta_pub_keys = Vec::new();
@@ -122,7 +126,7 @@ pub fn verify_variable_signatures_circuit<
 
     for _i in 0..num_sigs {
         let mut msg = Vec::new();
-        for _ in 0..MAX_MSG_LEN_BITS {
+        for _ in 0..max_msg_len_bits {
             // Note that add_virtual_bool_target_safe will do a range check to verify each element is 0 or 1.
             msg.push(builder.add_virtual_bool_target_safe());
         }
@@ -135,7 +139,7 @@ pub fn verify_variable_signatures_circuit<
             builder.constant(F::from_canonical_usize(COMPRESSED_SIG_AND_PK_LEN_BITS));
         let hash_msg_length = builder.add(msg_length, compressed_sig_and_pk_t);
 
-        msgs_lengths.push(msg_length);
+        msgs_bit_lengths.push(msg_length);
 
         // There is already a calculation for the number of limbs needed for the underlying biguint targets.
         let sig = EDDSASignatureTarget {
@@ -164,12 +168,12 @@ pub fn verify_variable_signatures_circuit<
             hash_msg.push(pk_compressed[i]);
         }
 
-        for i in 0..MAX_MSG_LEN_BITS {
+        for i in 0..max_msg_len_bits {
             hash_msg.push(msg[i]);
         }
 
         for _ in
-            (MAX_MSG_LEN_BITS + COMPRESSED_SIG_AND_PK_LEN_BITS)..(max_num_chunks * CHUNK_BITS_1024)
+            (max_msg_len_bits + COMPRESSED_SIG_AND_PK_LEN_BITS)..(max_num_chunks * CHUNK_BITS_1024)
         {
             hash_msg.push(builder._false());
         }
@@ -245,13 +249,17 @@ pub fn verify_variable_signatures_circuit<
 
     EDDSAVariableTargets {
         msgs,
-        msgs_lengths,
+        msgs_bit_lengths,
         pub_keys,
         sigs,
     }
 }
 
-pub fn verify_signatures_circuit<
+// Note: This function should not be used outside of succinctx.
+// TODO: Migrate to CircuitVariable
+// TODO: If there is one shared message length for all signed messages, then we can optimize this function with sha512, instead of variable_sha512.
+// TODO: If there is one shared message for all signed messages, then we can optimize this function by computing the sha512 once.
+pub fn curta_batch_eddsa_verify<
     F: RichField + Extendable<D>,
     C: Curve,
     E: CubicParameters<F>,
@@ -403,7 +411,7 @@ mod tests {
     use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
     use crate::frontend::ecc::ed25519::gadgets::eddsa::{
-        verify_signatures_circuit, verify_variable_signatures_circuit,
+        curta_batch_eddsa_verify, curta_batch_eddsa_verify_variable,
     };
     use crate::frontend::num::biguint::WitnessBigUint;
     use crate::utils;
@@ -480,7 +488,7 @@ mod tests {
 
         assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
 
-        let eddsa_target = verify_signatures_circuit::<F, Curve, E, SC, D>(
+        let eddsa_target = curta_batch_eddsa_verify::<F, Curve, E, SC, D>(
             &mut builder,
             1,
             msg.len().try_into().unwrap(),
@@ -554,7 +562,7 @@ mod tests {
         let mut pw = PartialWitness::new();
         let mut builder = BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
 
-        let eddsa_target = verify_signatures_circuit::<F, Curve, E, SC, D>(
+        let eddsa_target = curta_batch_eddsa_verify::<F, Curve, E, SC, D>(
             &mut builder,
             msgs.len(),
             msg_len.try_into().unwrap(),
@@ -648,9 +656,10 @@ mod tests {
 
         let mut pw = PartialWitness::new();
         let mut builder = BaseCircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        const MAX_MSG_LEN_BITS: usize = 128 * 8;
+        const MAX_MSG_LEN_BYTES: usize = 128;
+        const MAX_MSG_LEN_BITS: usize = MAX_MSG_LEN_BYTES * 8;
         // Length of sig.r and pk_compressed in hash_msg
-        let eddsa_target = verify_variable_signatures_circuit::<F, Curve, E, SC, D, MAX_MSG_LEN_BITS>(
+        let eddsa_target = curta_batch_eddsa_verify_variable::<F, Curve, E, SC, D, MAX_MSG_LEN_BYTES>(
             &mut builder,
             msgs.len(),
         );
@@ -681,7 +690,7 @@ mod tests {
             let msg_len = msg_bits.len();
 
             pw.set_target(
-                eddsa_target.msgs_lengths[i],
+                eddsa_target.msgs_bit_lengths[i],
                 F::from_canonical_usize(msg_len),
             );
 

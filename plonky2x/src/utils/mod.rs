@@ -46,6 +46,20 @@ pub fn byte_to_bits_be(input: u8) -> [bool; 8] {
     bits
 }
 
+pub fn to_be_bits(msg: &[u8]) -> Vec<bool> {
+    let mut res = Vec::new();
+    msg.iter().for_each(|char| {
+        for j in 0..8 {
+            if (char & (1 << (7 - j))) != 0 {
+                res.push(true);
+            } else {
+                res.push(false);
+            }
+        }
+    });
+    res
+}
+
 static INIT: Once = Once::new();
 
 pub fn setup_logger() {
