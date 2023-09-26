@@ -51,16 +51,7 @@ const HISTORICAL_SUMMARIES_BASE_GINDEX: u64 = 12717129728;
 const HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX: u64 = 16384;
 
 /// The gindex for blockRoot -> state -> state.block_roots[0].
-const CLOSE_SLOT_BLOCK_ROOT_GINDEX: u64 = 303104;
-
-/// Beacon chain constant SLOTS_PER_EPOCH.
-const SLOTS_PER_EPOCH: u64 = 32;
-
-/// Beacon chain constant SLOTS_PER_HISTORICAL_ROOT.
-const SLOTS_PER_HISTORICAL_ROOT: u64 = 8192;
-
-/// Beacon chain constant CAPELLA_FORK_EPOCH. (mainnet specific)
-const CAPELLA_FORK_EPOCH: u64 = 194048;
+const CLOSE_SLOT_BLOCK_ROOT_GINDEX: u64 = 2924544;
 
 /// The log2 of the validator registry limit.
 const VALIDATOR_REGISTRY_LIMIT_LOG2: usize = 40;
@@ -71,6 +62,15 @@ const BALANCES_PROOF_DEPTH: usize = 8;
 const VALIDATORS_GINDEX: usize = 43;
 
 const BALANCES_GINDEX: usize = 44;
+
+/// Beacon chain constant SLOTS_PER_EPOCH.
+const SLOTS_PER_EPOCH: u64 = 32;
+
+/// Beacon chain constant SLOTS_PER_HISTORICAL_ROOT.
+const SLOTS_PER_HISTORICAL_ROOT: u64 = 8192;
+
+/// Beacon chain constant CAPELLA_FORK_EPOCH. (mainnet specific)
+const CAPELLA_FORK_EPOCH: u64 = 194048;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Get the first B validators for a given block root.
