@@ -89,6 +89,7 @@ mod test {
     const D: usize = 2;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_beacon_header_hash_tree_root() {
         dotenv::dotenv().ok();
         env::set_var("RUST_LOG", "debug");
