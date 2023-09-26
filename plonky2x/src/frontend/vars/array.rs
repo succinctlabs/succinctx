@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::{CircuitVariable, Variable};
+use super::{BoolVariable, CircuitVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
@@ -14,7 +14,7 @@ use crate::frontend::builder::CircuitBuilder;
 /// stack overflow arrays associated with fixed-length arrays.
 #[derive(Debug, Clone)]
 pub struct ArrayVariable<V: CircuitVariable, const N: usize> {
-    data: Vec<V>,
+    pub data: Vec<V>,
 }
 
 impl<V: CircuitVariable, const N: usize> ArrayVariable<V, N> {
@@ -174,6 +174,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             res.push(self.select_array(array, index));
         }
         ArrayVariable::new(res)
+    }
+
+    pub fn array_contains<V: CircuitVariable>(&mut self, array: &[V], element: V) -> BoolVariable {
+        let mut accumulator = self.constant::<Variable>(L::Field::from_canonical_usize(0));
+
+        for i in 0..array.len() {
+            let element_equal = self.is_equal(array[i].clone(), element.clone());
+            accumulator = self.add(accumulator, element_equal.0);
+        }
+
+        let one = self.constant::<Variable>(L::Field::from_canonical_usize(1));
+        self.le(one, accumulator)
     }
 }
 

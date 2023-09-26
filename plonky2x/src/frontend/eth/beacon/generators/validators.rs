@@ -1,7 +1,6 @@
 use core::marker::PhantomData;
 use std::env;
 
-use array_macro::array;
 use async_trait::async_trait;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
@@ -59,7 +58,7 @@ pub struct BeaconValidatorsGenerator<L: PlonkParameters<D>, const D: usize> {
     client: BeaconClient,
     block_root: Bytes32Variable,
     pub validators_root: Bytes32Variable,
-    pub proof: [Bytes32Variable; DEPTH],
+    pub proof: Vec<Bytes32Variable>,
     _phantom: PhantomData<L>,
 }
 
@@ -73,7 +72,9 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconValidatorsGenerator<L, D> {
             client,
             block_root,
             validators_root: builder.init::<Bytes32Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            proof: (0..DEPTH)
+                .map(|_| builder.init::<Bytes32Variable>())
+                .collect::<Vec<_>>(),
             _phantom: Default::default(),
         }
     }
@@ -144,7 +145,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
             client,
             block_root,
             validators_root,
-            proof: proof.try_into().unwrap(),
+            proof,
             _phantom: Default::default(),
         })
     }

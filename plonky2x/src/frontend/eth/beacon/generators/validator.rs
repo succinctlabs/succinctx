@@ -1,7 +1,6 @@
 use core::marker::PhantomData;
 use std::env;
 
-use array_macro::array;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
@@ -34,7 +33,7 @@ pub struct BeaconValidatorGenerator<L: PlonkParameters<D>, const D: usize> {
     input: BeaconValidatorGeneratorInput,
     pub validator: BeaconValidatorVariable,
     pub validator_idx: U64Variable,
-    pub proof: [Bytes32Variable; DEPTH],
+    pub proof: Vec<Bytes32Variable>,
     _phantom: PhantomData<L>,
 }
 
@@ -50,7 +49,10 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconValidatorGenerator<L, D> {
             input: BeaconValidatorGeneratorInput::IndexConst(validator_idx),
             validator: builder.init::<BeaconValidatorVariable>(),
             validator_idx: builder.init::<U64Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            // proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH].to_vec(),
+            proof: (0..DEPTH)
+                .map(|_| builder.init::<Bytes32Variable>())
+                .collect::<Vec<_>>(),
             _phantom: PhantomData,
         }
     }
@@ -66,7 +68,9 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconValidatorGenerator<L, D> {
             input: BeaconValidatorGeneratorInput::IndexVariable(validator_idx),
             validator: builder.init::<BeaconValidatorVariable>(),
             validator_idx: builder.init::<U64Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            proof: (0..DEPTH)
+                .map(|_| builder.init::<Bytes32Variable>())
+                .collect::<Vec<_>>(),
             _phantom: PhantomData,
         }
     }
@@ -82,7 +86,9 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconValidatorGenerator<L, D> {
             input: BeaconValidatorGeneratorInput::PubkeyVariable(pubkey),
             validator: builder.init::<BeaconValidatorVariable>(),
             validator_idx: builder.init::<U64Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            proof: (0..DEPTH)
+                .map(|_| builder.init::<Bytes32Variable>())
+                .collect::<Vec<_>>(),
             _phantom: PhantomData,
         }
     }
@@ -196,7 +202,9 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         };
         let validator = BeaconValidatorVariable::from_targets(&src.read_target_vec()?);
         let validator_idx = U64Variable::from_targets(&src.read_target_vec()?);
-        let proof = array![_ => Bytes32Variable::from_targets(&src.read_target_vec()?); DEPTH];
+        let proof = (0..DEPTH)
+            .map(|_| Bytes32Variable::from_targets(&src.read_target_vec().unwrap()))
+            .collect::<Vec<_>>();
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         Ok(Self {
