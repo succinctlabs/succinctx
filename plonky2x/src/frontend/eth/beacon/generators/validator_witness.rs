@@ -4,8 +4,7 @@ use ethers::types::H256;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::eth::beacon::vars::{
-    BeaconValidatorVariable, CompressedBeaconValidatorVariable,
-    CompressedBeaconValidatorVariableValue,
+    BeaconValidatorVariable, CompressedBeaconValidatorValue, CompressedBeaconValidatorVariable,
 };
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::uint::uint64::U64Variable;
@@ -72,16 +71,16 @@ impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
             .unwrap();
 
         let (compressed_validators, witnesses): (
-            Vec<CompressedBeaconValidatorVariableValue<L::Field>>,
+            Vec<CompressedBeaconValidatorValue<L::Field>>,
             Vec<Vec<H256>>,
         ) = response
             .iter()
             .map(|v| {
-                let compressed_validator = CompressedBeaconValidatorVariableValue::<L::Field> {
+                let compressed_validator = CompressedBeaconValidatorValue::<L::Field> {
                     pubkey: bytes!(&v.pubkey),
                     withdrawal_credentials: bytes32!(v.withdrawal_credentials),
                 };
-                let (_, witnesses) = v.ssz_merkelize();
+                let (_, witnesses) = v.ssz_merkleize();
                 let h12 = witnesses[1];
                 let h22 = witnesses[5];
                 (compressed_validator, vec![h12, h22])
