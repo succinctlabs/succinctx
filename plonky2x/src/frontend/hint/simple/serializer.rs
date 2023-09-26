@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
+use plonky2::iop::generator::WitnessGeneratorRef;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoError, IoResult};
 
@@ -11,6 +11,7 @@ use crate::frontend::vars::VariableStream;
 use crate::prelude::PlonkParameters;
 use crate::utils::serde::BufferRead;
 
+/// A serializer for simple hints.
 #[derive(Debug, Clone)]
 pub struct SimpleHintSerializer<L, H>(PhantomData<L>, PhantomData<H>);
 
@@ -41,7 +42,7 @@ impl<L: PlonkParameters<D>, H: Hint<L, D>, const D: usize>
         let hint: H = bincode::deserialize(&bytes).map_err(|_| IoError)?;
         let hint_generator = HintSimpleGenerator::<L, H>::new(input_stream, output_stream, hint);
 
-        Ok(WitnessGeneratorRef::new(hint_generator.adapter()))
+        Ok(WitnessGeneratorRef::new(hint_generator))
     }
 
     fn write(
@@ -103,17 +104,17 @@ mod tests {
 
         // Test the serialization
         let gate_serializer = GateRegistry::new();
-        let mut generator_serializer = WitnessGeneratorRegistry::new();
-        generator_serializer.register_hint::<AddSome>();
-        circuit.test_serializers(&gate_serializer, &generator_serializer);
+        let mut hint_serializer = HintRegistry::new();
+        hint_serializer.register_hint::<AddSome>();
+        circuit.test_serializers(&gate_serializer, &hint_serializer);
 
         // serialize, deserialize, and then generate a proof.
         let bytes = circuit
-            .serialize(&gate_serializer, &generator_serializer)
+            .serialize(&gate_serializer, &hint_serializer)
             .unwrap();
 
         let circuit =
-            CircuitBuild::deserialize(&bytes, &gate_serializer, &generator_serializer).unwrap();
+            CircuitBuild::deserialize(&bytes, &gate_serializer, &hint_serializer).unwrap();
 
         // generate a proof with the deserialized circuit.
         let (proof, mut output) = circuit.prove(&input);

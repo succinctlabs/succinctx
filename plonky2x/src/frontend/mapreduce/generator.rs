@@ -13,7 +13,7 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use super::{MapReduceInputVariable, MapReduceInputVariableValue};
 use crate::backend::circuit::{CircuitBuild, PublicInput};
 use crate::backend::prover::{EnvProver, ProverOutputs};
-use crate::prelude::{CircuitVariable, GateRegistry, PlonkParameters, WitnessGeneratorRegistry};
+use crate::prelude::{CircuitVariable, GateRegistry, HintRegistry, PlonkParameters};
 
 #[derive(Debug, Clone)]
 pub struct MapReduceGenerator<L, Ctx, Input, Output, const B: usize, const D: usize>
@@ -88,7 +88,7 @@ where
     ) {
         // The gate and witness generator serializers.
         let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let generator_serializer = HintRegistry::<L, D>::new();
 
         // Create the prover and the async runtime.
         let prover = EnvProver::new();

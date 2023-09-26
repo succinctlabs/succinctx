@@ -108,9 +108,13 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
         let variables = builder.constant::<Self>(value).variables();
         let circuit = builder.build();
         let pw = PartialWitness::new();
-        let witness =
-            generate_witness(pw, &circuit.data.prover_only, &circuit.data.common).unwrap();
-        utils::enable_logging();
+        let witness = generate_witness(
+            pw,
+            &circuit.data.prover_only,
+            &circuit.data.common,
+            &circuit.async_hints,
+        )
+        .unwrap();
         variables.iter().map(|v| v.get(&witness)).collect_vec()
     }
 

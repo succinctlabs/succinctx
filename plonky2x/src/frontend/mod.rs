@@ -1,9 +1,10 @@
 pub mod builder;
 pub mod ecc;
 pub mod eth;
-pub mod generator;
 pub mod hash;
+pub mod hint;
 pub mod mapreduce;
+// pub mod mapreduce;
 pub mod merkle;
 pub mod num;
 pub mod ops;

@@ -32,9 +32,7 @@ use super::hash::poseidon::poseidon256::PoseidonHashOutVariable;
 use crate::backend::circuit::CircuitBuild;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::CircuitVariable;
-use crate::prelude::{
-    ArrayVariable, GateRegistry, PlonkParameters, Variable, WitnessGeneratorRegistry,
-};
+use crate::prelude::{ArrayVariable, GateRegistry, HintRegistry, PlonkParameters, Variable};
 use crate::utils::poseidon::mapreduce_merkle_tree_root;
 use crate::utils::proof::ProofWithPublicInputsTargetUtils;
 
@@ -190,7 +188,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // The gate and witness generator serializers.
         let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let generator_serializer = HintRegistry::<L, D>::new();
 
         // Build a map circuit which maps from I -> O using the closure `m`.
         let map_circuit = self.build_map(&map_fn);

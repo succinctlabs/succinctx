@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
+use async_trait::async_trait;
 use ethers::providers::Middleware;
 use ethers::types::{EIP1186ProofResponse, TransactionReceipt};
 use futures::executor;
@@ -10,6 +11,7 @@ use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 
 use crate::backend::circuit::PlonkParameters;
@@ -18,9 +20,47 @@ use crate::frontend::eth::storage::utils::get_map_storage_location;
 use crate::frontend::eth::storage::vars::{EthLog, EthLogVariable};
 use crate::frontend::eth::utils::u256_to_h256_be;
 use crate::frontend::eth::vars::AddressVariable;
+use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::uint::uint256::U256Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, ValueStream};
 use crate::utils::eth::get_provider;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EthStorageProofHint<L: PlonkParameters<D>, const D: usize> {
+    chain_id: u64,
+    _phantom: PhantomData<L>,
+}
+
+impl<L: PlonkParameters<D>, const D: usize> EthStorageProofHint<L, D> {
+    pub fn new(builder: &CircuitBuilder<L, D>) -> EthStorageProofHint<L, D> {
+        let chain_id = builder.get_chain_id();
+        EthStorageProofHint {
+            chain_id,
+            _phantom: PhantomData::<L>,
+        }
+    }
+}
+
+#[async_trait]
+impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for EthStorageProofHint<L, D> {
+    async fn hint(
+        &self,
+        input_stream: &mut ValueStream<L, D>,
+        output_stream: &mut ValueStream<L, D>,
+    ) {
+        let block_hash = input_stream.read_value::<Bytes32Variable>();
+        let address = input_stream.read_value::<AddressVariable>();
+        let location = input_stream.read_value::<Bytes32Variable>();
+
+        let provider = get_provider(self.chain_id);
+        let result = provider
+            .get_proof(address, vec![location], Some(block_hash.into()))
+            .await
+            .expect("Failed to get proof");
+        let value = u256_to_h256_be(result.storage_proof[0].value);
+        output_stream.write_value::<Bytes32Variable>(value);
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct EthStorageProofGenerator<L: PlonkParameters<D>, const D: usize> {

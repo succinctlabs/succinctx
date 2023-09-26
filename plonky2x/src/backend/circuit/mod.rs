@@ -13,8 +13,8 @@ pub use self::config::{DefaultParameters, Groth16VerifierParameters, PlonkParame
 pub use self::input::PublicInput;
 pub use self::mock::MockCircuitBuild;
 pub use self::output::PublicOutput;
-pub use self::serialization::{GateRegistry, Serializer, WitnessGeneratorRegistry};
-pub use self::witness::generate_witness;
+pub use self::serialization::{GateRegistry, HintRegistry, Serializer};
+pub use self::witness::{generate_witness, generate_witness_async};
 use crate::prelude::CircuitBuilder;
 
 pub trait Circuit {
@@ -26,9 +26,8 @@ pub trait Circuit {
 
     /// Add generators to the generator registry.
     #[allow(unused_variables)]
-    fn register_generators<L: PlonkParameters<D>, const D: usize>(
-        registry: &mut WitnessGeneratorRegistry<L, D>,
-    ) where
+    fn register_generators<L: PlonkParameters<D>, const D: usize>(registry: &mut HintRegistry<L, D>)
+    where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
     }
@@ -50,7 +49,7 @@ pub trait Circuit {
         Self::define(&mut builder);
         let circuit = builder.build();
 
-        let mut generator_registry = WitnessGeneratorRegistry::<L, D>::new();
+        let mut generator_registry = HintRegistry::<L, D>::new();
         Self::register_generators(&mut generator_registry);
 
         let mut gate_registry = GateRegistry::<L, D>::new();

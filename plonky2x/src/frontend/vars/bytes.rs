@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::ops::{Index, Range};
 
 use array_macro::array;
 use plonky2::hash::hash_types::RichField;
@@ -69,6 +70,22 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         for (b, v) in self.0.iter().zip(value) {
             b.set(witness, v);
         }
+    }
+}
+
+impl<const N: usize> Index<usize> for BytesVariable<N> {
+    type Output = ByteVariable;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl<const N: usize> Index<Range<usize>> for BytesVariable<N> {
+    type Output = [ByteVariable];
+
+    fn index(&self, range: Range<usize>) -> &Self::Output {
+        &self.0[range]
     }
 }
 
@@ -265,6 +282,27 @@ mod tests {
 
     type L = DefaultParameters;
     const D: usize = 2;
+
+    #[test]
+    fn test_index_operations() {
+        let mut builder = DefaultBuilder::new();
+
+        let x = builder.init::<BytesVariable<3>>();
+
+        let mut pw = PartialWitness::new();
+
+        x.set(&mut pw, [0x01, 0x02, 0x03]);
+
+        assert_eq!(x[0].get(&pw), 0x01);
+
+        let sub_arr = &x[0..2];
+
+        assert_eq!(sub_arr[1].get(&pw), 0x02);
+
+        let circuit = builder.build();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
 
     #[test]
     fn test_bytes_operations() {

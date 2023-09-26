@@ -6,7 +6,7 @@ use plonky2x::backend::function::VerifiableFunction;
 use plonky2x::frontend::eth::beacon::vars::BeaconBalancesVariable;
 use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
 use plonky2x::frontend::uint::uint64::U64Variable;
-use plonky2x::prelude::{Bytes32Variable, CircuitBuilder};
+use plonky2x::prelude::{Bytes32Variable, CircuitBuilder, HintRegistry};
 use plonky2x::utils::bytes32;
 
 /// An example source block root.
@@ -76,9 +76,8 @@ impl Circuit for MapReduceBalanceCircuit {
         builder.write(output);
     }
 
-    fn register_generators<L: PlonkParameters<D>, const D: usize>(
-        registry: &mut plonky2x::prelude::WitnessGeneratorRegistry<L, D>,
-    ) where
+    fn register_generators<L: PlonkParameters<D>, const D: usize>(registry: &mut HintRegistry<L, D>)
+    where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         let id = MapReduceGenerator::<

@@ -18,6 +18,8 @@ pub use partial_balances::BeaconPartialBalancesHint;
 pub use partial_validators::BeaconPartialValidatorsHint;
 pub use validator::BeaconValidatorGenerator;
 pub use validator_witness::{BeaconValidatorBatchWitnessHint, BeaconValidatorWitnessHint};
-pub use validators::BeaconValidatorsGenerator;
+pub use validators::{BeaconValidatorsGenerator, BeaconValidatorsHint};
 pub use withdrawal::BeaconWithdrawalGenerator;
 pub use withdrawals::BeaconWithdrawalsGenerator;
+
+pub(crate) use self::validators::DEPTH;

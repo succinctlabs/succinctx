@@ -4,7 +4,7 @@ use ethers::types::U64;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::frontend::generator::simple::hint::Hint;
+use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::ValueStream;
 use crate::prelude::{ArrayVariable, Bytes32Variable, PlonkParameters};

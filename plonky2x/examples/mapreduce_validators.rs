@@ -9,7 +9,7 @@ use plonky2x::frontend::eth::beacon::vars::{BeaconBalancesVariable, BeaconValida
 use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
 use plonky2x::frontend::uint::uint64::U64Variable;
 use plonky2x::frontend::vars::SSZVariable;
-use plonky2x::prelude::{Bytes32Variable, CircuitBuilder};
+use plonky2x::prelude::{Bytes32Variable, CircuitBuilder, HintRegistry};
 use plonky2x::utils::bytes32;
 
 // The withdrawal credentials of Lido validators.
@@ -118,7 +118,7 @@ impl Circuit for MapReduceValidatorCircuit {
     }
 
     fn register_generators<L: PlonkParameters<D>, const D: usize>(
-        registry: &mut plonky2x::prelude::WitnessGeneratorRegistry<L, D>,
+        registry: &mut HintRegistry<L, D>,
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
