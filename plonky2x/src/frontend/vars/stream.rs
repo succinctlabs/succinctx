@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 
+use plonky2::iop::target::Target;
 use plonky2::util::serialization::{IoResult, Read, Write};
 use serde::{Deserialize, Serialize};
 
@@ -60,6 +61,12 @@ impl VariableStream {
 
     pub fn from_variables(variables: Vec<Variable>) -> Self {
         Self(Stream::new(variables))
+    }
+
+    pub fn from_targets(targets: Vec<Target>) -> Self {
+        Self(Stream::new(
+            targets.into_iter().map(Variable).collect::<Vec<_>>(),
+        ))
     }
 
     pub fn init<L: PlonkParameters<D>, const D: usize>(

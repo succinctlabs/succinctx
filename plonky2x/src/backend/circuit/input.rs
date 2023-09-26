@@ -3,6 +3,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 use serde::{Deserialize, Serialize};
 
 use super::PlonkParameters;
+use crate::backend::prover::ProofId;
 use crate::frontend::builder::CircuitIO;
 use crate::frontend::vars::{EvmVariable, ValueStream};
 use crate::prelude::{ByteVariable, CircuitVariable};
@@ -13,6 +14,7 @@ pub enum PublicInput<L: PlonkParameters<D>, const D: usize> {
     Bytes(Vec<u8>),
     Elements(Vec<L::Field>),
     RecursiveProofs(Vec<ProofWithPublicInputs<L::Field, L::Config, D>>),
+    RemoteRecursiveProofs(Vec<ProofId>),
     None(),
 }
 
@@ -94,6 +96,16 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
                 input.extend(bytes);
             }
             _ => panic!("evm io is not enabled"),
+        };
+    }
+
+    /// Writes a proof to the public circuit input.
+    pub fn proof_write(&mut self, proof: ProofWithPublicInputs<L::Field, L::Config, D>) {
+        match self {
+            PublicInput::RecursiveProofs(input) => {
+                input.push(proof);
+            }
+            _ => panic!("proof io is not enabled"),
         };
     }
 

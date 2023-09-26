@@ -1,5 +1,5 @@
 {
     "preset": "plonky2",
-    "build_command": "mkdir -p build && cargo run --example circuit_function_evm --release build && mv ./target/release/examples/circuit_function_evm ./build/circuit_function_evm",
-    "prove_command": "./build/circuit_function_evm prove-wrapped --input-json input.json --wrapper-path /verifier-build"
+    "build_command": "rm -rf ./build && mkdir build && rustup override set nightly && RUST_LOG=debug cargo run --release --example mapreduce_validators build && cp ./target/release/examples/mapreduce_validators ./build/mapreduce_validators",
+    "prove_command": "RUST_LOG=debug ./build/mapreduce_validators prove --input-json input.json"
 }
