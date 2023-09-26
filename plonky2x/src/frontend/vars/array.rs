@@ -1,14 +1,22 @@
 use core::fmt::Debug;
+use core::marker::PhantomData;
 use std::ops::{Index, Range};
 
-use plonky2::field::types::Field;
+use itertools::Itertools;
+use plonky2::field::types::{Field, PrimeField64};
 use plonky2::hash::hash_types::RichField;
+use plonky2::hash::poseidon::PoseidonHash;
+use plonky2::iop::challenger::RecursiveChallenger;
+use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{Witness, WitnessWrite};
+use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
+use plonky2::plonk::circuit_data::CommonCircuitData;
+use plonky2::util::serialization::{Buffer, IoResult};
 
 use super::{BoolVariable, CircuitVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
+use crate::prelude::{Add, Mul, Sub};
 /// A variable in the circuit representing a fixed length array of variables.
 /// We use this to avoid stack overflow arrays associated with fixed-length arrays.
 #[derive(Debug, Clone)]
@@ -156,18 +164,131 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::from_variables_unsafe(&selected_vars)
     }
 
-    pub fn get_fixed_subarray<const SIZE: usize>(
+    pub fn get_fixed_subarray<const MAX_ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
-        array: &[Variable],
-        start: Variable,
-    ) -> ArrayVariable<Variable, SIZE> {
-        let mut res = Vec::new();
-        for i in 0..SIZE {
-            let i_variable = self.constant(L::Field::from_canonical_usize(i));
-            let index = self.add(start, i_variable);
-            res.push(self.select_array(array, index));
+        array: ArrayVariable<Variable, MAX_ARRAY_SIZE>,
+        array_size: Variable,
+        start_idx: Variable,
+        seed: &[Variable],
+    ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
+        // TODO:  Need to add check that array_size is less than MAX_ARRAY_SIZE.
+        // TODO:  Need to add check that start_idx + SUB_ARRAY_SIZE is less than array_size.
+
+        let sub_array = self.init::<ArrayVariable<Variable, SUB_ARRAY_SIZE>>();
+
+        self.add_simple_generator(SubArrayExtractor::<L, D, MAX_ARRAY_SIZE, SUB_ARRAY_SIZE> {
+            array,
+            array_size,
+            start_idx,
+            sub_array,
+            _marker: PhantomData,
+        });
+
+        let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
+        challenger.observe_elements(&seed.iter().map(|x| x.0).collect_vec());
+
+        for _i in 0..2 {
+            let challenges = challenger
+                .get_n_challenges(&mut self.api, SUB_ARRAY_SIZE)
+                .iter()
+                .map(|x| Variable::from(*x))
+                .collect_vec();
+            let sub_array_size = self.constant(L::Field::from_canonical_usize(SUB_ARRAY_SIZE));
+            let end_idx = self.add(start_idx, sub_array_size);
+            let mut within_sub_array = self.zero::<Variable>();
+            let one = self.one();
+
+            let mut accumulator1 = self.zero::<Variable>();
+            let mut j_target = self.zero();
+            for j in 0..MAX_ARRAY_SIZE {
+                let at_start_idx = self.is_equal(j_target, start_idx);
+                within_sub_array = within_sub_array.add(at_start_idx.variables()[0], self);
+                let at_end_idx = self.is_equal(j_target, end_idx);
+                within_sub_array = within_sub_array.sub(at_end_idx.variables()[0], self);
+
+                let mut subarray_idx = j_target.sub(start_idx, self);
+                subarray_idx = subarray_idx.sub(within_sub_array, self);
+                let challenge = self.select_array(&challenges, subarray_idx);
+                let mut product = self.mul(array[j], challenge);
+                product = within_sub_array.mul(product, self);
+                accumulator1 = accumulator1.add(product, self);
+
+                j_target = j_target.add(one, self);
+            }
+
+            let mut accumulator2 = self.zero();
+            for j in 0..SUB_ARRAY_SIZE {
+                let product = self.mul(sub_array[j], challenges[j]);
+                accumulator2 = self.add(accumulator2, product);
+            }
+
+            self.assert_is_equal(accumulator1, accumulator2);
         }
-        ArrayVariable::new(res)
+
+        sub_array
+    }
+}
+
+#[derive(Debug, Clone)]
+struct SubArrayExtractor<
+    L: PlonkParameters<D>,
+    const D: usize,
+    const ARRAY_SIZE: usize,
+    const SUBARRAY_SIZE: usize,
+> {
+    array: ArrayVariable<Variable, ARRAY_SIZE>,
+    array_size: Variable,
+    sub_array: ArrayVariable<Variable, SUBARRAY_SIZE>,
+    start_idx: Variable,
+    _marker: PhantomData<L>,
+}
+
+impl<
+        L: PlonkParameters<D>,
+        const D: usize,
+        const MAX_ARRAY_SIZE: usize,
+        const SUB_ARRAY_SIZE: usize,
+    > SimpleGenerator<L::Field, D> for SubArrayExtractor<L, D, MAX_ARRAY_SIZE, SUB_ARRAY_SIZE>
+{
+    fn id(&self) -> String {
+        "SubArrayExtractor".to_string()
+    }
+
+    fn serialize(
+        &self,
+        _dst: &mut Vec<u8>,
+        _common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<()> {
+        unimplemented!();
+    }
+
+    fn deserialize(
+        _src: &mut Buffer,
+        _common_data: &CommonCircuitData<L::Field, D>,
+    ) -> IoResult<Self> {
+        unimplemented!();
+    }
+
+    fn dependencies(&self) -> Vec<Target> {
+        let mut dependencies = Vec::new();
+        dependencies.extend(self.array.as_vec().iter().map(|x| x.0).collect_vec());
+        dependencies.push(self.array_size.0);
+        dependencies
+    }
+
+    fn run_once(
+        &self,
+        witness: &PartitionWitness<L::Field>,
+        out_buffer: &mut GeneratedValues<L::Field>,
+    ) {
+        let array_size = witness.get_target(self.array_size.0).to_canonical_u64() as usize;
+        let start_idx = witness.get_target(self.start_idx.0).to_canonical_u64() as usize;
+        let end_idx = start_idx + SUB_ARRAY_SIZE;
+
+        for i in start_idx..end_idx {
+            let element = self.array[i].get(witness);
+            self.sub_array[i].set(out_buffer, element);
+        }
     }
 
     pub fn array_contains<V: CircuitVariable>(&mut self, array: &[V], element: V) -> BoolVariable {
@@ -308,5 +429,44 @@ mod tests {
         circuit.verify(&proof, &input, &output);
 
         assert_eq!(output.read::<U256Variable>(), input_u256[1]);
+    }
+
+    #[test]
+    fn test_get_fixed_subarray() {
+        utils::setup_logger();
+        type F = GoldilocksField;
+        const MAX_ARRAY_SIZE: usize = 100;
+        const SUB_ARRAY_SIZE: usize = 10;
+
+        let mut builder = DefaultBuilder::new();
+
+        let array = builder.read::<ArrayVariable<Variable, MAX_ARRAY_SIZE>>();
+        let array_size = builder.read::<Variable>();
+        let start_idx = builder.constant(F::from_canonical_usize(15));
+        let result = builder.get_fixed_subarray(array, array_size, start_idx, &[array_size]);
+        builder.write(result);
+
+        let circuit = builder.build();
+
+        // The last 20 elements are dummy
+        let mut rng = OsRng;
+        let mut array_input = [F::default(); MAX_ARRAY_SIZE];
+        for elem in array_input.iter_mut() {
+            *elem = F::from_canonical_u64(rng.gen());
+        }
+        let array_size_input = F::from_canonical_usize(80);
+
+        let mut input = circuit.input();
+        input.write::<ArrayVariable<Variable, MAX_ARRAY_SIZE>>(array_input.to_vec());
+        input.write::<Variable>(array_size_input);
+
+        let (proof, mut output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+
+        let expected_sub_array = array_input[15..25].to_vec();
+        assert_eq!(
+            output.read::<ArrayVariable<Variable, SUB_ARRAY_SIZE>>(),
+            expected_sub_array
+        );
     }
 }
