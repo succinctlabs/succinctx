@@ -1,5 +1,4 @@
 use core::fmt::Debug;
-use core::marker::PhantomData;
 use std::ops::{Index, Range};
 
 use itertools::Itertools;
@@ -7,15 +6,14 @@ use plonky2::field::types::{Field, PrimeField64};
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon::PoseidonHash;
 use plonky2::iop::challenger::RecursiveChallenger;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
-use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use plonky2::iop::witness::{Witness, WitnessWrite};
+use serde::{Deserialize, Serialize};
 
-use super::{BoolVariable, ByteVariable, CircuitVariable, Variable};
+use super::{BoolVariable, ByteVariable, CircuitVariable, ValueStream, Variable, VariableStream};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::{Add, Mul, Sub};
 
 /// A variable in the circuit representing a fixed length array of variables.
@@ -175,31 +173,48 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         array: &ArrayVariable<Variable, MAX_ARRAY_SIZE>,
         array_size: Variable,
         start_idx: Variable,
-        seed: &ArrayVariable<ByteVariable, 15>, // TODO: Seed it with 120 bits.  Need to figure out if this is secure.
+        seed: &[ByteVariable],
     ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
         // TODO:  Need to add check that array_size is less than MAX_ARRAY_SIZE.
         // TODO:  Need to add check that start_idx + SUB_ARRAY_SIZE is less than array_size.
+        const MIN_SEED_BITS: usize = 120; // TODO: Seed it with 120 bits.  Need to figure out if this is enough bits of security.
 
-        let sub_array = self.init::<ArrayVariable<Variable, SUB_ARRAY_SIZE>>();
+        let mut input_stream = VariableStream::new();
+        for i in 0..MAX_ARRAY_SIZE {
+            input_stream.write(&array[i]);
+        }
+        input_stream.write(&array_size);
+        input_stream.write(&start_idx);
 
-        self.add_simple_generator(SubArrayExtractor::<L, D, MAX_ARRAY_SIZE, SUB_ARRAY_SIZE> {
-            array: array.clone(),
-            array_size,
-            start_idx,
-            sub_array: sub_array.clone(),
-            _marker: PhantomData,
-        });
+        let hint = SubArrayExtractorHint {
+            max_array_size: MAX_ARRAY_SIZE,
+            sub_array_size: SUB_ARRAY_SIZE,
+        };
+        let output_stream = self.hint(input_stream, hint);
+
+        let mut sub_array_element = Vec::new();
+        for _i in 0..SUB_ARRAY_SIZE {
+            sub_array_element.push(output_stream.read::<Variable>(self));
+        }
+
+        let sub_array = ArrayVariable::<Variable, SUB_ARRAY_SIZE>::from(sub_array_element);
 
         let mut seed_targets = Vec::new();
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
-        for seed_chunk in seed.as_vec().chunks(5) {
+
+        // Need to get chunks of 7 since the max value of F is slightly less then 64 bits.
+        let mut seed_bit_len = 0;
+        for seed_chunk in seed.to_vec().chunks(7) {
             let seed_element_bits = seed_chunk
                 .iter()
                 .flat_map(|x| x.as_bool_targets())
                 .collect_vec();
             let seed_element = self.api.le_sum(seed_element_bits.iter());
+            seed_bit_len += seed_element_bits.len();
             seed_targets.push(seed_element);
         }
+
+        assert!(seed_bit_len >= MIN_SEED_BITS);
 
         challenger.observe_elements(seed_targets.as_slice());
 
@@ -224,11 +239,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 let mut subarray_idx = j_target.sub(start_idx, self);
                 subarray_idx = subarray_idx.mul(within_sub_array, self);
-                let challenge =
-                    Variable::from(self.api.random_access(
-                        subarray_idx.0,
-                        challenges.iter().map(|x| x.0).collect_vec(),
-                    ));
+
+                let challenge = self.select_array_random_gate(&challenges, subarray_idx);
                 let mut product = self.mul(array[j], challenge);
                 product = within_sub_array.mul(product, self);
                 accumulator1 = accumulator1.add(product, self);
@@ -261,93 +273,31 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 }
 
-#[derive(Debug, Clone)]
-struct SubArrayExtractor<
-    L: PlonkParameters<D>,
-    const D: usize,
-    const ARRAY_SIZE: usize,
-    const SUBARRAY_SIZE: usize,
-> {
-    array: ArrayVariable<Variable, ARRAY_SIZE>,
-    array_size: Variable,
-    sub_array: ArrayVariable<Variable, SUBARRAY_SIZE>,
-    start_idx: Variable,
-    _marker: PhantomData<L>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubArrayExtractorHint {
+    max_array_size: usize,
+    sub_array_size: usize,
 }
 
-impl<
-        L: PlonkParameters<D>,
-        const D: usize,
-        const MAX_ARRAY_SIZE: usize,
-        const SUB_ARRAY_SIZE: usize,
-    > SimpleGenerator<L::Field, D> for SubArrayExtractor<L, D, MAX_ARRAY_SIZE, SUB_ARRAY_SIZE>
-{
-    fn id(&self) -> String {
-        "SubArrayExtractor".to_string()
-    }
+impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for SubArrayExtractorHint {
+    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
+        let mut array_elements = Vec::new();
 
-    fn serialize(
-        &self,
-        dst: &mut Vec<u8>,
-        _common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<()> {
-        dst.write_target_vec(&self.array.as_vec().iter().map(|x| x.0).collect_vec())?;
-        dst.write_target(self.array_size.0)?;
-        dst.write_target_vec(&self.sub_array.as_vec().iter().map(|x| x.0).collect_vec())?;
-        dst.write_target(self.start_idx.0)
-    }
+        for _i in 0..self.max_array_size {
+            let element = input_stream.read_value::<Variable>();
+            array_elements.push(element);
+        }
 
-    fn deserialize(
-        src: &mut Buffer,
-        _common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<Self> {
-        let array = ArrayVariable::from(
-            src.read_target_vec()?
-                .iter()
-                .map(|x| Variable::from(*x))
-                .collect_vec(),
-        );
-        let array_size = Variable::from(src.read_target()?);
-        let sub_array = ArrayVariable::from(
-            src.read_target_vec()?
-                .iter()
-                .map(|x| Variable::from(*x))
-                .collect_vec(),
-        );
-        let start_idx = Variable::from(src.read_target()?);
+        let array_size = input_stream.read_value::<Variable>().to_canonical_u64();
+        let start_idx = input_stream.read_value::<Variable>().to_canonical_u64();
+        let end_idx = start_idx + self.sub_array_size as u64;
 
-        Ok(Self {
-            array,
-            array_size,
-            sub_array,
-            start_idx,
-            _marker: PhantomData,
-        })
-    }
-
-    fn dependencies(&self) -> Vec<Target> {
-        let mut dependencies = Vec::new();
-        dependencies.extend(self.array.as_vec().iter().map(|x| x.0).collect_vec());
-        dependencies.push(self.array_size.0);
-        dependencies.push(self.start_idx.0);
-        dependencies
-    }
-
-    fn run_once(
-        &self,
-        witness: &PartitionWitness<L::Field>,
-        out_buffer: &mut GeneratedValues<L::Field>,
-    ) {
-        let array_size = witness.get_target(self.array_size.0).to_canonical_u64() as usize;
-        let start_idx = witness.get_target(self.start_idx.0).to_canonical_u64() as usize;
-        let end_idx = start_idx + SUB_ARRAY_SIZE;
-
-        assert!(array_size <= MAX_ARRAY_SIZE);
+        assert!(array_size <= self.max_array_size as u64);
         assert!(end_idx <= array_size);
 
-        for i in start_idx..end_idx {
-            let element = self.array[i].get(witness);
-            self.sub_array[i - start_idx].set(out_buffer, element);
+        for i in 0..self.sub_array_size {
+            let element = array_elements[start_idx as usize + i];
+            output_stream.write_value::<Variable>(element);
         }
     }
 }
@@ -485,15 +435,19 @@ mod tests {
         type F = GoldilocksField;
         const MAX_ARRAY_SIZE: usize = 100;
         const SUB_ARRAY_SIZE: usize = 10;
+        const START_IDX: usize = 15;
 
         let mut builder = DefaultBuilder::new();
 
         let array = builder.read::<ArrayVariable<Variable, MAX_ARRAY_SIZE>>();
         let array_size = builder.read::<Variable>();
-        let start_idx = builder.constant(F::from_canonical_usize(15));
-        let seed = builder.read::<ArrayVariable<ByteVariable, 15>>();
+        let start_idx = builder.constant(F::from_canonical_usize(START_IDX));
+        let seed = builder.read::<Bytes32Variable>();
         let result = builder.get_fixed_subarray::<MAX_ARRAY_SIZE, SUB_ARRAY_SIZE>(
-            &array, array_size, start_idx, &seed,
+            &array,
+            array_size,
+            start_idx,
+            &seed.as_bytes(),
         );
         builder.write(result);
 
@@ -515,12 +469,14 @@ mod tests {
         let mut input = circuit.input();
         input.write::<ArrayVariable<Variable, MAX_ARRAY_SIZE>>(array_input.to_vec());
         input.write::<Variable>(array_size_input);
-        input.write::<ArrayVariable<ByteVariable, 15>>(seed_input.to_vec());
+        input.write::<Bytes32Variable>(bytes32!(
+            "0x7c38fc8356aa20394c7f538e3cee3f924e6d9252494c8138d1a6aabfc253118f"
+        ));
 
         let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
 
-        let expected_sub_array = array_input[15..25].to_vec();
+        let expected_sub_array = array_input[START_IDX..START_IDX + SUB_ARRAY_SIZE].to_vec();
         assert_eq!(
             output.read::<ArrayVariable<Variable, SUB_ARRAY_SIZE>>(),
             expected_sub_array
