@@ -174,8 +174,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         start_idx: Variable,
         seed: &[ByteVariable],
     ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
-        // TODO:  Need to add check that array_size is less than MAX_ARRAY_SIZE.
-        // TODO:  Need to add check that start_idx + SUB_ARRAY_SIZE is less than array_size.
         const MIN_SEED_BITS: usize = 120; // TODO: Seed it with 120 bits.  Need to figure out if this is enough bits of security.
 
         let mut input_stream = VariableStream::new();
