@@ -5,9 +5,9 @@ use super::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconExecutionPayloadHint,
     BeaconHeaderHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
-    BeaconPartialValidatorsHint, BeaconSlotHint, BeaconValidatorBatchWitnessHint,
-    BeaconValidatorGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator, Eth1BlockToSlotHint,
+    BeaconPartialValidatorsHint, BeaconValidatorBatchWitnessHint, BeaconValidatorGenerator,
+    BeaconValidatorsHint, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
+    Eth1BlockToSlotHint,
 };
 use super::vars::{
     BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
@@ -56,9 +56,6 @@ const CLOSE_SLOT_BLOCK_ROOT_GINDEX: u64 = 2924544;
 
 /// The gindex for blockRoot -> body -> executionPayload -> blockNumber.
 const EXECUTION_PAYLOAD_BLOCK_NUMBER_GINDEX: u64 = 3222;
-
-/// The gindex for blockRoot -> slot.
-const SLOT_GINDEX: u64 = 8;
 
 /// The log2 of the validator registry limit.
 const VALIDATOR_REGISTRY_LIMIT_LOG2: usize = 40;
@@ -426,23 +423,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.assert_is_equal(block_root, restored_root);
 
         header
-    }
-
-    /// Get slot number from block root.
-    pub fn beacon_get_slot_number(&mut self, block_root: Bytes32Variable) -> U64Variable {
-        let mut slot_hint_input = VariableStream::new();
-        slot_hint_input.write(&block_root);
-        let slot_hint_output = self.hint(slot_hint_input, BeaconSlotHint {});
-        let proof = slot_hint_output.read::<ArrayVariable<Bytes32Variable, 3>>(self);
-        let slot = slot_hint_output.read::<U64Variable>(self);
-
-        // Convert slot number to leaf
-        let slot_number_leaf = slot.hash_tree_root(self);
-
-        // Verify the SSZ proof
-        self.ssz_verify_proof_const(block_root, slot_number_leaf, &proof.data, SLOT_GINDEX);
-
-        slot
     }
 
     /// Get beacon block hash from eth1 block number, then prove from source block root.
