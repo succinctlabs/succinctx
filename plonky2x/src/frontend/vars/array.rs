@@ -168,10 +168,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::from_variables_unsafe(&selected_vars)
     }
 
-    pub fn get_fixed_subarray<const SUB_ARRAY_SIZE: usize>(
+    pub fn get_fixed_subarray<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
-        array: &[Variable],
-        array_size: Variable,
+        array: &ArrayVariable<Variable, ARRAY_SIZE>,
         start_idx: Variable,
         seed: &[ByteVariable],
     ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
@@ -180,14 +179,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         const MIN_SEED_BITS: usize = 120; // TODO: Seed it with 120 bits.  Need to figure out if this is enough bits of security.
 
         let mut input_stream = VariableStream::new();
-        for array_element in array {
+        for array_element in array.as_vec().iter() {
             input_stream.write(array_element);
         }
-        input_stream.write(&array_size);
         input_stream.write(&start_idx);
 
         let hint = SubArrayExtractorHint {
-            max_array_size: array.len(),
+            array_size: ARRAY_SIZE,
             sub_array_size: SUB_ARRAY_SIZE,
         };
         let output_stream = self.hint(input_stream, hint);
@@ -275,7 +273,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubArrayExtractorHint {
-    max_array_size: usize,
+    array_size: usize,
     sub_array_size: usize,
 }
 
@@ -283,17 +281,15 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for SubArrayExtractorHint
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let mut array_elements = Vec::new();
 
-        for _i in 0..self.max_array_size {
+        for _i in 0..self.array_size {
             let element = input_stream.read_value::<Variable>();
             array_elements.push(element);
         }
 
-        let array_size = input_stream.read_value::<Variable>().to_canonical_u64();
         let start_idx = input_stream.read_value::<Variable>().to_canonical_u64();
         let end_idx = start_idx + self.sub_array_size as u64;
 
-        assert!(array_size <= self.max_array_size as u64);
-        assert!(end_idx <= array_size);
+        assert!(end_idx <= self.array_size as u64);
 
         for i in 0..self.sub_array_size {
             let element = array_elements[start_idx as usize + i];
@@ -433,19 +429,17 @@ mod tests {
     fn test_get_fixed_subarray() {
         utils::setup_logger();
         type F = GoldilocksField;
-        const MAX_ARRAY_SIZE: usize = 100;
+        const ARRAY_SIZE: usize = 100;
         const SUB_ARRAY_SIZE: usize = 10;
         const START_IDX: usize = 15;
 
         let mut builder = DefaultBuilder::new();
 
-        let array = builder.read::<ArrayVariable<Variable, MAX_ARRAY_SIZE>>();
-        let array_size = builder.read::<Variable>();
+        let array = builder.read::<ArrayVariable<Variable, ARRAY_SIZE>>();
         let start_idx = builder.constant(F::from_canonical_usize(START_IDX));
         let seed = builder.read::<Bytes32Variable>();
-        let result = builder.get_fixed_subarray::<SUB_ARRAY_SIZE>(
-            array.as_slice(),
-            array_size,
+        let result = builder.get_fixed_subarray::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
+            &array,
             start_idx,
             &seed.as_bytes(),
         );
@@ -455,11 +449,10 @@ mod tests {
 
         // The last 20 elements are dummy
         let mut rng = OsRng;
-        let mut array_input = [F::default(); MAX_ARRAY_SIZE];
+        let mut array_input = [F::default(); ARRAY_SIZE];
         for elem in array_input.iter_mut() {
             *elem = F::from_canonical_u64(rng.gen());
         }
-        let array_size_input = F::from_canonical_usize(80);
 
         let mut seed_input = [0u8; 15];
         for elem in seed_input.iter_mut() {
@@ -467,8 +460,7 @@ mod tests {
         }
 
         let mut input = circuit.input();
-        input.write::<ArrayVariable<Variable, MAX_ARRAY_SIZE>>(array_input.to_vec());
-        input.write::<Variable>(array_size_input);
+        input.write::<ArrayVariable<Variable, ARRAY_SIZE>>(array_input.to_vec());
         input.write::<Bytes32Variable>(bytes32!(
             "0x7c38fc8356aa20394c7f538e3cee3f924e6d9252494c8138d1a6aabfc253118f"
         ));
