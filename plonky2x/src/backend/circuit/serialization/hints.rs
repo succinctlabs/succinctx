@@ -5,6 +5,9 @@ use curta::chip::ec::edwards::scalar_mul::air::ScalarMulEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::{
     SimpleScalarMulEd25519Generator, SimpleScalarMulEd25519HintGenerator,
 };
+use curta::chip::hash::blake::blake2b::generator::{
+    BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
+};
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
@@ -44,9 +47,9 @@ use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator, BeaconBalanceWitnessHint,
     BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
-    BeaconPartialValidatorsHint, BeaconValidatorBatchWitnessHint, BeaconValidatorGenerator,
+    BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator,
+    BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -389,8 +392,9 @@ where
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
         register_powers_of_two!(r, BeaconPartialBalancesHint);
-        register_powers_of_two!(r, BeaconValidatorBatchWitnessHint);
+        register_powers_of_two!(r, BeaconValidatorBatchHint);
         register_powers_of_two!(r, BeaconPartialValidatorsHint);
+        register_powers_of_two!(r, CompressedBeaconValidatorBatchHint);
         r.register_async_hint::<EthStorageProofHint<L, D>>();
         let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519Base>::default().id();
         r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519Base>>(id);
@@ -418,6 +422,24 @@ where
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
 
         r.register_async_hint::<BeaconValidatorsHint>();
+
+        let blake2b_hint_generator_id = BLAKE2BHintGenerator::id();
+        r.register_simple::<BLAKE2BHintGenerator>(blake2b_hint_generator_id);
+
+        let blake2b_generator = BLAKE2BGenerator::<
+            L::Field,
+            L::CubicParams,
+            L::CurtaConfig,
+            D,
+            BLAKE2BAirParameters<L::Field, L::CubicParams>,
+        >::id();
+        r.register_simple::<BLAKE2BGenerator<
+            L::Field,
+            L::CubicParams,
+            L::CurtaConfig,
+            D,
+            BLAKE2BAirParameters<L::Field, L::CubicParams>,
+        >>(blake2b_generator);
 
         register_watch_generator!(
             r,

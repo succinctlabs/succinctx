@@ -23,7 +23,9 @@ pub use historical::BeaconHistoricalBlockGenerator;
 pub use partial_balances::BeaconPartialBalancesHint;
 pub use partial_validators::BeaconPartialValidatorsHint;
 pub use validator::BeaconValidatorGenerator;
-pub use validator_witness::{BeaconValidatorBatchWitnessHint, BeaconValidatorWitnessHint};
+pub use validator_witness::{
+    BeaconValidatorBatchHint, BeaconValidatorHint, CompressedBeaconValidatorBatchHint,
+};
 pub use validators::{BeaconValidatorsGenerator, BeaconValidatorsHint};
 pub use withdrawal::BeaconWithdrawalGenerator;
 pub use withdrawals::BeaconWithdrawalsGenerator;

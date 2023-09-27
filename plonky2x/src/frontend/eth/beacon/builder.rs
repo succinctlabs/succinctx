@@ -5,13 +5,14 @@ use super::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconExecutionPayloadHint,
     BeaconHeaderHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
-    BeaconPartialValidatorsHint, BeaconValidatorBatchWitnessHint, BeaconValidatorGenerator,
+    BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsHint, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
-    Eth1BlockToSlotHint,
+    CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
 };
 use super::vars::{
     BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
     BeaconValidatorsVariable, BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
+    CompressedBeaconValidatorVariable,
 };
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
@@ -148,7 +149,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Witness the first B validators from a given start index.
-    pub fn beacon_witness_validator_batch_<const B: usize>(
+    pub fn beacon_witness_validator_batch<const B: usize>(
         &mut self,
         balances: BeaconValidatorsVariable,
         start_idx: U64Variable,
@@ -156,9 +157,44 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut input_stream = VariableStream::new();
         input_stream.write(&balances.block_root);
         input_stream.write(&start_idx);
-        let hint = BeaconValidatorBatchWitnessHint::<B> {};
+        let hint = BeaconValidatorBatchHint::<B> {};
         let output_stream = self.hint(input_stream, hint);
         output_stream.read::<ArrayVariable<BeaconValidatorVariable, B>>(self)
+    }
+
+    /// Witness the first B validators from a given start index.
+    pub fn beacon_witness_compressed_validator_batch<const B: usize>(
+        &mut self,
+        balances: BeaconValidatorsVariable,
+        start_idx: U64Variable,
+    ) -> (
+        Vec<Bytes32Variable>,
+        ArrayVariable<CompressedBeaconValidatorVariable, B>,
+    ) {
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&balances.block_root);
+        input_stream.write(&start_idx);
+        let hint = CompressedBeaconValidatorBatchHint::<B> {};
+        let output_stream = self.hint(input_stream, hint);
+        let compressed_validators =
+            output_stream.read::<ArrayVariable<CompressedBeaconValidatorVariable, B>>(self);
+        let witnesses =
+            output_stream.read::<ArrayVariable<ArrayVariable<Bytes32Variable, 2>, B>>(self);
+        let zero = self.constant::<ByteVariable>(0);
+        let mut roots = Vec::new();
+        for i in 0..B {
+            let compressed_validator = compressed_validators[i].clone();
+            let mut pubkey_bytes = compressed_validator.pubkey.0 .0.to_vec();
+            pubkey_bytes.extend([zero; 16]);
+            let pubkey = self.curta_sha256(&pubkey_bytes);
+            let h11 = self.curta_sha256_pair(pubkey, compressed_validator.withdrawal_credentials);
+            let h12 = witnesses[i][0];
+            let h21 = self.curta_sha256_pair(h11, h12);
+            let h22 = witnesses[i][1];
+            let h31 = self.curta_sha256_pair(h21, h22);
+            roots.push(h31);
+        }
+        (roots, compressed_validators)
     }
 
     /// Get a validator from a given deterministic index.
@@ -799,7 +835,7 @@ pub(crate) mod tests {
         let zero = builder.constant::<U64Variable>(0.into());
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let validators = builder.beacon_get_validators(block_root);
-        let validators = builder.beacon_witness_validator_batch_::<512>(validators, zero);
+        let validators = builder.beacon_witness_validator_batch::<512>(validators, zero);
         debug!("validators_len: {}", validators.len());
 
         let circuit = builder.build();
