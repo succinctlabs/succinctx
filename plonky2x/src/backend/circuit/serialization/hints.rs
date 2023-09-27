@@ -77,7 +77,7 @@ use crate::frontend::num::u32::gates::comparison::ComparisonGenerator;
 use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
 use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, U256Variable};
+use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
 use crate::prelude::{BoolVariable, Variable};
 
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
@@ -440,6 +440,8 @@ where
             D,
             BLAKE2BAirParameters<L::Field, L::CubicParams>,
         >>(blake2b_generator);
+
+        r.register_hint::<SubArrayExtractorHint>();
 
         register_watch_generator!(
             r,
