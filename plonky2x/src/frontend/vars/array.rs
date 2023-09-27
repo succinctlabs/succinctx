@@ -177,9 +177,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         const MIN_SEED_BITS: usize = 120; // TODO: Seed it with 120 bits.  Need to figure out if this is enough bits of security.
 
         let mut input_stream = VariableStream::new();
-        for array_element in array.as_vec().iter() {
-            input_stream.write(array_element);
-        }
+        input_stream.write(array);
         input_stream.write(&start_idx);
 
         let hint = SubArrayExtractorHint {
@@ -187,13 +185,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             sub_array_size: SUB_ARRAY_SIZE,
         };
         let output_stream = self.hint(input_stream, hint);
-
-        let mut sub_array_element = Vec::new();
-        for _i in 0..SUB_ARRAY_SIZE {
-            sub_array_element.push(output_stream.read::<Variable>(self));
-        }
-
-        let sub_array = ArrayVariable::<Variable, SUB_ARRAY_SIZE>::from(sub_array_element);
+        let sub_array = output_stream.read::<ArrayVariable<Variable, SUB_ARRAY_SIZE>>(self);
 
         let mut seed_targets = Vec::new();
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
