@@ -45,11 +45,12 @@ use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
-    BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator, BeaconBalanceWitnessHint,
-    BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
+    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconExecutionPayloadHint,
+    BeaconHeaderHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
     BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint,
+    BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -389,6 +390,10 @@ where
         >>(simple_stark_witness_generator_id);
 
         r.register_hint::<BeaconBalanceWitnessHint>();
+        r.register_hint::<Eth1BlockToSlotHint>();
+        r.register_hint::<BeaconExecutionPayloadHint>();
+        r.register_hint::<BeaconHeaderHint>();
+        r.register_hint::<BeaconAllWithdrawalsHint>();
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
         register_powers_of_two!(r, BeaconPartialBalancesHint);
