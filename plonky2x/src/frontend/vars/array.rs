@@ -190,6 +190,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             _marker: PhantomData,
         });
 
+        let mut seed_targets = Vec::new();
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
         for seed_chunk in seed.as_vec().chunks(5) {
             let seed_element_bits = seed_chunk
@@ -197,8 +198,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 .flat_map(|x| x.as_bool_targets())
                 .collect_vec();
             let seed_element = self.api.le_sum(seed_element_bits.iter());
-            challenger.observe_element(seed_element);
+            seed_targets.push(seed_element);
         }
+
+        challenger.observe_elements(seed_targets.as_slice());
 
         for _i in 0..2 {
             let challenges = challenger
@@ -221,7 +224,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 let mut subarray_idx = j_target.sub(start_idx, self);
                 subarray_idx = subarray_idx.mul(within_sub_array, self);
-                let challenge = self.select_array(&challenges, subarray_idx);
+                let challenge =
+                    Variable::from(self.api.random_access(
+                        subarray_idx.0,
+                        challenges.iter().map(|x| x.0).collect_vec(),
+                    ));
                 let mut product = self.mul(array[j], challenge);
                 product = within_sub_array.mul(product, self);
                 accumulator1 = accumulator1.add(product, self);
