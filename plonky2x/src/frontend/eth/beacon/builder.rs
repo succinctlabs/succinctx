@@ -1,12 +1,13 @@
 use array_macro::array;
-use ethers::types::U64;
+use ethers::types::{H256, U256, U64};
 
 use super::generators::{
-    BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator, BeaconBalanceWitnessHint,
-    BeaconBalancesGenerator, BeaconHeaderHint, BeaconHistoricalBlockGenerator,
-    BeaconPartialBalancesHint, BeaconPartialValidatorsHint, BeaconValidatorBatchWitnessHint,
+    BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
+    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconExecutionPayloadHint,
+    BeaconHeaderHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconPartialValidatorsHint, BeaconSlotHint, BeaconValidatorBatchWitnessHint,
     BeaconValidatorGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator,
+    BeaconWithdrawalsGenerator, Eth1BlockToSlotHint,
 };
 use super::vars::{
     BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
@@ -15,6 +16,7 @@ use super::vars::{
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
+use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{
     Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable, VariableStream,
@@ -52,6 +54,12 @@ const HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX: u64 = 16384;
 /// The gindex for blockRoot -> state -> state.block_roots[0].
 const CLOSE_SLOT_BLOCK_ROOT_GINDEX: u64 = 2924544;
 
+/// The gindex for blockRoot -> body -> executionPayload -> blockNumber.
+const EXECUTION_PAYLOAD_BLOCK_NUMBER_GINDEX: u64 = 3222;
+
+/// The gindex for blockRoot -> slot.
+const SLOT_GINDEX: u64 = 8;
+
 /// The log2 of the validator registry limit.
 const VALIDATOR_REGISTRY_LIMIT_LOG2: usize = 40;
 
@@ -70,6 +78,9 @@ const SLOTS_PER_HISTORICAL_ROOT: u64 = 8192;
 
 /// Beacon chain constant CAPELLA_FORK_EPOCH. (mainnet specific)
 const CAPELLA_FORK_EPOCH: u64 = 194048;
+
+/// Beacon chain constant MAX_WITHDRAWALS_PER_PAYLOAD.
+const MAX_WITHDRAWALS_PER_PAYLOAD: usize = 16;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Get the first B validators for a given block root.
@@ -349,6 +360,41 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
     }
 
+    /// Get and prove all 16 withdrawal containers for a given block root.
+    pub fn beacon_get_all_withdrawals(
+        &mut self,
+        block_root: Bytes32Variable,
+    ) -> ArrayVariable<BeaconWithdrawalVariable, MAX_WITHDRAWALS_PER_PAYLOAD> {
+        let withdrawals_variable = self.beacon_get_withdrawals(block_root);
+
+        let mut withdrawals_hint_input = VariableStream::new();
+        withdrawals_hint_input.write(&block_root);
+        let withdrawals_hint_output =
+            self.hint(withdrawals_hint_input, BeaconAllWithdrawalsHint {});
+
+        let withdrawals = withdrawals_hint_output
+            .read::<ArrayVariable<BeaconWithdrawalVariable, MAX_WITHDRAWALS_PER_PAYLOAD>>(self);
+
+        let leafs = withdrawals
+            .data
+            .iter()
+            .map(|w| w.hash_tree_root(self))
+            .collect::<Vec<_>>();
+        let items_root = self.ssz_hash_leafs(&leafs);
+
+        // SSZ lists encoded as [items_root, list_length]
+        // List length is u256 LE
+        let mut list_length = vec![0u8; 32];
+        U256::from(16).to_little_endian(&mut list_length);
+        let list_length_array: [u8; 32] = list_length.try_into().unwrap();
+        let list_length_variable = self.constant::<Bytes32Variable>(H256::from(list_length_array));
+
+        let reconstructed_root = self.ssz_hash_leafs(&[items_root, list_length_variable]);
+        self.assert_is_equal(withdrawals_variable.withdrawals_root, reconstructed_root);
+
+        withdrawals
+    }
+
     /// Get a validator withdrawal from a given index.
     pub fn beacon_get_withdrawal(
         &mut self,
@@ -380,6 +426,64 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.assert_is_equal(block_root, restored_root);
 
         header
+    }
+
+    /// Get slot number from block root.
+    pub fn beacon_get_slot_number(&mut self, block_root: Bytes32Variable) -> U64Variable {
+        let mut slot_hint_input = VariableStream::new();
+        slot_hint_input.write(&block_root);
+        let slot_hint_output = self.hint(slot_hint_input, BeaconSlotHint {});
+        let proof = slot_hint_output.read::<ArrayVariable<Bytes32Variable, 3>>(self);
+        let slot = slot_hint_output.read::<U64Variable>(self);
+
+        // Convert slot number to leaf
+        let slot_number_leaf = slot.hash_tree_root(self);
+
+        // Verify the SSZ proof
+        self.ssz_verify_proof_const(block_root, slot_number_leaf, &proof.data, SLOT_GINDEX);
+
+        slot
+    }
+
+    /// Get beacon block hash from eth1 block number, then prove from source block root.
+    pub fn beacon_get_block_from_eth1_block_number(
+        &mut self,
+        source_beacon_block_root: Bytes32Variable,
+        eth1_block_number: U256Variable,
+    ) -> Bytes32Variable {
+        // Witness the slot number from the eth1 block number
+        let mut block_to_slot_input = VariableStream::new();
+        block_to_slot_input.write(&eth1_block_number);
+        let block_to_slot_output = self.hint(block_to_slot_input, Eth1BlockToSlotHint {});
+        let slot = block_to_slot_output.read::<U64Variable>(self);
+
+        // Prove source block root -> witnessed beacon block
+        let target_root = self.beacon_get_historical_block(source_beacon_block_root, slot);
+
+        // Witness SSZ proof for target block root -> beacon body -> execution payload -> eth1 block number
+        let mut beacon_block_to_eth1_number_input = VariableStream::new();
+        beacon_block_to_eth1_number_input.write(&target_root);
+        beacon_block_to_eth1_number_input.write(&eth1_block_number);
+        let beacon_block_to_eth1_number_output = self.hint(
+            beacon_block_to_eth1_number_input,
+            BeaconExecutionPayloadHint {},
+        );
+        let proof =
+            beacon_block_to_eth1_number_output.read::<ArrayVariable<Bytes32Variable, 11>>(self);
+        let eth1_block_number = beacon_block_to_eth1_number_output.read::<U256Variable>(self);
+
+        // Convert eth1 block number to leaf
+        let eth1_block_number_leaf = eth1_block_number.hash_tree_root(self);
+
+        // Verify the SSZ proof
+        self.ssz_verify_proof_const(
+            target_root,
+            eth1_block_number_leaf,
+            &proof.data,
+            EXECUTION_PAYLOAD_BLOCK_NUMBER_GINDEX,
+        );
+
+        target_root
     }
 
     /// Get a historical block root using state.block_roots for close slots and historical_summaries for slots > 8192 slots away.
