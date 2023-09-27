@@ -168,9 +168,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::from_variables_unsafe(&selected_vars)
     }
 
-    pub fn get_fixed_subarray<const MAX_ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
+    pub fn get_fixed_subarray<const SUB_ARRAY_SIZE: usize>(
         &mut self,
-        array: &ArrayVariable<Variable, MAX_ARRAY_SIZE>,
+        array: &[Variable],
         array_size: Variable,
         start_idx: Variable,
         seed: &[ByteVariable],
@@ -180,14 +180,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         const MIN_SEED_BITS: usize = 120; // TODO: Seed it with 120 bits.  Need to figure out if this is enough bits of security.
 
         let mut input_stream = VariableStream::new();
-        for i in 0..MAX_ARRAY_SIZE {
-            input_stream.write(&array[i]);
+        for array_element in array {
+            input_stream.write(array_element);
         }
         input_stream.write(&array_size);
         input_stream.write(&start_idx);
 
         let hint = SubArrayExtractorHint {
-            max_array_size: MAX_ARRAY_SIZE,
+            max_array_size: array.len(),
             sub_array_size: SUB_ARRAY_SIZE,
         };
         let output_stream = self.hint(input_stream, hint);
@@ -231,7 +231,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             let mut accumulator1 = self.zero::<Variable>();
             let mut j_target = self.zero();
-            for j in 0..MAX_ARRAY_SIZE {
+            for j in 0..array.len() {
                 let at_start_idx = self.is_equal(j_target, start_idx);
                 within_sub_array = within_sub_array.add(at_start_idx.variables()[0], self);
                 let at_end_idx = self.is_equal(j_target, end_idx);
@@ -443,8 +443,8 @@ mod tests {
         let array_size = builder.read::<Variable>();
         let start_idx = builder.constant(F::from_canonical_usize(START_IDX));
         let seed = builder.read::<Bytes32Variable>();
-        let result = builder.get_fixed_subarray::<MAX_ARRAY_SIZE, SUB_ARRAY_SIZE>(
-            &array,
+        let result = builder.get_fixed_subarray::<SUB_ARRAY_SIZE>(
+            array.as_slice(),
             array_size,
             start_idx,
             &seed.as_bytes(),
