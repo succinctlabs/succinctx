@@ -229,7 +229,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             let mut accumulator1 = self.zero::<Variable>();
             let mut j_target = self.zero();
-            for j in 0..array.len() {
+            for j in 0..ARRAY_SIZE {
                 let at_start_idx = self.is_equal(j_target, start_idx);
                 within_sub_array = within_sub_array.add(at_start_idx.variables()[0], self);
                 let at_end_idx = self.is_equal(j_target, end_idx);
