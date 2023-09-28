@@ -4,6 +4,7 @@ use std::path;
 
 use clap::Parser;
 use log::info;
+use plonky2::plonk::proof::Proof;
 use serde::Serialize;
 use sha2::Digest;
 
@@ -55,17 +56,21 @@ impl<F: RustFunction> VerifiableRustFunction<F> {
 
     pub fn prove(input_json: String) {
         info!("Loading input.");
-        let file = std::fs::File::open(input_json).unwrap();
-        let rdr = std::io::BufReader::new(file);
-        let input_bytes = serde_json::from_reader(rdr).unwrap();
-        info!("Running function.");
-        let result_bytes = F::run(input_bytes);
-        info!("Got result bytes.");
-        let proof_result = ProofResult::<DefaultParameters, 2>::from_bytes(result_bytes, vec![]);
-        let json = serde_json::to_string_pretty(&proof_result).unwrap();
-        let mut file = File::create("output.json").unwrap();
-        file.write_all(json.as_bytes()).unwrap();
-        info!("Successfully saved proof to disk at output.json.");
+        let proof_request = ProofRequest::<DefaultParameters, 2>::load(&input_json);
+        if let ProofRequest::Bytes(request) = proof_request {
+            let input_bytes = request.data.input;
+            info!("Running function.");
+            let result_bytes = F::run(input_bytes);
+            info!("Got result bytes.");
+            let proof_result =
+                ProofResult::<DefaultParameters, 2>::from_bytes(result_bytes, vec![]);
+            let json = serde_json::to_string_pretty(&proof_result).unwrap();
+            let mut file = File::create("output.json").unwrap();
+            file.write_all(json.as_bytes()).unwrap();
+            info!("Successfully saved proof to disk at output.json.");
+        } else {
+            panic!("Invalid proof request type.");
+        }
     }
 
     /// The entry point for the function when using the CLI.
