@@ -1,6 +1,7 @@
 mod cli;
 mod request;
 mod result;
+mod rust_function;
 
 use std::fs::File;
 use std::io::{BufReader, Write};
@@ -17,6 +18,7 @@ pub use request::{
 pub use result::{
     BytesResultData, ElementsResultData, ProofResult, ProofResultBase, RecursiveProofsResultData,
 };
+pub use rust_function::RustFunction;
 use serde::Serialize;
 use sha2::Digest;
 
