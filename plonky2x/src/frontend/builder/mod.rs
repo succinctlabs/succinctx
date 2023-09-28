@@ -18,12 +18,15 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
+use super::hash::blake2::blake2b_curta::Blake2bAccelerator;
+use super::hash::sha::sha256_curta::Sha256Accelerator;
 use super::hint::HintGenerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
 use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::utils::eth::beacon::BeaconClient;
+use crate::utils::eth::beaconchain::BeaconchainAPIClient;
 
 /// The universal builder for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
@@ -32,13 +35,17 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
+    pub beaconchain_api_client: Option<BeaconchainAPIClient>,
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintGenerator<L, D>>>,
     pub(crate) async_hints: Vec<AsyncHintDataRef<L, D>>,
     pub(crate) async_hints_indices: Vec<usize>,
-    pub sha256_requests: Vec<Vec<Target>>,
-    pub sha256_responses: Vec<[Target; 32]>,
+
+    // We currently have only two accelerators, so we just have individual fields for each one.
+    // If we start adding more, then we should have a hashmap of accelerators.
+    pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
+    pub sha256_accelerator: Option<Sha256Accelerator<L, D>>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
@@ -60,6 +67,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             api,
             io: CircuitIO::new(),
             beacon_client: None,
+            beaconchain_api_client: None,
             execution_client: None,
             chain_id: None,
             debug: false,
@@ -67,13 +75,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             hints: Vec::new(),
             async_hints: Vec::new(),
             async_hints_indices: Vec::new(),
-            sha256_requests: Vec::new(),
-            sha256_responses: Vec::new(),
+            blake2b_accelerator: None,
+            sha256_accelerator: None,
         };
 
         if let Ok(rpc_url) = env::var("CONSENSUS_RPC_1") {
             let client = BeaconClient::new(rpc_url);
             builder.set_beacon_client(client);
+        }
+
+        if let Ok(api_url) = env::var("BEACONCHAIN_API_URL_1") {
+            if let Ok(api_key) = env::var("BEACONCHAIN_API_KEY_1") {
+                let client = BeaconchainAPIClient::new(api_url, api_key);
+                builder.set_beaconchain_api_client(client);
+            }
         }
 
         builder
@@ -117,10 +132,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.beacon_client = Some(client);
     }
 
+    pub fn set_beaconchain_api_client(&mut self, client: BeaconchainAPIClient) {
+        self.beaconchain_api_client = Some(client);
+    }
+
     /// Adds all the constraints nedded before building the circuit and registering hints.
     fn pre_build(&mut self) {
-        if !self.sha256_requests.is_empty() {
-            self.curta_constrain_sha256();
+        let blake2b_accelerator = self.blake2b_accelerator.clone();
+        if let Some(accelerator) = blake2b_accelerator {
+            accelerator.build(self);
+        }
+
+        let sha256_accelerator = self.sha256_accelerator.clone();
+        if let Some(mut accelerator) = sha256_accelerator {
+            accelerator.build(self);
         }
 
         for (index, gen_ref) in self

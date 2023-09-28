@@ -1,6 +1,8 @@
+mod all_withdrawals;
 mod balance;
 mod balance_witness;
 mod balances;
+mod eth1_block;
 mod header;
 mod historical;
 mod partial_balances;
@@ -11,9 +13,11 @@ mod validators;
 mod withdrawal;
 mod withdrawals;
 
+pub use all_withdrawals::BeaconAllWithdrawalsHint;
 pub use balance::BeaconBalanceGenerator;
 pub use balance_witness::{BeaconBalanceBatchWitnessHint, BeaconBalanceWitnessHint};
 pub use balances::BeaconBalancesGenerator;
+pub use eth1_block::{BeaconExecutionPayloadHint, Eth1BlockToSlotHint};
 pub use header::BeaconHeaderHint;
 pub use historical::BeaconHistoricalBlockGenerator;
 pub use partial_balances::BeaconPartialBalancesHint;

@@ -5,6 +5,9 @@ use curta::chip::ec::edwards::scalar_mul::air::ScalarMulEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::{
     SimpleScalarMulEd25519Generator, SimpleScalarMulEd25519HintGenerator,
 };
+use curta::chip::hash::blake::blake2b::generator::{
+    BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
+};
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
@@ -42,11 +45,12 @@ use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
 use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
-    BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator, BeaconBalanceWitnessHint,
-    BeaconBalancesGenerator, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
+    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconExecutionPayloadHint,
+    BeaconHeaderHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
     BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint,
+    BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
@@ -74,7 +78,7 @@ use crate::frontend::num::u32::gates::comparison::ComparisonGenerator;
 use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
 use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
 use crate::frontend::uint::uint64::U64Variable;
-use crate::frontend::vars::{Bytes32Variable, U256Variable};
+use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
 use crate::prelude::{BoolVariable, Variable};
 
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
@@ -386,6 +390,10 @@ where
         >>(simple_stark_witness_generator_id);
 
         r.register_hint::<BeaconBalanceWitnessHint>();
+        r.register_hint::<Eth1BlockToSlotHint>();
+        r.register_hint::<BeaconExecutionPayloadHint>();
+        r.register_hint::<BeaconHeaderHint>();
+        r.register_hint::<BeaconAllWithdrawalsHint>();
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
         register_powers_of_two!(r, BeaconPartialBalancesHint);
@@ -419,6 +427,26 @@ where
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
 
         r.register_async_hint::<BeaconValidatorsHint>();
+
+        let blake2b_hint_generator_id = BLAKE2BHintGenerator::id();
+        r.register_simple::<BLAKE2BHintGenerator>(blake2b_hint_generator_id);
+
+        let blake2b_generator = BLAKE2BGenerator::<
+            L::Field,
+            L::CubicParams,
+            L::CurtaConfig,
+            D,
+            BLAKE2BAirParameters<L::Field, L::CubicParams>,
+        >::id();
+        r.register_simple::<BLAKE2BGenerator<
+            L::Field,
+            L::CubicParams,
+            L::CurtaConfig,
+            D,
+            BLAKE2BAirParameters<L::Field, L::CubicParams>,
+        >>(blake2b_generator);
+
+        r.register_hint::<SubArrayExtractorHint>();
 
         register_watch_generator!(
             r,

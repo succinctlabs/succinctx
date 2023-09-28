@@ -1,6 +1,7 @@
+use core::marker::PhantomData;
+
 use curta::chip::hash::sha::sha256::builder_gadget::{SHA256Builder, SHA256BuilderGadget};
 use curta::chip::hash::sha::sha256::generator::SHA256HintGenerator;
-use curta::math::field::Field;
 use itertools::Itertools;
 use log::debug;
 use plonky2::iop::target::Target;
@@ -11,23 +12,20 @@ use crate::frontend::uint::uint32::U32Variable;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable};
 
-impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn bytes_to_target(&mut self, input: &[ByteVariable]) -> Vec<Target> {
-        let mut bytes = Vec::new();
-        for i in 0..input.len() {
-            let mut byte = self.api.zero();
-            let targets = input[i].targets();
-            for j in 0..8 {
-                let bit = targets[j];
-                byte = self
-                    .api
-                    .mul_const_add(L::Field::from_canonical_u8(1 << (7 - j)), bit, byte);
-            }
-            bytes.push(byte);
-        }
-        bytes
-    }
+#[derive(Debug, Clone)]
+pub struct Sha256Accelerator<L: PlonkParameters<D>, const D: usize> {
+    pub sha256_requests: Vec<Vec<Target>>,
+    pub sha256_responses: Vec<[Target; 32]>,
+    _marker: PhantomData<L>,
+}
 
+impl<L: PlonkParameters<D>, const D: usize> Sha256Accelerator<L, D> {
+    pub fn build(&mut self, builder: &mut CircuitBuilder<L, D>) {
+        builder.curta_constrain_sha256(self);
+    }
+}
+
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Pad the given input according to the SHA-256 spec.
     pub fn curta_sha256_pad(&mut self, input: &[ByteVariable]) -> Vec<ByteVariable> {
         let mut bits = input
@@ -59,6 +57,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Pad the given variable length input according to the SHA-256 spec.
+    ///
     /// Input should be length MAX_NUM_CHUNKS * 64.
     /// Input byte length should be at most MAX_NUM_CHUNKS * 64 - 9.
     pub fn curta_sha256_pad_variable_length<const MAX_NB_CHUNKS: usize>(
@@ -132,26 +131,53 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn curta_sha256(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
         let padded_input = self.curta_sha256_pad(input);
 
-        let bytes = self.bytes_to_target(&padded_input);
+        if self.sha256_accelerator.is_none() {
+            self.sha256_accelerator = Some(Sha256Accelerator::<L, D> {
+                sha256_requests: Vec::new(),
+                sha256_responses: Vec::new(),
+                _marker: PhantomData,
+            });
+        }
 
-        self.sha256_requests.push(bytes);
+        let bytes = padded_input
+            .iter()
+            .map(|x| x.to_variable(self).0)
+            .collect::<Vec<_>>();
+
+        let accelerator = self
+            .sha256_accelerator
+            .as_mut()
+            .expect("sha256 accelerator should exist");
+        accelerator.sha256_requests.push(bytes);
         let digest = self.api.add_virtual_target_arr::<32>();
-        self.sha256_responses.push(digest);
-        Bytes32Variable::from_targets(
-            &digest
-                .into_iter()
-                .flat_map(|byte| {
-                    let mut bits = self
-                        .api
-                        .low_bits(byte, 8, 8)
-                        .into_iter()
-                        .map(|b| b.target)
-                        .collect_vec();
-                    bits.reverse();
-                    bits
-                })
-                .collect_vec(),
-        )
+        accelerator.sha256_responses.push(digest);
+
+        let bytes: [ByteVariable; 32] = digest.map(|x| ByteVariable::from_target(self, x));
+        bytes.into()
+    }
+
+    /// Executes a SHA256 hash on the given input with a mutable accelerator.
+    ///
+    /// Note: Should only be called by curta_constrain_sha256.
+    /// TODO: Remove this function once bug with mut ref to accelerator in curta_constrain_sha256 is fixed.
+    fn curta_sha256_with_accelerator(
+        &mut self,
+        input: &[ByteVariable],
+        accelerator: &mut Sha256Accelerator<L, D>,
+    ) -> Bytes32Variable {
+        let padded_input = self.curta_sha256_pad(input);
+
+        let bytes = padded_input
+            .iter()
+            .map(|x| x.to_variable(self).0)
+            .collect::<Vec<_>>();
+
+        accelerator.sha256_requests.push(bytes);
+        let digest = self.api.add_virtual_target_arr::<32>();
+        accelerator.sha256_responses.push(digest);
+
+        let bytes: [ByteVariable; 32] = digest.map(|x| ByteVariable::from_target(self, x));
+        bytes.into()
     }
 
     pub fn curta_sha256_pair(
@@ -182,32 +208,35 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             input_byte_length,
         );
 
-        let bytes = self.bytes_to_target(&padded_input);
+        if self.sha256_accelerator.is_none() {
+            self.sha256_accelerator = Some(Sha256Accelerator::<L, D> {
+                sha256_requests: Vec::new(),
+                sha256_responses: Vec::new(),
+                _marker: PhantomData,
+            });
+        }
 
-        self.sha256_requests.push(bytes);
+        let bytes = padded_input
+            .iter()
+            .map(|x| x.to_variable(self).0)
+            .collect::<Vec<_>>();
+
+        let accelerator = self
+            .sha256_accelerator
+            .as_mut()
+            .expect("sha256 accelerator should exist");
+        accelerator.sha256_requests.push(bytes);
         let digest = self.api.add_virtual_target_arr::<32>();
-        self.sha256_responses.push(digest);
-        Bytes32Variable::from_targets(
-            &digest
-                .into_iter()
-                .flat_map(|byte| {
-                    let mut bits = self
-                        .api
-                        .low_bits(byte, 8, 8)
-                        .into_iter()
-                        .map(|b| b.target)
-                        .collect_vec();
-                    bits.reverse();
-                    bits
-                })
-                .collect_vec(),
-        )
+        accelerator.sha256_responses.push(digest);
+
+        let bytes: [ByteVariable; 32] = digest.map(|x| ByteVariable::from_target(self, x));
+        bytes.into()
     }
 
-    pub fn curta_constrain_sha256(&mut self) {
+    pub fn curta_constrain_sha256(&mut self, accelerator: &mut Sha256Accelerator<L, D>) {
         let mut nb_chunks = 0;
         let mut curr_rq = 0;
-        let mut num_rqs = self.sha256_requests.len();
+        let mut num_rqs = accelerator.sha256_requests.len();
 
         let zero = self.constant::<ByteVariable>(0u8);
         let zero_chunk = [zero; 1];
@@ -217,7 +246,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // Loop over all requests (including dummy requests).
         while curr_rq < num_rqs {
-            let curr_rq_nb_chunks = self.sha256_requests[curr_rq].len() / 64;
+            let curr_rq_nb_chunks = accelerator.sha256_requests[curr_rq].len() / 64;
 
             let temp_nb_chunks = nb_chunks + curr_rq_nb_chunks;
 
@@ -225,12 +254,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             if (temp_nb_chunks / 1024 != nb_chunks / 1024) && temp_nb_chunks % 1024 != 0 {
                 while nb_chunks % 1024 != 0 {
                     let padded_input = self.curta_sha256_pad(&zero_chunk);
-                    let bytes = self.bytes_to_target(&padded_input);
+                    let bytes = padded_input
+                        .iter()
+                        .map(|x| x.to_variable(self).0)
+                        .collect::<Vec<_>>();
 
                     // Insert a dummy request and response.
-                    self.sha256_requests.insert(curr_rq, bytes);
+                    accelerator.sha256_requests.insert(curr_rq, bytes);
                     let digest = self.api.add_virtual_target_arr::<32>();
-                    self.sha256_responses.insert(curr_rq, digest);
+                    accelerator.sha256_responses.insert(curr_rq, digest);
 
                     // Increment the number of requests and chunks accordingly.
                     curr_rq += 1;
@@ -245,7 +277,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // If the number of chunks is not a multiple of 1024, pad the gadget with dummy chunks.
         while nb_chunks % 1024 != 0 {
-            self.curta_sha256(&zero_chunk);
+            self.curta_sha256_with_accelerator(&zero_chunk, accelerator);
             nb_chunks += 1;
         }
 
@@ -265,21 +297,21 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             while num_chunks_so_far < 1024 {
                 gadget
                     .padded_messages
-                    .extend_from_slice(&self.sha256_requests[rq_idx]);
+                    .extend_from_slice(&accelerator.sha256_requests[rq_idx]);
                 let hint = SHA256HintGenerator::new(
-                    &self.sha256_requests[rq_idx],
-                    self.sha256_responses[rq_idx],
+                    &accelerator.sha256_requests[rq_idx],
+                    accelerator.sha256_responses[rq_idx],
                 );
 
                 self.add_simple_generator(hint);
                 gadget
                     .digests
-                    .extend_from_slice(&self.sha256_responses[rq_idx]);
+                    .extend_from_slice(&accelerator.sha256_responses[rq_idx]);
                 gadget
                     .chunk_sizes
-                    .push(self.sha256_requests[rq_idx].len() / 64);
+                    .push(accelerator.sha256_requests[rq_idx].len() / 64);
 
-                num_chunks_so_far += self.sha256_requests[rq_idx].len() / 64;
+                num_chunks_so_far += accelerator.sha256_requests[rq_idx].len() / 64;
                 rq_idx += 1;
             }
 
@@ -303,7 +335,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha256_curta() {
+    fn test_sha256_curta_fixed_single() {
         env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
