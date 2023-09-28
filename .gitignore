@@ -27,3 +27,5 @@ keystore
 .idea/
 proof.json
 output.json
+
+build/
