@@ -12,7 +12,7 @@
             "framework": "plonky2",
             "baseDir": ".",
             "buildCommand": "mkdir build && RUST_LOG=debug cargo run --release --example eth_call build && mv ./target/release/examples/eth_call ./build/eth_call",
-            "proveCommand": "./build/eth_call prove input.json"
+            "proveCommand": "RUST_LOG=debug ./build/eth_call prove --input-json input.json"
         }
     ]
 }

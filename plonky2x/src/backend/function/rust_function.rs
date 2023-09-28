@@ -102,14 +102,14 @@ interface IFunctionVerifier {
 
 contract FunctionVerifier is IFunctionVerifier, Verifier {
 
-    bytes32 public constant TX_ORIGIN = {TX_ORIGIN};
+    address public constant TX_ORIGIN = {TX_ORIGIN};
 
     function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool) {
-        require(tx.origin == TX_ORIGIN);
+        return tx.origin == TX_ORIGIN;
     }
 
     function verificationKeyHash() external pure returns (bytes32) {
-        return keccak256(abi.encode(verifyingKey()));
+        return bytes32(0);
     }
 }
 ".replace("{TX_ORIGIN}", tx_origin);
