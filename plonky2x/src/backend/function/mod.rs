@@ -18,7 +18,7 @@ pub use request::{
 pub use result::{
     BytesResultData, ElementsResultData, ProofResult, ProofResultBase, RecursiveProofsResultData,
 };
-pub use rust_function::{RustFunction, VerifiableRustFunction};
+pub use rust_function::{EvmFunction, VerifiableEvmFunction};
 use serde::Serialize;
 use sha2::Digest;
 

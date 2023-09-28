@@ -1,12 +1,8 @@
 use std::fs::File;
-use std::io::{BufReader, Write};
-use std::path;
+use std::io::Write;
 
 use clap::Parser;
 use log::info;
-use plonky2::plonk::proof::Proof;
-use serde::Serialize;
-use sha2::Digest;
 
 use super::cli::{Args, BuildArgs, Commands};
 pub use super::request::{
@@ -20,14 +16,17 @@ use crate::backend::circuit::DefaultParameters;
 
 const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
 
-pub trait RustFunction {
+/// A trait for functions that take in `input_bytes` from EVM calls to FunctionGateway
+/// and return output bytes.
+/// tx_origin can be overriden to control who is allowed to "attest" to the result of the function.
+pub trait EvmFunction {
     fn run(input_bytes: Vec<u8>) -> Vec<u8>;
     fn tx_origin() -> String {
-        return "0xDEd0000E32f8F40414d3ab3a830f735a3553E18e".to_string();
+        "0xDEd0000E32f8F40414d3ab3a830f735a3553E18e".to_string()
     }
 }
 
-pub struct VerifiableRustFunction<F: RustFunction> {
+pub struct VerifiableEvmFunction<F: EvmFunction> {
     _phantom: std::marker::PhantomData<F>,
 }
 
@@ -35,7 +34,7 @@ pub struct VerifiableRustFunction<F: RustFunction> {
 ///
 ///
 /// Look at the `plonky2x/examples` for examples of how to use this trait.
-impl<F: RustFunction> VerifiableRustFunction<F> {
+impl<F: EvmFunction> VerifiableEvmFunction<F> {
     /// Saves the verifier contract to disk.
     pub fn compile(args: BuildArgs) {
         info!("Building verifier contract...");
@@ -55,11 +54,11 @@ impl<F: RustFunction> VerifiableRustFunction<F> {
     }
 
     pub fn prove(input_json: String) {
-        info!("Loading input.");
+        info!("Loading input...");
         let proof_request = ProofRequest::<DefaultParameters, 2>::load(&input_json);
         if let ProofRequest::Bytes(request) = proof_request {
             let input_bytes = request.data.input;
-            info!("Running function.");
+            info!("Running function...");
             let result_bytes = F::run(input_bytes);
             info!("Got result bytes.");
             let proof_result =

@@ -22,13 +22,13 @@ use ethers::middleware::Middleware;
 use ethers::providers::{Http, Provider};
 use ethers::types::transaction::eip2718::TypedTransaction;
 use ethers::types::{Eip1559TransactionRequest, H160};
-use plonky2x::backend::function::{RustFunction, VerifiableRustFunction};
+use plonky2x::backend::function::{EvmFunction, VerifiableEvmFunction};
 
 type SolTuple = sol! { tuple(uint32, uint64, address, address, bytes) };
 
 struct EthCall {}
 
-impl RustFunction for EthCall {
+impl EvmFunction for EthCall {
     fn run(input_bytes: Vec<u8>) -> Vec<u8> {
         let result = SolTuple::decode_single(&input_bytes, true).unwrap();
         let (chain_id, block_number, from_address, to_address, calldata_) = result;
@@ -54,7 +54,7 @@ impl RustFunction for EthCall {
 }
 
 fn main() {
-    VerifiableRustFunction::<EthCall>::entrypoint();
+    VerifiableEvmFunction::<EthCall>::entrypoint();
 }
 
 #[cfg(test)]
