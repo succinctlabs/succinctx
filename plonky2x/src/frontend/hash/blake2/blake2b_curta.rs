@@ -132,6 +132,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 mod tests {
     use std::env;
 
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
+
     use crate::backend::circuit::DefaultParameters;
     use crate::frontend::vars::Bytes32Variable;
     use crate::prelude::{BytesVariable, CircuitBuilder, Variable};
@@ -173,6 +176,8 @@ mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
+        type F = GoldilocksField;
+
         let msg_hex = "00f43f3ef4c05d1aca645d7b2b59af99d65661810b8a724818052db75e04afb60ea210002f9cac87493604cb5fff6644ea17c3b1817d243bc5a0aa6f0d11ab3df46f37b9adbf1ff3a446807e7a9ebc77647776b8bbda37dcf2f4f34ca7ba7bf4c7babfbe080642414245b501032c000000b7870a0500000000360b79058f3b331fbbb10d38a2e309517e24cc12094d0a5a7c9faa592884e9621aecff0224bc1a857a0bacadf4455e2c5b39684d2d5879b108c98315f6a14504348846c6deed3addcba24fc3af531d59f31c87bc454bf6f1d73eadaf2d22d60c05424142450101eead41c1266af7bc7becf961dcb93f3691642c9b6d50aeb65b92528b99c675608f2095a296ed52aa433c1bfed56e8546dae03b61cb59643a9cb39f82618f958b00041000000000000000000000000000000000000000000000000000000000000000008101a26cc6796f1025d51bd927351af541d3ab01d7a1b978a65e19c16ae2799b3286ca2401211009421c4e6bd80ef9e07918a26cc6796f1025d51bd927351af541d3ab01d7a1b978a65e19c16ae2799b3286ca2401211009421c4e6bd80ef9e079180400";
         let msg_bytes = hex::decode(msg_hex).unwrap();
         const MSG_LEN: usize = 423;
@@ -183,7 +188,7 @@ mod tests {
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let msg = builder.constant::<BytesVariable<MSG_LEN>>(msg_bytes.clone().try_into().unwrap());
-        let bytes_length = builder.constant::<Variable>(msg_bytes.len().into());
+        let bytes_length = builder.constant::<Variable>(F::from_canonical_usize(msg_bytes.len()));
         let result = builder.curta_blake2b_variable::<MAX_NUM_CHUNKS>(&msg.0, bytes_length);
 
         let expected_digest =
