@@ -17,16 +17,13 @@
 
 use std::env;
 
-use alloy_primitives::{Address, U160};
 use alloy_sol_types::{sol, SolType};
 use ethers::middleware::Middleware;
 use ethers::providers::{Http, Provider};
 use ethers::types::transaction::eip2718::TypedTransaction;
 use ethers::types::{Eip1559TransactionRequest, H160};
-use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::{RustFunction, VerifiableRustFunction};
-use plonky2x::prelude::{CircuitBuilder, Variable};
-use tokio;
+
 type SolTuple = sol! { tuple(uint32, uint64, address, address, bytes) };
 
 struct EthCall {}
