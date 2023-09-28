@@ -287,6 +287,20 @@ pub struct GetBeaconHistoricalBlock {
     pub close_slot_block_root_proof: Vec<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconExecutionPayload {
+    pub block_number: String,
+    pub proof: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconSlotNumber {
+    pub slot: u64,
+    pub proof: Vec<String>,
+}
+
 impl BeaconClient {
     /// Creates a new BeaconClient based on a rpc url.
     pub fn new(rpc_url: String) -> Self {
@@ -577,6 +591,31 @@ impl BeaconClient {
         let client = Client::new();
         let response = client.get(endpoint).timeout(Duration::new(240, 0)).send()?;
         let response: CustomResponse<GetBeaconHistoricalBlock> = response.json()?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets the execution payload at the given `beacon_id`.
+    pub fn get_execution_payload(&self, beacon_id: String) -> Result<GetBeaconExecutionPayload> {
+        let endpoint = format!(
+            "{}/api/beacon/proof/executionPayload/{}",
+            self.rpc_url, beacon_id
+        );
+        info!("{}", endpoint);
+        let client = Client::new();
+        let response = client.get(endpoint).timeout(Duration::new(60, 0)).send()?;
+        let response: CustomResponse<GetBeaconExecutionPayload> = response.json()?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets the slot from header + SSZ proof at the given `beacon_id`.
+    pub fn get_slot_number(&self, beacon_id: String) -> Result<GetBeaconSlotNumber> {
+        let endpoint = format!("{}/api/beacon/proof/slot/{}", self.rpc_url, beacon_id);
+        info!("{}", endpoint);
+        let client = Client::new();
+        let response = client.get(endpoint).timeout(Duration::new(60, 0)).send()?;
+        let response: CustomResponse<GetBeaconSlotNumber> = response.json()?;
         assert!(response.success);
         Ok(response.result)
     }
