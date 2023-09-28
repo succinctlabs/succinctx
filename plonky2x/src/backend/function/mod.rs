@@ -180,10 +180,32 @@ impl<C: Circuit> VerifiableFunction<C> {
         let mut gate_registry = GateRegistry::new();
         C::register_generators::<InnerParameters, D>(&mut generator_registry);
         C::register_gates::<InnerParameters, D>(&mut gate_registry);
-        let circuit =
+        let mut circuit =
             CircuitBuild::<InnerParameters, D>::load(&path, &gate_registry, &generator_registry)
                 .unwrap();
         info!("Successfully loaded circuit.");
+
+        if let ProofRequest::RecursiveProofs(ref request) = request {
+            if circuit.id() != request.data.circuit_id {
+                let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
+                circuit = CircuitBuild::<InnerParameters, D>::load(
+                    &path,
+                    &gate_registry,
+                    &generator_registry,
+                )
+                .unwrap()
+            }
+        } else if let ProofRequest::Elements(ref request) = request {
+            if circuit.id() != request.data.circuit_id {
+                let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
+                circuit = CircuitBuild::<InnerParameters, D>::load(
+                    &path,
+                    &gate_registry,
+                    &generator_registry,
+                )
+                .unwrap()
+            }
+        }
 
         let input = request.input();
         let (proof, output) = circuit.prove(&input);
@@ -231,7 +253,11 @@ impl<C: Circuit> VerifiableFunction<C> {
             file.write_all(json.as_bytes()).unwrap();
             info!("Successfully saved full result to disk at output.json.");
         } else {
-            panic!("output is not bytes")
+            let result = ProofResult::from_proof_output(proof, output);
+            let json = serde_json::to_string_pretty(&result).unwrap();
+            let mut file = File::create("output.json").unwrap();
+            file.write_all(json.as_bytes()).unwrap();
+            info!("Successfully saved proof to disk at output.json.");
         }
     }
 
