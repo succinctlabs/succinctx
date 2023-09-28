@@ -7,7 +7,7 @@ use plonky2::iop::target::Target;
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable, Div};
+use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable};
 
 #[derive(Debug, Clone)]
 pub struct CurtaBlake2BRequest {
@@ -104,7 +104,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             padded_messages.extend(curta_req.message.clone());
             msg_lengths.push(curta_req.message_len);
             digests.extend(curta_req.digest);
-            chunk_sizes.push(curta_req.chunk_size);
+            chunk_sizes.push(curta_req.chunk_size as u64);
         }
 
         let mut blake2b_builder_gadget: BLAKE2BBuilderGadget<
