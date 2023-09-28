@@ -1,19 +1,18 @@
-//! An example of a basic circuit function which wraps an existing circuit and makes it compatible
-//! with a standard for serializing and deserializing inputs and outputs.
+//! An example of a basic EVM function which takes in on-chain input bytes and returns output bytes
+//! that correspond to the result of an eth_call.
 //!
 //! To build the binary:
 //!
-//!     `cargo build --release --bin circuit_function_field`
+//!     `cargo build --example eth_call --release`
 //!
-//! To build the circuit:
+//! To build the function, which saves the verifier contract:
 //!
-//!     `./target/release/circuit_function_field build`
+//!     `./target/release/example/eth_call build`
 //!
-//! To prove the circuit using field-based io:
+//! To generate the output and proof:
 //!
-//!    `./target/release/circuit_function_field prove --input-json input.json`
+//!    `./target/release/example/eth_call prove --input-json input.json`
 //!
-//! Note that this circuit will not work with evm-based io.
 
 use std::env;
 
