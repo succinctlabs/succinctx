@@ -4,12 +4,10 @@ use std::path;
 
 use clap::Parser;
 use log::info;
-use plonky2::field::types::PrimeField64;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use serde::Serialize;
 use sha2::Digest;
 
-use super::cli::{BuildArgs, ProveArgs, ProveWrappedArgs};
+use super::cli::{Args, BuildArgs, Commands};
 pub use super::request::{
     BytesRequestData, ElementsRequestData, ProofRequest, ProofRequestBase,
     RecursiveProofsRequestData,
@@ -17,14 +15,7 @@ pub use super::request::{
 pub use super::result::{
     BytesResultData, ElementsResultData, ProofResult, ProofResultBase, RecursiveProofsResultData,
 };
-use crate::backend::circuit::config::Groth16VerifierParameters;
-use crate::backend::circuit::{
-    Circuit, CircuitBuild, DefaultParameters, PlonkParameters, PublicOutput,
-};
-use crate::backend::function::cli::{Args, Commands};
-use crate::backend::wrapper::wrap::WrappedCircuit;
-use crate::frontend::builder::CircuitIO;
-use crate::prelude::{CircuitBuilder, GateRegistry, HintRegistry};
+use crate::backend::circuit::DefaultParameters;
 
 const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
 
