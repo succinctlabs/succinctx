@@ -35,13 +35,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         message: &[ByteVariable],
     ) -> Vec<ByteVariable> {
-        // TODO: Currently, Curta does not support no-ops over BLAKE2B chunks. Until Curta BLAKE2B
-        // supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
-        if (message.len() % 128 == 0) && (!message.len() == 0) {
-            message.to_vec()
-        } else {
-            let padlen = 128 - (message.len() % 128);
+        assert!(message.len() <= MAX_NUM_CHUNKS * 128, "message too long");
 
+        let padlen = MAX_NUM_CHUNKS * 128 - message.len();
+        if padlen > 0 {
             let mut padded_message = Vec::new();
             padded_message.extend(message);
 
@@ -50,6 +47,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             }
 
             padded_message
+        } else {
+            message.to_vec()
         }
     }
 
@@ -59,12 +58,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         message: &[ByteVariable],
         message_len: U64Variable,
     ) -> Bytes32Variable {
-        // TODO: Currently, Curta does not support no-ops over BLAKE2B chunks. Until Curta BLAKE2B
-        // supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
-        let expected_last_chunk_num = self.constant::<U64Variable>((MAX_NUM_CHUNKS - 1).into());
-        let last_chunk_num = message_len.div(self.constant::<U64Variable>(128.into()), self);
-        self.assert_is_equal(expected_last_chunk_num, last_chunk_num);
-
         let padded_message = self.curta_blake2b_pad::<MAX_NUM_CHUNKS>(message);
 
         let message_target_bytes = padded_message
@@ -156,9 +149,11 @@ mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
+        const MAX_NUM_CHUNKS: usize = 4;
+
         let mut builder = CircuitBuilder::<L, D>::new();
         let zero = builder.zero();
-        let result = builder.curta_blake2b_variable::<1>(&[], zero);
+        let result = builder.curta_blake2b_variable::<MAX_NUM_CHUNKS>(&[], zero);
 
         let expected_digest =
             bytes32!("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8");
@@ -180,15 +175,18 @@ mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
+        let msg_hex = "00f43f3ef4c05d1aca645d7b2b59af99d65661810b8a724818052db75e04afb60ea210002f9cac87493604cb5fff6644ea17c3b1817d243bc5a0aa6f0d11ab3df46f37b9adbf1ff3a446807e7a9ebc77647776b8bbda37dcf2f4f34ca7ba7bf4c7babfbe080642414245b501032c000000b7870a0500000000360b79058f3b331fbbb10d38a2e309517e24cc12094d0a5a7c9faa592884e9621aecff0224bc1a857a0bacadf4455e2c5b39684d2d5879b108c98315f6a14504348846c6deed3addcba24fc3af531d59f31c87bc454bf6f1d73eadaf2d22d60c05424142450101eead41c1266af7bc7becf961dcb93f3691642c9b6d50aeb65b92528b99c675608f2095a296ed52aa433c1bfed56e8546dae03b61cb59643a9cb39f82618f958b00041000000000000000000000000000000000000000000000000000000000000000008101a26cc6796f1025d51bd927351af541d3ab01d7a1b978a65e19c16ae2799b3286ca2401211009421c4e6bd80ef9e07918a26cc6796f1025d51bd927351af541d3ab01d7a1b978a65e19c16ae2799b3286ca2401211009421c4e6bd80ef9e079180400";
+        let msg_bytes = hex::decode(msg_hex).unwrap();
+        const MSG_LEN: usize = 423;
+        assert!(msg_bytes.len() == MSG_LEN);
+
+        const MAX_NUM_CHUNKS: usize = 5;
+
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let msg = builder.constant::<BytesVariable<423>>(hex::decode(
-            "00f43f3ef4c05d1aca645d7b2b59af99d65661810b8a724818052db75e04afb60ea210002f9cac87493604cb5fff6644ea17c3b1817d243bc5a0aa6f0d11ab3df46f37b9adbf1ff3a446807e7a9ebc77647776b8bbda37dcf2f4f34ca7ba7bf4c7babfbe080642414245b501032c000000b7870a0500000000360b79058f3b331fbbb10d38a2e309517e24cc12094d0a5a7c9faa592884e9621aecff0224bc1a857a0bacadf4455e2c5b39684d2d5879b108c98315f6a14504348846c6deed3addcba24fc3af531d59f31c87bc454bf6f1d73eadaf2d22d60c05424142450101eead41c1266af7bc7becf961dcb93f3691642c9b6d50aeb65b92528b99c675608f2095a296ed52aa433c1bfed56e8546dae03b61cb59643a9cb39f82618f958b00041000000000000000000000000000000000000000000000000000000000000000008101a26cc6796f1025d51bd927351af541d3ab01d7a1b978a65e19c16ae2799b3286ca2401211009421c4e6bd80ef9e07918a26cc6796f1025d51bd927351af541d3ab01d7a1b978a65e19c16ae2799b3286ca2401211009421c4e6bd80ef9e079180400").unwrap().try_into().unwrap()
-        );
-
-        let bytes_length = builder.constant::<U64Variable>(423.into());
-
-        let result = builder.curta_blake2b_variable::<4>(&msg.0, bytes_length);
+        let msg = builder.constant::<BytesVariable<MSG_LEN>>(msg_bytes.clone().try_into().unwrap());
+        let bytes_length = builder.constant::<U64Variable>(msg_bytes.len().into());
+        let result = builder.curta_blake2b_variable::<MAX_NUM_CHUNKS>(&msg.0, bytes_length);
 
         let expected_digest =
             bytes32!("7c38fc8356aa20394c7f538e3cee3f924e6d9252494c8138d1a6aabfc253118f");
