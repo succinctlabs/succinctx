@@ -63,7 +63,7 @@ impl<F: RustFunction> VerifiableRustFunction<F> {
             let result_bytes = F::run(input_bytes);
             info!("Got result bytes.");
             let proof_result =
-                ProofResult::<DefaultParameters, 2>::from_bytes(result_bytes, vec![]);
+                ProofResult::<DefaultParameters, 2>::from_bytes(vec![], result_bytes);
             let json = serde_json::to_string_pretty(&proof_result).unwrap();
             let mut file = File::create("output.json").unwrap();
             file.write_all(json.as_bytes()).unwrap();
