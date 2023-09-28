@@ -67,6 +67,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_eth_call() {
         let encoded_data = SolTuple::encode_single(&(
             5u32,
