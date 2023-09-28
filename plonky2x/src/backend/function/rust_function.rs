@@ -9,7 +9,14 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 use serde::Serialize;
 use sha2::Digest;
 
-use self::cli::{BuildArgs, ProveArgs, ProveWrappedArgs};
+use super::cli::{BuildArgs, ProveArgs, ProveWrappedArgs};
+pub use super::request::{
+    BytesRequestData, ElementsRequestData, ProofRequest, ProofRequestBase,
+    RecursiveProofsRequestData,
+};
+pub use super::result::{
+    BytesResultData, ElementsResultData, ProofResult, ProofResultBase, RecursiveProofsResultData,
+};
 use crate::backend::circuit::config::Groth16VerifierParameters;
 use crate::backend::circuit::{
     Circuit, CircuitBuild, DefaultParameters, PlonkParameters, PublicOutput,
@@ -18,24 +25,17 @@ use crate::backend::function::cli::{Args, Commands};
 use crate::backend::wrapper::wrap::WrappedCircuit;
 use crate::frontend::builder::CircuitIO;
 use crate::prelude::{CircuitBuilder, GateRegistry, HintRegistry};
-pub use crate::request::{
-    BytesRequestData, ElementsRequestData, ProofRequest, ProofRequestBase,
-    RecursiveProofsRequestData,
-};
-pub use crate::result::{
-    BytesResultData, ElementsResultData, ProofResult, ProofResultBase, RecursiveProofsResultData,
-};
 
 const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
 
-trait DeployableFunction {
+pub trait RustFunction {
     fn run(input_bytes: Vec<u8>) -> Vec<u8>;
     fn tx_origin() -> String {
         return "0xDEd0000E32f8F40414d3ab3a830f735a3553E18e".to_string();
     }
 }
 
-pub struct RustFunction<F: DeployableFunction> {
+pub struct VerifiableRustFunction<F: RustFunction> {
     _phantom: std::marker::PhantomData<F>,
 }
 
@@ -43,7 +43,7 @@ pub struct RustFunction<F: DeployableFunction> {
 ///
 ///
 /// Look at the `plonky2x/examples` for examples of how to use this trait.
-impl<F: DeployableFunction> RustFunction<F> {
+impl<F: RustFunction> VerifiableRustFunction<F> {
     /// Saves the verifier contract to disk.
     pub fn compile(args: BuildArgs) {
         info!("Building verifier contract...");
@@ -62,13 +62,18 @@ impl<F: DeployableFunction> RustFunction<F> {
         );
     }
 
-    pub fn prove(args: ProveArgs) {
+    pub fn prove(input_json: String) {
+        info!("Loading input.");
+        let file = std::fs::File::open(input_json).unwrap();
+        let rdr = std::io::BufReader::new(file);
+        let input_bytes = serde_json::from_reader(rdr).unwrap();
         info!("Running function.");
-        // TODO: read input_json
-        let result_bytes = F::run(args.input_json);
-        let proof_result = ProofResult::from_bytes(result_bytes, vec![]);
+        let result_bytes = F::run(input_bytes);
+        info!("Got result bytes.");
+        let proof_result = ProofResult::<DefaultParameters, 2>::from_bytes(result_bytes, vec![]);
+        let json = serde_json::to_string_pretty(&proof_result).unwrap();
         let mut file = File::create("output.json").unwrap();
-        file.write_all(proof_result.as_bytes()).unwrap();
+        file.write_all(json.as_bytes()).unwrap();
         info!("Successfully saved proof to disk at output.json.");
     }
 
@@ -83,10 +88,10 @@ impl<F: DeployableFunction> RustFunction<F> {
                 Self::compile(args);
             }
             Commands::Prove(args) => {
-                Self::prove(args);
+                Self::prove(args.input_json);
             }
             Commands::ProveWrapped(args) => {
-                Self::prove(args);
+                Self::prove(args.input_json);
             }
         }
     }
