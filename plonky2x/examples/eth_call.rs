@@ -33,11 +33,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use plonky2::field::types::Field;
-    use plonky2x::prelude::{GoldilocksField, PoseidonGoldilocksConfig};
-
     use super::*;
 
     #[test]

@@ -11,7 +11,7 @@
             "name": "rust-function",
             "framework": "plonky2",
             "baseDir": ".",
-            "buildCommand": "cargo run --release --example eth_call build && mv ./target/release/examples/eth_call ./build/eth_call",
+            "buildCommand": "mkdir build && RUST_LOG=debug cargo run --release --example eth_call build && mv ./target/release/examples/eth_call ./build/eth_call",
             "proveCommand": "./build/eth_call prove input.json"
         }
     ]
