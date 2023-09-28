@@ -5,9 +5,8 @@ use curta::chip::hash::blake::blake2b::generator::BLAKE2BAirParameters;
 use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
-use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable};
+use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable, Variable};
 
 #[derive(Debug, Clone)]
 pub struct CurtaBlake2BRequest {
@@ -56,7 +55,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn curta_blake2b_variable<const MAX_NUM_CHUNKS: usize>(
         &mut self,
         message: &[ByteVariable],
-        message_len: U64Variable,
+        message_len: Variable,
     ) -> Bytes32Variable {
         let padded_message = self.curta_blake2b_pad::<MAX_NUM_CHUNKS>(message);
 
@@ -134,9 +133,8 @@ mod tests {
     use std::env;
 
     use crate::backend::circuit::DefaultParameters;
-    use crate::frontend::uint::uint64::U64Variable;
     use crate::frontend::vars::Bytes32Variable;
-    use crate::prelude::{BytesVariable, CircuitBuilder};
+    use crate::prelude::{BytesVariable, CircuitBuilder, Variable};
     use crate::utils::bytes32;
 
     type L = DefaultParameters;
@@ -185,7 +183,7 @@ mod tests {
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let msg = builder.constant::<BytesVariable<MSG_LEN>>(msg_bytes.clone().try_into().unwrap());
-        let bytes_length = builder.constant::<U64Variable>(msg_bytes.len().into());
+        let bytes_length = builder.constant::<Variable>(msg_bytes.len().into());
         let result = builder.curta_blake2b_variable::<MAX_NUM_CHUNKS>(&msg.0, bytes_length);
 
         let expected_digest =
