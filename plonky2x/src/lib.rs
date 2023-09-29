@@ -29,7 +29,7 @@ pub mod prelude {
     pub use crate::frontend::ops::*;
     pub use crate::frontend::vars::{
         ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable,
-        Variable,
+        OutputVariableStream, ValueStream, Variable, VariableStream,
     };
     pub use crate::utils::{address, bytes, bytes32, hex};
 }

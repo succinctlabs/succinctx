@@ -52,6 +52,14 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
         let variables = self.read_exact(builder, V::nb_elements());
         V::from_variables_unsafe(&variables)
     }
+
+    pub fn read_vec<V: CircuitVariable>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+        len: usize,
+    ) -> Vec<V> {
+        (0..len).map(|_| self.read::<V>(builder)).collect()
+    }
 }
 
 impl VariableStream {
@@ -141,7 +149,15 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         V::from_elements::<L, D>(elements)
     }
 
-    pub(crate) fn read_all(&mut self) -> &[L::Field] {
+    pub fn read_exact(&mut self, len: usize) -> &[L::Field] {
+        self.0.read_exact(len)
+    }
+
+    pub fn write_slice(&mut self, values: &[L::Field]) {
+        self.0.write_slice(values);
+    }
+
+    pub fn read_all(&mut self) -> &[L::Field] {
         self.0.read_all()
     }
 
