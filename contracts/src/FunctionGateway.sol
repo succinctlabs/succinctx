@@ -8,185 +8,9 @@ import {FunctionRegistry} from "./FunctionRegistry.sol";
 import {TimelockedUpgradeable} from "./upgrades/TimelockedUpgradeable.sol";
 import {IFeeVault} from "src/payments/interfaces/IFeeVault.sol";
 
-contract FunctionGatewayUpdated {
-    mapping(bytes32 => address) functionIdToVerifier;
-
-    function callbackRequestV1(
-        bytes32 _functionId,
-        bytes memory _input,
-        bytes4 _callbackSelector,
-        bytes memory _context
-    ) external payable returns (bytes32) {
-        requests[nonce++] = keccak256(FunctionRequest({
-            functionId: _functionId,
-            inputBytes: _input,
-            context: _context,
-            callbackAddress: msg.sender,
-            callbackSelector: _callbackSelector
-        }));
-    }
-
-    function fulfillCallbackRequestV1(
-        bytes32 _requestId,
-        bytes32 _functionId,
-        bytes memory _input,
-        bytes memory _output,
-        bytes memory _proof,
-        bytes memory _context,
-        address _callbackAddress,
-        bytes32 _callbackSelector
-    ) external {
-        bytes32 requestHash = keccak256(FunctionRequest({
-            functionId: _functionId,
-            inputBytes: _input,
-            context: _context,
-            callbackAddress: _callbackAddress,
-            callbackSelector: _callbackSelector
-        }));
-        require(requests[_requestId] == requestHash, "Request not found");
-
-        address verifier = functionIdToVerifier[_functionId];
-        bytes32 inputHash = sha256(_input);
-        bytes32 outputHash = sha256(_output);
-        if (
-            !IFunctionVerifier(verifier).verify(
-                inputHash,
-                outputHash,
-                _proof
-            )
-        ) {
-            revert InvalidProof();
-        }
-
-        (bool status, ) = _callbackAddress.call(
-            abi.encodeWithSelector(_callbackSelector, _input, _output, _context)
-        );
-        if (!status) {
-            revert CallbackFailed(_callbackAddress, _callbackSelector);
-        }
-
-        delete requests[_requestId];
-    }
-
-    function storeRequestV1(
-        bytes32 _functionId,
-        bytes memory _input
-    ) {
-        emit StoreRequest(_functionId, _input, uint256(0), address(0), bytes4(0));
-    }
-
-    function storeRequestV1(
-        bytes32 _functionId,
-        bytes memory _input,
-        uint256 _chain_id,
-        address _address,
-        bytes4 _selector
-    ) {
-        emit StoreRequest(_functionId, _input, _chain_id, _address, _selector);
-    }
-
-    function fulfillStoreRequest(
-        bytes32 _functionId,
-        bytes memory _input,
-        bytes memory _output,
-        bytes memory _proof,
-        address _address,
-        bytes4 _selector
-    ) {
-        address verifier = functionIdToVerifier[_functionId];
-        bytes32 inputHash = sha256(_input);
-        bytes32 outputHash = sha256(_output);
-        if (
-            !IFunctionVerifier(verifier).verify(
-                inputHash,
-                outputHash,
-                _proof
-            )
-        ) {
-            revert InvalidProof();
-        }
-
-        // Default case
-        oracle[_functionId][inputHash] = outputHash;
-
-        if (_address != address(0)) {
-            _address.call(
-                abi.encodeWithSelector(_selector, _functionId, _input, _output)
-            );
-            delete oracle[_functionId][inputHash];
-        }
-    }
-
-    function verifyStored(
-        bytes32 _functionId,
-        bytes memory _input,
-        bytes memory _output
-    ) {
-        address verifier = functionIdToVerifier[_functionId];
-        bytes32 inputHash = sha256(_input);
-        bytes32 outputHash = sha256(_output);
-        if (
-            !IFunctionVerifier(verifier).verify(
-                inputHash,
-                outputHash,
-                _proof
-            )
-        ) {
-            revert InvalidProof();
-        }
-    }
-}
-
-contract AnotherContract {
-    function requestStepWithCallback(uint256 targetSlot) {
-        bytes32 syncCommitteeRoot = syncCommittee[targetSlot / 8192];
-        bytes memory input = abi.encodePacked(targetSlot, syncCommitteeRoot);
-        bytes32 requestId = IFunctionGateway(FUNCTION_GATEWAY).callbackRequest(
-            FUNCTION_ID,
-            input,
-            this.stepCallback.selector,
-            context_
-        );
-    }
-
-    function stepCallback(bytes memory input, bytes memory output, bytes memory context_) onlyGateway {
-        Request memory currentRequest = IGateway.currentRequest(); // If you want to get the current request that is being processed
-        // uint256 targetSlot, _ = abi.decode(input);
-        bytes32 targetHeader = abi.decode(output, (bytes32));
-        headers[targetSlot] = targetHeader;
-    }
-
-    function statelessStepRequest(uint256 targetSlot) {
-        bytes32 syncCommitteeRoot = syncCommittee[targetSlot / 8192];
-        bytes memory input = abi.encodePacked(targetSlot, syncCommitteeRoot);
-        IFunctionGateway.storeRequestV1(FUNCTION_ID, input, chain_id, address(this), this.step.selector);
-    }
-
-    // Stateless Request
-    function step(bytes32 functionId, bytes memory input, bytes memory output) {
-        require(FUNCTION_ID == functionId);
-        require(IFunctionGateway(FUNCTION_GATEWAY).verifyStored(_functionId, inputs, _output));
-
-        uint256 targetSlot, _ = packedReader.readUint256(input, );
-        bytes32 syncCommitteeRoot = packedReader.readUint256(input, (bytes32));
-
-        (uint256 targetSlot, bytes32 syncCommitteeRoot) = abi.decode(input, (uint256, bytes32));
-        assert(syncCommittee[targetSlot / 8192] == syncCommitteeRoot);
-
-        (bytes32 targetHeaderRoot, bytes32 nextSyncCommitteeRoot) = abi.decode(output, (bytes32, bytes32));
-        headers[targetSlot] = targetHeaderRoot;
-        syncCommittees[targetSlot / 8192 + 1] = nextSyncCommitteeRoot;
-    }
-}
-
-contract FunctionGateway is
-    IFunctionGateway,
-    FunctionRegistry,
-    TimelockedUpgradeable
-{
+contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgradeable {
     /// @dev The proof id for an aggregate proof.
-    bytes32 public constant AGGREGATION_FUNCTION_ID =
-        keccak256("AGGREGATION_FUNCTION_ID");
+    bytes32 public constant AGGREGATION_FUNCTION_ID = keccak256("AGGREGATION_FUNCTION_ID");
 
     /// @dev The default gas limit for requests.
     uint256 public constant DEFAULT_GAS_LIMIT = 1000000;
@@ -204,32 +28,21 @@ contract FunctionGateway is
     /// @dev During the request functions, this is used to add msg.value to the sender's balance.
     address public feeVault;
 
-    function initialize(
-        uint256 _scalar,
-        address _feeVault,
-        address _timelock,
-        address _guardian
-    ) external initializer {
+    function initialize(uint256 _scalar, address _feeVault, address _timelock, address _guardian)
+        external
+        initializer
+    {
         scalar = _scalar;
         feeVault = _feeVault;
         __TimelockedUpgradeable_init(_timelock, _guardian);
     }
 
-    function request(
-        bytes32 _functionId,
-        bytes memory _input,
-        bytes4 _callbackSelector,
-        bytes memory _context
-    ) external payable returns (bytes32) {
-        return
-            request(
-                _functionId,
-                _input,
-                _callbackSelector,
-                _context,
-                DEFAULT_GAS_LIMIT,
-                tx.origin
-            );
+    function request(bytes32 _functionId, bytes memory _input, bytes4 _callbackSelector, bytes memory _context)
+        external
+        payable
+        returns (bytes32)
+    {
+        return request(_functionId, _input, _callbackSelector, _context, DEFAULT_GAS_LIMIT, tx.origin);
     }
 
     /// @dev Requests for a proof to be generated by the marketplace.
@@ -258,25 +71,12 @@ contract FunctionGateway is
             callbackFulfilled: false
         });
 
-        uint256 feeAmount = _handlePayment(
-            _gasLimit,
-            _refundAccount,
-            msg.sender,
-            msg.value
-        );
+        uint256 feeAmount = _handlePayment(_gasLimit, _refundAccount, msg.sender, msg.value);
 
         bytes32 requestId = keccak256(abi.encode(nonce, r));
         requests[requestId] = r;
 
-        emit ProofRequested(
-            nonce,
-            _functionId,
-            requestId,
-            _input,
-            _context,
-            _gasLimit,
-            feeAmount
-        );
+        emit ProofRequested(nonce, _functionId, requestId, _input, _context, _gasLimit, feeAmount);
         nonce++;
         return requestId;
     }
@@ -285,13 +85,7 @@ contract FunctionGateway is
     /// @param _requestId The id of the request to be fulfilled.
     /// @param _outputHash The output hash of the proof.
     /// @param _proof The proof.
-    function fulfill(
-        bytes32 _inputHash,
-        bytes32 _outputHash,
-        bytes memory _proof,
-        bool storeBytes,
-        bytes memory _outputBytes
-    ) external {
+    function fulfill(bytes32 _requestId, bytes32 _outputHash, bytes memory _proof) external {
         // Do some sanity checks.
         FunctionRequest storage r = requests[_requestId];
         if (r.callbackAddress == address(0)) {
@@ -306,24 +100,8 @@ contract FunctionGateway is
 
         // Verify the proof.
         address verifier = verifiers[r.functionId];
-        if (
-            !IFunctionVerifier(verifier).verify(
-                r.inputHash,
-                _outputHash,
-                _proof
-            )
-        ) {
-            revert InvalidProof(
-                address(verifier),
-                r.inputHash,
-                _outputHash,
-                _proof
-            );
-        }
-
-        if storeBytes {
-            // Verify `_outputBytes` matches the `outputHash`
-            r.outputBytes = _outputBytes;
+        if (!IFunctionVerifier(verifier).verify(r.inputHash, _outputHash, _proof)) {
+            revert InvalidProof(address(verifier), r.inputHash, _outputHash, _proof);
         }
 
         emit ProofFulfilled(_requestId, _outputHash, _proof);
@@ -346,9 +124,7 @@ contract FunctionGateway is
     ) external {
         // Collect the input hashes and verification key hashes.
         bytes32[] memory inputHashes = new bytes32[](_requestIds.length);
-        bytes32[] memory verificationKeyHashes = new bytes32[](
-            _requestIds.length
-        );
+        bytes32[] memory verificationKeyHashes = new bytes32[](_requestIds.length);
         for (uint256 i = 0; i < _requestIds.length; i++) {
             bytes32 requestId = _requestIds[i];
             FunctionRequest storage r = requests[requestId];
@@ -359,8 +135,7 @@ contract FunctionGateway is
             }
             inputHashes[i] = r.inputHash;
             address verifier = verifiers[r.functionId];
-            verificationKeyHashes[i] = IFunctionVerifier(verifier)
-                .verificationKeyHash();
+            verificationKeyHashes[i] = IFunctionVerifier(verifier).verificationKeyHash();
         }
 
         // Do some sanity checks.
@@ -370,13 +145,8 @@ contract FunctionGateway is
             revert InputsRootMismatch(_inputsRoot, inputHashes);
         } else if (_outputsRoot != keccak256(abi.encode(_outputHashes))) {
             revert OutputsRootMismatch(_outputsRoot, _outputHashes);
-        } else if (
-            _verificationKeyRoot != keccak256(abi.encode(verificationKeyHashes))
-        ) {
-            revert VerificationKeysRootMismatch(
-                _verificationKeyRoot,
-                verificationKeyHashes
-            );
+        } else if (_verificationKeyRoot != keccak256(abi.encode(verificationKeyHashes))) {
+            revert VerificationKeysRootMismatch(_verificationKeyRoot, verificationKeyHashes);
         }
 
         // Update the requests.
@@ -388,28 +158,12 @@ contract FunctionGateway is
 
         // Verify the aggregate proof.
         address aggregationVerifier = verifiers[AGGREGATION_FUNCTION_ID];
-        if (
-            !IFunctionVerifier(aggregationVerifier).verify(
-                _inputsRoot,
-                _outputsRoot,
-                _aggregateProof
-            )
-        ) {
-            revert InvalidProof(
-                address(aggregationVerifier),
-                _inputsRoot,
-                _outputsRoot,
-                _aggregateProof
-            );
+        if (!IFunctionVerifier(aggregationVerifier).verify(_inputsRoot, _outputsRoot, _aggregateProof)) {
+            revert InvalidProof(address(aggregationVerifier), _inputsRoot, _outputsRoot, _aggregateProof);
         }
 
         emit ProofBatchFulfilled(
-            _requestIds,
-            _aggregateProof,
-            _inputsRoot,
-            _outputHashes,
-            _outputsRoot,
-            _verificationKeyRoot
+            _requestIds, _aggregateProof, _inputsRoot, _outputHashes, _outputsRoot, _verificationKeyRoot
         );
     }
 
@@ -417,12 +171,7 @@ contract FunctionGateway is
     /// @param _requestId The id of the request to be fulfilled.
     /// @param _output The output of the proof.
     /// @param _context The context of the runtime.
-    function callback(
-        bytes32 _requestId,
-        bytes memory inputs,
-        bytes memory _output,
-        bytes memory _context
-    ) external {
+    function callback(bytes32 _requestId, bytes memory _output, bytes memory _context) external {
         // Do some sanity checks.
         FunctionRequest storage r = requests[_requestId];
         if (r.callbackFulfilled) {
@@ -441,17 +190,13 @@ contract FunctionGateway is
         r.callbackFulfilled = true;
 
         // Call the callback.
-        (bool status, ) = r.callbackAddress.call(
-            abi.encodeWithSelector(r.callbackSelector, _output, _context)
-        );
+        (bool status,) = r.callbackAddress.call(abi.encodeWithSelector(r.callbackSelector, _output, _context));
         if (!status) {
             revert CallbackFailed(r.callbackAddress, r.callbackSelector);
         }
 
         emit CallbackFulfilled(_requestId, _output, _context);
     }
-
-    function getOutput
 
     /// @notice Update the scalar.
     function updateScalar(uint256 _scalar) external onlyGuardian {
@@ -466,9 +211,7 @@ contract FunctionGateway is
     }
 
     /// @notice Calculates the feeAmount for a given gasLimit.
-    function calculateFeeAmount(
-        uint256 _gasLimit
-    ) public view returns (uint256 feeAmount) {
+    function calculateFeeAmount(uint256 _gasLimit) public view returns (uint256 feeAmount) {
         if (scalar == 0) {
             feeAmount = tx.gasprice * _gasLimit;
         } else {
@@ -478,12 +221,10 @@ contract FunctionGateway is
 
     /// @dev Calculates the feeAmount for the request, sends the feeAmount to the FeeVault, and
     ///      sends the excess amount as a refund to the refundAccount.
-    function _handlePayment(
-        uint256 _gasLimit,
-        address _refundAccount,
-        address _senderAccount,
-        uint256 _value
-    ) private returns (uint256 feeAmount) {
+    function _handlePayment(uint256 _gasLimit, address _refundAccount, address _senderAccount, uint256 _value)
+        private
+        returns (uint256 feeAmount)
+    {
         feeAmount = calculateFeeAmount(_gasLimit);
         if (_value < feeAmount) {
             revert InsufficientFeeAmount(feeAmount, _value);
@@ -497,7 +238,7 @@ contract FunctionGateway is
         // Send the excess amount to the refund account.
         uint256 refundAmount = _value - feeAmount;
         if (refundAmount > 0) {
-            (bool success, ) = _refundAccount.call{value: refundAmount}("");
+            (bool success,) = _refundAccount.call{value: refundAmount}("");
             if (!success) {
                 revert RefundFailed(_refundAccount, refundAmount);
             }
