@@ -114,7 +114,6 @@ impl<L: PlonkParameters<D>, const D: usize> LessThan<L, D> for Variable {
     type Output = BoolVariable;
 
     fn lt(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        // FIXME: Check for overflows and edge cases
         let n_bits: usize = L::Field::BITS;
         let max = builder.constant(L::Field::from_canonical_u64(1 << (n_bits - 1)));
         let _one: Variable = builder.constant(L::Field::from_canonical_u64(1));
