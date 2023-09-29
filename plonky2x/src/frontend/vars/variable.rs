@@ -116,7 +116,7 @@ impl<L: PlonkParameters<D>, const D: usize> LessThan<L, D> for Variable {
     fn lt(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let n_bits: usize = L::Field::BITS;
         let max = builder.constant(L::Field::from_canonical_u64(1 << (n_bits - 1)));
-        let _one: Variable = builder.constant(L::Field::from_canonical_u64(1));
+        let _one: Variable = builder.one::<Variable>();
         // from circomlib: https://github.com/iden3/circomlib/blob/master/circuits/comparators.circom#L89
         let tmp = builder.add(self, max);
         let res = builder.sub(tmp, rhs);
