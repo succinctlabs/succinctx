@@ -35,13 +35,9 @@ impl<T: WitnessBigUint<F>, F: PrimeField64> WitnessKeccakHandler<F> for T {
         let padded_len_bits = num_actual_blocks * KECCAK256_R;
 
         //Padding is of form [1,0,0,..,0,0,1]
-        // bit right after the end of the message
         input_biguint.set_bit(input_len_bits as u64, true);
 
-        // last bit of the last block
         input_biguint.set_bit(padded_len_bits as u64 - 1, true);
-
-        println!("input_biguint: {:?}" ,input_biguint);
 
         self.set_biguint_target(&target.input, &input_biguint);
 
@@ -56,7 +52,6 @@ impl<T: WitnessBigUint<F>, F: PrimeField64> WitnessKeccakHandler<F> for T {
 
     fn set_keccak256_output_target(&mut self, target: &BigUintTarget, output: &[u8]) {
         let output_biguint = BigUint::from_bytes_le(output);
-        println!("output_biguint: {:?}" ,output);
         self.set_biguint_target(target, &output_biguint);
     }
 
@@ -178,17 +173,20 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         let mut state = [[zero; 2]; KECCAK256_C / 64];
         let mut next_state = [[zero; 2]; KECCAK256_C / 64];
 
-        // first block. xor = use input as initial state
+        // Sponge function: absorb & squeeze. 
+        // Absorb:
+        // First block. xor = use input as initial state.
         for (i, s) in state.iter_mut().enumerate().take(chunks_len) {
             s[0] = hash.input.limbs[2 * i];
             s[1] = hash.input.limbs[2 * i + 1];
         }
-
+        
+        //Permute.
         self._hash_keccak256_f1600(&mut state);
 
-        // other blocks
-        for (k, _) in hash.blocks.iter().enumerate() {
-            // xor
+        // Other blocks.
+        for (k, target_block) in hash.blocks.iter().enumerate() {
+            // Xor.
             let input_start = (k + 1) * chunks_len * 2;
             for (i, s) in state.iter().enumerate() {
                 if i < chunks_len {
@@ -203,18 +201,18 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
                     next_state[i][1] = s[1];
                 }
             }
-
+            //Permute.
             self._hash_keccak256_f1600(&mut next_state);
 
-            // conditionally set old or new state, depending if block needs to be processed
-            // Check if conditionality cheaper in terms if gates
+            // Conditionally set old or new state, depending if block needs to be processed
+            // basically a MUX wiring the state.
             for (i, s) in next_state.iter().enumerate() {
-                state[i] =  *s;
+                state[i] =  self.api.conditional_u64(s, &state[i], *target_block);
             }
         }
 
 
-        // squeeze
+        // Absorb, or squueze.
         let output_len: usize = output.num_limbs();
         for (i, s) in state.iter().enumerate().take(output_len / 2) {
             self.api.connect_u32(s[0], output.limbs[2 * i]);
@@ -222,9 +220,6 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         }
 
         assert!(output.num_limbs() == 8);
-
-        println!("output: {:#?}", output);
-
 
         output
     }
@@ -309,21 +304,21 @@ mod tests {
                 "f90211a0dc6ab9a606e3ef2e125ebd792c502cb6500aa1d1a80fa6e706482175742f4744a0bcb03c1a82cc80a677c98fe35c8ff953d1de3b1322a33f2c8d10132eac5639bfa02d81761f56b3bcd9137ef6823f879ba41c32c925c95f4658a7b1418d14424175a0c1c4d0f264475235249547fdfe63cf4aed82ef8cfc3019ed217fcf5f25620067a0f6d7a23257b2c155b5c4ffb37d76d4e6e8fae6bdab5d3cf2d868d4741b80d214a0f7bb2681b64939b292248bd66c21c40d54fca9460abda45da28a50b746b1b2a1a037bfc201846115d4d0e85eb6b3f0920817a7e0081bcb8bdaeb9c7dcf726b0885a0a238a31e3c6a36f24afa650058eabbf3682cc83a576d58453b7b74a3ffac8d1aa03315cb55fbc6bc9d9987cd0e2001f39305961856126d0ef7280d01d45c0b27d5a03cfc7bd374410e92dba88a3a8ce380a6ceed3ea977ee64f904e3723ce4afed01a0e5d3350effa6d755100afa3e4560d39ddc2dd35988f65bc0931f924134c4a2aba07609fdcdd38bf9e2f7b35b022a30e564877323f4d38381b3c792ac21f7617e28a0cd43ad06bbdd7d4dcf450e5212325ae2b177e80701c64f492b6e095e0cd43bbba0652063acc150fc0a729761d4fd80f230329e2eef41cb0dda1df74a4002ba6c4ca0ee0c0661fec773e14f94d8977e69cb22b41cc15fe9c682160488c0a2aa7daf4ba0d4cb2d1c9f1ff574d4854301a6ea891143e123d4dd04db1432509c2307f10a2180",
                 "578d0063e7f59c51a1b609f98ab8447cfb69422e3e92cc3cafdc3499735d98a8",
             ],
-            // [
-            //     // account proof
-            //     "f90211a0160c36cc6e1f0499f82e964ad41216e3222f9e439c2c8ecebb9f6d8e8682fbd3a0c9288b274cda35ac8ea4ecc51a40b6291d965f66f8dbd029e9419e583d7f0d6aa08a768a530c839cd9ba26f39f381a4e6d1c75bdbaccfd0e08773275460bebb392a0e8b3c8ca435de4f3614f65507f2ffdf77f446f66dfe295fa57287d838505d85ca0d073345bee411e9ee68097c6797025bdbae114c2847821fb12e8d5876cc74fd5a07471033f73ed2b5f1de920765c8d8c895016833aea875cbedfac28eeaf78b38ca073ef613ea081010ff0c3e685dcdd7599e2724121629d736ae206a779524619cca0062fee86b0c595607a46b39da1db0b8d6950f7ceb15a4240b26502bd28f71266a037433cfba971c3f88dd48a9ba77f00af7b916c813ef05e1621439ce39c06f676a081a896e219d44b627d81c27d6af8deacedf503aac7a709325f244add2ad4320da086fd39396891a30937f64e299a7d2fb85814a910c477cee64b0db109d92206aaa023ed91b155f896a409658f30d87f3f16d5bc6193b4ac2e3d5524a980e57149d4a09885e8e7165d55d4a32b0f8b226c382c6aa6d632ca68bdd79a17fd65c31c7fc0a08a04011c30e2fa3121663b88a08732017130f702a24dfe6107ca5757a8caf92aa0ac8239f39a106972436c768499afcc787d257c3d7928bfa524e90752500f4334a0e68fba45dceffc99e87785a850a7fefa813a803f2eb13359e5602d98fce7845080",
-            //     "f530311917cff532bf25f103e7a0c092be92ace7e919f7a4f644e5b011e677f3",
-            // ],
-            // [
-            //     // med hash
-            //     "f9015180a060f3bdb593359882a705ff924581eb99537f2428a007a0006f459182f07dba16a06776a7e6abd64250488ed106c0fbd66ee338b7ce59ae967714ce43ecd5a3de97a0f8d6740520928d0e540bf439f1c214ce434f349e4c9b71bb9fcce14144a48914a0f31b2b9570033a103b8a4c0db8debbff2cf8dc4eb2ed31fa292d41c7adf13dc980808080a016a530127910d9d4a89450f0c9dc075545441126b222396eb28e30c73c01c8a9a05d9eb59dae800d3f8cfe8efdfa86776fc7f3b09dfc5b2f537b2c2abda9787755a0bcdc8744035201f5d8d9bd0f440887a40d8cafc3f986f20ce276b1b1e37c01fda0f56f6a7cbf29f15d0923780608ffbb5671fcb518b482812bb8a02b46bae016f0a0cc20fa696765f56b03c14de2b16ab042f191dafb61df0dab8e1101cc08e78f3980a0e1328f040062749d53d278300e0e9857744279645fbc7a3ae11fcb87a6e000e680",
-            //     "d4cb2d1c9f1ff574d4854301a6ea891143e123d4dd04db1432509c2307f10a21",
-            // ],
-            // [
-            //     // short hash
-            //     "e19f37a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee301",
-            //     "19225e4ee19eb5a11e5260392e6d5154d4bc6a35d89c9d18bf6a63104e9bbcc2",
-            // ],
+            [
+                // account proof
+                "f90211a0160c36cc6e1f0499f82e964ad41216e3222f9e439c2c8ecebb9f6d8e8682fbd3a0c9288b274cda35ac8ea4ecc51a40b6291d965f66f8dbd029e9419e583d7f0d6aa08a768a530c839cd9ba26f39f381a4e6d1c75bdbaccfd0e08773275460bebb392a0e8b3c8ca435de4f3614f65507f2ffdf77f446f66dfe295fa57287d838505d85ca0d073345bee411e9ee68097c6797025bdbae114c2847821fb12e8d5876cc74fd5a07471033f73ed2b5f1de920765c8d8c895016833aea875cbedfac28eeaf78b38ca073ef613ea081010ff0c3e685dcdd7599e2724121629d736ae206a779524619cca0062fee86b0c595607a46b39da1db0b8d6950f7ceb15a4240b26502bd28f71266a037433cfba971c3f88dd48a9ba77f00af7b916c813ef05e1621439ce39c06f676a081a896e219d44b627d81c27d6af8deacedf503aac7a709325f244add2ad4320da086fd39396891a30937f64e299a7d2fb85814a910c477cee64b0db109d92206aaa023ed91b155f896a409658f30d87f3f16d5bc6193b4ac2e3d5524a980e57149d4a09885e8e7165d55d4a32b0f8b226c382c6aa6d632ca68bdd79a17fd65c31c7fc0a08a04011c30e2fa3121663b88a08732017130f702a24dfe6107ca5757a8caf92aa0ac8239f39a106972436c768499afcc787d257c3d7928bfa524e90752500f4334a0e68fba45dceffc99e87785a850a7fefa813a803f2eb13359e5602d98fce7845080",
+                "f530311917cff532bf25f103e7a0c092be92ace7e919f7a4f644e5b011e677f3",
+            ],
+            [
+                // med hash
+                "f9015180a060f3bdb593359882a705ff924581eb99537f2428a007a0006f459182f07dba16a06776a7e6abd64250488ed106c0fbd66ee338b7ce59ae967714ce43ecd5a3de97a0f8d6740520928d0e540bf439f1c214ce434f349e4c9b71bb9fcce14144a48914a0f31b2b9570033a103b8a4c0db8debbff2cf8dc4eb2ed31fa292d41c7adf13dc980808080a016a530127910d9d4a89450f0c9dc075545441126b222396eb28e30c73c01c8a9a05d9eb59dae800d3f8cfe8efdfa86776fc7f3b09dfc5b2f537b2c2abda9787755a0bcdc8744035201f5d8d9bd0f440887a40d8cafc3f986f20ce276b1b1e37c01fda0f56f6a7cbf29f15d0923780608ffbb5671fcb518b482812bb8a02b46bae016f0a0cc20fa696765f56b03c14de2b16ab042f191dafb61df0dab8e1101cc08e78f3980a0e1328f040062749d53d278300e0e9857744279645fbc7a3ae11fcb87a6e000e680",
+                "d4cb2d1c9f1ff574d4854301a6ea891143e123d4dd04db1432509c2307f10a21",
+            ],
+            [
+                // short hash
+                "e19f37a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee301",
+                "19225e4ee19eb5a11e5260392e6d5154d4bc6a35d89c9d18bf6a63104e9bbcc2",
+            ],
         ];
 
         type F = GoldilocksField;
@@ -370,48 +365,48 @@ mod tests {
     #[should_panic]
     fn test_keccak256_failure() {
         let tests = [[
-            "oo",
+            "80",
             "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
         ],
-    ];
-    env_logger::init();
+        ];
+        env_logger::init();
 
-    type F = GoldilocksField;
-    type C = PoseidonGoldilocksConfig;
-    const D: usize = 2;
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
 
-    let mut builder = CircuitBuilder::<F, D>::new();
-    let input_target = builder.add_virtual_hash_input_target(1, KECCAK256_R);
-    let digest_target = builder.keccak256(&input_target);
+        let mut builder = CircuitBuilder::<F, D>::new();
+        let input_target = builder.add_virtual_hash_input_target(1, KECCAK256_R);
+        let digest_target = builder.keccak256(&input_target);
 
-    let num_gates = builder.api.num_gates();
-    let copy_constraints = "<private>";
-    builder.api.print_gate_counts(6000);
+        let num_gates = builder.api.num_gates();
+        let copy_constraints = "<private>";
+        builder.api.print_gate_counts(6000);
 
-    let circuit= builder.build::<C>();
-    println!(
-        "keccak256 num_gates={}, copy_constraints={}, quotient_degree_factor={}",
-        num_gates, copy_constraints, circuit.data.common.quotient_degree_factor
-    );
-    for test in tests {
+        let circuit= builder.build::<C>();
+        println!(
+            "keccak256 num_gates={}, copy_constraints={}, quotient_degree_factor={}",
+            num_gates, copy_constraints, circuit.data.common.quotient_degree_factor
+        );
+        for test in tests {
 
-        let input = hex::decode(test[0]).unwrap();
-        let digest = hex::decode(test[1]).unwrap();
+            let input = hex::decode(test[0]).unwrap();
+            let digest = hex::decode(test[1]).unwrap();
 
-        // test program
-        let mut hasher = Keccak256::new();
-        hasher.update(input.as_slice());
-        let result = hasher.finalize();
-        assert_eq!(result[..], digest[..]);      
+            // test program
+            let mut hasher = Keccak256::new();
+            hasher.update(input.as_slice());
+            let result = hasher.finalize();
+            assert_eq!(result[..], digest[..]);      
 
-        // test circuit
-        let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
-        pw.set_keccak256_input_target(&input_target, &input);
-        pw.set_keccak256_output_target(&digest_target, &digest);
+            // test circuit
+            let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
+            pw.set_keccak256_input_target(&input_target, &input);
+            pw.set_keccak256_output_target(&digest_target, &digest);
 
-        println!("digest : {:?}", digest_target);
-        let proof= circuit.data.prove(pw).unwrap();
-        assert!(circuit.data.verify(proof).is_ok());
-    }
+            println!("digest : {:?}", digest_target);
+            let proof= circuit.data.prove(pw).unwrap();
+            assert!(circuit.data.verify(proof).is_ok());
+        }
     }
 }
