@@ -85,13 +85,13 @@ impl VariableStream {
         let mut merkle_proof_len = params.lde_bits() - cap_height;
 
         let initial_trees_proof =
-            self.read_virtual_fri_initial_trees_proof(num_leaves_per_oracle, merkle_proof_len);
+            self.read_fri_initial_trees_proof(num_leaves_per_oracle, merkle_proof_len);
 
         let mut steps = Vec::with_capacity(params.reduction_arity_bits.len());
         for &arity_bits in &params.reduction_arity_bits {
             assert!(merkle_proof_len >= arity_bits);
             merkle_proof_len -= arity_bits;
-            steps.push(self.read_virtual_fri_query_step(arity_bits, merkle_proof_len));
+            steps.push(self.read_fri_query_step(arity_bits, merkle_proof_len));
         }
 
         FriQueryRoundVriable {
@@ -100,7 +100,7 @@ impl VariableStream {
         }
     }
 
-    fn read_virtual_fri_initial_trees_proof(
+    fn read_fri_initial_trees_proof(
         &mut self,
         num_leaves_per_oracle: &[usize],
         initial_merkle_proof_len: usize,
@@ -116,7 +116,7 @@ impl VariableStream {
         FriInitialTreeProofVariable { evals_proofs }
     }
 
-    fn read_virtual_fri_query_step<const D: usize>(
+    fn read_fri_query_step<const D: usize>(
         &mut self,
         arity_bits: usize,
         merkle_proof_len: usize,
@@ -125,6 +125,51 @@ impl VariableStream {
             evals: self.read_vec::<ExtensionVariable<D>>(1 << arity_bits),
             merkle_proof: self.read_merkle_proof(merkle_proof_len),
         }
+    }
+
+    pub fn write_fri_proof<const D: usize>(&mut self, proof: &FriProofVariable<D>) {
+        for cap in proof.commit_phase_merkle_caps.iter() {
+            self.write_merkle_cap(cap);
+        }
+
+        for query_round in proof.query_round_proofs.iter() {
+            self.write_fri_query_round(query_round);
+        }
+
+        self.write_poly_coeff_ext(&proof.final_poly);
+
+        self.write(&proof.pow_witness);
+
+    }
+
+    pub fn write_poly_coeff_ext<const D: usize>(
+        &mut self,
+        coefficients: &PolynomialCoeffsExtVariable<D>,
+    ) {
+        self.write_slice(&coefficients.0)
+    }
+
+    pub fn write_fri_query_round<const D: usize>(&mut self, query_round: &FriQueryRoundVriable<D>) {
+        self.write_fri_initial_trees_proof(&query_round.initial_trees_proof);
+
+        for step in &query_round.steps {
+            self.write_fri_query_step(step);
+        }
+    }
+
+    fn write_fri_initial_trees_proof(&mut self, initial_tree_proof: &FriInitialTreeProofVariable) {
+        initial_tree_proof
+            .evals_proofs
+            .iter()
+            .for_each(|(values, merkle_proof)| {
+                self.write_slice(values);
+                self.write_merkle_proof(merkle_proof);
+            })
+    }
+
+    fn write_fri_query_step<const D: usize>(&mut self, query_step: &FriQueryStepVariable<D>) {
+        self.write_slice::<ExtensionVariable<D>>(&query_step.evals);
+        self.write_merkle_proof(&query_step.merkle_proof);
     }
 }
 
@@ -250,7 +295,7 @@ impl<const D: usize> From<FriProofVariable<D>> for FriProofTarget<D> {
 
 #[cfg(test)]
 mod tests {
-    use plonky2::fri::proof::FriProofTarget;
+    use plonky2::{fri::proof::FriProofTarget, plonk::plonk_common::salt_size};
 
     use super::*;
     use crate::prelude::*;
@@ -272,5 +317,40 @@ mod tests {
         let fri_proof_back = FriProofTarget::from(fri_proof_variable.clone());
 
         assert_eq!(fri_proof, fri_proof_back);
+    }
+
+    #[test]
+    fn test_variable_stream() {
+        let mut inner_builder = DefaultBuilder::new();
+        let a = inner_builder.read::<Variable>();
+        let b = inner_builder.read::<Variable>();
+        let c = inner_builder.add(a, b);
+        let _ = inner_builder.sub(c, b);
+        let circuit = inner_builder.build();
+
+        let mut builder = DefaultBuilder::new();
+
+        let proof = builder.api.add_virtual_proof_with_pis(&circuit.data.common);
+        let fri_proof = proof.proof.opening_proof;
+
+        let fri_proof_variable = FriProofVariable::from(fri_proof.clone());
+
+        let mut stream = VariableStream::new();
+        stream.write_fri_proof(&fri_proof_variable);
+
+        let common_data = &circuit.data.common;
+        let config = &common_data.config;
+        let fri_params = &common_data.fri_params;
+
+        let salt = salt_size(common_data.fri_params.hiding);
+        let num_leaves_per_oracle = &[
+            common_data.sigmas_range().end,
+            config.num_wires + salt,
+            common_data.config.num_challenges * (1 + common_data.num_partial_products) + salt,
+            common_data.config.num_challenges * common_data.quotient_degree_factor+ salt,
+        ];
+        let proof_back :FriProofVariable<2> = stream.read_fri_proof(num_leaves_per_oracle, fri_params);
+
+        assert_eq!(fri_proof_variable, proof_back);
     }
 }

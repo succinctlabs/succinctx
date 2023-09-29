@@ -100,6 +100,10 @@ impl VariableStream {
         self.0.write_slice(&value.variables());
     }
 
+    pub fn write_slice<V: CircuitVariable>(&mut self, values: &[V]) {
+        values.iter().for_each(|v| self.write(v));
+    }
+
     /// Derialize the stream from a buffer compatible with `Plonky2` serialization
     pub fn deserialize_from_reader(reader: &mut impl Read) -> IoResult<Self> {
         let variables = reader

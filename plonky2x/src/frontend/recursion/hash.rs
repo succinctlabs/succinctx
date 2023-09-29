@@ -57,7 +57,7 @@ impl VariableStream {
         MerkleCapVariable(cap)
     }
 
-    pub fn write_merkle_cap(&mut self, cap: MerkleCapVariable) -> usize {
+    pub fn write_merkle_cap(&mut self, cap: &MerkleCapVariable) -> usize {
         for elt in cap.0.iter() {
             self.write(elt);
         }
@@ -70,7 +70,7 @@ impl VariableStream {
         }
     }
 
-    pub fn write_merkle_proof(&mut self, proof: MerkleProofVariable) -> usize {
+    pub fn write_merkle_proof(&mut self, proof: &MerkleProofVariable) -> usize {
         for elt in proof.siblings.iter() {
             self.write(elt);
         }
