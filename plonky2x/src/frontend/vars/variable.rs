@@ -140,6 +140,7 @@ impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
 
 #[cfg(test)]
 mod tests {
+    use rand::Rng;
     use crate::backend::circuit::DefaultParameters;
     use crate::backend::circuit::config::PlonkParameters;
     use crate::prelude::*;
@@ -207,8 +208,10 @@ mod tests {
 
         let circuit = builder.build();
 
-        let rand_lhs = rand::random::<u64>();
-        let rand_rhs = rand::random::<u64>();
+        let mut rng = rand::thread_rng();
+        let max_bits = <L as PlonkParameters<D>>::Field::BITS - 1;
+        let rand_lhs = rng.gen_range(0 .. (1 << max_bits));
+        let rand_rhs = rng.gen_range(0 .. (1 << max_bits));
         let mut inputs = circuit.input();
         inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(rand_lhs));
         inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(rand_rhs));
@@ -232,8 +235,9 @@ mod tests {
 
         let circuit = builder.build();
 
-        let max_lhs = std::u64::MAX;
-        let max_rhs = std::u64::MAX;
+        let max_bits = <L as PlonkParameters<D>>::Field::BITS - 1;
+        let max_lhs = 1 << max_bits;
+        let max_rhs = 1 << max_bits;
         let mut inputs = circuit.input();
         inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(max_lhs));
         inputs.write::<Variable>(<L as PlonkParameters<D>>::Field::from_canonical_u64(max_rhs));
