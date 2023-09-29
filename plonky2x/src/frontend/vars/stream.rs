@@ -83,9 +83,17 @@ impl VariableStream {
         self.0.read_all()
     }
 
+    pub fn read_exact(&mut self, len: usize) -> &[Variable] {
+        self.0.read_exact(len)
+    }
+
     pub fn read<V: CircuitVariable>(&mut self) -> V {
         let variables = self.0.read_exact(V::nb_elements());
         V::from_variables_unsafe(variables)
+    }
+
+    pub fn read_vec<V: CircuitVariable>(&mut self, len: usize) -> Vec<V> {
+        (0..len).map(|_| self.read::<V>()).collect()
     }
 
     pub fn write<V: CircuitVariable>(&mut self, value: &V) {
