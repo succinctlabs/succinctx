@@ -115,15 +115,15 @@ impl<L: PlonkParameters<D>, const D: usize> LessThan<L, D> for Variable {
 
     fn lt(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         // FIXME: Check for overflows and edge cases
-        const NUM_LIMBS: usize = 64;
-        let max = builder.constant(L::Field::from_canonical_u64(1 << (NUM_LIMBS - 1)));
+        let n_bits: usize = L::Field::BITS;
+        let max = builder.constant(L::Field::from_canonical_u64(1 << (n_bits - 1)));
         let _one: Variable = builder.constant(L::Field::from_canonical_u64(1));
         // from circomlib: https://github.com/iden3/circomlib/blob/master/circuits/comparators.circom#L89
         let tmp = builder.add(self, max);
         let res = builder.sub(tmp, rhs);
         // typically stored in BE, but we can just index instead of reversing
-        let res_bits = builder.api.split_le(res.0, NUM_LIMBS);
-        let last_bit = Variable::from(res_bits[NUM_LIMBS - 1].target);
+        let res_bits = builder.api.split_le(res.0, n_bits);
+        let last_bit = Variable::from(res_bits[n_bits - 1].target);
         let lt_var = builder.sub(_one, last_bit);
         BoolVariable::from(lt_var)
     }
