@@ -5,7 +5,8 @@ contract FunctionGatewayUpdated {
         bytes32 _functionId,
         bytes memory _input,
         bytes4 _callbackSelector,
-        bytes memory _context
+        bytes memory _context,
+        uint8 _preference // Slow, medium, fast, aggregation or not, etc.
     ) external payable returns (bytes32) {
         requests[nonce++] = keccak256(FunctionRequest({
             functionId: _functionId,
@@ -14,6 +15,7 @@ contract FunctionGatewayUpdated {
             callbackAddress: msg.sender,
             callbackSelector: _callbackSelector
         }));
+        // TODO: emit event with preference
     }
 
     function fulfillCallbackRequestV1(
@@ -70,7 +72,8 @@ contract FunctionGatewayUpdated {
         bytes memory _input,
         uint256 _chain_id,
         address _address,
-        bytes4 _selector
+        bytes4 _selector,
+        uint8 preference // Slow, medium, fast, aggregation or not, etc.
     ) {
         emit StoreRequest(_functionId, _input, _chain_id, _address, _selector);
     }
@@ -115,15 +118,7 @@ contract FunctionGatewayUpdated {
         address verifier = functionIdToVerifier[_functionId];
         bytes32 inputHash = sha256(_input);
         bytes32 outputHash = sha256(_output);
-        if (
-            !IFunctionVerifier(verifier).verify(
-                inputHash,
-                outputHash,
-                _proof
-            )
-        ) {
-            revert InvalidProof();
-        }
+        require(oracle[_functionId][inputHash] == outputHash, "Invalid output");
     }
 }
 
