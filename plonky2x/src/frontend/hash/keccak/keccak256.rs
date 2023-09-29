@@ -365,4 +365,53 @@ mod tests {
             assert!(circuit.data.verify(proof).is_ok());
         }
     }
+
+    #[test]
+    #[should_panic]
+    fn test_keccak256_failure() {
+        let tests = [[
+            "oo",
+            "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+        ],
+    ];
+    env_logger::init();
+
+    type F = GoldilocksField;
+    type C = PoseidonGoldilocksConfig;
+    const D: usize = 2;
+
+    let mut builder = CircuitBuilder::<F, D>::new();
+    let input_target = builder.add_virtual_hash_input_target(1, KECCAK256_R);
+    let digest_target = builder.keccak256(&input_target);
+
+    let num_gates = builder.api.num_gates();
+    let copy_constraints = "<private>";
+    builder.api.print_gate_counts(6000);
+
+    let circuit= builder.build::<C>();
+    println!(
+        "keccak256 num_gates={}, copy_constraints={}, quotient_degree_factor={}",
+        num_gates, copy_constraints, circuit.data.common.quotient_degree_factor
+    );
+    for test in tests {
+
+        let input = hex::decode(test[0]).unwrap();
+        let digest = hex::decode(test[1]).unwrap();
+
+        // test program
+        let mut hasher = Keccak256::new();
+        hasher.update(input.as_slice());
+        let result = hasher.finalize();
+        assert_eq!(result[..], digest[..]);      
+
+        // test circuit
+        let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
+        pw.set_keccak256_input_target(&input_target, &input);
+        pw.set_keccak256_output_target(&digest_target, &digest);
+
+        println!("digest : {:?}", digest_target);
+        let proof= circuit.data.prove(pw).unwrap();
+        assert!(circuit.data.verify(proof).is_ok());
+    }
+    }
 }
