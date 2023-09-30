@@ -44,7 +44,6 @@ impl CircuitVariable for U32Variable {
     }
 
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
-        assert_eq!(variables.len(), 1);
         Self(variables[0])
     }
 
