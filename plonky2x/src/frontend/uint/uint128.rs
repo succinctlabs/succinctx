@@ -1,10 +1,19 @@
+use array_macro::array;
 use ethers::types::U128;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::uint32_n::{U32NVariable, Uint};
+use super::Uint;
+use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
+use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
+use crate::frontend::vars::{EvmVariable, SSZVariable, U256Variable, U32Variable};
+use crate::prelude::{
+    Add, BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitBuilder,
+    CircuitVariable, Div, LessThanOrEqual, Mul, One, PlonkParameters, Rem, Sub, Variable, Zero,
+};
+use crate::{make_uint32_n, make_uint32_n_tests};
 
-const NUM_LIMBS: usize = 4;
-
-impl Uint<NUM_LIMBS> for U128 {
+impl Uint<4> for U128 {
     fn to_little_endian(&self, bytes: &mut [u8]) {
         self.to_little_endian(bytes);
     }
@@ -34,6 +43,23 @@ impl Uint<NUM_LIMBS> for U128 {
     }
 }
 
-/// A variable in the circuit representing a u64 value. Under the hood, it is represented as
-/// two U32Variable elements.
-pub type U128Variable = U32NVariable<U128, NUM_LIMBS>;
+make_uint32_n!(U128Variable, U128, 4);
+make_uint32_n_tests!(U128Variable, U128, 4);
+
+impl U128Variable {
+    pub fn to_u256<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> U256Variable {
+        let zero = builder.zero::<U32Variable>();
+        let result = builder.init::<U256Variable>();
+        for i in 0..result.limbs.len() {
+            if i < self.limbs.len() {
+                builder.connect(self.limbs[i], result.limbs[i]);
+            } else {
+                builder.connect(zero, result.limbs[i]);
+            }
+        }
+        result
+    }
+}

@@ -1,6 +1,6 @@
 use std::env;
 
-use ethers::types::{H160, U256, U64};
+use ethers::types::{H160, U256};
 use log::debug;
 use serde::{Deserialize, Serialize};
 
@@ -28,8 +28,8 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconAllWithdrawalsH
             .withdrawals
             .iter()
             .map(|w| BeaconWithdrawalValue {
-                index: U64::from(w.index),
-                validator_index: U64::from(w.validator_index),
+                index: w.index,
+                validator_index: w.validator_index,
                 address: H160::from_slice(
                     &hex::decode(w.address.strip_prefix("0x").unwrap()).unwrap(),
                 ),

@@ -1,17 +1,16 @@
 //! Arithmetic operations.
 
-use core::marker::PhantomData;
+use std::marker::PhantomData;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::mpt::generators::LeGenerator;
+use crate::frontend::eth::mpt::generators::LteGenerator;
 use crate::prelude::{BoolVariable, Variable};
 
 /// The addition operation.
 ///
 /// Types implementing this trait can be used within the `builder.add(lhs, rhs)` method.
 pub trait Add<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
-    /// The output type of the operation.
     type Output;
 
     fn add(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
@@ -127,7 +126,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 }
 
-/// A zero element
+/// A zero element.
 ///
 /// Types implementing this trait can be used via the `builder.zero()` method.
 pub trait Zero<L: PlonkParameters<D>, const D: usize> {
@@ -140,7 +139,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 }
 
-/// A One element
+/// A one element
 ///
 /// Types implementing this trait can be used via the `builder.one()` method.
 pub trait One<L: PlonkParameters<D>, const D: usize> {
@@ -153,25 +152,66 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 }
 
-/// The less than or equal operation. (<=)
+/// The less than or equal operation (<=).
 ///
-/// Types implementing this trait can be used within the `builder.le(lhs, rhs)` method.
-pub trait Le<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
-    fn le(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> BoolVariable;
+/// Types implementing this trait can be used within the `builder.lte(lhs, rhs)` method.
+pub trait LessThanOrEqual<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
+    fn lte(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> BoolVariable;
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn le<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
+    /// The less than or equal to operation (<=).
+    pub fn lte<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
-        Lhs: Le<L, D, Rhs>,
+        Lhs: LessThanOrEqual<L, D, Rhs>,
     {
-        lhs.le(rhs, self)
+        lhs.lte(rhs, self)
+    }
+
+    /// The less than operation (<).
+    pub fn lt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
+    where
+        Lhs: LessThanOrEqual<L, D, Lhs>,
+        Rhs: Sub<L, D, Rhs, Output = Lhs> + One<L, D>,
+    {
+        let one = self.one::<Rhs>();
+        let upper_bound = rhs.sub(one, self);
+        self.lte(lhs, upper_bound)
+    }
+
+    /// The greater than operation (>).
+    pub fn gt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
+    where
+        Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
+        Rhs: LessThanOrEqual<L, D, Rhs>,
+    {
+        self.lt(rhs, lhs)
+    }
+
+    /// The greater than or equal to operation (>=).
+    pub fn gte<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
+    where
+        Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
+        Rhs: LessThanOrEqual<L, D, Lhs>,
+    {
+        self.lte(rhs, lhs)
+    }
+
+    /// The within range operation (lhs <= variable < rhs).
+    pub fn within_range<V>(&mut self, variable: V, lhs: V, rhs: V) -> BoolVariable
+    where
+        V: LessThanOrEqual<L, D, V> + Sub<L, D, V, Output = V> + One<L, D> + Clone,
+    {
+        let lower_bound_satisfied = self.lte(lhs, variable.clone());
+        let upper_bound_satisfied = self.lt(variable, rhs);
+        self.and(lower_bound_satisfied, upper_bound_satisfied)
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> Le<L, D> for Variable {
-    fn le(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
-        let generator: LeGenerator<L, D> = LeGenerator {
+impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
+    fn lte(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
+        // TODO: FIX
+        let generator: LteGenerator<L, D> = LteGenerator {
             lhs: self,
             rhs,
             output: builder.init::<BoolVariable>(),

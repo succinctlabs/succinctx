@@ -151,7 +151,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
             BeaconBalanceInput::IndexVariable(idx) => {
                 let idx = idx.get(witness);
                 self.client
-                    .get_validator_balance_v2(hex!(block_root), idx.as_u64())
+                    .get_validator_balance_v2(hex!(block_root), idx)
                     .unwrap()
             }
             BeaconBalanceInput::PubkeyConst(pubkey) => {
@@ -167,7 +167,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
                     .unwrap()
             }
         };
-        self.balance.set(out_buffer, result.balance.into());
+        self.balance.set(out_buffer, result.balance);
         self.balance_leaf
             .set(out_buffer, bytes32!(result.balance_leaf));
         for i in 0..DEPTH {
@@ -175,7 +175,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         }
         self.gindex.set(
             out_buffer,
-            result.gindex.to_string().parse::<u64>().unwrap().into(),
+            result.gindex.to_string().parse::<u64>().unwrap(),
         );
     }
 
