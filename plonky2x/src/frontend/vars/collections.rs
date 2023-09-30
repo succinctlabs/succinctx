@@ -327,7 +327,11 @@ impl<
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(
             variables.len(),
-            V1::nb_elements() + V2::nb_elements() + V3::nb_elements() + V4::nb_elements()
+            V1::nb_elements()
+                + V2::nb_elements()
+                + V3::nb_elements()
+                + V4::nb_elements()
+                + V5::nb_elements()
         );
 
         let v1 = V1::from_variables_unsafe(&variables[..V1::nb_elements()]);
