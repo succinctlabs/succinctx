@@ -15,8 +15,6 @@ use curta::chip::{AirParameters, Chip};
 use curta::math::prelude::{CubicParameters, *};
 use serde::{Deserialize, Serialize};
 
-use crate::frontend::ecc::ed25519::curve::curve_types::AffinePoint;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PKAirParameters<F: Field, R: CubicParameters<F>, E: EllipticCurveParameters>(
     pub PhantomData<(F, R, E)>,
@@ -42,7 +40,6 @@ pub struct PKAir<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveParamet
     pub public_keys: Vec<AffinePointRegister<E>>,
     pub selectors: ArrayRegister<BitRegister>,
     pub aggregated_pk: AffinePointRegister<E>,
-    pub accumulator: AffinePointRegister<E>,
     pub current: AffinePointRegister<E>,
     pub flag: BitRegister,
 }
@@ -177,7 +174,6 @@ impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurve<PKAirParameters<F,
             public_keys,
             selectors,
             aggregated_pk,
-            accumulator,
             current,
             flag,
         }
@@ -211,7 +207,6 @@ mod tests {
     fn test_pk_air() {
         type C = CurtaPoseidonGoldilocksConfig;
         type SC = PoseidonGoldilocksStarkConfig;
-        type L = PKAirParameters<GoldilocksField, GoldilocksCubicParameters, Bn254>;
         type E = Bn254;
 
         setup_logger();
@@ -219,7 +214,6 @@ mod tests {
         let mut timing = TimingTree::new("Bn254 PK aggregation", log::Level::Debug);
 
         let num_keys_degree = 6;
-        let num_keys = 1 << num_keys_degree;
         let num_rows = 1 << 16;
         let stride = 1 << (16 - num_keys_degree);
 
@@ -232,7 +226,6 @@ mod tests {
             public_keys,
             selectors,
             aggregated_pk,
-            accumulator,
             current,
             flag,
         } = pk_air;
