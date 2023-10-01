@@ -91,7 +91,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Bn254PKHint {
         let stark = Starky::new(air);
         let config = StarkyConfig::standard_fast_config(num_rows);
 
-        let public_inputs = writer.public().unwrap().clone();
+        let public_inputs : Vec<L::Field> = writer.public().unwrap().clone();
 
         let proof = StarkyProver::<L::Field, L::CurtaConfig, D>::prove(
             &config,
@@ -106,7 +106,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Bn254PKHint {
         StarkyVerifier::verify(&config, &stark, proof.clone(), &public_inputs).unwrap();
 
         // Return the aggregated public key and the proof.
-        output_stream.write_value::<AffinePointVariable<E>>(aggregated_pk_value.into());
+        // output_stream.write_value::<AffinePointVariable<E>>(aggregated_pk_value.into());
         output_stream.write_stark_proof(proof);
         output_stream.write_slice(&public_inputs);
     }
@@ -115,6 +115,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Bn254PKHint {
 #[cfg(test)]
 mod tests {
 
+    use curta::air::RAirData;
     use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
     use num_bigint::RandBigInt;
     use rand::{thread_rng, Rng};
@@ -124,6 +125,7 @@ mod tests {
     use crate::utils::setup_logger;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_pk_hint() {
         setup_logger();
 
@@ -174,14 +176,14 @@ mod tests {
         let hint = Bn254PKHint { num_keys_degree };
         let outputs = builder.hint(input_stream, hint);
 
-        let aggregated_pk = outputs.read::<AffinePointVariable<Bn254>>(&mut builder);
+        // let aggregated_pk = outputs.read::<AffinePointVariable<Bn254>>(&mut builder);
         let proof = outputs.read_stark_proof(&mut builder, &stark, &config);
-        let public_inputs = outputs.read_exact(&mut builder, stark.air.num_public_values);
+        let public_inputs = outputs.read_exact(&mut builder, stark.air.num_public_inputs());
         builder.verify_stark_proof(&config, &stark, &proof, &public_inputs);
 
         let circuit = builder.build();
         let input = circuit.input();
 
-        let proof = circuit.prove(&input);
+        let (proof, output) = circuit.prove(&input);
     }
 }

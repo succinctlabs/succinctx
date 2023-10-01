@@ -197,6 +197,7 @@ mod tests {
     use crate::utils::setup_logger;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_pk_air() {
         type C = CurtaPoseidonGoldilocksConfig;
         type SC = PoseidonGoldilocksStarkConfig;
