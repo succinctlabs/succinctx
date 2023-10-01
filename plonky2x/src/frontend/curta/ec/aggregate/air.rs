@@ -26,8 +26,9 @@ impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveParameters> AirPara
     type Field = F;
     type CubicParams = R;
 
+    // TODO: specialize / implement as a function of E.
     const NUM_ARITHMETIC_COLUMNS: usize = 1000;
-    const NUM_FREE_COLUMNS: usize = 10;
+    const NUM_FREE_COLUMNS: usize = 9;
     const EXTENDED_COLUMNS: usize = 1527;
 
     type Instruction = FpInstruction<E::BaseField>;
@@ -79,7 +80,6 @@ impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurve<PKAirParameters<F,
         let accumulator: AffinePointRegister<E> = builder.alloc_ec_point();
         let current: AffinePointRegister<E> = builder.alloc_ec_point();
         let flag = builder.alloc::<BitRegister>();
-        let dummy_flag = builder.alloc::<BitRegister>();
 
         // Connect the current ec point into the bus, depending on the cycle.
         let current_point_digest = builder.accumulate_expressions(
@@ -123,14 +123,6 @@ impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurve<PKAirParameters<F,
         // points, we constrain the selector to zero.
         builder.assert_expression_zero(flag.expr() * cycle.start_bit.not_expr());
 
-        // The dummy plan is set to one until the selector flag is set to one, at which point
-        // the dummy flag becomes zero.
-        builder.set_to_expression_first_row(&dummy_flag, ArithmeticExpression::one());
-        builder.set_to_expression_transition(
-            &dummy_flag.next(),
-            dummy_flag.expr() - flag.expr() * dummy_flag.expr(),
-        );
-
         // Add the accumulator to the current point
         let point_sum = builder.ec_add(&accumulator, &current);
 
@@ -139,31 +131,27 @@ impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurve<PKAirParameters<F,
         // If the flag is set to false, the next accumulator stays the same. If the flag is set to
         // true, the next accumulator is the sum of the current point and the accumulator, except if
         // the dummy flag is set, and then the next accumulator is the current point.
-        let next_point_x_expression = flag.not_expr() * accumulator.x.expr()
-            + flag.expr()
-                * (dummy_flag.not_expr() * point_sum.x.expr()
-                    + dummy_flag.expr() * accumulator.x.expr());
-        let next_point_y_expression = flag.not_expr() * accumulator.y.expr()
-            + flag.expr()
-                * (dummy_flag.not_expr() * point_sum.y.expr()
-                    + dummy_flag.expr() * accumulator.y.expr());
+        let next_point_x_expression =
+            flag.not_expr() * accumulator.x.expr() + flag.expr() * point_sum.x.expr();
+        let next_point_y_expression =
+            flag.not_expr() * accumulator.y.expr() + flag.expr() * point_sum.y.expr();
 
         builder
             .set_to_expression_transition(&accumulator.x.next(), next_point_x_expression.clone());
         builder
             .set_to_expression_transition(&accumulator.y.next(), next_point_y_expression.clone());
 
-        // Assert that current point doesn't change unless the next flag is set to true.
+        // Assert that current point pnly changes at the end of a cycle.
         builder.assert_expression_zero_transition(
-            flag.next().not_expr() * (current.x.next().expr() - current.x.expr()),
+            cycle.end_bit.not_expr() * (current.x.next().expr() - current.x.expr()),
         );
         builder.assert_expression_zero_transition(
-            flag.next().not_expr() * (current.y.next().expr() - current.y.expr()),
+            cycle.end_bit.not_expr() * (current.y.next().expr() - current.y.expr()),
         );
 
         // Set the next accumulator of the last row to the output.
-        // builder.set_to_expression_last_row(&aggregated_pk.x, next_point_x_expression);
-        // builder.set_to_expression_last_row(&aggregated_pk.y, next_point_y_expression);
+        builder.assert_expression_zero_last_row(aggregated_pk.x.expr() - next_point_x_expression);
+        builder.assert_expression_zero_last_row(aggregated_pk.y.expr() - next_point_y_expression);
 
         builder.constrain_bus(bus);
         let (air, trace_data) = builder.build();
@@ -198,7 +186,7 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
-    use rand::thread_rng;
+    use rand::{thread_rng, Rng};
 
     use super::*;
     use crate::utils::setup_logger;
@@ -252,15 +240,30 @@ mod tests {
 
         let mut selector_values = Vec::new();
 
+        let mut rng = thread_rng();
         timed!(
             timing,
             "Execute trace",
             for selector_register in selectors.iter() {
-                let selector = GoldilocksField::ONE;
+                let val = rng.gen_bool(0.5);
+                let selector = GoldilocksField::from_canonical_u8(val as u8);
                 writer.write(&selector_register, &selector, 0);
                 selector_values.push(selector);
             }
         );
+
+        let aggregated_pk_value =
+            public_keys_values
+                .iter()
+                .zip(selector_values.iter())
+                .fold(base, |agg, (pk, b)| {
+                    if *b == GoldilocksField::ONE {
+                        agg.sw_add(pk)
+                    } else {
+                        agg
+                    }
+                });
+        writer.write_ec_point(&aggregated_pk, &aggregated_pk_value, 0);
 
         writer.write_global_instructions(&trace_generator.air_data);
         (0..num_rows).for_each(|i| {
