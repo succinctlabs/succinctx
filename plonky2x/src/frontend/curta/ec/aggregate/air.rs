@@ -34,7 +34,8 @@ impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveParameters> AirPara
     type Instruction = FpInstruction<E::BaseField>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct PKAir<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveParameters> {
     pub air: Chip<PKAirParameters<F, R, E>>,
     pub trace_data: AirTraceData<PKAirParameters<F, R, E>>,
@@ -179,16 +180,20 @@ mod tests {
     use curta::plonky2::stark::config::{
         CurtaPoseidonGoldilocksConfig, PoseidonGoldilocksStarkConfig,
     };
+    use curta::plonky2::stark::gadget::StarkGadget;
+    use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
     use curta::plonky2::stark::prover::StarkyProver;
     use curta::plonky2::stark::verifier::StarkyVerifier;
     use curta::plonky2::stark::Starky;
     use num_bigint::RandBigInt;
     use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use rand::{thread_rng, Rng};
 
     use super::*;
+    use crate::prelude::DefaultBuilder;
     use crate::utils::setup_logger;
 
     #[test]
@@ -296,5 +301,34 @@ mod tests {
         StarkyVerifier::verify(&config, &stark, proof, &public_inputs).unwrap();
 
         timing.print();
+
+
+        let mut builder = DefaultBuilder::new();
+        let virtual_proof = builder.api.add_virtual_stark_proof(&stark, &config);
+
+        let mut pw = PartialWitness::new();
+        // Set public inputs.
+        let public_input_targets = builder.api.add_virtual_targets(public_inputs.len());
+        for (&pi_t, &pi) in public_input_targets.iter().zip(public_inputs.iter()) {
+            pw.set_target(pi_t, pi);
+        }
+        builder.api.verify_stark_proof(&config, &stark, &virtual_proof, &public_input_targets);
+
+        let generator = SimpleStarkWitnessGenerator::new(
+            config,
+            stark,
+            virtual_proof,
+            public_input_targets,
+            trace_generator,
+        );
+        builder.add_simple_generator(generator);
+
+        let data = builder.build().data;
+        let mut timing = TimingTree::new("recursive_proof", log::Level::Debug);
+        let recursive_proof =
+            plonky2::plonk::prover::prove(&data.prover_only, &data.common, pw, &mut timing)
+                .unwrap();
+        timing.print();
+        data.verify(recursive_proof).unwrap();
     }
 }

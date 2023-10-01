@@ -341,6 +341,8 @@ mod tests {
     use curta::plonky2::stark::prover::StarkyProver;
     use serde::{Deserialize, Serialize};
 
+    use crate::frontend::hint::simple::hint::Hint;
+
     use super::*;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -469,5 +471,74 @@ mod tests {
             stream.read_stark_proof(&stark, &config);
 
         assert_eq!(proof, proof_back);
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ProofReadHint {
+        proof : StarkProof<GoldilocksField, CurtaPoseidonGoldilocksConfig, 2>
+    }
+
+    type F = GoldilocksField;
+
+    impl Hint<DefaultParameters, 2> for ProofReadHint  {
+        fn hint(&self, _input_stream: &mut ValueStream<DefaultParameters, 2>, output_stream: &mut ValueStream<DefaultParameters, 2>) {
+            output_stream.write_stark_proof(self.proof.clone());
+            output_stream.write_slice(&[F::ZERO, F::ONE, fibonacci((1<<5) - 1, F::ZERO, F::ONE)])
+        }
+    }
+
+    #[test]
+    fn test_output_variable_stream() {
+        type F = GoldilocksField;
+        type L = FibonacciParameters;
+        type SC = PoseidonGoldilocksStarkConfig;
+        type C = CurtaPoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut air_builder = AirBuilder::<L>::new();
+        let x_0 = air_builder.alloc::<ElementRegister>();
+        let x_1 = air_builder.alloc::<ElementRegister>();
+
+        // x0' <- x1
+        air_builder.set_to_expression_transition(&x_0.next(), x_1.expr());
+        // x1' <- x0 + x1
+        air_builder.set_to_expression_transition(&x_1.next(), x_0.expr() + x_1.expr());
+
+        let num_rows = 1 << 5;
+        let public_inputs = [F::ZERO, F::ONE, fibonacci(num_rows - 1, F::ZERO, F::ONE)];
+
+        let (air, air_data) = air_builder.build();
+
+        let stark = Starky::new(air);
+        let config = SC::standard_fast_config(num_rows);
+
+        let generator = ArithmeticGenerator::<L>::new(air_data, num_rows);
+
+        let writer = generator.new_writer();
+
+        writer.write(&x_0, &F::ZERO, 0);
+        writer.write(&x_1, &F::ONE, 0);
+
+        for i in 0..num_rows {
+            writer.write_row_instructions(&generator.air_data, i);
+        }
+
+        let proof =
+            StarkyProver::<F, C, D>::prove(&config, &stark, &generator, &public_inputs).unwrap();
+
+        let mut builder = DefaultBuilder::new();
+        let input_stream = VariableStream::new();
+        let hint = ProofReadHint {proof};
+        let output_stream = builder.hint(input_stream, hint);
+        let proof_variable = output_stream.read_stark_proof(&mut builder, &stark, &config);
+        let public_input_variable = output_stream.read_exact(&mut builder, 3);
+
+        builder.verify_stark_proof(&config, &stark, &proof_variable, &public_input_variable);
+
+        let circuit = builder.build();
+
+        let input = circuit.input();
+        let (circuit_proof, output) = circuit.prove(&input);
+        circuit.verify(&circuit_proof, &input, &output); 
     }
 }

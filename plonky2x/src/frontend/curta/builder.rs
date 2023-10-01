@@ -13,10 +13,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         config: &StarkyConfig<L::CurtaConfig, D>,
         stark: &Starky<A>,
         proof: &StarkProofVariable<D>,
-        public_inputs: &[Target],
+        public_inputs: &[Variable],
     ) {
         let proof_target = StarkProofTarget::from(proof.clone());
+        let public_inputs_target = public_inputs.iter().map(|v| v.0).collect::<Vec<_>>();
         self.api
-            .verify_stark_proof(config, stark, &proof_target, public_inputs);
+            .verify_stark_proof(config, stark, &proof_target, &public_inputs_target);
     }
 }
