@@ -339,13 +339,9 @@ mod tests {
     };
     use curta::plonky2::stark::gadget::StarkGadget;
     use curta::plonky2::stark::prover::StarkyProver;
-    use plonky2::fri::proof::FriProofTarget;
-    use plonky2::hash::poseidon::PoseidonHash;
-    use plonky2::plonk::plonk_common::salt_size;
     use serde::{Deserialize, Serialize};
 
     use super::*;
-    use crate::prelude::*;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct FibonacciParameters;
@@ -364,7 +360,6 @@ mod tests {
 
     #[test]
     fn test_conversion() {
-        type F = GoldilocksField;
         type L = FibonacciParameters;
         type SC = PoseidonGoldilocksStarkConfig;
 
@@ -378,9 +373,8 @@ mod tests {
         air_builder.set_to_expression_transition(&x_1.next(), x_0.expr() + x_1.expr());
 
         let num_rows = 1 << 10;
-        let public_inputs = [F::ZERO, F::ONE, fibonacci(num_rows - 1, F::ZERO, F::ONE)];
 
-        let (mut air, mut air_data) = air_builder.build();
+        let (air, _) = air_builder.build();
 
         let stark = Starky::new(air);
         let config = SC::standard_fast_config(num_rows);
@@ -397,7 +391,6 @@ mod tests {
 
     #[test]
     fn test_variable_stream() {
-        type F = GoldilocksField;
         type L = FibonacciParameters;
         type SC = PoseidonGoldilocksStarkConfig;
 
