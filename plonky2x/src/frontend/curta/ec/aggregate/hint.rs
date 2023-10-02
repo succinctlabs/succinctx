@@ -17,7 +17,7 @@ use crate::prelude::{PlonkParameters, ValueStream, *};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bn254PKHint {
-    num_keys_degree: usize,
+    pub num_keys_degree: usize,
 }
 
 type E = Bn254;
@@ -106,7 +106,6 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Bn254PKHint {
         StarkyVerifier::verify(&config, &stark, proof.clone(), &public_inputs).unwrap();
 
         // Return the aggregated public key and the proof.
-        output_stream.write_value::<AffinePointVariable<E>>(aggregated_pk_value.into());
         output_stream.write_stark_proof(proof);
         output_stream.write_slice(&public_inputs);
     }
@@ -116,11 +115,13 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Bn254PKHint {
 mod tests {
 
     use curta::air::RAirData;
+    use curta::chip::register::Register;
     use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
     use num_bigint::RandBigInt;
     use rand::{thread_rng, Rng};
 
     use super::*;
+    use crate::frontend::curta::field::variable::FieldVariable;
     use crate::prelude::*;
     use crate::utils::setup_logger;
 
@@ -129,7 +130,6 @@ mod tests {
     fn test_pk_hint() {
         setup_logger();
 
-        type L = DefaultParameters;
         type F = GoldilocksField;
         type R = GoldilocksCubicParameters;
         type C = <DefaultParameters as PlonkParameters<2>>::CurtaConfig;
@@ -140,7 +140,9 @@ mod tests {
 
         let mut builder = DefaultBuilder::new();
 
-        let air = PKAir::<F, R, Bn254>::new(num_keys_degree).air;
+        let PKAir {
+            air, aggregated_pk, ..
+        } = PKAir::<F, R, Bn254>::new(num_keys_degree);
 
         let stark = Starky::new(air);
         let config = StarkyConfig::<C, 2>::standard_fast_config(num_rows);
@@ -170,13 +172,7 @@ mod tests {
         let agg_pk_value = public_keys_values
             .iter()
             .zip(selector_values.iter())
-            .fold(base, |agg, (pk, b)| {
-                if *b {
-                    agg.sw_add(pk)
-                } else {
-                    agg
-                }
-            });
+            .fold(base, |agg, (pk, b)| if *b { agg.sw_add(pk) } else { agg });
 
         let mut input_stream = VariableStream::new();
         for (pk, b) in public_keys.iter().zip(selectors.iter()) {
@@ -187,10 +183,24 @@ mod tests {
         let hint = Bn254PKHint { num_keys_degree };
         let outputs = builder.hint(input_stream, hint);
 
-        let aggregated_pk = outputs.read::<AffinePointVariable<Bn254>>(&mut builder);
         let proof = outputs.read_stark_proof(&mut builder, &stark, &config);
         let public_inputs = outputs.read_exact(&mut builder, stark.air.num_public_inputs());
         builder.verify_stark_proof(&config, &stark, &proof, &public_inputs);
+
+        let aggregated_pk = AffinePointVariable::<Bn254> {
+            x: FieldVariable::new(
+                aggregated_pk
+                    .x
+                    .read_from_slice(&public_inputs)
+                    .as_coefficients(),
+            ),
+            y: FieldVariable::new(
+                aggregated_pk
+                    .y
+                    .read_from_slice(&public_inputs)
+                    .as_coefficients(),
+            ),
+        };
 
         builder.write(aggregated_pk);
 

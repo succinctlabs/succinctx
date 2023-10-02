@@ -4,7 +4,7 @@ use curta::chip::arithmetic::expression::ArithmeticExpression;
 use curta::chip::builder::{AirBuilder, AirTraceData};
 use curta::chip::ec::gadget::EllipticCurveGadget;
 use curta::chip::ec::point::AffinePointRegister;
-use curta::chip::ec::{EllipticCurve, EllipticCurveParameters};
+use curta::chip::ec::{EllipticCurve, EllipticCurveAir};
 use curta::chip::field::instruction::FpInstruction;
 use curta::chip::field::register::FieldRegister;
 use curta::chip::register::array::ArrayRegister;
@@ -16,11 +16,11 @@ use curta::math::prelude::{CubicParameters, *};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PKAirParameters<F: Field, R: CubicParameters<F>, E: EllipticCurveParameters>(
+pub struct PKAirParameters<F: Field, R: CubicParameters<F>, E: EllipticCurve>(
     pub PhantomData<(F, R, E)>,
 );
 
-impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveParameters> AirParameters
+impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurve> AirParameters
     for PKAirParameters<F, R, E>
 {
     type Field = F;
@@ -36,7 +36,7 @@ impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveParameters> AirPara
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(bound = "")]
-pub struct PKAir<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveParameters> {
+pub struct PKAir<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurve> {
     pub air: Chip<PKAirParameters<F, R, E>>,
     pub trace_data: AirTraceData<PKAirParameters<F, R, E>>,
     pub public_keys: Vec<AffinePointRegister<E>>,
@@ -46,7 +46,7 @@ pub struct PKAir<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveParamet
     pub flag: BitRegister,
 }
 
-impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurve<PKAirParameters<F, R, E>>>
+impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveAir<PKAirParameters<F, R, E>>>
     PKAir<F, R, E>
 {
     /// Creates a new instance of the PKAir supporting 1 << public_keys_degree public keys.

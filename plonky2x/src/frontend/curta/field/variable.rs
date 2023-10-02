@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 use curta::chip::field::parameters::FieldParameters;
-use curta::chip::utils::{digits_to_biguint, field_limbs_to_biguint};
+use curta::chip::utils::digits_to_biguint;
 use curta::math::prelude::PrimeField64;
 use curta::polynomial::to_u16_le_limbs_polynomial;
 use num_bigint::BigUint;
@@ -36,6 +36,7 @@ impl<P: FieldParameters> CircuitVariable for FieldVariable<P> {
         &self,
         _builder: &mut CircuitBuilder<L, D>,
     ) {
+        todo!("range checks on field variable")
     }
 
     fn constant<L: PlonkParameters<D>, const D: usize>(
