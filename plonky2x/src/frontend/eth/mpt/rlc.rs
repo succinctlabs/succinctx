@@ -83,7 +83,7 @@ pub(crate) mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use crate::frontend::builder::DefaultBuilder;
-    use crate::prelude::{ByteVariable, CircuitVariable, Variable};
+    use crate::prelude::{ByteVariable, Variable};
 
     impl Default for ByteVariable {
         fn default() -> ByteVariable {
@@ -103,11 +103,87 @@ pub(crate) mod tests {
         let mut b: [ByteVariable; MAX_LEN] = Default::default();
 
         for i in 0..MAX_LEN {
-            a[i] = ByteVariable::constant(&mut builder, (i + 5) as u8);
+            a[i] = builder.constant::<ByteVariable>((i + 5) as u8);
         }
 
         for i in 0..MAX_LEN {
-            b[i] = ByteVariable::constant(&mut builder, i as u8);
+            b[i] = builder.constant::<ByteVariable>(i as u8);
+        }
+
+        let a_offset: Variable = builder.constant(F::ZERO);
+        let b_offset = builder.constant(F::from_canonical_usize(5));
+        let len: Variable = builder.constant(F::from_canonical_usize(5));
+        builder.assert_subarray_equal(&a, a_offset, &b, b_offset, len);
+
+        // Build your circuit.
+        let circuit = builder.build();
+
+        // Write to the circuit input.
+        let input = circuit.input();
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output)
+    }
+
+    #[test]
+    pub fn test_subarray_equal_diff_len_should_succeed() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let mut builder = DefaultBuilder::new();
+
+        const LEN_A: usize = 15;
+        const LEN_B: usize = 10;
+        let mut a: [ByteVariable; LEN_A] = Default::default();
+        let mut b: [ByteVariable; LEN_B] = Default::default();
+
+        for i in 0..LEN_A {
+            a[i] = builder.constant::<ByteVariable>((i + 5) as u8);
+        }
+
+        for i in 0..LEN_B {
+            b[i] = builder.constant::<ByteVariable>(i as u8);
+        }
+
+        let a_offset: Variable = builder.constant(F::ZERO);
+        let b_offset = builder.constant(F::from_canonical_usize(5));
+        let len: Variable = builder.constant(F::from_canonical_usize(5));
+        builder.assert_subarray_equal(&a, a_offset, &b, b_offset, len);
+
+        // Build your circuit.
+        let circuit = builder.build();
+
+        // Write to the circuit input.
+        let input = circuit.input();
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output)
+    }
+
+    #[test]
+    pub fn test_subarray_equal_diff_len_inverse_should_succeed() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let mut builder = DefaultBuilder::new();
+
+        const LEN_A: usize = 10;
+        const LEN_B: usize = 15;
+        let mut a: [ByteVariable; LEN_A] = Default::default();
+        let mut b: [ByteVariable; LEN_B] = Default::default();
+
+        for i in 0..LEN_A {
+            a[i] = builder.constant::<ByteVariable>((i + 5) as u8);
+        }
+
+        for i in 0..LEN_B {
+            b[i] = builder.constant::<ByteVariable>(i as u8);
         }
 
         let a_offset: Variable = builder.constant(F::ZERO);
@@ -141,15 +217,15 @@ pub(crate) mod tests {
         let mut b: [ByteVariable; MAX_LEN] = Default::default();
 
         for i in 0..MAX_LEN {
-            a[i] = ByteVariable::constant(&mut builder, (i + 5) as u8);
+            a[i] = builder.constant::<ByteVariable>((i + 5) as u8);
         }
 
         for i in 0..MAX_LEN {
-            b[i] = ByteVariable::constant(&mut builder, i as u8);
+            b[i] = builder.constant::<ByteVariable>(i as u8);
         }
- 
+
         // Modify 1 byte here.
-        b[6] = ByteVariable::constant(&mut builder, 0);
+        b[6] = builder.constant::<ByteVariable>(0);
 
         let a_offset = builder.constant(F::ZERO);
         let b_offset = builder.constant(F::from_canonical_usize(5));
