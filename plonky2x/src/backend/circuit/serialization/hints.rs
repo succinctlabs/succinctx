@@ -67,6 +67,7 @@ use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
+use crate::frontend::mapreduce::generator::MapReduceGenerator;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::nonnative::nonnative::{
     NonNativeAdditionGenerator, NonNativeInverseGenerator, NonNativeMultipleAddsGenerator,
@@ -79,7 +80,11 @@ use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
 use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
-use crate::prelude::{BoolVariable, Variable};
+use crate::prelude::{ArrayVariable, BoolVariable, Variable};
+use crate::utils::avail::{
+    EncodedHeaderVariable, FloorDivGenerator, HeaderLookupHint, BATCH_SIZE, MAX_EPOCH_SIZE,
+    MAX_HEADER_SIZE,
+};
 
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
     WitnessGeneratorSerializer<L::Field, D>
@@ -447,6 +452,28 @@ where
         >>(blake2b_generator);
 
         r.register_hint::<SubArrayExtractorHint>();
+
+        r.register_hint::<HeaderLookupHint>();
+
+        let id = MapReduceGenerator::<
+            L,
+            ArrayVariable<EncodedHeaderVariable<MAX_HEADER_SIZE>, MAX_EPOCH_SIZE>,
+            Variable,
+            (Bytes32Variable, Bytes32Variable),
+            BATCH_SIZE,
+            D,
+        >::id();
+        r.register_simple::<MapReduceGenerator<
+            L,
+            ArrayVariable<EncodedHeaderVariable<MAX_HEADER_SIZE>, MAX_EPOCH_SIZE>,
+            Variable,
+            (Bytes32Variable, Bytes32Variable),
+            BATCH_SIZE,
+            D,
+        >>(id);
+
+        let floor_div_generator = FloorDivGenerator::<L::Field, D>::default().id();
+        r.register_simple::<FloorDivGenerator<L::Field, D>>(floor_div_generator);
 
         register_watch_generator!(
             r,
