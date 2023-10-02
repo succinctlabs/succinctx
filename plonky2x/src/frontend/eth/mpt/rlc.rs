@@ -14,8 +14,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         random_value: Variable,
     ) -> Variable {
         let end_idx = self.add(offset, len);
-        let mut is_within_subarray: Variable = self.zero();
-        let mut commitment = self.zero();
+        let mut commitment: Variable = self.zero();
+        let mut is_within_subarray = self.zero();
 
         let one: Variable = self.one();
         let mut current_multiplier = one;
@@ -26,7 +26,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             is_within_subarray = self.add(is_within_subarray, is_at_start_idx.0);
             let is_at_end_idx = self.is_equal(idx_target, end_idx);
             is_within_subarray = self.sub(is_within_subarray, is_at_end_idx.0);
-        
+
             let to_be_multiplied = self.select(BoolVariable(is_within_subarray), random_value, one);
             current_multiplier = self.mul(current_multiplier, to_be_multiplied);
 
@@ -58,7 +58,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.is_equal(commitment_for_a, commitment_for_b)
     }
 
-    #[allow(unused_variables, dead_code)]
+    /// Asserts that subarrays are equal using a random linear combination.
     pub fn assert_subarray_equal(
         &mut self,
         a: &[ByteVariable],
