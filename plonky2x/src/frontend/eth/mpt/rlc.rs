@@ -68,8 +68,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         len: Variable,
     ) {
         let subarrays_are_equal = self.subarray_equal(a, a_offset, b, b_offset, len);
-        let _true = self._true();
-        self.assert_is_equal(subarrays_are_equal, _true);
+        self.assert_is_true(subarrays_are_equal);
     }
 }
 
