@@ -13,14 +13,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Leaf should already be hashed.
     pub fn get_root_from_merkle_proof_hashed_leaf<const PROOF_DEPTH: usize>(
         &mut self,
-        aunts: &ArrayVariable<Bytes32Variable, PROOF_DEPTH>,
+        proof: &ArrayVariable<Bytes32Variable, PROOF_DEPTH>,
         path_indices: &ArrayVariable<BoolVariable, PROOF_DEPTH>,
         leaf: Bytes32Variable,
     ) -> Bytes32Variable {
         let mut hash_so_far = leaf;
 
         for i in 0..PROOF_DEPTH {
-            let aunt = aunts[i];
+            let aunt = proof[i];
             let path_index = path_indices[i];
             let left_hash_pair = self.inner_hash(&hash_so_far, &aunt);
             let right_hash_pair = self.inner_hash(&aunt, &hash_so_far);
@@ -39,7 +39,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         self.get_root_from_merkle_proof_hashed_leaf::<PROOF_DEPTH>(
             &inclusion_proof.proof,
-            &path_indices,
+            path_indices,
             hashed_leaf,
         )
     }
