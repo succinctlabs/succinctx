@@ -27,7 +27,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Eth1BlockToSlotHint {
         // Convert block numbers to slots
         let execution_blocks = client.get_execution_blocks(&[eth1_block]).unwrap();
         let slot = execution_blocks[0].pos_consensus.slot;
-        output_stream.write_value::<U64Variable>(slot.into());
+        output_stream.write_value::<U64Variable>(slot);
     }
 }
 

@@ -326,6 +326,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         result
     }
 
+    /// Connects two variables.
+    pub fn connect<V: CircuitVariable>(&mut self, i1: V, i2: V) {
+        let i1 = i1.targets();
+        let i2 = i2.targets();
+        for i in 0..i1.len() {
+            self.api.connect(i1[i], i2[i]);
+        }
+    }
+
     pub fn to_le_bits<V: EvmVariable>(&mut self, variable: V) -> Vec<BoolVariable> {
         variable.to_le_bits(self)
     }

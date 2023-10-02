@@ -183,7 +183,7 @@ impl CircuitVariable for EthHeaderVariable {
             receipt_hash: self.receipt_hash.get(witness),
             // bloom: self.bloom.get(witness),
             difficulty: self.difficulty.get(witness),
-            number: self.number.get(witness),
+            number: U64::from(self.number.get(witness)),
             gas_limit: self.gas_limit.get(witness),
             gas_used: self.gas_used.get(witness),
             time: self.time.get(witness),
@@ -201,7 +201,7 @@ impl CircuitVariable for EthHeaderVariable {
         self.receipt_hash.set(witness, value.receipt_hash);
         // self.bloom.set(witness, value.bloom);
         self.difficulty.set(witness, value.difficulty);
-        self.number.set(witness, value.number);
+        self.number.set(witness, value.number.as_u64());
         self.gas_limit.set(witness, value.gas_limit);
         self.gas_used.set(witness, value.gas_used);
         self.time.set(witness, value.time);

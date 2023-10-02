@@ -1,6 +1,5 @@
 #![allow(clippy::needless_range_loop)]
 
-use ethers::types::U64;
 use itertools::Itertools;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
@@ -35,7 +34,7 @@ impl Circuit for MapReduceValidatorCircuit {
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(BLOCK_ROOT));
         let partial_validators = builder.beacon_get_partial_validators::<NB_VALIDATORS>(block_root);
         let partial_balances = builder.beacon_get_partial_balances::<NB_VALIDATORS>(block_root);
-        let idxs = (0..NB_VALIDATORS).map(U64::from).collect_vec();
+        let idxs = (0..NB_VALIDATORS).map(|idx| idx as u64).collect_vec();
 
         let output = builder.mapreduce::<
             (BeaconValidatorsVariable, BeaconBalancesVariable),
@@ -77,8 +76,8 @@ impl Circuit for MapReduceValidatorCircuit {
 
                 // Convert balances to leafs.
                 let mut balance_leafs = Vec::new();
-                let zero = builder.constant::<U64Variable>(U64::from(0));
-                let mut sum = builder.constant::<U64Variable>(U64::from(0));
+                let zero = builder.constant::<U64Variable>(0);
+                let mut sum = builder.constant::<U64Variable>(0);
                 for i in 0..idxs.len() / 4 {
                     let balances = [
                         balances[i*4],

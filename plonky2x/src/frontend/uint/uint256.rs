@@ -1,10 +1,19 @@
+use array_macro::array;
 use ethers::types::U256;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::witness::{Witness, WitnessWrite};
 
-use super::uint32_n::{U32NVariable, Uint};
+use super::Uint;
+use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
+use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
+use crate::frontend::vars::{EvmVariable, SSZVariable, U32Variable};
+use crate::prelude::{
+    Add, BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitBuilder,
+    CircuitVariable, Div, LessThanOrEqual, Mul, One, PlonkParameters, Rem, Sub, Variable, Zero,
+};
+use crate::{make_uint32_n, make_uint32_n_tests};
 
-const NUM_LIMBS: usize = 8;
-
-impl Uint<NUM_LIMBS> for U256 {
+impl Uint<8> for U256 {
     fn to_little_endian(&self, bytes: &mut [u8]) {
         self.to_little_endian(bytes);
     }
@@ -34,4 +43,5 @@ impl Uint<NUM_LIMBS> for U256 {
     }
 }
 
-pub type U256Variable = U32NVariable<U256, NUM_LIMBS>;
+make_uint32_n!(U256Variable, U256, 8);
+make_uint32_n_tests!(U256Variable, U256, 8);

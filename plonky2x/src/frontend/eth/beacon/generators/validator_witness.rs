@@ -23,7 +23,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconValidatorHint {
         let validator_index = input_stream.read_value::<U64Variable>();
 
         let response = client
-            .get_validator_witness(hex!(header_root), validator_index.as_u64())
+            .get_validator_witness(hex!(header_root), validator_index)
             .unwrap();
 
         output_stream.write_value::<BeaconValidatorVariable>(response.validator);
@@ -41,11 +41,7 @@ impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
         let header_root = input_stream.read_value::<Bytes32Variable>();
         let start_idx = input_stream.read_value::<U64Variable>();
         let response = client
-            .get_validator_batch_witness(
-                hex!(header_root),
-                start_idx.as_u64(),
-                start_idx.as_u64() + B as u64,
-            )
+            .get_validator_batch_witness(hex!(header_root), start_idx, start_idx + B as u64)
             .unwrap();
 
         output_stream.write_value::<ArrayVariable<BeaconValidatorVariable, B>>(response);
@@ -63,11 +59,7 @@ impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
         let header_root = input_stream.read_value::<Bytes32Variable>();
         let start_idx = input_stream.read_value::<U64Variable>();
         let response = client
-            .get_validator_batch_witness(
-                hex!(header_root),
-                start_idx.as_u64(),
-                start_idx.as_u64() + B as u64,
-            )
+            .get_validator_batch_witness(hex!(header_root), start_idx, start_idx + B as u64)
             .unwrap();
 
         let (compressed_validators, witnesses): (

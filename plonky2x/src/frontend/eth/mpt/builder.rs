@@ -125,7 +125,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     current_node_hash,
                     current_node_id.as_slice()[0..32].into(),
                 );
-                let node_len_le_32 = self.le(len_nodes[i], const_32);
+                let node_len_le_32 = self.lte(len_nodes[i], const_32);
                 let case_len_le_32 = self.and(node_len_le_32, first_32_bytes_eq);
                 let inter = self.not(node_len_le_32);
                 let case_len_gt_32 = self.and(inter, hash_eq);

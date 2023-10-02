@@ -1,4 +1,3 @@
-use ethers::types::U64;
 use itertools::Itertools;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
@@ -28,7 +27,7 @@ impl Circuit for MapReduceBalanceCircuit {
     {
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(BLOCK_ROOT));
         let partial_balances = builder.beacon_get_partial_balances::<NB_BALANCES>(block_root);
-        let idxs = (0..NB_BALANCES).map(U64::from).collect_vec();
+        let idxs = (0..NB_BALANCES).map(|idx| idx as u64).collect_vec();
 
         let output = builder
             .mapreduce::<BeaconBalancesVariable, U64Variable, (Bytes32Variable, U64Variable), _, _, BATCH_SIZE>(
@@ -41,7 +40,7 @@ impl Circuit for MapReduceBalanceCircuit {
 
                     // Convert balances to leafs.
                     let mut leafs = Vec::new();
-                    let mut sum = builder.constant::<U64Variable>(U64::from(0));
+                    let mut sum = builder.constant::<U64Variable>(0);
                     for i in 0..idxs.len() / 4 {
                         let b = [
                             balances[i * 4],

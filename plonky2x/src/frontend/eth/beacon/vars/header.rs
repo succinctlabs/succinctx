@@ -98,8 +98,10 @@ mod test {
         let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
         let header = client.get_header("7404237".to_string()).unwrap();
         let beacon_header = BeaconHeaderValue::<<L as PlonkParameters<D>>::Field> {
-            slot: U64::from_dec_str(header.slot.as_str()).unwrap(),
-            proposer_index: U64::from_dec_str(header.proposer_index.as_str()).unwrap(),
+            slot: U64::from_dec_str(header.slot.as_str()).unwrap().as_u64(),
+            proposer_index: U64::from_dec_str(header.proposer_index.as_str())
+                .unwrap()
+                .as_u64(),
             parent_root: bytes32!(header.parent_root),
             state_root: bytes32!(header.state_root),
             body_root: bytes32!(header.body_root),
