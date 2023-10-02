@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use plonky2::field::types::Field;
 use plonky2::hash::poseidon::PoseidonHash;
 use plonky2::iop::challenger::RecursiveChallenger;
@@ -49,7 +50,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         len: Variable,
     ) -> BoolVariable {
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
-        let challenger_seed = Vec::new();
+        let challenger_seed = [a, b]
+            .concat()
+            .iter()
+            .map(|byte| byte.to_variable(self).0)
+            .collect_vec();
         challenger.observe_elements(&challenger_seed);
         let challenge = Variable(challenger.get_challenge(&mut self.api));
 
