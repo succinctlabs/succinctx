@@ -34,4 +34,6 @@ impl Uint<NUM_LIMBS> for U256 {
     }
 }
 
+/// A variable in the circuit representing a U256 value. Under the hood, it is represented as
+/// eight U32Variable elements.
 pub type U256Variable = U32NVariable<U256, NUM_LIMBS>;

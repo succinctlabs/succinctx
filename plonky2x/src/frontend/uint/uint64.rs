@@ -34,6 +34,6 @@ impl Uint<NUM_LIMBS> for U64 {
     }
 }
 
-/// A variable in the circuit representing a u64 value. Under the hood, it is represented as
+/// A variable in the circuit representing a U64 value. Under the hood, it is represented as
 /// two U32Variable elements.
 pub type U64Variable = U32NVariable<U64, NUM_LIMBS>;
