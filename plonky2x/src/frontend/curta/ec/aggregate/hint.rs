@@ -91,7 +91,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Bn254PKHint {
         let stark = Starky::new(air);
         let config = StarkyConfig::standard_fast_config(num_rows);
 
-        let public_inputs : Vec<L::Field> = writer.public().unwrap().clone();
+        let public_inputs: Vec<L::Field> = writer.public().unwrap().clone();
 
         let proof = StarkyProver::<L::Field, L::CurtaConfig, D>::prove(
             &config,
@@ -106,7 +106,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Bn254PKHint {
         StarkyVerifier::verify(&config, &stark, proof.clone(), &public_inputs).unwrap();
 
         // Return the aggregated public key and the proof.
-        // output_stream.write_value::<AffinePointVariable<E>>(aggregated_pk_value.into());
+        output_stream.write_value::<AffinePointVariable<E>>(aggregated_pk_value.into());
         output_stream.write_stark_proof(proof);
         output_stream.write_slice(&public_inputs);
     }
@@ -167,6 +167,17 @@ mod tests {
             .map(|b| builder.constant::<BoolVariable>(*b))
             .collect::<Vec<_>>();
 
+        let agg_pk_value = public_keys_values
+            .iter()
+            .zip(selector_values.iter())
+            .fold(base, |agg, (pk, b)| {
+                if *b {
+                    agg.sw_add(pk)
+                } else {
+                    agg
+                }
+            });
+
         let mut input_stream = VariableStream::new();
         for (pk, b) in public_keys.iter().zip(selectors.iter()) {
             input_stream.write::<AffinePointVariable<Bn254>>(pk);
@@ -176,14 +187,21 @@ mod tests {
         let hint = Bn254PKHint { num_keys_degree };
         let outputs = builder.hint(input_stream, hint);
 
-        // let aggregated_pk = outputs.read::<AffinePointVariable<Bn254>>(&mut builder);
+        let aggregated_pk = outputs.read::<AffinePointVariable<Bn254>>(&mut builder);
         let proof = outputs.read_stark_proof(&mut builder, &stark, &config);
         let public_inputs = outputs.read_exact(&mut builder, stark.air.num_public_inputs());
         builder.verify_stark_proof(&config, &stark, &proof, &public_inputs);
 
+        builder.write(aggregated_pk);
+
         let circuit = builder.build();
         let input = circuit.input();
 
-        let (proof, output) = circuit.prove(&input);
+        let (proof, mut output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+
+        // Read the aggregated public key from the output and compare to the expected value.
+        let agg_pk_output = AffinePoint::from(output.read::<AffinePointVariable<Bn254>>());
+        assert_eq!(agg_pk_output, agg_pk_value);
     }
 }

@@ -303,7 +303,6 @@ mod tests {
 
         timing.print();
 
-
         let mut builder = DefaultBuilder::new();
         let virtual_proof = builder.api.add_virtual_stark_proof(&stark, &config);
 
@@ -313,7 +312,9 @@ mod tests {
         for (&pi_t, &pi) in public_input_targets.iter().zip(public_inputs.iter()) {
             pw.set_target(pi_t, pi);
         }
-        builder.api.verify_stark_proof(&config, &stark, &virtual_proof, &public_input_targets);
+        builder
+            .api
+            .verify_stark_proof(&config, &stark, &virtual_proof, &public_input_targets);
 
         let generator = SimpleStarkWitnessGenerator::new(
             config,

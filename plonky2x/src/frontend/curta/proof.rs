@@ -53,17 +53,25 @@ impl VariableStream {
             .collect::<Vec<_>>();
 
         let num_rounds = stark.air().num_rounds();
-        let num_global_values = stark.air().num_global_values();
-        let global_values = self.read_exact(num_global_values).to_vec();
+
         let trace_caps = (0..num_rounds)
             .map(|_| self.read_merkle_cap(cap_height))
             .collect::<Vec<_>>();
+
+        let quotient_polys_cap = self.read_merkle_cap(cap_height);
+
+        let num_global_values = stark.air().num_global_values();
+        let global_values = self.read_exact(num_global_values).to_vec();
+
+        let openings = self.read_stark_opening_set(stark, config);
+        let opening_proof = self.read_fri_proof(&num_leaves_per_oracle, &fri_params);
+
         StarkProofVariable {
             trace_caps,
-            quotient_polys_cap: self.read_merkle_cap(cap_height),
-            openings: self.read_stark_opening_set(stark, config),
+            quotient_polys_cap,
             global_values,
-            opening_proof: self.read_fri_proof(&num_leaves_per_oracle, &fri_params),
+            openings,
+            opening_proof,
         }
     }
 
@@ -143,17 +151,25 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
             .collect::<Vec<_>>();
 
         let num_rounds = stark.air().num_rounds();
-        let num_global_values = stark.air().num_global_values();
-        let global_values = self.read_exact(builder, num_global_values).to_vec();
+
         let trace_caps = (0..num_rounds)
             .map(|_| self.read_merkle_cap(builder, cap_height))
             .collect::<Vec<_>>();
+
+        let quotient_polys_cap = self.read_merkle_cap(builder, cap_height);
+
+        let num_global_values = stark.air().num_global_values();
+        let global_values = self.read_exact(builder, num_global_values).to_vec();
+
+        let openings = self.read_stark_opening_set(builder, stark, config);
+        let opening_proof = self.read_fri_proof(builder, &num_leaves_per_oracle, &fri_params);
+
         StarkProofVariable {
             trace_caps,
-            quotient_polys_cap: self.read_merkle_cap(builder, cap_height),
-            openings: self.read_stark_opening_set(builder, stark, config),
+            quotient_polys_cap,
+            openings,
             global_values,
-            opening_proof: self.read_fri_proof(builder, &num_leaves_per_oracle, &fri_params),
+            opening_proof,
         }
     }
 
@@ -199,17 +215,24 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
             .collect::<Vec<_>>();
 
         let num_rounds = stark.air().num_rounds();
-        let num_global_values = stark.air().num_global_values();
-        let global_values = self.read_exact(num_global_values).to_vec();
+
         let trace_caps = (0..num_rounds)
             .map(|_| self.read_merkle_cap(cap_height))
             .collect::<Vec<_>>();
+        let quotient_polys_cap = self.read_merkle_cap(cap_height);
+
+        let num_global_values = stark.air().num_global_values();
+        let global_values = self.read_exact(num_global_values).to_vec();
+
+        let openings = self.read_stark_opening_set(stark, config);
+        let opening_proof = self.read_fri_proof(&num_leaves_per_oracle, &fri_params);
+
         StarkProof {
             trace_caps,
-            quotient_polys_cap: self.read_merkle_cap(cap_height),
-            openings: self.read_stark_opening_set(stark, config),
+            quotient_polys_cap,
             global_values,
-            opening_proof: self.read_fri_proof(&num_leaves_per_oracle, &fri_params),
+            openings,
+            opening_proof,
         }
     }
 
@@ -341,9 +364,8 @@ mod tests {
     use curta::plonky2::stark::prover::StarkyProver;
     use serde::{Deserialize, Serialize};
 
-    use crate::frontend::hint::simple::hint::Hint;
-
     use super::*;
+    use crate::frontend::hint::simple::hint::Hint;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct FibonacciParameters;
@@ -475,15 +497,19 @@ mod tests {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ProofReadHint {
-        proof : StarkProof<GoldilocksField, CurtaPoseidonGoldilocksConfig, 2>
+        proof: StarkProof<GoldilocksField, CurtaPoseidonGoldilocksConfig, 2>,
     }
 
     type F = GoldilocksField;
 
-    impl Hint<DefaultParameters, 2> for ProofReadHint  {
-        fn hint(&self, _input_stream: &mut ValueStream<DefaultParameters, 2>, output_stream: &mut ValueStream<DefaultParameters, 2>) {
+    impl Hint<DefaultParameters, 2> for ProofReadHint {
+        fn hint(
+            &self,
+            _input_stream: &mut ValueStream<DefaultParameters, 2>,
+            output_stream: &mut ValueStream<DefaultParameters, 2>,
+        ) {
             output_stream.write_stark_proof(self.proof.clone());
-            output_stream.write_slice(&[F::ZERO, F::ONE, fibonacci((1<<5) - 1, F::ZERO, F::ONE)])
+            output_stream.write_slice(&[F::ZERO, F::ONE, fibonacci((1 << 5) - 1, F::ZERO, F::ONE)])
         }
     }
 
@@ -528,7 +554,7 @@ mod tests {
 
         let mut builder = DefaultBuilder::new();
         let input_stream = VariableStream::new();
-        let hint = ProofReadHint {proof};
+        let hint = ProofReadHint { proof };
         let output_stream = builder.hint(input_stream, hint);
         let proof_variable = output_stream.read_stark_proof(&mut builder, &stark, &config);
         let public_input_variable = output_stream.read_exact(&mut builder, 3);
@@ -539,6 +565,6 @@ mod tests {
 
         let input = circuit.input();
         let (circuit_proof, output) = circuit.prove(&input);
-        circuit.verify(&circuit_proof, &input, &output); 
+        circuit.verify(&circuit_proof, &input, &output);
     }
 }
