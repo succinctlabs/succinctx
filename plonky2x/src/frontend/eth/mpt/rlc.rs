@@ -55,7 +55,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .iter()
             .map(|byte| byte.to_variable(self).0)
             .collect_vec();
+
         challenger.observe_elements(&challenger_seed);
+
         let challenge = Variable(challenger.get_challenge(&mut self.api));
 
         let commitment_for_a = self.commit_subarray(a, a_offset, len, challenge);
