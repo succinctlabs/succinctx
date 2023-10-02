@@ -111,8 +111,11 @@ pub fn curta_batch_eddsa_verify_variable<
 
     let max_msg_len_bits = MAX_MSG_LENGTH_BYTES * 8;
 
+    println!("max_msg_len_bits: {}", max_msg_len_bits);
+
     // Note: This will calculate number of chunks in the message, including the compressed sig and pk bits (512 bits).
     let max_num_chunks: usize = calculate_eddsa_num_chunks(max_msg_len_bits);
+    println!("max_num_chunks: {}", max_num_chunks);
 
     // Create the eddsa circuit's virtual targets.
     let mut msgs = Vec::new();
