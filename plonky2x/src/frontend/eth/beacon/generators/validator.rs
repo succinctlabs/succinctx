@@ -132,7 +132,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
                 .get_validator(hex!(block_root), *idx)
                 .expect("failed to get validator"),
             BeaconValidatorGeneratorInput::IndexVariable(idx) => {
-                let idx = idx.get(witness).as_u64();
+                let idx = idx.get(witness);
                 self.client
                     .get_validator(hex!(block_root), idx)
                     .expect("failed to get validator")
@@ -145,8 +145,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
             }
         };
         self.validator.set(out_buffer, result.validator);
-        self.validator_idx
-            .set(out_buffer, result.validator_idx.into());
+        self.validator_idx.set(out_buffer, result.validator_idx);
         for i in 0..DEPTH {
             self.proof[i].set(out_buffer, bytes32!(result.proof[i]));
         }

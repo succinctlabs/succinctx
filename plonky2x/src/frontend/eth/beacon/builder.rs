@@ -1,5 +1,5 @@
 use array_macro::array;
-use ethers::types::{H256, U256, U64};
+use ethers::types::{H256, U256};
 
 use super::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
@@ -137,7 +137,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             BeaconValidatorGenerator::new_with_index_variable(self, validators.block_root, index);
         self.add_simple_generator(generator.clone());
         let validator_root = self.ssz_hash_tree_root(generator.validator);
-        let mut gindex = self.constant::<U64Variable>(VALIDATOR_BASE_GINDEX.into());
+        let mut gindex = self.constant::<U64Variable>(VALIDATOR_BASE_GINDEX);
         gindex = self.add(gindex, index);
         self.ssz_verify_proof(
             validators.validators_root,
@@ -228,7 +228,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             BeaconValidatorGenerator::new_with_pubkey_variable(self, validators.block_root, pubkey);
         self.add_simple_generator(generator.clone());
         let validator_root = self.ssz_hash_tree_root(generator.validator);
-        let mut gindex = self.constant::<U64Variable>(VALIDATOR_BASE_GINDEX.into());
+        let mut gindex = self.constant::<U64Variable>(VALIDATOR_BASE_GINDEX);
         gindex = self.add(gindex, generator.validator_idx);
         self.ssz_verify_proof(
             validators.validators_root,
@@ -340,8 +340,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let generator =
             BeaconBalanceGenerator::new_with_index_variable(self, balances.block_root, index);
         self.add_simple_generator(generator.clone());
-        let mut gindex = self.constant::<U64Variable>(BALANCE_BASE_GINDEX.into());
-        let four = self.constant::<U64Variable>(4.into());
+        let mut gindex = self.constant::<U64Variable>(BALANCE_BASE_GINDEX);
+        let four = self.constant::<U64Variable>(4);
 
         let offset = self.div(index, four);
         gindex = self.add(gindex, offset);
@@ -441,7 +441,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             idx,
         );
         self.add_simple_generator(generator.clone());
-        let mut gindex = self.constant::<U64Variable>(WITHDRAWAL_BASE_GINDEX.into());
+        let mut gindex = self.constant::<U64Variable>(WITHDRAWAL_BASE_GINDEX);
         gindex = self.add(gindex, idx);
         let leaf = self.ssz_hash_tree_root(generator.withdrawal);
         self.ssz_verify_proof(withdrawals.withdrawals_root, leaf, &generator.proof, gindex);
@@ -519,17 +519,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         // Use close slot logic if (source - target) < 8192
         let source_slot = self.beacon_get_block_header(block_root).slot;
         let source_sub_target = self.sub(source_slot, target_slot);
-        let slots_per_historical =
-            self.constant::<U64Variable>(U64::from(SLOTS_PER_HISTORICAL_ROOT));
-        let one_u64 = self.constant::<U64Variable>(U64::from(1));
+        let slots_per_historical = self.constant::<U64Variable>(SLOTS_PER_HISTORICAL_ROOT);
+        let one_u64 = self.constant::<U64Variable>(1);
         let slots_per_historical_sub_one = self.sub(slots_per_historical, one_u64);
-        let is_close_slot = self.le(source_sub_target, slots_per_historical_sub_one);
+        let is_close_slot = self.lte(source_sub_target, slots_per_historical_sub_one);
 
         let block_roots_array_index = self.rem(target_slot, slots_per_historical);
 
         // Close slot logic
         let mut close_slot_block_root_gindex =
-            self.constant::<U64Variable>(CLOSE_SLOT_BLOCK_ROOT_GINDEX.into());
+            self.constant::<U64Variable>(CLOSE_SLOT_BLOCK_ROOT_GINDEX);
         close_slot_block_root_gindex =
             self.add(close_slot_block_root_gindex, block_roots_array_index);
         let restored_close_slot_block_root = self.ssz_restore_merkle_root(
@@ -540,12 +539,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let valid_close_slot = self.is_equal(restored_close_slot_block_root, block_root);
 
         // Far slot logic
-        let capella_slot =
-            self.constant::<U64Variable>(U64::from(CAPELLA_FORK_EPOCH * SLOTS_PER_EPOCH));
+        let capella_slot = self.constant::<U64Variable>(CAPELLA_FORK_EPOCH * SLOTS_PER_EPOCH);
         let slots_since_capella = self.sub(target_slot, capella_slot);
         let historical_summary_array_index = self.div(slots_since_capella, slots_per_historical);
         let mut historical_summary_gindex =
-            self.constant::<U64Variable>(HISTORICAL_SUMMARIES_BASE_GINDEX.into());
+            self.constant::<U64Variable>(HISTORICAL_SUMMARIES_BASE_GINDEX);
         historical_summary_gindex =
             self.add(historical_summary_gindex, historical_summary_array_index);
         let restored_far_slot_block_root = self.ssz_restore_merkle_root(
@@ -556,7 +554,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let valid_far_slot_block_root = self.is_equal(restored_far_slot_block_root, block_root);
 
         let mut far_slot_block_root_gindex =
-            self.constant::<U64Variable>(HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX.into());
+            self.constant::<U64Variable>(HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX);
         far_slot_block_root_gindex = self.add(far_slot_block_root_gindex, block_roots_array_index);
         let restored_far_slot_historical_root = self.ssz_restore_merkle_root(
             generator.target_block_root,
@@ -749,7 +747,7 @@ pub(crate) mod tests {
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let validators = builder.beacon_get_validators(block_root);
-        let index = builder.constant::<U64Variable>(0.into());
+        let index = builder.constant::<U64Variable>(0);
         let validator = builder.beacon_get_validator(validators, index);
         let expected_validator_pubkey = builder.constant::<BLSPubkeyVariable>(bytes!(
             "0x933ad9491b62059dd065b560d256d8957a8c402cc6e8d8ee7290ae11e8f7329267a8811c397529dac52ae1342ba58c95"
@@ -832,7 +830,7 @@ pub(crate) mod tests {
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
-        let zero = builder.constant::<U64Variable>(0.into());
+        let zero = builder.constant::<U64Variable>(0);
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let validators = builder.beacon_get_validators(block_root);
         let validators = builder.beacon_witness_validator_batch::<512>(validators, zero);
@@ -908,7 +906,7 @@ pub(crate) mod tests {
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let balances = builder.beacon_get_balances(block_root);
-        let index = builder.constant::<U64Variable>(7.into());
+        let index = builder.constant::<U64Variable>(7);
         let balance = builder.beacon_get_balance(balances, index);
         builder.watch(&balance, "balance");
 
@@ -958,7 +956,7 @@ pub(crate) mod tests {
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let withdrawals = builder.beacon_get_withdrawals(block_root);
-        let idx = builder.constant::<U64Variable>(0.into());
+        let idx = builder.constant::<U64Variable>(0);
         let withdrawal = builder.beacon_get_withdrawal(withdrawals, idx);
         builder.watch(&withdrawal, "withdrawal");
 
@@ -983,7 +981,7 @@ pub(crate) mod tests {
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
-        let idx = builder.constant::<U64Variable>(0.into());
+        let idx = builder.constant::<U64Variable>(0);
         let historical_block = builder.beacon_get_historical_block(block_root, idx);
         builder.watch(&historical_block, "historical_block");
 
@@ -1005,7 +1003,7 @@ pub(crate) mod tests {
         let leaf = builder.constant::<Bytes32Variable>(bytes32!(
             "0xa1b2c3d4e5f60718291a2b3c4d5e6f708192a2b3c4d5e6f7a1b2c3d4e5f60718"
         ));
-        let index = builder.constant::<U64Variable>(2.into());
+        let index = builder.constant::<U64Variable>(2);
         let branch = vec![
             builder.constant::<Bytes32Variable>(bytes32!(
                 "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
@@ -1040,7 +1038,7 @@ pub(crate) mod tests {
         let leaf = builder.constant::<Bytes32Variable>(bytes32!(
             "0xa1b2c3d4e5f60718291a2b3c4d5e6f708192a2b3c4d5e6f7a1b2c3d4e5f60718"
         ));
-        let index = builder.constant::<U64Variable>(2.into());
+        let index = builder.constant::<U64Variable>(2);
         let branch = vec![
             builder.constant::<Bytes32Variable>(bytes32!(
                 "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"

@@ -1,7 +1,5 @@
 use std::env;
 
-use ethers::types::U64;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::hint::simple::hint::Hint;
@@ -21,10 +19,10 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconBalanceWitnessH
         let validator_index = input_stream.read_value::<U64Variable>();
 
         let response = client
-            .get_balance_witness(hex!(header_root), validator_index.as_u64())
+            .get_balance_witness(hex!(header_root), validator_index)
             .unwrap();
 
-        output_stream.write_value::<U64Variable>(response.into());
+        output_stream.write_value::<U64Variable>(response);
     }
 }
 
@@ -39,13 +37,8 @@ impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
         let header_root = input_stream.read_value::<Bytes32Variable>();
         let start_idx = input_stream.read_value::<U64Variable>();
         let response = client
-            .get_balance_batch_witness(
-                hex!(header_root),
-                start_idx.as_u64(),
-                start_idx.as_u64() + B as u64,
-            )
+            .get_balance_batch_witness(hex!(header_root), start_idx, start_idx + B as u64)
             .unwrap();
-        let response = response.iter().map(|u| U64::from(*u)).collect_vec();
         output_stream.write_value::<ArrayVariable<U64Variable, B>>(response);
     }
 }

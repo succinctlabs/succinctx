@@ -249,6 +249,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     pub fn array_contains<V: CircuitVariable>(&mut self, array: &[V], element: V) -> BoolVariable {
+        assert!(array.len() < 1 << 16);
         let mut accumulator = self.constant::<Variable>(L::Field::from_canonical_usize(0));
 
         for i in 0..array.len() {
@@ -257,7 +258,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let one = self.constant::<Variable>(L::Field::from_canonical_usize(1));
-        self.le(one, accumulator)
+        self.is_equal(one, accumulator)
     }
 }
 

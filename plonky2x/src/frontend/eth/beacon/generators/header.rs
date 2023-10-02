@@ -23,8 +23,10 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconHeaderHint {
         let header = client.get_header(hex!(block_root.as_bytes())).unwrap();
 
         let beacon_header = BeaconHeaderValue::<L::Field> {
-            slot: U64::from_dec_str(header.slot.as_str()).unwrap(),
-            proposer_index: U64::from_dec_str(header.proposer_index.as_str()).unwrap(),
+            slot: U64::from_dec_str(header.slot.as_str()).unwrap().as_u64(),
+            proposer_index: U64::from_dec_str(header.proposer_index.as_str())
+                .unwrap()
+                .as_u64(),
             parent_root: bytes32!(header.parent_root),
             state_root: bytes32!(header.state_root),
             body_root: bytes32!(header.body_root),
