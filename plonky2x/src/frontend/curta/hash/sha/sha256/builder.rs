@@ -5,6 +5,7 @@ use curta::chip::hash::sha::sha256::generator::SHA256StarkData;
 use curta::chip::hash::sha::sha256::SHA256PublicData;
 
 use super::hint::Sha256ProofHint;
+use crate::frontend::hint::synchronous::Async;
 use crate::prelude::{PlonkParameters, *};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
@@ -37,7 +38,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         input_stream.write_slice(&chunk_sizes);
 
-        let outputs = self.hint(input_stream, hint);
+        let outputs = self.async_hint(input_stream, Async(hint));
 
         let proof = outputs.read_stark_proof(self, &stark, &config);
 
