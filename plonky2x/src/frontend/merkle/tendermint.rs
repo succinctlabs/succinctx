@@ -244,7 +244,10 @@ mod tests {
                 .map(|aunt| H256::from_slice(hex::decode(aunt).unwrap().as_slice()))
                 .collect_vec(),
         };
+
+        let path_indices = [false, false, false, false].to_vec();
         input.write::<MerkleInclusionProofVariable<4, 48>>(inclusion_proof);
+        input.write::<ArrayVariable<BoolVariable, 4>>(path_indices);
 
         let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);

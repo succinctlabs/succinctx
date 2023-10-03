@@ -981,7 +981,7 @@ pub(crate) mod tests {
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
-        let idx = builder.constant::<U64Variable>(0);
+        let idx = builder.constant::<U64Variable>(7450000);
         let historical_block = builder.beacon_get_historical_block(block_root, idx);
         builder.watch(&historical_block, "historical_block");
 

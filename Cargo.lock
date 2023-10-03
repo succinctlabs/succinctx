@@ -691,7 +691,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git#cf04e10fe509a2c7b28f1f46640fbb341ff24161"
+source = "git+https://github.com/succinctlabs/curta.git#1a36e5681c1e25f108c89270ae480a5f0efe317b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2659,7 +2659,7 @@ checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/mir-protocol/plonky2.git#cd36e96cb844f3042aa7acf9c03ea8e66735c904"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ac0c4ae18b9b550ce8e70949feeff94ab132f77"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2683,7 +2683,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#cd36e96cb844f3042aa7acf9c03ea8e66735c904"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ac0c4ae18b9b550ce8e70949feeff94ab132f77"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2707,7 +2707,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#cd36e96cb844f3042aa7acf9c03ea8e66735c904"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ac0c4ae18b9b550ce8e70949feeff94ab132f77"
 dependencies = [
  "rayon",
 ]
@@ -2715,7 +2715,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#cd36e96cb844f3042aa7acf9c03ea8e66735c904"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ac0c4ae18b9b550ce8e70949feeff94ab132f77"
 
 [[package]]
 name = "plonky2x"
@@ -2753,7 +2753,6 @@ dependencies = [
  "serde_plain",
  "serde_with",
  "sha2 0.10.8",
- "sha2-const",
  "sha256",
  "tokio",
  "tracing",
@@ -2989,9 +2988,9 @@ checksum = "dbb5fb1acd8a1a18b3dd5be62d25485eb770e05afb408a9627d14d451bae12da"
 
 [[package]]
 name = "reqwest"
-version = "0.11.21"
+version = "0.11.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78fdbab6a7e1d7b13cc8ff10197f47986b41c639300cc3c8158cac7847c9bbef"
+checksum = "046cd98826c46c2ac8ddecae268eb5c2e58628688a5fc7a2643704a73faba95b"
 dependencies = [
  "base64 0.21.4",
  "bytes",
@@ -3424,12 +3423,6 @@ dependencies = [
  "cpufeatures",
  "digest 0.10.7",
 ]
-
-[[package]]
-name = "sha2-const"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5edcd790916d95ff81bdc1505b09c74d30d47a755929cc8c71c59cbbfa99f91b"
 
 [[package]]
 name = "sha256"
