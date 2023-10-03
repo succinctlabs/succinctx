@@ -652,6 +652,64 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_cross_boundary() -> Result<()> {
+        utils::setup_logger();
+        // Input message of length N has N % 1024 > 1024 - 129
+        // Tests that the last chunk is selected correctly.
+        let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
+        let msg_bits = to_bits(msg.to_vec());
+
+        let expected_digest = "4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39";
+        let digest_bits = to_bits(decode(expected_digest).unwrap());
+
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+
+        // Note: This should be computed from the maximum SHA512 size for the circuit
+        const MAX_NUM_CHUNKS: usize = 2;
+
+        let sha512_target = sha512_variable::<F, D>(&mut builder, MAX_NUM_CHUNKS);
+        let mut pw = PartialWitness::new();
+
+        // Pass in the bit length of the message to hash as a target
+        pw.set_target(
+            sha512_target.hash_msg_length_bits,
+            F::from_canonical_usize(msg_bits.len()),
+        );
+
+        // Add extra bool targets
+        for i in 0..msg_bits.len() {
+            pw.set_bool_target(sha512_target.message[i], msg_bits[i]);
+        }
+
+        // Add extra bool targets
+        for i in msg_bits.len()..MAX_NUM_CHUNKS * CHUNK_BITS_1024 {
+            pw.set_bool_target(sha512_target.message[i], false);
+        }
+
+        for i in 0..sha512_target.digest.len() {
+            if digest_bits[i] {
+                builder.assert_one(sha512_target.digest[i].target);
+            } else {
+                builder.assert_zero(sha512_target.digest[i].target);
+            }
+        }
+
+        dbg!(builder.num_gates());
+        let data = builder.build::<C>();
+
+        let circuit_digest = data.verifier_only.circuit_digest;
+        debug!("circuit_digest: {:?}", circuit_digest);
+
+        let proof = data.prove(pw).unwrap();
+
+        data.verify(proof)
+    }
+
+    #[test]
     #[should_panic]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_failure() {

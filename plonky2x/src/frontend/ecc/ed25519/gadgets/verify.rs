@@ -21,10 +21,10 @@ pub struct DummySignatureTarget<C: Curve, const MAX_MESSAGE_LENGTH: usize> {
     pub message_byte_length: U32Variable,
 }
 
-// DUMMY_PRIVATE_KEY is [0u8; 32].
+// DUMMY_PRIVATE_KEY is [1u8; 32].
 pub const DUMMY_PUBLIC_KEY: [u8; 32] = [
-    59, 106, 39, 188, 206, 182, 164, 45, 98, 163, 168, 208, 42, 111, 13, 115, 101, 50, 21, 119, 29,
-    226, 67, 166, 58, 192, 72, 161, 139, 89, 218, 41,
+    138, 136, 227, 221, 116, 9, 241, 149, 253, 82, 219, 45, 60, 186, 93, 114, 202, 103, 9, 191, 29,
+    148, 18, 27, 243, 116, 136, 1, 180, 15, 111, 92,
 ];
 pub const DUMMY_MSG: [u8; 32] = [0u8; 32];
 pub const DUMMY_MSG_LENGTH_BYTES: u32 = 32;
@@ -32,10 +32,10 @@ pub const DUMMY_MSG_LENGTH_BITS: u32 = 256;
 
 // Produced by signing DUMMY_MSG with DUMMY_PRIVATE_KEY.
 pub const DUMMY_SIGNATURE: [u8; 64] = [
-    61, 161, 235, 223, 169, 110, 221, 24, 29, 190, 54, 89, 209, 192, 81, 196, 49, 240, 86, 165,
-    173, 106, 151, 166, 13, 92, 202, 16, 70, 4, 56, 120, 53, 70, 70, 30, 49, 40, 95, 197, 159, 145,
-    199, 7, 38, 66, 116, 80, 97, 226, 69, 29, 95, 243, 59, 204, 216, 195, 199, 77, 171, 202, 246,
-    10,
+    55, 20, 104, 158, 84, 120, 194, 17, 6, 237, 157, 164, 85, 88, 158, 137, 187, 119, 187, 240,
+    159, 73, 80, 63, 133, 162, 74, 91, 48, 53, 6, 138, 1, 41, 22, 121, 249, 46, 198, 145, 155, 102,
+    3, 210, 168, 135, 173, 55, 252, 72, 45, 126, 169, 178, 191, 7, 153, 67, 112, 90, 150, 33, 140,
+    7,
 ];
 
 pub trait EDDSABatchVerify<L: PlonkParameters<D>, const D: usize> {
@@ -370,13 +370,6 @@ pub(crate) mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_verify_eddsa_avail() {
-        // let msg = "0159d9e0241bee82e4a8b6a05fb7fe0cb57a8431f03e81b0be700d1fadd9bf45489d2800005c3c0000000000000900000000000000";
-        // let pubkey = "092005a6f7a58a98df5f9b8d186b9877f12b603aa06c7debf0f610d5a49f9ed7";
-        // let sig = "67d4b9ccd69ce60a6c9767e2e7c5d6376780db9cce049dc8e55dc7830133e7167e1d9278e0e9fe2a6b52c696359b58e95da6b3bd5201f3940381df2a60583009";
-        // let msg_bytes = hex::decode(msg).unwrap();
-        // let pub_key_bytes = hex::decode(pubkey).unwrap();
-        // let sig_bytes = hex::decode(sig).unwrap();
-
         let msg_bytes: [u8; 53] = [
             1, 164, 81, 146, 119, 87, 120, 84, 45, 84, 206, 199, 171, 245, 50, 223, 18, 145, 16,
             20, 30, 74, 39, 118, 236, 132, 187, 1, 187, 203, 3, 182, 59, 16, 197, 8, 0, 235, 7, 0,
@@ -421,5 +414,24 @@ pub(crate) mod tests {
         let pub_key_bytes = hex::decode(pubkey).unwrap();
         let sig_bytes = hex::decode(sig).unwrap();
         verify_eddsa_signature::<MSG_BYTES_LENGTH>(msg_bytes, pub_key_bytes, sig_bytes)
+    }
+
+    #[test]
+    fn generate_eddsa_public_key() {
+        let priv_key_bytes = [1u8; 32];
+        let signing_key = ed25519_consensus::SigningKey::try_from(&priv_key_bytes[..])
+            .expect("failed to create key");
+
+        let verification_key = signing_key.verification_key();
+
+        println!("public key: {:?}", verification_key.clone().to_bytes());
+
+        let signature = signing_key.sign(&[0u8; 32]);
+
+        println!("signature: {:?}", signature.clone().to_bytes());
+
+        verification_key
+            .verify(&signature, &[0u8; 32])
+            .expect("failed to verify signature");
     }
 }
