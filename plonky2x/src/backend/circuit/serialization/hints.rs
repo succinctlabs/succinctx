@@ -428,10 +428,10 @@ where
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
 
-        let id = "ArithmeticExtensionGenerator".to_string();
+        let id = ArithmeticCubicGenerator::<L::Field, D>::id();
         r.register_simple::<ArithmeticCubicGenerator<L::Field, D>>(id);
 
-        let id = "MulExtensionGenerator".to_string();
+        let id = MulCubicGenerator::<L::Field, D>::id();
         r.register_simple::<MulCubicGenerator<L::Field, D>>(id);
 
         r.register_async_hint::<BeaconValidatorsHint>();
