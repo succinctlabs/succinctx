@@ -311,9 +311,10 @@ impl<L: PlonkParameters<D>, const D: usize> Plonky2xCircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+    use std::env;
+
+    use ethers::types::H256;
     use hex::decode;
-    use log::debug;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -321,7 +322,8 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use super::*;
-    use crate::utils;
+    use crate::backend::circuit::CircuitBuild;
+    use crate::prelude::{DefaultBuilder, DefaultParameters};
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -338,178 +340,99 @@ mod tests {
         res
     }
 
+    fn build_sha256_circuit<const MSG_NUM_BYTES: usize>() -> CircuitBuild<DefaultParameters, 2> {
+        env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let mut builder = DefaultBuilder::new();
+
+        let expected_digest = builder.read::<Bytes32Variable>();
+        let msg_var = builder.read::<BytesVariable<MSG_NUM_BYTES>>();
+
+        let output = builder.sha256(&msg_var.0);
+
+        builder.assert_is_equal(output, expected_digest);
+
+        builder.build()
+    }
+
+    fn test_sha256_template<const MSG_NUM_BYTES: usize>(
+        built_circuit: &CircuitBuild<DefaultParameters, 2>,
+        msg: &[u8],
+        digest: &[u8],
+    ) {
+        let mut input = built_circuit.input();
+
+        input.write::<Bytes32Variable>(H256::from_slice(&digest[0..32]));
+        input.write::<BytesVariable<MSG_NUM_BYTES>>(msg.try_into().unwrap());
+
+        let (proof, output) = built_circuit.prove(&input);
+        built_circuit.verify(&proof, &input, &output);
+    }
+
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha256_bench() -> Result<()> {
-        utils::setup_logger();
+    fn test_sha256_bench() {
         let mut msg = String::new();
         for _ in 0..8 {
-            msg.push_str("abcdefghij");
+            msg.push_str("abcdef");
         }
-        let msg_bits = to_bits(msg.as_bytes().to_vec());
-        let expected_digest = "d68d62c262c2ec08961c1104188cde86f51695878759666ad61490c8ec66745c";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
+        let msg = &decode(msg).unwrap();
 
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
+        let digest =
+            decode("85432ac1b3d4de53232b33c7ec80d5d28e8c3c0711fd242dbb005b7b07532e0d").unwrap();
 
-        let targets = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let msg_hash = sha256(&mut builder, &targets);
-
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(msg_hash[i].target);
-            } else {
-                builder.assert_zero(msg_hash[i].target);
-            }
-        }
-
-        let data = builder.build::<C>();
+        let circuit = build_sha256_circuit::<24>();
 
         for i in 0..10 {
-            let mut pw = PartialWitness::new();
-
-            for i in 0..msg_bits.len() {
-                pw.set_bool_target(targets[i], msg_bits[i]);
-            }
-            let now = std::time::Instant::now();
-            let _proof = data.prove(pw).unwrap();
-            debug!("{} step, time elapsed {}", i, now.elapsed().as_millis());
+            test_sha256_template::<24>(&circuit, msg, &digest);
         }
-
-        Ok(())
     }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha256_empty() -> Result<()> {
+    fn test_sha256_empty() {
         let msg = b"";
-        let msg_bits = to_bits(msg.to_vec());
-        let expected_digest = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
+        let expected_digest =
+            decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap();
 
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
+        let circuit = build_sha256_circuit::<0>();
 
-        let targets = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let msg_hash = sha256(&mut builder, &targets);
-
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(msg_hash[i].target);
-            } else {
-                builder.assert_zero(msg_hash[i].target);
-            }
-        }
-
-        let mut pw = PartialWitness::new();
-
-        for i in 0..msg_bits.len() {
-            pw.set_bool_target(targets[i], msg_bits[i]);
-        }
-
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-
-        data.verify(proof)
+        test_sha256_template::<0>(&circuit, msg, expected_digest.as_slice());
     }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha256_small_msg() -> Result<()> {
+    fn test_sha256_small_msg() {
         let msg = b"plonky2";
-        let msg_bits = to_bits(msg.to_vec());
-        let expected_digest = "8943a85083f16e93dc92d6af455841daacdae5081aa3125b614a626df15461eb";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
+        let expected_digest =
+            decode("8943a85083f16e93dc92d6af455841daacdae5081aa3125b614a626df15461eb").unwrap();
 
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
-        let targets = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let msg_hash = sha256(&mut builder, &targets);
+        let circuit = build_sha256_circuit::<7>();
 
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(msg_hash[i].target);
-            } else {
-                builder.assert_zero(msg_hash[i].target);
-            }
-        }
-
-        let mut pw = PartialWitness::new();
-
-        for i in 0..msg_bits.len() {
-            pw.set_bool_target(targets[i], msg_bits[i]);
-        }
-
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-
-        data.verify(proof)
+        test_sha256_template::<7>(&circuit, msg, expected_digest.as_slice());
     }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha256_large_msg() -> Result<()> {
+    fn test_sha256_large_msg() {
         let msg = decode(
             "00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d",
         )
         .unwrap();
-        let msg_bits = to_bits(msg.to_vec());
-        // dbg!(&msg_bits);
-        let expected_digest = "84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e";
-        dbg!(decode(expected_digest).unwrap());
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
 
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
+        let expected_digest =
+            decode("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e").unwrap();
 
-        let targets = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let msg_hash = sha256(&mut builder, &targets);
+        let circuit = build_sha256_circuit::<39>();
 
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(msg_hash[i].target);
-            } else {
-                builder.assert_zero(msg_hash[i].target);
-            }
-        }
-
-        let mut pw = PartialWitness::new();
-
-        for i in 0..msg_bits.len() {
-            pw.set_bool_target(targets[i], msg_bits[i]);
-        }
-
-        dbg!(builder.num_gates());
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-
-        data.verify(proof)
+        test_sha256_template::<39>(&circuit, msg.as_slice(), expected_digest.as_slice());
     }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha256_single_chunk_variable() -> Result<()> {
+    fn test_sha256_single_chunk_variable() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -529,7 +452,6 @@ mod tests {
             SINGLE_CHUNK_MAX_MESSAGE_BYTES * 8 - msg_bits.len()
         ]);
 
-        // dbg!(&msg_bits);
         let expected_digest = "84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e";
         dbg!(decode(expected_digest).unwrap());
         let digest_bits = to_bits(decode(expected_digest).unwrap());
@@ -551,7 +473,7 @@ mod tests {
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
 
-        data.verify(proof)
+        let _ = data.verify(proof).is_ok();
     }
 
     #[test]
