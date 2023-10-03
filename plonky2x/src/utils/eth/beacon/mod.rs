@@ -315,7 +315,7 @@ impl BeaconClient {
         self.get_finalized_block_root()
     }
 
-    /// Gets the latest block root at `head` asynchronously.
+    /// Gets the latest finalized block root asynchronously.
     pub fn get_finalized_block_root(&self) -> Result<String> {
         let endpoint = format!("{}/eth/v1/beacon/headers/finalized", self.rpc_url);
         let response = self.client.fetch(&endpoint)?;
@@ -323,6 +323,22 @@ impl BeaconClient {
 
         if let Value::Object(data) = &parsed["data"] {
             return Ok(data["root"].as_str().unwrap().to_string());
+        }
+
+        Err(anyhow::anyhow!("failed to parse response"))
+    }
+
+    /// Gets the latest finalized slot asynchronously.
+    pub fn get_finalized_slot(&self) -> Result<String> {
+        let endpoint = format!("{}/eth/v1/beacon/headers/finalized", self.rpc_url);
+        let response = self.client.fetch(&endpoint)?;
+        let parsed: Value = response.json()?;
+
+        if let Value::Object(data) = &parsed["data"] {
+            return Ok(data["header"]["message"]["slot"]
+                .as_str()
+                .unwrap()
+                .to_string());
         }
 
         Err(anyhow::anyhow!("failed to parse response"))
