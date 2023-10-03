@@ -77,8 +77,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         // Assert that the permuted filtered accumulator is the same as the filtered accumulator.
-        self.watch(&permuted_filtered_acc, "permuted_filtered_acc");
-        self.watch(&filtered_acc, "filtered_acc");
         self.assert_is_equal(permuted_filtered_acc, filtered_acc);
 
         // Check the metric ordering.
