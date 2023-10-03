@@ -16,6 +16,9 @@ ci = []
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false }
 curta = { git = "https://github.com/succinctlabs/curta.git", branch = "kevjue/support_small_public_inputs" }
 plonky2x-derive = { path = "../plonky2x-derive" }
+avail-subxt = {git = "https://github.com/availproject/avail.git", rev = "b68af9607e3d0db972eb54b1ccea70223584cfe9"}
+succinct_avail_utils = { git = "https://github.com/succinctlabs/avail.git", branch = "kevjue/mapreduce_experiment" }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full", "bit-vec"] }
 
 num = { version = "0.4", default-features = false }
 sha2 = "0.10.7"
