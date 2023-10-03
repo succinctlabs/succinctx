@@ -72,6 +72,8 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Sha256ProofHint<L, D>
 
         output_stream.write_stark_proof(proof);
 
+        debug!("Wrote stark proof (hint-3)!");
+
         let SHA256PublicData {
             public_w,
             hash_state,
@@ -80,9 +82,11 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Sha256ProofHint<L, D>
 
         output_stream.write_slice(&public_w.into_iter().flatten().collect::<Vec<_>>());
 
+        debug!("Wrote first slice (hint-4)!");
+
         output_stream.write_slice(&hash_state.into_iter().flatten().collect::<Vec<_>>());
 
-        debug!("Stark proof complete (hint-3)!");
+        debug!("Stark proof complete (hint-5)!");
     }
 }
 
