@@ -47,15 +47,15 @@ use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
-    BeaconExecutionPayloadHint, BeaconHeaderHint, BeaconHistoricalBlockGenerator,
-    BeaconPartialBalancesHint, BeaconPartialValidatorsHint, BeaconValidatorBatchHint,
-    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconValidatorsHint,
-    BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint,
-    Eth1BlockToSlotHint,
+    BeaconExecutionPayloadHint, BeaconGraffitiHint, BeaconHeaderHint,
+    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
+    BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
+    BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
 };
 use crate::frontend::eth::beacon::vars::{
-    BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
-    BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
+    BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
+    BeaconValidatorsVariable, BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
 use crate::frontend::eth::mpt::generators::LteGenerator;
 use crate::frontend::eth::storage::generators::{
@@ -451,6 +451,10 @@ where
 
         r.register_hint::<BeaconBlockRootsHint>();
 
+        r.register_hint::<BeaconGraffitiHint>();
+
+        register_powers_of_two!(r, BeaconHeadersFromOffsetRangeHint);
+
         register_watch_generator!(
             r,
             L,
@@ -465,6 +469,7 @@ where
             BeaconWithdrawalsVariable,
             BeaconWithdrawalVariable,
             BeaconValidatorVariable,
+            BeaconHeaderVariable,
             ArrayVariable<Bytes32Variable, 8192>
         );
 

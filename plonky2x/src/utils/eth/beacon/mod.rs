@@ -312,6 +312,22 @@ pub struct GetBeaconBlockRoots {
     pub proof: Vec<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconGraffiti {
+    pub graffiti: String,
+    #[serde(deserialize_with = "deserialize_bigint")]
+    pub gindex: BigInt,
+    pub depth: u64,
+    pub proof: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetBeaconHeadersFromOffsetRange {
+    pub headers: Vec<String>,
+}
+
 impl BeaconClient {
     /// Creates a new BeaconClient based on a rpc url.
     pub fn new(rpc_url: String) -> Self {
@@ -650,6 +666,34 @@ impl BeaconClient {
         assert!(response.success);
         Ok(response.result)
     }
+
+    pub fn get_graffiti(&self, beacon_id: String) -> Result<GetBeaconGraffiti> {
+        let endpoint = format!("{}/api/beacon/proof/graffiti/{}", self.rpc_url, beacon_id);
+        info!("{}", endpoint);
+        let client = Client::new();
+        let response = client.get(endpoint).timeout(Duration::new(60, 0)).send()?;
+        let response: CustomResponse<GetBeaconGraffiti> = response.json()?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    pub fn get_headers_from_offset_range(
+        &self,
+        beacon_id: String,
+        start_offset: u64,
+        end_offset: u64,
+    ) -> Result<GetBeaconHeadersFromOffsetRange> {
+        let endpoint = format!(
+            "{}/api/beacon/header/offset/{}/{}/{}",
+            self.rpc_url, beacon_id, start_offset, end_offset
+        );
+        info!("{}", endpoint);
+        let client = Client::new();
+        let response = client.get(endpoint).timeout(Duration::new(60, 0)).send()?;
+        let response: CustomResponse<GetBeaconHeadersFromOffsetRange> = response.json()?;
+        assert!(response.success);
+        Ok(response.result)
+    }
 }
 
 #[cfg(test)]
@@ -740,6 +784,30 @@ mod tests {
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_block_roots(slot.to_string())?;
+        debug!("{:?}", result);
+        Ok(())
+    }
+
+    #[cfg_attr(feature = "ci", ignore)]
+    #[test]
+    fn test_get_graffiti() -> Result<()> {
+        utils::setup_logger();
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(rpc.to_string());
+        let slot = 7052735;
+        let result = client.get_graffiti(slot.to_string())?;
+        debug!("{:?}", result);
+        Ok(())
+    }
+
+    #[cfg_attr(feature = "ci", ignore)]
+    #[test]
+    fn test_get_headers_from_offset_range() -> Result<()> {
+        utils::setup_logger();
+        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(rpc.to_string());
+        let slot = 7052735;
+        let result = client.get_headers_from_offset_range(slot.to_string(), 0, 16)?;
         debug!("{:?}", result);
         Ok(())
     }
