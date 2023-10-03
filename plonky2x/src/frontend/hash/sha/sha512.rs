@@ -296,7 +296,12 @@ pub fn sha512_variable<F: RichField + Extendable<D>, const D: usize>(
         msg_input.push(builder.add_virtual_bool_target_safe());
     }
 
-    let length_bits = builder.split_le(hash_msg_length_bits, 64);
+    // Add 128 bits for the length and 1 bit for the padding bit before calculating last_block_num
+    let length_and_padding_bits = builder.constant(F::from_canonical_usize(128 + 1));
+
+    let total_hash_msg_length_bits = builder.add(hash_msg_length_bits, length_and_padding_bits);
+
+    let length_bits = builder.split_le(total_hash_msg_length_bits, 64);
 
     let last_block_num = builder.le_sum(length_bits[10..64].to_vec().iter());
 
