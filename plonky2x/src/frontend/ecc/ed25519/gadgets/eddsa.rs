@@ -113,6 +113,10 @@ pub fn curta_batch_eddsa_verify_variable<
 
     // Note: This will calculate number of chunks in the message, including the compressed sig and pk bits (512 bits).
     let max_num_chunks: usize = calculate_eddsa_num_chunks(max_msg_len_bits);
+    println!(
+        "max_num_chunks in curta_batch_eddsa_verify: {}",
+        max_num_chunks
+    );
 
     // Create the eddsa circuit's virtual targets.
     let mut msgs = Vec::new();
@@ -130,16 +134,20 @@ pub fn curta_batch_eddsa_verify_variable<
             // Note that add_virtual_bool_target_safe will do a range check to verify each element is 0 or 1.
             msg.push(builder.add_virtual_bool_target_safe());
         }
+        msgs.push(msg.clone());
 
         // Targets for the message length and number of chunks
         // TODO: Should we range check that msg_length is less than MAX_MSG_LEN * 8?
-        let msg_length = builder.add_virtual_target();
+        let msg_bit_length = builder.add_virtual_target();
         // Note: Add 512 bits for the sig.r and pk_compressed
-        let compressed_sig_and_pk_t =
+        let compressed_sig_and_pk_bit_length_t =
             builder.constant(F::from_canonical_usize(COMPRESSED_SIG_AND_PK_LEN_BITS));
-        let hash_msg_length = builder.add(msg_length, compressed_sig_and_pk_t);
+        let hash_msg_bit_length = builder.add(msg_bit_length, compressed_sig_and_pk_bit_length_t);
 
-        msgs_bit_lengths.push(msg_length);
+        // let t_936 = builder.constant(F::from_canonical_usize(936));
+        // builder.connect(hash_msg_bit_length, t_936);
+
+        msgs_bit_lengths.push(msg_bit_length);
 
         // There is already a calculation for the number of limbs needed for the underlying biguint targets.
         let sig = EDDSASignatureTarget {
@@ -178,10 +186,8 @@ pub fn curta_batch_eddsa_verify_variable<
             hash_msg.push(builder._false());
         }
 
-        msgs.push(msg);
-
         let sha512_targets = sha512_variable::<F, D>(builder, max_num_chunks);
-        builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_length);
+        builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_bit_length);
 
         for i in 0..max_num_chunks * CHUNK_BITS_1024 {
             builder.connect(sha512_targets.message[i].target, hash_msg[i].target);
@@ -783,39 +789,6 @@ mod tests {
             vec![pub_key_bytes.to_vec()],
             vec![sig_bytes.to_vec()],
         );
-    }
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_verify_eddsa_avail() {
-        // let msg = "0159d9e0241bee82e4a8b6a05fb7fe0cb57a8431f03e81b0be700d1fadd9bf45489d2800005c3c0000000000000900000000000000";
-        // let pubkey = "092005a6f7a58a98df5f9b8d186b9877f12b603aa06c7debf0f610d5a49f9ed7";
-        // let sig = "67d4b9ccd69ce60a6c9767e2e7c5d6376780db9cce049dc8e55dc7830133e7167e1d9278e0e9fe2a6b52c696359b58e95da6b3bd5201f3940381df2a60583009";
-        // let msg_bytes = hex::decode(msg).unwrap();
-        // let pub_key_bytes = hex::decode(pubkey).unwrap();
-        // let sig_bytes = hex::decode(sig).unwrap();
-
-        let msg_bytes: [u8; 53] = [
-            1, 164, 81, 146, 119, 87, 120, 84, 45, 84, 206, 199, 171, 245, 50, 223, 18, 145, 16,
-            20, 30, 74, 39, 118, 236, 132, 187, 1, 187, 203, 3, 182, 59, 16, 197, 8, 0, 235, 7, 0,
-            0, 0, 0, 0, 0, 25, 2, 0, 0, 0, 0, 0, 0,
-        ];
-        let pub_key_bytes: [u8; 32] = [
-            43, 167, 192, 11, 252, 193, 43, 86, 163, 6, 196, 30, 196, 76, 65, 16, 66, 208, 184, 55,
-            164, 13, 128, 252, 101, 47, 165, 140, 207, 183, 134, 0,
-        ];
-        let sig_bytes: [u8; 64] = [
-            181, 147, 15, 125, 55, 28, 34, 104, 182, 165, 82, 204, 204, 73, 16, 207, 185, 157, 77,
-            145, 128, 9, 51, 132, 54, 115, 29, 172, 162, 95, 181, 176, 47, 25, 165, 27, 174, 193,
-            83, 51, 85, 17, 162, 57, 133, 169, 77, 68, 160, 216, 58, 230, 14, 128, 149, 202, 53, 8,
-            232, 253, 28, 251, 207, 6,
-        ];
-        verify_conditional_eddsa_signature(
-            msg_bytes.to_vec(),
-            pub_key_bytes.to_vec(),
-            sig_bytes.to_vec(),
-            false,
-        )
     }
 
     #[test]

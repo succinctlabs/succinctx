@@ -343,8 +343,9 @@ pub(crate) mod tests {
 
         let mut input = circuit.input();
         input.write::<ArrayVariable<BoolVariable, 1>>(vec![active]);
-        input
-            .write::<ArrayVariable<BytesVariable<124>, 1>>(vec![new_msg_bytes.try_into().unwrap()]);
+        input.write::<ArrayVariable<BytesVariable<MESSAGE_BYTES_LENGTH_MAX>, 1>>(vec![
+            new_msg_bytes.try_into().unwrap(),
+        ]);
         input.write::<ArrayVariable<U32Variable, 1>>(vec![msg_bytes.len() as u32]);
         input.write::<ArrayVariable<EDDSASignatureTarget<Curve>, 1>>(vec![
             EDDSASignatureTargetValue { r: sig_r, s: sig_s },
@@ -375,6 +376,40 @@ pub(crate) mod tests {
             false,
         )
     }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_verify_eddsa_avail() {
+        // let msg = "0159d9e0241bee82e4a8b6a05fb7fe0cb57a8431f03e81b0be700d1fadd9bf45489d2800005c3c0000000000000900000000000000";
+        // let pubkey = "092005a6f7a58a98df5f9b8d186b9877f12b603aa06c7debf0f610d5a49f9ed7";
+        // let sig = "67d4b9ccd69ce60a6c9767e2e7c5d6376780db9cce049dc8e55dc7830133e7167e1d9278e0e9fe2a6b52c696359b58e95da6b3bd5201f3940381df2a60583009";
+        // let msg_bytes = hex::decode(msg).unwrap();
+        // let pub_key_bytes = hex::decode(pubkey).unwrap();
+        // let sig_bytes = hex::decode(sig).unwrap();
+
+        let msg_bytes: [u8; 53] = [
+            1, 164, 81, 146, 119, 87, 120, 84, 45, 84, 206, 199, 171, 245, 50, 223, 18, 145, 16,
+            20, 30, 74, 39, 118, 236, 132, 187, 1, 187, 203, 3, 182, 59, 16, 197, 8, 0, 235, 7, 0,
+            0, 0, 0, 0, 0, 25, 2, 0, 0, 0, 0, 0, 0,
+        ];
+        let pub_key_bytes: [u8; 32] = [
+            43, 167, 192, 11, 252, 193, 43, 86, 163, 6, 196, 30, 196, 76, 65, 16, 66, 208, 184, 55,
+            164, 13, 128, 252, 101, 47, 165, 140, 207, 183, 134, 0,
+        ];
+        let sig_bytes: [u8; 64] = [
+            181, 147, 15, 125, 55, 28, 34, 104, 182, 165, 82, 204, 204, 73, 16, 207, 185, 157, 77,
+            145, 128, 9, 51, 132, 54, 115, 29, 172, 162, 95, 181, 176, 47, 25, 165, 27, 174, 193,
+            83, 51, 85, 17, 162, 57, 133, 169, 77, 68, 160, 216, 58, 230, 14, 128, 149, 202, 53, 8,
+            232, 253, 28, 251, 207, 6,
+        ];
+        verify_conditional_eddsa_signature(
+            msg_bytes.to_vec(),
+            pub_key_bytes.to_vec(),
+            sig_bytes.to_vec(),
+            true,
+        )
+    }
+
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_verify_eddsa_signature_fixed() {
