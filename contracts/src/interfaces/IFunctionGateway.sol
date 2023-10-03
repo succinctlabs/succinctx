@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.5.0;
 
+struct VerifiedCall {
+    bytes32 functionId;
+    bytes32 inputHash;
+    bytes32 outputHash;
+    bytes input;
+    bytes output;
+}
+
 struct FunctionRequest {
     bytes32 functionId;
     bytes32 inputHash;
@@ -41,10 +49,18 @@ interface IFunctionGatewayErrors {
     error OutputMismatch(bytes32 outputHash, bytes context);
     error InputsRootMismatch(bytes32 inputsRoot, bytes32[] inputHashes);
     error OutputsRootMismatch(bytes32 outputsRoot, bytes32[] outputHashes);
-    error VerificationKeysRootMismatch(bytes32 outputsRoot, bytes32[] outputHashes);
+    error VerificationKeysRootMismatch(
+        bytes32 outputsRoot,
+        bytes32[] outputHashes
+    );
     error ProofNotFulfilled(bytes32 requestId);
     error ProofAlreadyFulfilled(bytes32 requestId);
-    error InvalidProof(address verifier, bytes32 inputHash, bytes32 outputHash, bytes proof);
+    error InvalidProof(
+        address verifier,
+        bytes32 inputHash,
+        bytes32 outputHash,
+        bytes proof
+    );
     error CallbackFailed(address callbackAddress, bytes4 callbackSelector);
     error CallbackAlreadyFulfilled(bytes32 requestId);
     error LengthMismatch(uint256 expected, uint256 actual);
@@ -53,15 +69,28 @@ interface IFunctionGatewayErrors {
 }
 
 interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
-    function requests(bytes32 requestId)
+    function requests(
+        bytes32 requestId
+    )
         external
         view
-        returns (bytes32, bytes32, bytes32, bytes32, address, bytes4, bool, bool);
+        returns (
+            bytes32,
+            bytes32,
+            bytes32,
+            bytes32,
+            address,
+            bytes4,
+            bool,
+            bool
+        );
 
-    function request(bytes32 functionId, bytes memory input, bytes4 callbackSelector, bytes memory context)
-        external
-        payable
-        returns (bytes32);
+    function request(
+        bytes32 functionId,
+        bytes memory input,
+        bytes4 callbackSelector,
+        bytes memory context
+    ) external payable returns (bytes32);
 
     function request(
         bytes32 functionId,
@@ -72,7 +101,11 @@ interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
         address refundAccount
     ) external payable returns (bytes32);
 
-    function fulfill(bytes32 requestId, bytes32 outputHash, bytes memory proof) external;
+    function fulfill(
+        bytes32 requestId,
+        bytes32 outputHash,
+        bytes memory proof
+    ) external;
 
     function fulfillBatch(
         bytes32[] memory requestIds,
@@ -83,9 +116,15 @@ interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
         bytes32 verificationKeyRoot
     ) external;
 
-    function callback(bytes32 requestId, bytes memory output, bytes memory context) external;
+    function callback(
+        bytes32 requestId,
+        bytes memory output,
+        bytes memory context
+    ) external;
 
     function calculateFeeAmount() external view returns (uint256);
 
-    function calculateFeeAmount(uint256 gasLimit) external view returns (uint256);
+    function calculateFeeAmount(
+        uint256 gasLimit
+    ) external view returns (uint256);
 }
