@@ -11,6 +11,8 @@ use curta::chip::hash::blake::blake2b::generator::{
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
+use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
+use curta::plonky2::cubic::mul_gate::MulCubicGenerator;
 use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
@@ -425,6 +427,12 @@ where
 
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
+
+        let id = "ArithmeticExtensionGenerator".to_string();
+        r.register_simple::<ArithmeticCubicGenerator<L::Field, D>>(id);
+
+        let id = "MulExtensionGenerator".to_string();
+        r.register_simple::<MulCubicGenerator<L::Field, D>>(id);
 
         r.register_async_hint::<BeaconValidatorsHint>();
 
