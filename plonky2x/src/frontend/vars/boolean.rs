@@ -12,7 +12,7 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not};
 
 /// A variable in the circuit representing a boolean value.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct BoolVariable(pub Variable);
 
 impl CircuitVariable for BoolVariable {
