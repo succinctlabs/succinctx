@@ -52,6 +52,7 @@ ed25519-consensus = "2.1.0"
 async-trait = "0.1.73"
 digest = "0.10.7"
 sha256 = "1.4.0"
+sha2-const = "0.1.2"
 
 [dev-dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = [
