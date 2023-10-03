@@ -53,21 +53,26 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         self.verify_stark_proof(&config, &stark, &proof, &public_input_variable);
 
-        let public_w = outputs.read_vec::<[Variable; 4]>(self, public_sha_targets.public_w.len());
+        let public_w = outputs.read_exact(self, public_sha_targets.public_w.len() * 4);
 
-        let hash_state =
-            outputs.read_vec::<[Variable; 4]>(self, public_sha_targets.hash_state.len());
+        let hash_state = outputs.read_exact(self, public_sha_targets.hash_state.len() * 4);
 
-        for (target, variable) in public_sha_targets.public_w.iter().zip(public_w.iter()) {
-            for (x, y) in target.iter().zip(variable.iter()) {
-                self.api.connect(*x, y.0);
-            }
+        for (target, variable) in public_sha_targets
+            .public_w
+            .iter()
+            .flatten()
+            .zip(public_w.iter())
+        {
+            self.api.connect(*target, variable.0);
         }
 
-        for (target, variable) in public_sha_targets.hash_state.iter().zip(hash_state.iter()) {
-            for (x, y) in target.iter().zip(variable.iter()) {
-                self.api.connect(*x, y.0);
-            }
+        for (target, variable) in public_sha_targets
+            .hash_state
+            .iter()
+            .flatten()
+            .zip(hash_state.iter())
+        {
+            self.api.connect(*target, variable.0);
         }
     }
 }

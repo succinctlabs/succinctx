@@ -7,6 +7,7 @@ use curta::chip::trace::generator::ArithmeticGenerator;
 use curta::plonky2::stark::config::StarkyConfig;
 use curta::plonky2::stark::prover::StarkyProver;
 use curta::plonky2::stark::Starky;
+use log::debug;
 use plonky2::field::types::PrimeField64;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +22,8 @@ pub struct Sha256ProofHint<L: PlonkParameters<D>, const D: usize> {
 
 impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Sha256ProofHint<L, D> {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
+        debug!("Beginning hint!");
+
         let SHA256StarkData {
             stark,
             table,
@@ -44,6 +47,8 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Sha256ProofHint<L, D>
             Some(chunk)
         });
 
+        debug!("Read in values from input stream (hint-1)!");
+
         // Write trace values
         let num_rows = 1 << 16;
         let writer = trace_generator.new_writer();
@@ -63,6 +68,8 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Sha256ProofHint<L, D>
         )
         .unwrap();
 
+        debug!("Created stark proof (hint-2)!");
+
         output_stream.write_stark_proof(proof);
 
         let SHA256PublicData {
@@ -71,13 +78,11 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Sha256ProofHint<L, D>
             ..
         } = sha_public_values;
 
-        public_w
-            .into_iter()
-            .for_each(|w| output_stream.write_value::<[Variable; 4]>(w));
+        output_stream.write_slice(&public_w.into_iter().flatten().collect::<Vec<_>>());
 
-        hash_state
-            .into_iter()
-            .for_each(|h| output_stream.write_value::<[Variable; 4]>(h));
+        output_stream.write_slice(&hash_state.into_iter().flatten().collect::<Vec<_>>());
+
+        debug!("Stark proof complete (hint-3)!");
     }
 }
 
