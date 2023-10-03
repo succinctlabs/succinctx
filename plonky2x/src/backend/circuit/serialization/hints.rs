@@ -80,7 +80,7 @@ use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
 use crate::prelude::{BoolVariable, Variable};
-use crate::utils::avail::{FloorDivGenerator, HeaderLookupHint};
+use crate::utils::avail::{FloorDivGenerator, HeaderFetcherHint, BATCH_SIZE, MAX_HEADER_SIZE};
 
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
     WitnessGeneratorSerializer<L::Field, D>
@@ -449,7 +449,7 @@ where
 
         r.register_hint::<SubArrayExtractorHint>();
 
-        r.register_hint::<HeaderLookupHint>();
+        r.register_hint::<HeaderFetcherHint<MAX_HEADER_SIZE, BATCH_SIZE>>();
 
         let floor_div_generator = FloorDivGenerator::<L::Field, D>::default().id();
         r.register_simple::<FloorDivGenerator<L::Field, D>>(floor_div_generator);

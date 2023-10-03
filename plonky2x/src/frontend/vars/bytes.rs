@@ -73,12 +73,6 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
     }
 }
 
-impl<const N: usize> Default for BytesVariable<N> {
-    fn default() -> Self {
-        Self([ByteVariable::default(); N])
-    }
-}
-
 impl<const N: usize> Index<usize> for BytesVariable<N> {
     type Output = ByteVariable;
 

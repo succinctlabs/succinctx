@@ -11,7 +11,7 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 
 /// A variable in the circuit representing a byte32 value.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct Bytes32Variable(pub BytesVariable<32>);
 
 impl Bytes32Variable {
