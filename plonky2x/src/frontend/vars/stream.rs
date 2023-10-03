@@ -153,6 +153,10 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         self.0.read_exact(len)
     }
 
+    pub fn read_vec<V: CircuitVariable>(&mut self, len: usize) -> Vec<V::ValueType<L::Field>> {
+        (0..len).map(|_| self.read_value::<V>()).collect()
+    }
+
     pub fn write_slice(&mut self, values: &[L::Field]) {
         self.0.write_slice(values);
     }
