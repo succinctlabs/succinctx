@@ -385,7 +385,7 @@ mod tests {
 
         let circuit = build_sha256_circuit::<24>();
 
-        for i in 0..10 {
+        for _ in 0..10 {
             test_sha256_template::<24>(&circuit, msg, &digest);
         }
     }
