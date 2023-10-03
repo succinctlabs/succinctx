@@ -36,7 +36,7 @@ impl<P: FieldParameters> CircuitVariable for FieldVariable<P> {
         &self,
         _builder: &mut CircuitBuilder<L, D>,
     ) {
-        todo!("range checks on field variable")
+        // TODO: check that the limbs are valid
     }
 
     fn constant<L: PlonkParameters<D>, const D: usize>(
