@@ -1,5 +1,6 @@
 // Much of this file is copied from Jump Crypto's plonky2-crypto repo:
 // https://github.com/JumpCrypto/plonky2-crypto/blob/main/src/hash/keccak256.rs
+use array_macro::array;
 use num::BigUint;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::PrimeField64;
@@ -9,26 +10,19 @@ use plonky2::iop::target::BoolTarget;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint, WitnessBigUint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use crate::frontend::num::u32::gadgets::interleaved_u32::CircuitBuilderB32;
-use crate::prelude::CircuitBuilder;
+use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable};
+use crate::prelude::{BoolVariable, BytesVariable, CircuitBuilder};
+
 
 const KECCAK256_C: usize = 1600;
 pub const KECCAK256_R: usize = 1088;
 
-#[derive(Clone, Debug)]
-pub struct HashInputTarget {
-    pub input: BigUintTarget,
-    pub input_bits: usize,
-    pub blocks: Vec<BoolTarget>,
-}
-
 pub trait WitnessKeccakHandler<F:PrimeField64>:WitnessBigUint<F> {
-    fn set_keccak256_input_target(&mut self, target: &HashInputTarget, input: &[u8]);
-    fn set_hash_blocks_target(&mut self, target: &[BoolTarget], num_blocks: usize);
-    fn set_keccak256_output_target(&mut self, target: &BigUintTarget, output: &[u8]);
+    fn set_keccak256_input_target(&mut self, target: &BigUintTarget, input: &[u8]);
 }
 
 impl<T: WitnessBigUint<F>, F: PrimeField64> WitnessKeccakHandler<F> for T {
-    fn set_keccak256_input_target(&mut self, target: &HashInputTarget, input: &[u8]) {
+    fn set_keccak256_input_target(&mut self, target: &BigUintTarget, input: &[u8]) {
         let mut input_biguint: BigUint = BigUint::from_bytes_le(input);
         let input_len_bits = input.len() * 8;
         let num_actual_blocks = 1 + input_len_bits / KECCAK256_R;
@@ -39,24 +33,26 @@ impl<T: WitnessBigUint<F>, F: PrimeField64> WitnessKeccakHandler<F> for T {
 
         input_biguint.set_bit(padded_len_bits as u64 - 1, true);
 
-        self.set_biguint_target(&target.input, &input_biguint);
+        self.set_biguint_target(target, &input_biguint);
 
-        self.set_hash_blocks_target(&target.blocks, num_actual_blocks);
-    }
-
-    fn set_hash_blocks_target(&mut self, blocks: &[BoolTarget], num_blocks: usize) {
-        for (i, t) in blocks.iter().enumerate() {
-            self.set_bool_target(*t, i < num_blocks - 1);
-        }
-    }
-
-    fn set_keccak256_output_target(&mut self, target: &BigUintTarget, output: &[u8]) {
-        let output_biguint = BigUint::from_bytes_le(output);
-        self.set_biguint_target(target, &output_biguint);
-    }
-
+   }
 }
 
+
+fn biguint_from_le_bytes<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    bits: Vec<BoolTarget>,
+) -> BigUintTarget {
+    assert!(bits.len() % 32 == 0);
+
+    let mut u32_targets = Vec::new();
+    for u32_chunk in bits.chunks(32) {
+
+        u32_targets.push(U32Target(builder.api.le_sum(u32_chunk.iter())));
+    }
+
+    BigUintTarget { limbs: u32_targets }
+}
 
 #[rustfmt::skip]
 pub const KECCAKF_ROTC: [u8; 24] = [
@@ -87,25 +83,7 @@ pub const KECCAKF_RNDC: [[u32; 2]; 24] = [
 ];
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
-    pub fn add_virtual_hash_input_target(
-        &mut self,
-        blocks_num: usize,
-        blocks_input_bits: usize,
-    ) -> HashInputTarget {
-        let input_bits = blocks_input_bits * blocks_num;
-        let input = self.api.add_virtual_biguint_target(input_bits / 32);
-        let mut blocks = Vec::new();
-        for _ in 0..blocks_num - 1 {
-            blocks.push(self.api.add_virtual_bool_target_unsafe());
-        }
 
-        HashInputTarget {
-            input_bits,
-            input,
-            blocks,
-        }
-    }
-    
     fn _hash_keccak256_f1600(&mut self, s: &mut [[U32Target; 2]; 25]) {
         let zero = self.api.zero_u32();
         let mut bc = [[zero; 2]; 5];
@@ -165,8 +143,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         }
     }
 
-    pub fn keccak256(&mut self, hash: &HashInputTarget) -> BigUintTarget {
-        let output = self.api.add_virtual_biguint_target(8);
+    pub fn keccak256(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
+        let (blocks, input_biguint) = self.get_processed_inputs(input);
 
         let chunks_len = KECCAK256_R / 64;
         let zero = self.api.zero_u32();
@@ -177,25 +155,25 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         // Absorb:
         // First block. xor = use input as initial state.
         for (i, s) in state.iter_mut().enumerate().take(chunks_len) {
-            s[0] = hash.input.limbs[2 * i];
-            s[1] = hash.input.limbs[2 * i + 1];
+            s[0] = input_biguint.limbs[2 * i];
+            s[1] = input_biguint.limbs[2 * i + 1];
         }
         
         //Permute.
         self._hash_keccak256_f1600(&mut state);
 
         // Other blocks.
-        for (k, target_block) in hash.blocks.iter().enumerate() {
+        for (k, target_block) in blocks.iter().enumerate() {
             // Xor.
             let input_start = (k + 1) * chunks_len * 2;
             for (i, s) in state.iter().enumerate() {
                 if i < chunks_len {
                     next_state[i][0] = self
                         .api
-                        .xor_u32(s[0], hash.input.limbs[input_start + i * 2]);
+                        .xor_u32(s[0], input_biguint.limbs[input_start + i * 2]);
                     next_state[i][1] = self
                         .api
-                        .xor_u32(s[1], hash.input.limbs[input_start + i * 2 + 1]);
+                        .xor_u32(s[1], input_biguint.limbs[input_start + i * 2 + 1]);
                 } else {
                     next_state[i][0] = s[0];
                     next_state[i][1] = s[1];
@@ -211,6 +189,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
             }
         }
 
+        let output: BigUintTarget = self.api.add_virtual_biguint_target(8);
 
         // Absorb, or squueze.
         let output_len: usize = output.num_limbs();
@@ -221,192 +200,334 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
         assert!(output.num_limbs() == 8);
 
-        output
+        // Convert the bigint's u32 limbs into 8 bytes.
+        let hash_bytes_vec = output
+        .limbs
+        .iter()
+        .flat_map(|chunk| {
+            let bit_list = self.api.split_le(chunk.0, 32);
+
+            let hash_byte_vec = bit_list
+            .chunks(8)
+            .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[7 - i].target); 8])) // Reverse bits. Underlying ByteVariable is of Big-Endian format.
+            .collect::<Vec<_>>();
+
+            hash_byte_vec
+        })
+        .collect::<Vec<_>>();
+
+        let mut hash_bytes_array = [ByteVariable::init(self); 32];
+        hash_bytes_array.copy_from_slice(&hash_bytes_vec);
+
+        Bytes32Variable(BytesVariable(hash_bytes_array))
+
+    }
+
+    pub fn get_processed_inputs(&mut self, input: &[ByteVariable]) -> (Vec<BoolTarget>, BigUintTarget) {
+        let input_len_bits = input.len() * 8;
+
+        let num_actual_blocks = 1 + input_len_bits / KECCAK256_R;
+        let padded_len_bits = num_actual_blocks * KECCAK256_R;
+
+        let mut blocks: Vec<BoolTarget> = Vec::new();
+        for _ in 0..1 + input_len_bits / KECCAK256_R - 1 {
+            blocks.push(self.api.add_virtual_bool_target_unsafe());
+        }
+
+        let bool_targets = self.get_padded_bool_array(input, padded_len_bits);
+        
+        let input_biguint = biguint_from_le_bytes(self, bool_targets);
+        (blocks, input_biguint)
+    }
+
+    fn get_padded_bool_array(&mut self, input: &[ByteVariable], padded_len_bits: usize) -> Vec<BoolTarget> {
+        //Convert to bits, of little-endian format.: ByteVariable being represented as BE.
+        let mut bits = Vec::new();
+        for byte in input.iter() {
+            bits.extend(byte.to_le_bits());
+        }
+
+        // Add the padding of form [1,0,0,..,0,0,1].
+        bits.push(BoolVariable::constant(self, true));
+        for _ in bits.len()..padded_len_bits - 1 {
+            bits.push(BoolVariable::constant(self, false));
+        }
+        bits.push(BoolVariable::constant(self, true));
+
+        bits
+            .into_iter()
+            .map(|b| BoolTarget::new_unsafe(b.0 .0))
+            .collect::<Vec<_>>()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use plonky2::iop::witness::PartialWitness;
-
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
+    use plonky2::iop::witness::PartialWitness;
+    use hex::decode;
 
     use super::*;
-    use crate::prelude::CircuitBuilder;
+    use crate::prelude::{CircuitBuilder,Variable};
 
-    use sha3::{Digest, Keccak256};
+    use crate::utils::{bytes32, setup_logger};
 
+    use log::debug;
+
+    //Circuit logic replication.
+    fn bytes_to_bool_vec(bytes: &[u8]) -> Vec<bool> {
+        let mut bits = Vec::new();
+        for &byte in bytes {
+            for i in 0..8 {
+                bits.push((byte >> i) & 1 == 1);
+            }
+        }
+        bits
+    }
+
+    fn biguint_from_le_bytes_test(bits: Vec<bool>) -> Vec<u32> {
+        assert!(bits.len() % 32 == 0);
+    
+        // Convert to chunks of u32 in little-endian
+        let mut u32_values = Vec::new();
+        for chunk in bits.chunks(32) {
+            let mut value: u32 = 0;
+            for (index, bit) in chunk.iter().enumerate() {
+                if *bit {
+                    value |= 1 << index;
+                }
+            }
+            u32_values.push(value);
+        }
+    
+        u32_values
+    }
+
+    fn vec_u32_to_string_base10(u32_values: &[u32]) -> String {
+        let mut result: u128 = 0; // Using u128 to handle overflow
+        for &value in u32_values.iter().rev() { // Assuming little-endian
+            result = (result << 32) | value as u128;
+        }
+        result.to_string()
+    }
+   
+    fn to_bits(msg: Vec<u8>) -> Vec<bool> {
+        let mut res = Vec::new();
+        for bit in msg {
+            let char = bit;
+            for j in 0..8 {
+                if (char & (1 << (7 - j))) != 0 {
+                    res.push(true);
+                } else {
+                    res.push(false);
+                }
+            }
+        }
+        res
+    }
+
+    #[test]
+    fn test_keccak256_empty() {
+        setup_logger();
+
+        type F = GoldilocksField;
+        type C = PoseidonGoldilocksConfig;
+        const D: usize = 2;
+
+        let mut builder = CircuitBuilder::<F, D>::new();
+
+        let word_byte = b"";
+
+        let word = [ByteVariable::init(&mut builder); 0]; 
+
+        let str_repr = "0";
+
+        let input_biguint_lib: BigUint = BigUint::from_bytes_le(word_byte);
+
+        debug!("biguint_test : {:?}", str_repr);
+        debug!("input_biguint : {:?}", input_biguint_lib);
+
+        let (_, input_biguint) = builder.get_processed_inputs(&word);
+        let digest_target = builder.keccak256(&word);
+        
+        builder.watch(&digest_target, "digest_target");
+
+        let digest = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        ));
+
+        builder.assert_is_equal(digest_target, digest);
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (_, _) = circuit.prove(&input);
+
+        // test circuit
+        let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
+
+        pw.set_keccak256_input_target(&input_biguint, word_byte);
+
+        let proof= circuit.data.prove(pw).unwrap();
+        assert!(circuit.data.verify(proof).is_ok());
+    }
+   
     #[test]
     fn test_keccak256_short() {
-        let tests = [[
-                // empty string
-                "",
-                "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
-            ],
-            [
-                // empty trie
-                "80",
-                "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
-            ],
-            [
-                // short hash, e.g. last step of storage proof
-                "e19f37a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee301",
-                "19225e4ee19eb5a11e5260392e6d5154d4bc6a35d89c9d18bf6a63104e9bbcc2",
-            ],
-        ];
-        env_logger::init();
+        setup_logger();
 
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
         let mut builder = CircuitBuilder::<F, D>::new();
-        let input_target = builder.add_virtual_hash_input_target(1, KECCAK256_R);
-        let digest_target = builder.keccak256(&input_target);
 
-        let num_gates = builder.api.num_gates();
-        let copy_constraints = "<private>";
-        builder.api.print_gate_counts(6000);
-
-        let circuit= builder.build::<C>();
-        println!(
-            "keccak256 num_gates={}, copy_constraints={}, quotient_degree_factor={}",
-            num_gates, copy_constraints, circuit.data.common.quotient_degree_factor
+        let word_byte = bytes32!(
+            "0x0000000000000000000000000000000000000000000000000000000000000000"
         );
-        for test in tests {
+        
+        let word= builder.constant::<Bytes32Variable>(word_byte);
 
-            let input = hex::decode(test[0]).unwrap();
-            let digest = hex::decode(test[1]).unwrap();
+        let bool_vec = bytes_to_bool_vec(word_byte.as_bytes());
+        let biguint_test = biguint_from_le_bytes_test(bool_vec);
+        let str_repr = vec_u32_to_string_base10(&biguint_test);
 
-            // test program
-            let mut hasher = Keccak256::new();
-            hasher.update(input.as_slice());
-            let result = hasher.finalize();
-            assert_eq!(result[..], digest[..]);      
+        let input_biguint_lib: BigUint = BigUint::from_bytes_le(word_byte.as_bytes());
 
-            // test circuit
-            let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
-            pw.set_keccak256_input_target(&input_target, &input);
-            pw.set_keccak256_output_target(&digest_target, &digest);
+        debug!("biguint_test : {:?}", str_repr);
+        debug!("input_biguint : {:?}", input_biguint_lib);
 
-            println!("digest : {:?}", digest_target);
-            let proof= circuit.data.prove(pw).unwrap();
-            assert!(circuit.data.verify(proof).is_ok());
-        }
+        let (_, input_biguint) = builder.get_processed_inputs(&word.0 .0);
+        let digest_target = builder.keccak256(&word.0 .0);
 
+        builder.watch(&digest_target, "digest_target");
+
+        let digest = builder.constant::<Bytes32Variable>(bytes32!(
+            "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563"
+        ));
+
+        builder.assert_is_equal(digest_target, digest);
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (_, _) = circuit.prove(&input);
+
+        // test circuit
+        let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
+
+        pw.set_keccak256_input_target(&input_biguint, word_byte.as_bytes());
+
+        let proof= circuit.data.prove(pw).unwrap();
+        assert!(circuit.data.verify(proof).is_ok());
     }
+
     #[test]
     fn test_keccak256_long() {
-        let tests = [
-            [
-                // storage proof
-                "f90211a0dc6ab9a606e3ef2e125ebd792c502cb6500aa1d1a80fa6e706482175742f4744a0bcb03c1a82cc80a677c98fe35c8ff953d1de3b1322a33f2c8d10132eac5639bfa02d81761f56b3bcd9137ef6823f879ba41c32c925c95f4658a7b1418d14424175a0c1c4d0f264475235249547fdfe63cf4aed82ef8cfc3019ed217fcf5f25620067a0f6d7a23257b2c155b5c4ffb37d76d4e6e8fae6bdab5d3cf2d868d4741b80d214a0f7bb2681b64939b292248bd66c21c40d54fca9460abda45da28a50b746b1b2a1a037bfc201846115d4d0e85eb6b3f0920817a7e0081bcb8bdaeb9c7dcf726b0885a0a238a31e3c6a36f24afa650058eabbf3682cc83a576d58453b7b74a3ffac8d1aa03315cb55fbc6bc9d9987cd0e2001f39305961856126d0ef7280d01d45c0b27d5a03cfc7bd374410e92dba88a3a8ce380a6ceed3ea977ee64f904e3723ce4afed01a0e5d3350effa6d755100afa3e4560d39ddc2dd35988f65bc0931f924134c4a2aba07609fdcdd38bf9e2f7b35b022a30e564877323f4d38381b3c792ac21f7617e28a0cd43ad06bbdd7d4dcf450e5212325ae2b177e80701c64f492b6e095e0cd43bbba0652063acc150fc0a729761d4fd80f230329e2eef41cb0dda1df74a4002ba6c4ca0ee0c0661fec773e14f94d8977e69cb22b41cc15fe9c682160488c0a2aa7daf4ba0d4cb2d1c9f1ff574d4854301a6ea891143e123d4dd04db1432509c2307f10a2180",
-                "578d0063e7f59c51a1b609f98ab8447cfb69422e3e92cc3cafdc3499735d98a8",
-            ],
-            [
-                // account proof
-                "f90211a0160c36cc6e1f0499f82e964ad41216e3222f9e439c2c8ecebb9f6d8e8682fbd3a0c9288b274cda35ac8ea4ecc51a40b6291d965f66f8dbd029e9419e583d7f0d6aa08a768a530c839cd9ba26f39f381a4e6d1c75bdbaccfd0e08773275460bebb392a0e8b3c8ca435de4f3614f65507f2ffdf77f446f66dfe295fa57287d838505d85ca0d073345bee411e9ee68097c6797025bdbae114c2847821fb12e8d5876cc74fd5a07471033f73ed2b5f1de920765c8d8c895016833aea875cbedfac28eeaf78b38ca073ef613ea081010ff0c3e685dcdd7599e2724121629d736ae206a779524619cca0062fee86b0c595607a46b39da1db0b8d6950f7ceb15a4240b26502bd28f71266a037433cfba971c3f88dd48a9ba77f00af7b916c813ef05e1621439ce39c06f676a081a896e219d44b627d81c27d6af8deacedf503aac7a709325f244add2ad4320da086fd39396891a30937f64e299a7d2fb85814a910c477cee64b0db109d92206aaa023ed91b155f896a409658f30d87f3f16d5bc6193b4ac2e3d5524a980e57149d4a09885e8e7165d55d4a32b0f8b226c382c6aa6d632ca68bdd79a17fd65c31c7fc0a08a04011c30e2fa3121663b88a08732017130f702a24dfe6107ca5757a8caf92aa0ac8239f39a106972436c768499afcc787d257c3d7928bfa524e90752500f4334a0e68fba45dceffc99e87785a850a7fefa813a803f2eb13359e5602d98fce7845080",
-                "f530311917cff532bf25f103e7a0c092be92ace7e919f7a4f644e5b011e677f3",
-            ],
-            [
-                // med hash
-                "f9015180a060f3bdb593359882a705ff924581eb99537f2428a007a0006f459182f07dba16a06776a7e6abd64250488ed106c0fbd66ee338b7ce59ae967714ce43ecd5a3de97a0f8d6740520928d0e540bf439f1c214ce434f349e4c9b71bb9fcce14144a48914a0f31b2b9570033a103b8a4c0db8debbff2cf8dc4eb2ed31fa292d41c7adf13dc980808080a016a530127910d9d4a89450f0c9dc075545441126b222396eb28e30c73c01c8a9a05d9eb59dae800d3f8cfe8efdfa86776fc7f3b09dfc5b2f537b2c2abda9787755a0bcdc8744035201f5d8d9bd0f440887a40d8cafc3f986f20ce276b1b1e37c01fda0f56f6a7cbf29f15d0923780608ffbb5671fcb518b482812bb8a02b46bae016f0a0cc20fa696765f56b03c14de2b16ab042f191dafb61df0dab8e1101cc08e78f3980a0e1328f040062749d53d278300e0e9857744279645fbc7a3ae11fcb87a6e000e680",
-                "d4cb2d1c9f1ff574d4854301a6ea891143e123d4dd04db1432509c2307f10a21",
-            ],
-            [
-                // short hash
-                "e19f37a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee301",
-                "19225e4ee19eb5a11e5260392e6d5154d4bc6a35d89c9d18bf6a63104e9bbcc2",
-            ],
-        ];
+        setup_logger();
 
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
         let mut builder = CircuitBuilder::<F, D>::new();
-        let input_target = builder.add_virtual_hash_input_target(4, KECCAK256_R);
-        let digest_target = builder.keccak256(&input_target);
 
-        let num_gates = builder.api.num_gates();
-        let copy_constraints = "<private>";
-        builder.api.print_gate_counts(6000);
+        let msg = decode("f9015180a060f3bdb593359882a705ff924581eb99537f2428a007a0006f459182f07dba16a06776a7e6abd64250488ed106c0fbd66ee338b7ce59ae967714ce43ecd5a3de97a0f8d6740520928d0e540bf439f1c214ce434f349e4c9b71bb9fcce14144a48914a0f31b2b9570033a103b8a4c0db8debbff2cf8dc4eb2ed31fa292d41c7adf13dc980808080a016a530127910d9d4a89450f0c9dc075545441126b222396eb28e30c73c01c8a9a05d9eb59dae800d3f8cfe8efdfa86776fc7f3b09dfc5b2f537b2c2abda9787755a0bcdc8744035201f5d8d9bd0f440887a40d8cafc3f986f20ce276b1b1e37c01fda0f56f6a7cbf29f15d0923780608ffbb5671fcb518b482812bb8a02b46bae016f0a0cc20fa696765f56b03c14de2b16ab042f191dafb61df0dab8e1101cc08e78f3980a0e1328f040062749d53d278300e0e9857744279645fbc7a3ae11fcb87a6e000e680").unwrap();
+        let mut msg_bits = to_bits(msg.to_vec());
 
+        // let padding_size = 8 - (msg_bits.len() % 8);
 
-        let circuit= builder.build::<C>();
-        println!(
-            "keccak256(4) num_gates={}, copy_constraints={}, quotient_degree_factor={}",
-            num_gates, copy_constraints, circuit.data.common.quotient_degree_factor
-        );
+        // if padding_size != 8 {
+        //     msg_bits.extend(vec![false; padding_size]);
+        // }
 
-        for test in tests {
-            let input = hex::decode(test[0]).unwrap();
-            let digest = hex::decode(test[1]).unwrap();
+        let bool_vars = msg_bits
+        .iter()
+        .map(|&bit| BoolVariable::constant(&mut builder, bit))
+        .collect::<Vec<_>>();
 
-            // test program
-            let mut hasher = Keccak256::new();
-            hasher.update(input.as_slice());
-            let result = hasher.finalize();
-            assert_eq!(result[..], digest[..]);
+        // Chunk them by 8 bits
+        let targets = bool_vars
+            .chunks(8)
+            .map(|chunk| {
+                assert_eq!(chunk.len(), 8);
+                let var_array: [Variable; 8] = array![i => chunk[i].0; 8];
+                ByteVariable::from_variables(&var_array)
+        })
+        .collect::<Vec<_>>();
 
-            // test circuit
-            let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
-            pw.set_keccak256_input_target(&input_target, &input);
-            pw.set_keccak256_output_target(&digest_target, &digest);
+        let (_, input_biguint) = builder.get_processed_inputs(&targets[..]);
+        let digest_target = builder.keccak256(&targets[..]);
 
-            println!("digest : {:?}", digest_target);
-            let proof= circuit.data.prove(pw).unwrap();
-            assert!(circuit.data.verify(proof).is_ok());
-        }
+        builder.watch(&digest_target, "digest_target");
+
+        let digest = builder.constant::<Bytes32Variable>(bytes32!(
+            "0xd4cb2d1c9f1ff574d4854301a6ea891143e123d4dd04db1432509c2307f10a21"
+        ));
+
+        builder.assert_is_equal(digest_target, digest);
+
+        println!("msg.as slice: {:?}", msg.as_slice().len());
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (_, _) = circuit.prove(&input);
+
+        // test circuit
+        let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
+
+        println!("msg.as slice: {:?}", msg.as_slice());
+
+        pw.set_keccak256_input_target(&input_biguint, msg.as_slice());
+
+        let proof= circuit.data.prove(pw).unwrap();
+        assert!(circuit.data.verify(proof).is_ok());
     }
 
     #[test]
     #[should_panic]
     fn test_keccak256_failure() {
-        let tests = [[
-            "80",
-            "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
-        ],
-        ];
-        env_logger::init();
+        setup_logger();
 
         type F = GoldilocksField;
         type C = PoseidonGoldilocksConfig;
         const D: usize = 2;
 
         let mut builder = CircuitBuilder::<F, D>::new();
-        let input_target = builder.add_virtual_hash_input_target(1, KECCAK256_R);
-        let digest_target = builder.keccak256(&input_target);
 
-        let num_gates = builder.api.num_gates();
-        let copy_constraints = "<private>";
-        builder.api.print_gate_counts(6000);
-
-        let circuit= builder.build::<C>();
-        println!(
-            "keccak256 num_gates={}, copy_constraints={}, quotient_degree_factor={}",
-            num_gates, copy_constraints, circuit.data.common.quotient_degree_factor
+        let word_byte = bytes32!(
+            "0x0000000000000000000000000000000000000000000000000000000000000000"
         );
-        for test in tests {
 
-            let input = hex::decode(test[0]).unwrap();
-            let digest = hex::decode(test[1]).unwrap();
+        let word = builder.constant::<Bytes32Variable>(word_byte);
+  
+        let bool_vec = bytes_to_bool_vec(word_byte.as_bytes());
+        let biguint_test = biguint_from_le_bytes_test(bool_vec);
+        let str_repr = vec_u32_to_string_base10(&biguint_test);
 
-            // test program
-            let mut hasher = Keccak256::new();
-            hasher.update(input.as_slice());
-            let result = hasher.finalize();
-            assert_eq!(result[..], digest[..]);      
+        let input_biguint_lib: BigUint = BigUint::from_bytes_le(word_byte.as_bytes());
 
-            // test circuit
-            let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
-            pw.set_keccak256_input_target(&input_target, &input);
-            pw.set_keccak256_output_target(&digest_target, &digest);
+        debug!("biguint_test : {:?}", str_repr);
+        debug!("input_biguint : {:?}", input_biguint_lib);
 
-            println!("digest : {:?}", digest_target);
-            let proof= circuit.data.prove(pw).unwrap();
-            assert!(circuit.data.verify(proof).is_ok());
-        }
+        let (_, input_biguint) = builder.get_processed_inputs(&word.0 .0);
+        let digest_target = builder.keccak256(&word.0 .0);
+
+        let digest = builder.constant::<Bytes32Variable>(bytes32!(
+            "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e564"
+        ));
+
+        builder.watch(&digest_target, "digest_target");
+        builder.assert_is_equal(digest_target, digest);
+
+        let circuit = builder.build::<C>();
+        let input = circuit.input();
+        let (_, _) = circuit.prove(&input);
+
+        // test circuit
+        let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
+        pw.set_keccak256_input_target(&input_biguint, word_byte.as_bytes());
+
+        let proof= circuit.data.prove(pw).unwrap();
+        assert!(circuit.data.verify(proof).is_ok());
     }
 }
