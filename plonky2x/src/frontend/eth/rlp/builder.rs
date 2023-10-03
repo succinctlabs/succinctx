@@ -1,20 +1,13 @@
-use std::marker::PhantomData;
-
 use curta::math::field::Field;
-use curta::math::prelude::PrimeField64;
 use ethers::types::Bytes;
 use log::info;
 use num::bigint::ToBigInt;
 use num::BigInt;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
-use plonky2::iop::target::Target;
-use plonky2::iop::witness::PartitionWitness;
-use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult};
 
 use super::generators::RLPDecodeListGenerator;
+use crate::frontend::ops::math::{Add, LessThanOrEqual};
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
+    ArrayVariable, BoolVariable, ByteVariable, BytesVariable, CircuitBuilder, PlonkParameters,
     Variable,
 };
 
@@ -181,8 +174,82 @@ pub fn verify_decoded_list<const L: usize, const M: usize>(
     assert!(claim_poly == encoding_poly);
 }
 
-
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    fn parse_list_element<const ELEMENT_LEN: usize>(
+        &mut self,
+        element: ArrayVariable<ByteVariable, ELEMENT_LEN>,
+        len: Variable,
+    ) -> (ByteVariable, Variable) {
+        let prefix = element[0];
+        let prefix_var = prefix.to_variable(self);
+
+        let zero_byte = self.constant::<ByteVariable>(0);
+        let zero_var = zero_byte.to_variable(self);
+        let one_byte = self.constant::<ByteVariable>(1);
+        let one_var = one_byte.to_variable(self);
+        let max_len_55 = self.constant::<Variable>(L::Field::from_canonical_u8(55));
+        let _0x7f = self.constant::<ByteVariable>(0x7F);
+        let _0x7f_var = _0x7f.to_variable(self);
+        let _0x80 = self.constant::<ByteVariable>(0x80);
+        let _0x80_var = _0x80.to_variable(self);
+
+        let len_eq_0 = self.is_equal(len, zero_var);
+        let len_eq_1 = self.is_equal(len, one_var);
+        let prx_leq_n = prefix_var.lte(_0x7f_var, self);
+
+        let _0x80_0 = BytesVariable::<2>([_0x80, zero_byte]);
+        let prx_0 = BytesVariable::<2>([prefix, zero_byte]);
+        let _len_0x80 = self.add(len, _0x80_var);
+        let len_0x80 =
+            BytesVariable::<2>([_len_0x80.to_byte_variable(self), len.to_byte_variable(self)]);
+
+        let len_is_leq_55_pred = len.lte(max_len_55, self);
+        self.assert_is_true(len_is_leq_55_pred);
+
+        let len_eq_1_prx = self.and(len_eq_1, prx_leq_n);
+        let greater_than_0x80 = self.select(len_eq_1_prx, prx_0, len_0x80);
+        let res = self.select(len_eq_0, _0x80_0, greater_than_0x80);
+
+        (res[0], res[1].to_variable(self))
+    }
+
+    fn verify_decoded_list<
+        const ENCODING_LEN: usize,
+        const LIST_LEN: usize,
+        const ELEMENT_LEN: usize,
+    >(
+        &mut self,
+        list: ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>,
+        lens: ArrayVariable<Variable, LIST_LEN>,
+        encoding: ArrayVariable<ByteVariable, ENCODING_LEN>,
+    ) {
+        let zero = self.constant::<Variable>(L::Field::from_canonical_u8(0));
+        let one = self.one();
+        let mut start_idx = self.constant::<Variable>(L::Field::from_canonical_u8(3));
+
+        let mut encoded_decoding: Vec<ByteVariable> = Vec::new();
+
+        for i in 0..LIST_LEN {
+            let (start_byte, list_len) = self.parse_list_element(list[i].clone(), lens[i]);
+            encoded_decoding.push(start_byte);
+            for j in 0..ELEMENT_LEN {
+                encoded_decoding.push(list[i][j]);
+            }
+
+            let encoded_decoding_len = list_len.add(one, self);
+            self.assert_subarray_equal(
+                &encoded_decoding[..],
+                zero,
+                encoding.as_slice(),
+                start_idx,
+                encoded_decoding_len,
+            );
+            start_idx = self.add(start_idx, encoded_decoding_len);
+
+            encoded_decoding.clear();
+        }
+    }
+
     pub fn decode_element_as_list<
         const ENCODING_LEN: usize,
         const LIST_LEN: usize,
@@ -197,9 +264,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         ArrayVariable<Variable, LIST_LEN>,
         Variable,
     ) {
-        let generator = RLPDecodeListGenerator::new(self, encoded, len, finish);
+        let generator = RLPDecodeListGenerator::new(self, encoded.clone(), len, finish);
         self.add_simple_generator(generator.clone());
-        // TODO: here add verification logic constraints using `builder` to check that the decoded list is correct
+        self.verify_decoded_list::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
+            generator.decoded_list.clone(),
+            generator.decoded_element_lens.clone(),
+            encoded.clone(),
+        );
         (
             generator.decoded_list,
             generator.decoded_element_lens,
@@ -213,6 +284,7 @@ mod tests {
 
     use super::*;
     use crate::backend::circuit::DefaultParameters;
+    use crate::frontend::vars::CircuitVariable;
     use crate::prelude::{DefaultBuilder, GoldilocksField};
     use crate::utils::bytes;
 
