@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use curta::chip::ec::edwards::ed25519::Ed25519 as CurtaEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::ScalarMulEd25519Gadget;
-use curta::chip::ec::edwards::EdwardsParameters;
+use curta::chip::ec::EllipticCurve;
 use curta::math::extension::cubic::parameters::CubicParameters;
 use curta::plonky2::stark::config::CurtaConfig;
 use plonky2::field::extension::Extendable;
@@ -197,7 +197,7 @@ pub fn curta_batch_eddsa_verify_variable<
         sigs_s_limbs.push(sig_s_limbs);
 
         let generator =
-            ScalarMulEd25519Gadget::constant_affine_point(builder, CurtaEd25519::generator());
+            ScalarMulEd25519Gadget::constant_affine_point(builder, CurtaEd25519::ec_generator());
 
         pub_keys.push(pub_key);
         sigs.push(sig);
@@ -208,13 +208,13 @@ pub fn curta_batch_eddsa_verify_variable<
     for _i in num_sigs..MAX_NUM_SIGS {
         curta_pub_keys.push(ScalarMulEd25519Gadget::constant_affine_point(
             builder,
-            CurtaEd25519::generator(),
+            CurtaEd25519::ec_generator(),
         ));
         h_scalars_limbs.push([builder.zero(); 8].to_vec());
 
         generators.push(ScalarMulEd25519Gadget::constant_affine_point(
             builder,
-            CurtaEd25519::generator(),
+            CurtaEd25519::ec_generator(),
         ));
         sigs_s_limbs.push([builder.zero(); 8].to_vec());
     }
@@ -331,7 +331,7 @@ pub fn curta_batch_eddsa_verify<
         sigs_s_limbs.push(sig_s_limbs);
 
         let generator =
-            ScalarMulEd25519Gadget::constant_affine_point(builder, CurtaEd25519::generator());
+            ScalarMulEd25519Gadget::constant_affine_point(builder, CurtaEd25519::ec_generator());
 
         pub_keys.push(pub_key);
         sigs.push(sig);
@@ -342,13 +342,13 @@ pub fn curta_batch_eddsa_verify<
     for _i in num_sigs..MAX_NUM_SIGS {
         curta_pub_keys.push(ScalarMulEd25519Gadget::constant_affine_point(
             builder,
-            CurtaEd25519::generator(),
+            CurtaEd25519::ec_generator(),
         ));
         h_scalars_limbs.push([builder.zero(); 8].to_vec());
 
         generators.push(ScalarMulEd25519Gadget::constant_affine_point(
             builder,
-            CurtaEd25519::generator(),
+            CurtaEd25519::ec_generator(),
         ));
         sigs_s_limbs.push([builder.zero(); 8].to_vec());
     }

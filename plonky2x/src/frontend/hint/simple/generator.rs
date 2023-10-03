@@ -78,7 +78,7 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> WitnessGenerator<L::F
         );
 
         for (var, val) in output_vars.iter().zip(output_values) {
-            var.set(out_buffer, *val)
+            var.set(out_buffer, *val);
         }
         true
     }
