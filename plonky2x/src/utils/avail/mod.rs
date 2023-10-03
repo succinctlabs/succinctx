@@ -21,7 +21,7 @@ use crate::prelude::{
 pub const BATCH_SIZE: usize = 12;
 const MAX_HEADER_CHUNK_SIZE: usize = 100;
 pub const MAX_HEADER_SIZE: usize = MAX_HEADER_CHUNK_SIZE * 128;
-pub const MAX_EPOCH_SIZE: usize = 192;
+pub const MAX_EPOCH_SIZE: usize = 24;
 
 #[derive(Clone, Debug, CircuitVariable)]
 pub struct EncodedHeaderVariable<const S: usize> {
