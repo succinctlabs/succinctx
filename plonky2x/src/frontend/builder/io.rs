@@ -153,7 +153,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn read<V: CircuitVariable>(&mut self) -> V {
         self.try_init_field_io();
-        let variable = self.init::<V>();
+        let variable = self.init_unsafe::<V>();
         match self.io {
             CircuitIO::Elements(ref mut io) => io.input.extend(variable.variables()),
             _ => panic!("field io is not enabled"),
@@ -166,7 +166,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let nb_bytes = V::nb_bytes::<L, D>();
         let mut bytes = Vec::new();
         for _ in 0..nb_bytes {
-            bytes.push(self.init::<ByteVariable>());
+            bytes.push(self.init_unsafe::<ByteVariable>());
         }
         let variable = V::decode(self, bytes.as_slice());
         match self.io {
