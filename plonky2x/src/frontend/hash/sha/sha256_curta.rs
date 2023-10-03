@@ -327,7 +327,9 @@ mod tests {
     use crate::backend::circuit::{CircuitBuild, DefaultParameters};
     use crate::frontend::uint::uint32::U32Variable;
     use crate::frontend::vars::Bytes32Variable;
-    use crate::prelude::{ByteVariable, BytesVariable, CircuitBuilder, GateRegistry, HintRegistry};
+    use crate::prelude::{
+        ByteVariable, BytesVariable, CircuitBuilder, DefaultBuilder, GateRegistry, HintRegistry,
+    };
     use crate::utils::{bytes, bytes32};
 
     type L = DefaultParameters;
@@ -398,6 +400,52 @@ mod tests {
         circuit.verify(&proof, &input, &output);
         // TODO: Add back once curta serialization is implemented.
         // circuit.test_default_serializers();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_curta_allocation() {
+        env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let mut builder = DefaultBuilder::new();
+
+        // Requires 2 chunks each.
+        let short_msg = [1u8; 56];
+
+        let short_msg_bytes = short_msg
+            .iter()
+            .map(|b| builder.constant::<ByteVariable>(*b))
+            .collect::<Vec<_>>();
+
+        let mut msgs = (0..1024)
+            .map(|_| short_msg_bytes.clone())
+            .collect::<Vec<_>>();
+
+        // Requires 3 chunks each.
+        let long_msg = [1u8; 128];
+        let long_msg_bytes = long_msg
+            .iter()
+            .map(|b| builder.constant::<ByteVariable>(*b))
+            .collect::<Vec<_>>();
+
+        msgs.extend(
+            (0..2048)
+                .map(|_| long_msg_bytes.clone())
+                .collect::<Vec<_>>(),
+        );
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let digests = msgs
+            .iter()
+            .map(|msg| builder.curta_sha256(msg))
+            .collect::<Vec<_>>();
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
     }
 
     #[test]
