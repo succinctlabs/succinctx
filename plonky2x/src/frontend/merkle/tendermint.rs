@@ -13,14 +13,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Leaf should already be hashed.
     pub fn get_root_from_merkle_proof_hashed_leaf<const PROOF_DEPTH: usize>(
         &mut self,
-        aunts: &ArrayVariable<Bytes32Variable, PROOF_DEPTH>,
+        proof: &ArrayVariable<Bytes32Variable, PROOF_DEPTH>,
         path_indices: &ArrayVariable<BoolVariable, PROOF_DEPTH>,
         leaf: Bytes32Variable,
     ) -> Bytes32Variable {
         let mut hash_so_far = leaf;
 
         for i in 0..PROOF_DEPTH {
-            let aunt = aunts[i];
+            let aunt = proof[i];
             let path_index = path_indices[i];
             let left_hash_pair = self.inner_hash(&hash_so_far, &aunt);
             let right_hash_pair = self.inner_hash(&aunt, &hash_so_far);
@@ -33,12 +33,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn get_root_from_merkle_proof<const PROOF_DEPTH: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
         inclusion_proof: &MerkleInclusionProofVariable<PROOF_DEPTH, LEAF_SIZE_BYTES>,
+        path_indices: &ArrayVariable<BoolVariable, PROOF_DEPTH>,
     ) -> Bytes32Variable {
         let hashed_leaf = self.leaf_hash(&inclusion_proof.leaf.0);
 
         self.get_root_from_merkle_proof_hashed_leaf::<PROOF_DEPTH>(
-            &inclusion_proof.aunts,
-            &inclusion_proof.path_indices,
+            &inclusion_proof.proof,
+            path_indices,
             hashed_leaf,
         )
     }
@@ -219,8 +220,9 @@ mod tests {
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let proof_variable = builder.read::<MerkleInclusionProofVariable<4, 48>>();
+        let path_indices_variable = builder.read::<ArrayVariable<BoolVariable, 4>>();
 
-        let root = builder.get_root_from_merkle_proof(&proof_variable);
+        let root = builder.get_root_from_merkle_proof(&proof_variable, &path_indices_variable);
         builder.write::<Bytes32Variable>(root);
 
         let circuit = builder.build();
@@ -237,8 +239,7 @@ mod tests {
         ];
         let inclusion_proof: InclusionProof<4, 48, F> = InclusionProof {
             leaf: leaves[0],
-            path_indices: vec![false; 4],
-            aunts: aunts
+            proof: aunts
                 .iter()
                 .map(|aunt| H256::from_slice(hex::decode(aunt).unwrap().as_slice()))
                 .collect_vec(),
