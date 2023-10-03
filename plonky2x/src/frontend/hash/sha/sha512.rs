@@ -623,10 +623,10 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha512_large_msg_variable() {
+    fn test_sha512_variable_no_op() {
         utils::setup_logger();
-        // This test tests both the variable length and the no-op skip for processing each chunk of the sha512
-        // 77-byte message fits in one chunk, but we make MAX_NUM_CHUNKS 2 to test the no-op skip
+        // This tests the no-op skip for when the last_chunk of the message is < max_num_chunks.
+        // Specifically, msg is 77 bytes (fits in one chunk), and MAX_NUM_CHUNKS is 2.
         let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
 
         let expected_digest = decode("4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39").unwrap();
@@ -636,7 +636,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha512_variable_cross_boundary() {
+    fn test_sha512_variable_last_chunk_select() {
         utils::setup_logger();
         // Input message of length N has N % 1024 > 1024 - 129
         // Tests that the last chunk is selected correctly.
