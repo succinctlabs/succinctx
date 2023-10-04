@@ -63,6 +63,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
             &self.async_hints,
         )
         .unwrap();
+        let elapsed_time = start_time.elapsed();
+        debug!("Witness generation took {:?}", elapsed_time);
         let proof_with_pis = prove_with_partition_witness::<L::Field, L::Config, D>(
             &self.data.prover_only,
             &self.data.common,
