@@ -315,7 +315,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 rq_idx += 1;
             }
 
-            self.constrain_sha256_gadget(gadget);
+            self.api.constrain_sha256_gadget::<L::CurtaConfig>(gadget);
         }
     }
 }
@@ -336,12 +336,17 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_curta_fixed_single() {
+        tracing_subscriber::fmt::init();
         env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         let zero = builder.constant::<ByteVariable>(0u8);
+        let num_hashes = 10000;
+        for _ in 0..num_hashes {
+            let _ = builder.curta_sha256(&[zero; 1]);
+        }
         let result = builder.curta_sha256(&[zero; 1]);
         builder.watch(&result, "result");
 

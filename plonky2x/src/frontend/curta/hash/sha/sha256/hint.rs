@@ -7,7 +7,7 @@ use curta::chip::trace::generator::ArithmeticGenerator;
 use curta::plonky2::stark::config::StarkyConfig;
 use curta::plonky2::stark::prover::StarkyProver;
 use curta::plonky2::stark::Starky;
-use log::debug;
+use tracing::debug;
 use plonky2::field::types::PrimeField64;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +21,7 @@ pub struct Sha256ProofHint<L: PlonkParameters<D>, const D: usize> {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Sha256ProofHint<L, D> {
+
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         debug!("Beginning hint!");
 
