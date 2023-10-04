@@ -10,6 +10,7 @@ use alloc::collections::BTreeMap;
 
 use anyhow::{anyhow, Error, Result};
 use curta::maybe_rayon::rayon;
+use log::trace;
 use plonky2::iop::generator::{GeneratedValues, WitnessGeneratorRef};
 use plonky2::iop::witness::{PartialWitness, PartitionWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CommonCircuitData, ProverOnlyCircuitData};
@@ -115,6 +116,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
     async_generators: BTreeMap<usize, AsyncHintRef<L, D>>,
     mut rx_handler_error: oneshot::Receiver<Error>,
 ) -> Result<PartitionWitness<'a, L::Field>> {
+    trace!("filling in witness values");
     let config = &common_data.config;
     let generators = &prover_data.generators;
     let generator_indices_by_watches = &prover_data.generator_indices_by_watches;
@@ -148,6 +150,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
                 continue;
             }
 
+            trace!("generator_idx: {}", generator_idx);
             if let Some(async_gen) = async_generators.get(&generator_idx) {
                 if let Ok(e) = rx_handler_error.try_recv() {
                     return Err(e);
@@ -180,6 +183,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
                 if let Some(watchers) = opt_watchers {
                     for &watching_generator_idx in watchers {
                         if !generator_is_expired[watching_generator_idx] {
+                            trace!("enqueuing watch generator {}", watching_generator_idx);
                             next_pending_generator_indices.push(watching_generator_idx);
                         }
                     }
@@ -190,6 +194,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
         pending_generator_indices = next_pending_generator_indices;
     }
 
+    trace!("remaining_generators: {}", remaining_generators);
     if remaining_generators > 0 {
         return Err(get_generator_error::<L, D>(
             generators,
