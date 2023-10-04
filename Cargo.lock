@@ -1041,7 +1041,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/support_small_public_inputs#bddd181b56cf64816c4c91c860e92e6540a909a0"
+source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/support_small_public_inputs#7eaa43c0460d37785c36bbc21fe8ee7a035c5264"
 dependencies = [
  "anyhow",
  "bincode",
@@ -7574,7 +7574,7 @@ dependencies = [
 [[package]]
 name = "succinct_avail_utils"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/avail.git?branch=kevjue/mapreduce_experiment#260b9cd64849afdc6b5b2c290da1bd78758c0a7c"
+source = "git+https://github.com/succinctlabs/avail.git?branch=kevjue/mapreduce_experiment#61274eb2ea04a84bc4fc58ded81e23e3269ea11a"
 dependencies = [
  "async-trait",
  "avail-subxt",

@@ -85,7 +85,9 @@ use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable
 use crate::prelude::{BoolVariable, Variable};
 use crate::utils::avail::header::{FloorDivGenerator, HeaderFetcherHint};
 use crate::utils::avail::justification::HintSimpleJustification;
-use crate::utils::avail::vars::{BATCH_SIZE, MAX_AUTHORITY_SET_SIZE, MAX_HEADER_SIZE};
+use crate::utils::avail::vars::{
+    BATCH_SIZE, MAX_AUTHORITY_SET_SIZE, MAX_HEADER_SIZE, NUM_BLAKE2B_CHUNKS,
+};
 
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
     WitnessGeneratorSerializer<L::Field, D>
@@ -449,6 +451,7 @@ where
             L::CurtaConfig,
             D,
             BLAKE2BAirParameters<L::Field, L::CubicParams>,
+            NUM_BLAKE2B_CHUNKS,
         >::id();
         r.register_simple::<BLAKE2BGenerator<
             L::Field,
@@ -456,6 +459,7 @@ where
             L::CurtaConfig,
             D,
             BLAKE2BAirParameters<L::Field, L::CubicParams>,
+            NUM_BLAKE2B_CHUNKS,
         >>(blake2b_generator);
 
         r.register_hint::<SubArrayExtractorHint>();

@@ -226,10 +226,10 @@ mod tests {
     #[tokio::test]
     async fn test_get_authority_set_id() {
         let fetcher = RpcDataFetcher::new().await;
-        let authority_set_id = fetcher.get_authority_set_id(485710).await;
-        assert_eq!(authority_set_id, 458);
-        fetcher.get_authorities(485710).await;
-        let simple_justification_data = fetcher.get_simple_justification::<100>(485710).await;
+        let authority_set_id = fetcher.get_authority_set_id(272534).await;
+        assert_eq!(authority_set_id, 256);
+        fetcher.get_authorities(272534).await;
+        let simple_justification_data = fetcher.get_simple_justification::<76>(272534).await;
         println!(
             "Number authorities {:?}",
             simple_justification_data.pubkeys.len()

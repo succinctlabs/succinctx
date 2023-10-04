@@ -55,7 +55,6 @@ impl<
         for i in 0..headers.len() {
             // TODO: replace with `to_header_variable` from vars.rs
             let header = &headers[i];
-            println!("in hint, got header: {:?}", header.number);
             let mut header_bytes = header.encode();
             let header_size = header_bytes.len();
             if header_size > HEADER_LENGTH {

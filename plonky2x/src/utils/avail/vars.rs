@@ -31,6 +31,7 @@ pub struct SimpleJustificationData {
 pub const BATCH_SIZE: usize = 12;
 pub const MAX_HEADER_CHUNK_SIZE: usize = 100;
 pub const MAX_HEADER_SIZE: usize = MAX_HEADER_CHUNK_SIZE * 128;
+pub const NUM_BLAKE2B_CHUNKS = BATCH_SIZE * MAX_HEADER_CHUNK_SIZE;
 
 #[derive(Clone, Debug, CircuitVariable)]
 #[value_name(EncodedHeader)]
