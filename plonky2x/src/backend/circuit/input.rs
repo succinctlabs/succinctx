@@ -60,7 +60,7 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     pub fn write<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) {
         match self {
             PublicInput::Elements(input) => {
-                input.extend(V::elements::<L, D>(value));
+                input.extend(V::elements::<L::Field>(value));
             }
             _ => panic!("field io is not enabled"),
         };

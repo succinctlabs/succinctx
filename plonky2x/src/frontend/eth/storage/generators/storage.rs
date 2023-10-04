@@ -13,6 +13,7 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
+use tokio::runtime::Runtime;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
@@ -328,18 +329,21 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for Eth
 
         let provider = get_provider(self.chain_id);
 
-        let result: TransactionReceipt = executor::block_on(async {
-            provider
-                .get_transaction_receipt(transaction_hash)
-                .await
-                .expect("Failed to call get_transaction_receipt")
-        })
-        .expect("No transaction receipt found");
+        let rt = Runtime::new().unwrap();
+
+        let result: TransactionReceipt = rt
+            .block_on(async {
+                provider
+                    .get_transaction_receipt(transaction_hash)
+                    .await
+                    .expect("Failed to call get_transaction_receipt")
+            })
+            .expect("No transaction receipt found");
 
         let log = &result.logs[self.log_index as usize];
         let value = EthLog {
             address: log.address,
-            topics: [log.topics[0], log.topics[1], log.topics[2]],
+            topics: [log.topics[0], log.topics[1], log.topics[2]].to_vec(),
             data_hash: ethers::types::H256::from_slice(sha2::Sha256::digest(&log.data).as_ref()),
         };
         self.value.set(buffer, value);

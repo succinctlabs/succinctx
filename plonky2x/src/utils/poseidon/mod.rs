@@ -26,7 +26,7 @@ where
     for i in 0..inputs.len() / B {
         let mut input = Vec::new();
         for j in 0..B {
-            input.extend(Input::elements::<L, D>(inputs[i * B + j].clone()));
+            input.extend(Input::elements::<L::Field>(inputs[i * B + j].clone()));
         }
         let h = hash_n_to_hash_no_pad::<
             L::Field,
@@ -62,5 +62,5 @@ where
         leafs = tmp;
     }
 
-    PoseidonHashOutVariable::from_elements::<L, D>(&leafs[0])
+    PoseidonHashOutVariable::from_elements::<L::Field>(&leafs[0])
 }
