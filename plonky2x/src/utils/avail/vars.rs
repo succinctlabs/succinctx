@@ -28,7 +28,7 @@ pub struct SimpleJustificationData {
 /// Header related constants and types
 
 /// The batch size for each map job
-pub const BATCH_SIZE: usize = 12;
+pub const BATCH_SIZE: usize = 16;
 pub const MAX_HEADER_CHUNK_SIZE: usize = 100;
 pub const MAX_HEADER_SIZE: usize = MAX_HEADER_CHUNK_SIZE * 128;
 pub const NUM_BLAKE2B_CHUNKS: usize = BATCH_SIZE * MAX_HEADER_CHUNK_SIZE;

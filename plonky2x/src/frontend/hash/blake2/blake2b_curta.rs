@@ -8,6 +8,8 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable, Variable};
 
+const MAX_NUM_CURTA_CHUNKS: usize = 1600;
+
 #[derive(Debug, Clone)]
 pub struct CurtaBlake2BRequest {
     message: Vec<Target>,
@@ -93,10 +95,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Verifies a blake2b curta instance
-    pub fn curta_constrain_blake2b<const MAX_NUM_CURTA_CHUNKS: usize>(
-        &mut self,
-        accelerator: &Blake2bAccelerator<L, D>,
-    ) {
+    pub fn curta_constrain_blake2b(&mut self, accelerator: &Blake2bAccelerator<L, D>) {
         let mut padded_messages = Vec::new();
         let mut msg_lengths = Vec::new();
         let mut digests = Vec::new();
@@ -121,9 +120,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         blake2b_builder_gadget.chunk_sizes.extend(chunk_sizes);
 
         // For now, only allow 1 blake2b curta proof per circuit
-        let max_num_chunks = blake2b_builder_gadget.max_num_chunks();
         assert!(
-            padded_messages.len() <= max_num_chunks * 128,
+            padded_messages.len() <= MAX_NUM_CURTA_CHUNKS * 128,
             "Too many chunks for Curta BLAKE2B"
         );
 
