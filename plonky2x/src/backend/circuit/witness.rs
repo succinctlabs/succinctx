@@ -116,7 +116,6 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
     async_generators: BTreeMap<usize, AsyncHintRef<L, D>>,
     mut rx_handler_error: oneshot::Receiver<Error>,
 ) -> Result<PartitionWitness<'a, L::Field>> {
-    trace!("filling in witness values");
     let config = &common_data.config;
     let generators = &prover_data.generators;
     let generator_indices_by_watches = &prover_data.generator_indices_by_watches;
@@ -192,7 +191,6 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
         pending_generator_indices = next_pending_generator_indices;
     }
 
-    trace!("remaining_generators: {}", remaining_generators);
     if remaining_generators > 0 {
         return Err(get_generator_error::<L, D>(
             generators,
@@ -200,6 +198,10 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
         ));
     }
 
+    trace!(
+        "finished filling in witness: nb_public_inputs={}",
+        prover_data.public_inputs.len()
+    );
     Ok(witness)
 }
 
