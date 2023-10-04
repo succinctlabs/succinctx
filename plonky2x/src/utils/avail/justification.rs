@@ -1,29 +1,26 @@
+use num::traits::ToBytes;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use tokio::runtime::Runtime;
 
-use super::fetch::{verify_signature, RpcDataFetcher, SimpleJustificationData};
+use super::fetch::{verify_signature, RpcDataFetcher};
+use super::vars::{
+    Curve, EDDSAPublicKeyVariable, SignatureValueType, SimpleJustificationData,
+    ENCODED_PRECOMMIT_LENGTH,
+};
 use crate::frontend::ecc::ed25519::curve::curve_types::AffinePoint;
 use crate::frontend::ecc::ed25519::curve::ed25519::Ed25519;
 use crate::frontend::ecc::ed25519::curve::eddsa::{verify_message, EDDSASignature};
 use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
-use crate::frontend::ecc::ed25519::gadgets::curve::AffinePointTarget;
 use crate::frontend::ecc::ed25519::gadgets::eddsa::EDDSASignatureTarget;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::uint::uint32::U32Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::ValueStream;
 use crate::prelude::{
-    ArrayVariable, BoolVariable, BytesVariable, CircuitVariable, Field, PlonkParameters, RichField,
+    ArrayVariable, BoolVariable, BytesVariable, Field, PlonkParameters, RichField,
 };
 use crate::utils::to_be_bits;
-
-pub const ENCODED_PRECOMMIT_LENGTH: usize = 53;
-
-pub type Curve = Ed25519;
-pub type EDDSAPublicKeyVariable = AffinePointTarget<Curve>;
-
-type SignatureValueType<F> = <EDDSASignatureTarget<Curve> as CircuitVariable>::ValueType<F>;
 
 fn signature_to_value_type<F: RichField>(sig_bytes: &[u8]) -> SignatureValueType<F> {
     let sig_r = AffinePoint::new_from_compressed_point(&sig_bytes[0..32]);

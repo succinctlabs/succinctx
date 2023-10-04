@@ -13,16 +13,9 @@ use succinct_avail_utils::get_justification::{
     EncodedFinalityProof, FinalityProof, GrandpaJustification, SignerMessage,
 };
 
+use super::vars::{Curve, SimpleJustificationData};
 use crate::frontend::ecc::ed25519::curve::curve_types::AffinePoint;
 use crate::frontend::ecc::ed25519::gadgets::verify::{DUMMY_PUBLIC_KEY, DUMMY_SIGNATURE};
-
-pub struct SimpleJustificationData {
-    pub authority_set_id: u64,
-    pub signed_message: Vec<u8>,
-    pub validator_signed: Vec<bool>,
-    pub pubkeys: Vec<AffinePoint<Curve>>,
-    pub signatures: Vec<[u8; 64]>,
-}
 
 pub struct RpcDataFetcher {
     pub client: OnlineClient<AvailConfig>,

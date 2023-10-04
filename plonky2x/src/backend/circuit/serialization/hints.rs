@@ -83,7 +83,8 @@ use crate::frontend::uint::uint32::U32Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
 use crate::prelude::{BoolVariable, Variable};
-use crate::utils::avail::{FloorDivGenerator, HeaderFetcherHint, BATCH_SIZE, MAX_HEADER_SIZE};
+use crate::utils::avail::header::{FloorDivGenerator, HeaderFetcherHint};
+use crate::utils::avail::vars::{BATCH_SIZE, MAX_HEADER_SIZE};
 
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
     WitnessGeneratorSerializer<L::Field, D>
