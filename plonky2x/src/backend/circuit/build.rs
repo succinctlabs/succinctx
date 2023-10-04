@@ -1,9 +1,9 @@
 use alloc::collections::BTreeMap;
+use tracing::debug;
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
-use log::debug;
 use plonky2::field::types::PrimeField64;
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_data::CircuitData;
@@ -55,6 +55,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         let start_time = Instant::now();
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
+        debug!("Begin witness generation");
         let partition_witness = generate_witness(
             pw,
             &self.data.prover_only,
