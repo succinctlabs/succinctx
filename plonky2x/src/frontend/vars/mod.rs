@@ -16,13 +16,13 @@ pub use bytes32::*;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
+use plonky2::iop::witness::{Witness, WitnessWrite};
 pub use stream::*;
 pub use variable::*;
 
 pub use super::uint::uint256::*;
 pub use super::uint::uint32::*;
-use crate::backend::circuit::{generate_witness, DefaultParameters, PlonkParameters};
+use crate::backend::circuit::{DefaultParameters, PlonkParameters};
 use crate::frontend::builder::CircuitBuilder;
 use crate::utils;
 

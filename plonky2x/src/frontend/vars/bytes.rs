@@ -3,7 +3,6 @@ use std::ops::{Index, Range};
 
 use array_macro::array;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, EvmVariable, Variable};
 use crate::backend::circuit::PlonkParameters;

@@ -43,7 +43,7 @@ impl CircuitVariable for HashOutVariable {
     }
 
     fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
-        value.elements.iter().map(|e| *e).collect()
+        value.elements.to_vec()
     }
 
     fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {

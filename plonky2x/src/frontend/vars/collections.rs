@@ -1,6 +1,5 @@
 use array_macro::array;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
@@ -44,7 +43,7 @@ impl<const N: usize, V: CircuitVariable> CircuitVariable for [V; N] {
 
     fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
         assert!(value.len() == N);
-        value.iter().flat_map(|v| V::elements(*v)).collect()
+        value.into_iter().flat_map(|v| V::elements(v)).collect()
     }
 
     fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {

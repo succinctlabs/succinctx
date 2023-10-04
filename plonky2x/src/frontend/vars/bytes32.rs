@@ -1,9 +1,7 @@
-use core::str::Bytes;
 use std::fmt::Debug;
 
 use ethers::types::H256;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{
     ByteVariable, BytesVariable, CircuitVariable, EvmVariable, SSZVariable, U256Variable, Variable,

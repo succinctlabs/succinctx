@@ -7,7 +7,6 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon::PoseidonHash;
 use plonky2::iop::challenger::RecursiveChallenger;
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 use serde::{Deserialize, Serialize};
 
 use super::{BoolVariable, ByteVariable, CircuitVariable, ValueStream, Variable, VariableStream};

@@ -1,9 +1,7 @@
 use std::fmt::Debug;
 
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::iop::witness::{Witness, WitnessWrite};
 use serde::{Deserialize, Serialize};
 
 use super::{CircuitVariable, Variable};

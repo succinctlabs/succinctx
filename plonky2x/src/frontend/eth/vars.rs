@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use ethers::types::H160;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;

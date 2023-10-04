@@ -4,7 +4,6 @@ use array_macro::array;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::iop::witness::{Witness, WitnessWrite};
 use serde::{Deserialize, Serialize};
 
 use super::{BoolVariable, CircuitVariable, EvmVariable, Variable};
