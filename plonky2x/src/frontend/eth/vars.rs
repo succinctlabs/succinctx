@@ -23,11 +23,16 @@ impl CircuitVariable for BLSPubkeyVariable {
         Self(BytesVariable::init_unsafe(builder))
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self(BytesVariable::constant(builder, value))
+    fn nb_elements() -> usize {
+        BytesVariable::<48>::nb_elements()
+    }
+
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        BytesVariable::<48>::elements(value)
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        BytesVariable::<48>::from_elements(elements)
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -43,14 +48,6 @@ impl CircuitVariable for BLSPubkeyVariable {
         builder: &mut CircuitBuilder<L, D>,
     ) {
         self.0.assert_is_valid(builder);
-    }
-
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        self.0.get(witness)
-    }
-
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        self.0.set(witness, value)
     }
 }
 
@@ -66,14 +63,16 @@ impl CircuitVariable for AddressVariable {
         Self(BytesVariable::init_unsafe(builder))
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self(BytesVariable::constant(
-            builder,
-            value.as_bytes().try_into().expect("wrong slice length"),
-        ))
+    fn nb_elements() -> usize {
+        BytesVariable::<20>::nb_elements()
+    }
+
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        BytesVariable::<20>::elements(value.into())
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        H160::from_slice(&BytesVariable::<20>::from_elements(elements))
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -89,17 +88,6 @@ impl CircuitVariable for AddressVariable {
         builder: &mut CircuitBuilder<L, D>,
     ) {
         self.0.assert_is_valid(builder);
-    }
-
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        H160::from_slice(&self.0.get(witness))
-    }
-
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        self.0.set(
-            witness,
-            value.as_bytes().try_into().expect("wrong slice length"),
-        )
     }
 }
 
