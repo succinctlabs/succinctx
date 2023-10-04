@@ -77,6 +77,7 @@ use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
 use crate::frontend::num::u32::gates::comparison::ComparisonGenerator;
 use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
 use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
+use crate::frontend::uint::uint32::U32Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
 use crate::prelude::{BoolVariable, Variable};
@@ -460,6 +461,7 @@ where
             D,
             Variable,
             BoolVariable,
+            U32Variable,
             U64Variable,
             U256Variable,
             Bytes32Variable,
