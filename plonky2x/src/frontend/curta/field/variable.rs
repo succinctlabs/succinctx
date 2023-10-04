@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use curta::chip::ec::weierstrass::bn254::Bn254;
+use curta::chip::ec::weierstrass::bn254::{Bn254, Bn254BaseField};
 use curta::chip::field::parameters::FieldParameters;
 use curta::chip::utils::digits_to_biguint;
 use curta::math::prelude::PrimeField64;
@@ -94,7 +94,7 @@ impl<P: FieldParameters> CircuitVariable for FieldVariable<P> {
     // }
 }
 
-impl FieldVariable<Bn254> {
+impl FieldVariable<Bn254BaseField> {
     pub fn as_u32_limbs<L: PlonkParameters<D>, const D: usize>(&self) -> Vec<U32Variable> {
         self.limbs.iter().map(|v| U32Variable(*v)).collect()
     }
