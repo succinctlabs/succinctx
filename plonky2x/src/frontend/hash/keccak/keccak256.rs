@@ -13,29 +13,41 @@ use crate::frontend::num::u32::gadgets::interleaved_u32::CircuitBuilderB32;
 use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable};
 use crate::prelude::{BoolVariable, BytesVariable, CircuitBuilder};
 
-
 const KECCAK256_C: usize = 1600;
 pub const KECCAK256_R: usize = 1088;
 
+#[derive(Clone, Debug)]
+pub struct HashInputTarget {
+    pub input: BigUintTarget,
+    pub blocks: Vec<BoolTarget>,
+}
+
 pub trait WitnessKeccakHandler<F:PrimeField64>:WitnessBigUint<F> {
-    fn set_keccak256_input_target(&mut self, target: &BigUintTarget, input: &[u8]);
+    fn set_keccak256_input_target(&mut self, target: &HashInputTarget, input: &[u8]);
+    fn set_hash_blocks_target(&mut self, target: &[BoolTarget], num_blocks: usize);
 }
 
 impl<T: WitnessBigUint<F>, F: PrimeField64> WitnessKeccakHandler<F> for T {
-    fn set_keccak256_input_target(&mut self, target: &BigUintTarget, input: &[u8]) {
+    fn set_keccak256_input_target(&mut self, target: &HashInputTarget, input: &[u8]) {
         let mut input_biguint: BigUint = BigUint::from_bytes_le(input);
         let input_len_bits = input.len() * 8;
         let num_actual_blocks = 1 + input_len_bits / KECCAK256_R;
         let padded_len_bits = num_actual_blocks * KECCAK256_R;
 
-        //Padding is of form [1,0,0,..,0,0,1]
+        // Padding is of form [1,0,0,..,0,0,1]
         input_biguint.set_bit(input_len_bits as u64, true);
 
         input_biguint.set_bit(padded_len_bits as u64 - 1, true);
 
-        self.set_biguint_target(target, &input_biguint);
-
+        self.set_biguint_target(&target.input, &input_biguint);
+        self.set_hash_blocks_target(&target.blocks, num_actual_blocks);
    }
+
+   fn set_hash_blocks_target(&mut self, blocks: &[BoolTarget], num_blocks: usize) {
+        for (i, t) in blocks.iter().enumerate() {
+            self.set_bool_target(*t, i < num_blocks - 1);
+        }
+    }
 }
 
 
@@ -144,7 +156,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
     }
 
     pub fn keccak256(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
-        let (blocks, input_biguint) = self.get_processed_inputs(input);
+        let hash_input_target = self.get_processed_inputs(input);
 
         let chunks_len = KECCAK256_R / 64;
         let zero = self.api.zero_u32();
@@ -155,25 +167,25 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
         // Absorb:
         // First block. xor = use input as initial state.
         for (i, s) in state.iter_mut().enumerate().take(chunks_len) {
-            s[0] = input_biguint.limbs[2 * i];
-            s[1] = input_biguint.limbs[2 * i + 1];
+            s[0] = hash_input_target.input.limbs[2 * i];
+            s[1] = hash_input_target.input.limbs[2 * i + 1];
         }
         
         //Permute.
         self._hash_keccak256_f1600(&mut state);
 
         // Other blocks.
-        for (k, target_block) in blocks.iter().enumerate() {
+        for (k, target_block) in hash_input_target.blocks.iter().enumerate() {
             // Xor.
             let input_start = (k + 1) * chunks_len * 2;
             for (i, s) in state.iter().enumerate() {
                 if i < chunks_len {
                     next_state[i][0] = self
                         .api
-                        .xor_u32(s[0], input_biguint.limbs[input_start + i * 2]);
+                        .xor_u32(s[0], hash_input_target.input.limbs[input_start + i * 2]);
                     next_state[i][1] = self
                         .api
-                        .xor_u32(s[1], input_biguint.limbs[input_start + i * 2 + 1]);
+                        .xor_u32(s[1], hash_input_target.input.limbs[input_start + i * 2 + 1]);
                 } else {
                     next_state[i][0] = s[0];
                     next_state[i][1] = s[1];
@@ -223,21 +235,32 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 
     }
 
-    pub fn get_processed_inputs(&mut self, input: &[ByteVariable]) -> (Vec<BoolTarget>, BigUintTarget) {
+    pub fn get_processed_inputs(&mut self, input: &[ByteVariable]) -> HashInputTarget {
         let input_len_bits = input.len() * 8;
 
         let num_actual_blocks = 1 + input_len_bits / KECCAK256_R;
+
+
+        //Seeing assert being used in some circuits. Shouldn't the below be constrained instead of asserted?
+        assert!(num_actual_blocks < 5);
+
         let padded_len_bits = num_actual_blocks * KECCAK256_R;
 
         let mut blocks: Vec<BoolTarget> = Vec::new();
-        for _ in 0..1 + input_len_bits / KECCAK256_R - 1 {
+        for _ in 0..(num_actual_blocks - 1) {
             blocks.push(self.api.add_virtual_bool_target_unsafe());
         }
 
         let bool_targets = self.get_padded_bool_array(input, padded_len_bits);
         
         let input_biguint = biguint_from_le_bytes(self, bool_targets);
-        (blocks, input_biguint)
+
+        HashInputTarget {
+            input: input_biguint,
+            blocks
+        }
+
+
     }
 
     fn get_padded_bool_array(&mut self, input: &[ByteVariable], padded_len_bits: usize) -> Vec<BoolTarget> {
@@ -264,12 +287,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilder<F, D> {
 #[cfg(test)]
 mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::plonk::config::PoseidonGoldilocksConfig;
-    use plonky2::iop::witness::PartialWitness;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig, KeccakGoldilocksConfig};
+    use plonky2::iop::witness::{PartialWitness};
     use hex::decode;
 
     use super::*;
-    use crate::prelude::{CircuitBuilder,Variable};
+    use crate::prelude::CircuitBuilder;
 
     use crate::utils::{bytes32, setup_logger};
 
@@ -311,21 +334,6 @@ mod tests {
         }
         result.to_string()
     }
-   
-    fn to_bits(msg: Vec<u8>) -> Vec<bool> {
-        let mut res = Vec::new();
-        for bit in msg {
-            let char = bit;
-            for j in 0..8 {
-                if (char & (1 << (7 - j))) != 0 {
-                    res.push(true);
-                } else {
-                    res.push(false);
-                }
-            }
-        }
-        res
-    }
 
     #[test]
     fn test_keccak256_empty() {
@@ -348,7 +356,7 @@ mod tests {
         debug!("biguint_test : {:?}", str_repr);
         debug!("input_biguint : {:?}", input_biguint_lib);
 
-        let (_, input_biguint) = builder.get_processed_inputs(&word);
+        let hash_input_target = builder.get_processed_inputs(&word);
         let digest_target = builder.keccak256(&word);
         
         builder.watch(&digest_target, "digest_target");
@@ -366,7 +374,7 @@ mod tests {
         // test circuit
         let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
 
-        pw.set_keccak256_input_target(&input_biguint, word_byte);
+        pw.set_keccak256_input_target(&hash_input_target, word_byte);
 
         let proof= circuit.data.prove(pw).unwrap();
         assert!(circuit.data.verify(proof).is_ok());
@@ -397,7 +405,7 @@ mod tests {
         debug!("biguint_test : {:?}", str_repr);
         debug!("input_biguint : {:?}", input_biguint_lib);
 
-        let (_, input_biguint) = builder.get_processed_inputs(&word.0 .0);
+        let hash_input_target = builder.get_processed_inputs(&word.0 .0);
         let digest_target = builder.keccak256(&word.0 .0);
 
         builder.watch(&digest_target, "digest_target");
@@ -415,7 +423,7 @@ mod tests {
         // test circuit
         let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
 
-        pw.set_keccak256_input_target(&input_biguint, word_byte.as_bytes());
+        pw.set_keccak256_input_target(&hash_input_target, word_byte.as_bytes());
 
         let proof= circuit.data.prove(pw).unwrap();
         assert!(circuit.data.verify(proof).is_ok());
@@ -425,59 +433,41 @@ mod tests {
     fn test_keccak256_long() {
         setup_logger();
 
-        type F = GoldilocksField;
-        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type C = KeccakGoldilocksConfig;
         const D: usize = 2;
 
         let mut builder = CircuitBuilder::<F, D>::new();
 
-        let msg = decode("f9015180a060f3bdb593359882a705ff924581eb99537f2428a007a0006f459182f07dba16a06776a7e6abd64250488ed106c0fbd66ee338b7ce59ae967714ce43ecd5a3de97a0f8d6740520928d0e540bf439f1c214ce434f349e4c9b71bb9fcce14144a48914a0f31b2b9570033a103b8a4c0db8debbff2cf8dc4eb2ed31fa292d41c7adf13dc980808080a016a530127910d9d4a89450f0c9dc075545441126b222396eb28e30c73c01c8a9a05d9eb59dae800d3f8cfe8efdfa86776fc7f3b09dfc5b2f537b2c2abda9787755a0bcdc8744035201f5d8d9bd0f440887a40d8cafc3f986f20ce276b1b1e37c01fda0f56f6a7cbf29f15d0923780608ffbb5671fcb518b482812bb8a02b46bae016f0a0cc20fa696765f56b03c14de2b16ab042f191dafb61df0dab8e1101cc08e78f3980a0e1328f040062749d53d278300e0e9857744279645fbc7a3ae11fcb87a6e000e680").unwrap();
-        let mut msg_bits = to_bits(msg.to_vec());
+        let msg = decode("f9015180a060f3bdb593359880987612345e1234509871234509876123049518762a705ff4581e01928374657483921029384756478010192837465b99537f24e8a00e7a0006f459182f07dba16a06776a7e6abd64250488ed106c0fbd66ee338b7ce59ae967714ce43ecd5a3de97a0f8d6740520928d0e540bf439f1c214ce434f349e4c9b71bb9fcce14144a48914a0f31b2b9570033a103b8a4c0db8debbff2cf8dc4eb2ed31fa292d41c7adf13dc980808080a016a530127910d9d4a89450f0c9dc075545441126b222396eb28e30c73c01c8a9a05d9eb59dae800d3f8cfe8efdfa86776fc7f3b09dfc5b2f537b2c2abda9787755a0bcdc8744035201f5d8d9bd0f440887a40d8cafc3f986f20ce").unwrap();
 
-        // let padding_size = 8 - (msg_bits.len() % 8);
-
-        // if padding_size != 8 {
-        //     msg_bits.extend(vec![false; padding_size]);
-        // }
-
-        let bool_vars = msg_bits
+        let targets = msg
         .iter()
-        .map(|&bit| BoolVariable::constant(&mut builder, bit))
+        .map(|&byte| builder.constant::<ByteVariable>(byte))
         .collect::<Vec<_>>();
 
-        // Chunk them by 8 bits
-        let targets = bool_vars
-            .chunks(8)
-            .map(|chunk| {
-                assert_eq!(chunk.len(), 8);
-                let var_array: [Variable; 8] = array![i => chunk[i].0; 8];
-                ByteVariable::from_variables(&var_array)
-        })
-        .collect::<Vec<_>>();
-
-        let (_, input_biguint) = builder.get_processed_inputs(&targets[..]);
+        let hash_input_target = builder.get_processed_inputs(&targets[..]);
         let digest_target = builder.keccak256(&targets[..]);
+        let num_gates = builder.api.num_gates();
 
         builder.watch(&digest_target, "digest_target");
 
+        debug!("num_gates: {:?}", num_gates);
+
         let digest = builder.constant::<Bytes32Variable>(bytes32!(
-            "0xd4cb2d1c9f1ff574d4854301a6ea891143e123d4dd04db1432509c2307f10a21"
+            "0xef0a5c7a1dfaa6a396e9163c4849e53f5d0b919f6de0b923cf41d321eedec03c"
         ));
 
         builder.assert_is_equal(digest_target, digest);
 
-        println!("msg.as slice: {:?}", msg.as_slice().len());
+        debug!("msg.as slice: {:?}", msg.as_slice().len());
 
         let circuit = builder.build::<C>();
-        let input = circuit.input();
-        let (_, _) = circuit.prove(&input);
 
         // test circuit
-        let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
+        let mut pw= PartialWitness::new();
 
-        println!("msg.as slice: {:?}", msg.as_slice());
-
-        pw.set_keccak256_input_target(&input_biguint, msg.as_slice());
+        pw.set_keccak256_input_target(&hash_input_target, msg.as_slice());
 
         let proof= circuit.data.prove(pw).unwrap();
         assert!(circuit.data.verify(proof).is_ok());
@@ -509,7 +499,7 @@ mod tests {
         debug!("biguint_test : {:?}", str_repr);
         debug!("input_biguint : {:?}", input_biguint_lib);
 
-        let (_, input_biguint) = builder.get_processed_inputs(&word.0 .0);
+        let hash_input_target = builder.get_processed_inputs(&word.0 .0);
         let digest_target = builder.keccak256(&word.0 .0);
 
         let digest = builder.constant::<Bytes32Variable>(bytes32!(
@@ -525,7 +515,7 @@ mod tests {
 
         // test circuit
         let mut pw: PartialWitness<GoldilocksField> = PartialWitness::new();
-        pw.set_keccak256_input_target(&input_biguint, word_byte.as_bytes());
+        pw.set_keccak256_input_target(&hash_input_target, word_byte.as_bytes());
 
         let proof= circuit.data.prove(pw).unwrap();
         assert!(circuit.data.verify(proof).is_ok());
