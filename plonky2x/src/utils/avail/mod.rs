@@ -62,7 +62,7 @@ impl<
         last_block = last_block.min(max_block);
 
         let mut headers = Vec::new();
-        if last_block > start_block {
+        if last_block >= start_block {
             let rt = Runtime::new().expect("failed to create tokio runtime");
             headers.extend(rt.block_on(async {
                 let data_fetcher = RpcDataFetcher::new().await;
@@ -77,6 +77,7 @@ impl<
         for i in 0..headers.len() {
             // TODO: replace with `to_header_variable` from vars.rs
             let header = &headers[i];
+            println!("in hint, got header: {:?}", header.block_number);
             let mut header_bytes = header.encode();
             let header_size = header_bytes.len();
             if header_size > HEADER_LENGTH {
