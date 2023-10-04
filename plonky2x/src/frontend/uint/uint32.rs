@@ -6,6 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{Witness, WitnessWrite};
 
+use super::uint256::U256Variable;
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
@@ -196,17 +197,49 @@ impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for U32Variable {
     }
 }
 
+impl U32Variable {
+    pub fn to_u256<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> U256Variable {
+        let mut u256 = builder.init_unsafe::<U256Variable>();
+        let zero = builder.zero::<U32Variable>();
+        u256.limbs[0] = *self;
+        for i in 1..8 {
+            u256.limbs[i] = zero;
+        }
+        u256
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rand::Rng;
 
     use super::U32Variable;
     use crate::backend::circuit::DefaultParameters;
+    use crate::frontend::uint::uint256::U256Variable;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
 
     type L = DefaultParameters;
     const D: usize = 2;
+
+    #[test]
+    fn test_u32_as_u256() {
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let var = U32Variable::constant(&mut builder, 34234);
+        let var_u256 = var.to_u256(&mut builder);
+        builder.watch(&var_u256, "u256");
+
+        let expected_u256 = U256Variable::constant(&mut builder, 34234.into());
+        builder.assert_is_equal(expected_u256, var_u256);
+
+        let circuit = builder.build();
+        let pw = PartialWitness::new();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
 
     #[test]
     fn test_u32_evm() {
