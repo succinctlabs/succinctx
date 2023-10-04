@@ -150,7 +150,6 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
                 continue;
             }
 
-            trace!("generator_idx: {}", generator_idx);
             if let Some(async_gen) = async_generators.get(&generator_idx) {
                 if let Ok(e) = rx_handler_error.try_recv() {
                     return Err(e);
@@ -183,7 +182,6 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
                 if let Some(watchers) = opt_watchers {
                     for &watching_generator_idx in watchers {
                         if !generator_is_expired[watching_generator_idx] {
-                            trace!("enqueuing watch generator {}", watching_generator_idx);
                             next_pending_generator_indices.push(watching_generator_idx);
                         }
                     }
