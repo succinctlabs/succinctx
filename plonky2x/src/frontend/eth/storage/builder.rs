@@ -332,7 +332,7 @@ mod tests {
                     "0x8fa46ad6b448faefbfc010736a3d39595ca68eb8bdd4e6b4ab30513bab688068"
                 ),
                 difficulty: U256::from("0x0"),
-                number: U64::from("0x110d56b"),
+                number: U64::from("0x110d56b").as_u64(),
                 gas_limit: U256::from("0x1c9c380"),
                 gas_used: U256::from("0x16041f6"),
                 time: U256::from("0x64d41817"),
