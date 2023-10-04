@@ -315,7 +315,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 rq_idx += 1;
             }
 
-            self.constrain_sha256_gadget(gadget);
+            self.api.constrain_sha256_gadget::<L::CurtaConfig>(gadget);
         }
     }
 }
@@ -327,7 +327,9 @@ mod tests {
     use crate::backend::circuit::{CircuitBuild, DefaultParameters};
     use crate::frontend::uint::uint32::U32Variable;
     use crate::frontend::vars::Bytes32Variable;
-    use crate::prelude::{ByteVariable, BytesVariable, CircuitBuilder, GateRegistry, HintRegistry, DefaultBuilder};
+    use crate::prelude::{
+        ByteVariable, BytesVariable, CircuitBuilder, DefaultBuilder, GateRegistry, HintRegistry,
+    };
     use crate::utils::{bytes, bytes32};
 
     type L = DefaultParameters;

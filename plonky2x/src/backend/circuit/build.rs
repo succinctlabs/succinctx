@@ -1,5 +1,4 @@
 use alloc::collections::BTreeMap;
-use tracing::debug;
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
@@ -12,6 +11,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::plonk::prover::prove_with_partition_witness;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, Read, Write};
 use plonky2::util::timing::TimingTree;
+use tracing::debug;
 
 use super::config::PlonkParameters;
 use super::input::PublicInput;
