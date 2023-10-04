@@ -338,8 +338,8 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_curta_fixed_single() {
-        tracing_subscriber::fmt::init();
         env::set_var("RUST_LOG", "debug");
+        tracing_subscriber::fmt::init();
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
