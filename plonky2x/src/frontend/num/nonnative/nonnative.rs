@@ -82,29 +82,28 @@ impl<FF: PrimeField> CircuitVariable for NonNativeTarget<FF> {
         builder.api.connect(cmp.target, one);
     }
 
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        let field_elements = self
-            .value
-            .limbs
-            .iter()
-            .map(|x| Variable(x.0).get(witness).to_canonical_u64() as u32)
-            .collect::<Vec<u32>>();
-        let big_uint = BigUint::from_slice(&field_elements);
-        FF::from_noncanonical_biguint(big_uint)
+    fn nb_elements() -> usize {
+        num_nonnative_limbs::<FF>()
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
         let biguint = value.to_canonical_biguint();
         let limbs = biguint.to_u32_digits();
         let num_limbs = num_nonnative_limbs::<FF>();
         assert_eq!(limbs.len(), num_limbs);
-        let _ = self
-            .value
-            .limbs
+        limbs
             .iter()
-            .enumerate()
-            .map(|(i, x)| Variable(x.0).set(witness, F::from_canonical_u32(limbs[i])))
-            .collect::<Vec<_>>();
+            .flat_map(|x| Variable::elements(F::from_canonical_u32(*x)))
+            .collect::<Vec<_>>()
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        let u32_slice = elements
+            .iter()
+            .map(|x| Variable::from_elements(&[*x]).to_canonical_u64() as u32)
+            .collect::<Vec<u32>>();
+        let big_uint = BigUint::from_slice(&u32_slice);
+        FF::from_noncanonical_biguint(big_uint)
     }
 }
 
