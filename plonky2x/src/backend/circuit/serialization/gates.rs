@@ -2,6 +2,8 @@ use core::any::TypeId;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
+use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGate;
+use curta::plonky2::cubic::mul_gate::MulCubicGate;
 use plonky2::field::extension::Extendable;
 use plonky2::gates::arithmetic_base::ArithmeticGate;
 use plonky2::gates::arithmetic_extension::ArithmeticExtensionGate;
@@ -103,6 +105,8 @@ impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
         r.register::<U32ArithmeticGate<L::Field, D>>();
         r.register::<U32SubtractionGate<L::Field, D>>();
         r.register::<U32RangeCheckGate<L::Field, D>>();
+        r.register::<ArithmeticCubicGate>();
+        r.register::<MulCubicGate>();
 
         r
     }

@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use curta::chip::ec::edwards::ed25519::Ed25519 as CurtaEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::ScalarMulEd25519Gadget;
-use curta::chip::ec::edwards::EdwardsParameters;
+use curta::chip::ec::EllipticCurve;
 use curta::math::extension::cubic::parameters::CubicParameters;
 use curta::plonky2::stark::config::CurtaConfig;
 use plonky2::field::extension::Extendable;
@@ -133,13 +133,13 @@ pub fn curta_batch_eddsa_verify_variable<
 
         // Targets for the message length and number of chunks
         // TODO: Should we range check that msg_length is less than MAX_MSG_LEN * 8?
-        let msg_length = builder.add_virtual_target();
-        // Note: Add 512 bits for the sig.r and pk_compressed
-        let compressed_sig_and_pk_t =
-            builder.constant(F::from_canonical_usize(COMPRESSED_SIG_AND_PK_LEN_BITS));
-        let hash_msg_length = builder.add(msg_length, compressed_sig_and_pk_t);
+        let msg_bit_length = builder.add_virtual_target();
+        msgs_bit_lengths.push(msg_bit_length);
 
-        msgs_bit_lengths.push(msg_length);
+        // Note: Add 512 bits for the sig.r and pk_compressed
+        let compressed_sig_and_pk_bit_length =
+            builder.constant(F::from_canonical_usize(COMPRESSED_SIG_AND_PK_LEN_BITS));
+        let hash_msg_bit_length = builder.add(msg_bit_length, compressed_sig_and_pk_bit_length);
 
         // There is already a calculation for the number of limbs needed for the underlying biguint targets.
         let sig = EDDSASignatureTarget {
@@ -181,7 +181,7 @@ pub fn curta_batch_eddsa_verify_variable<
         msgs.push(msg);
 
         let sha512_targets = sha512_variable::<F, D>(builder, max_num_chunks);
-        builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_length);
+        builder.connect(sha512_targets.hash_msg_length_bits, hash_msg_bit_length);
 
         for i in 0..max_num_chunks * CHUNK_BITS_1024 {
             builder.connect(sha512_targets.message[i].target, hash_msg[i].target);
@@ -197,7 +197,7 @@ pub fn curta_batch_eddsa_verify_variable<
         sigs_s_limbs.push(sig_s_limbs);
 
         let generator =
-            ScalarMulEd25519Gadget::constant_affine_point(builder, CurtaEd25519::generator());
+            ScalarMulEd25519Gadget::constant_affine_point(builder, CurtaEd25519::ec_generator());
 
         pub_keys.push(pub_key);
         sigs.push(sig);
@@ -208,13 +208,13 @@ pub fn curta_batch_eddsa_verify_variable<
     for _i in num_sigs..MAX_NUM_SIGS {
         curta_pub_keys.push(ScalarMulEd25519Gadget::constant_affine_point(
             builder,
-            CurtaEd25519::generator(),
+            CurtaEd25519::ec_generator(),
         ));
         h_scalars_limbs.push([builder.zero(); 8].to_vec());
 
         generators.push(ScalarMulEd25519Gadget::constant_affine_point(
             builder,
-            CurtaEd25519::generator(),
+            CurtaEd25519::ec_generator(),
         ));
         sigs_s_limbs.push([builder.zero(); 8].to_vec());
     }
@@ -331,7 +331,7 @@ pub fn curta_batch_eddsa_verify<
         sigs_s_limbs.push(sig_s_limbs);
 
         let generator =
-            ScalarMulEd25519Gadget::constant_affine_point(builder, CurtaEd25519::generator());
+            ScalarMulEd25519Gadget::constant_affine_point(builder, CurtaEd25519::ec_generator());
 
         pub_keys.push(pub_key);
         sigs.push(sig);
@@ -342,13 +342,13 @@ pub fn curta_batch_eddsa_verify<
     for _i in num_sigs..MAX_NUM_SIGS {
         curta_pub_keys.push(ScalarMulEd25519Gadget::constant_affine_point(
             builder,
-            CurtaEd25519::generator(),
+            CurtaEd25519::ec_generator(),
         ));
         h_scalars_limbs.push([builder.zero(); 8].to_vec());
 
         generators.push(ScalarMulEd25519Gadget::constant_affine_point(
             builder,
-            CurtaEd25519::generator(),
+            CurtaEd25519::ec_generator(),
         ));
         sigs_s_limbs.push([builder.zero(); 8].to_vec());
     }

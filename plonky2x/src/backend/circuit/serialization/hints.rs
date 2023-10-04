@@ -11,6 +11,8 @@ use curta::chip::hash::blake::blake2b::generator::{
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
+use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
+use curta::plonky2::cubic::mul_gate::MulCubicGenerator;
 use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
@@ -56,7 +58,7 @@ use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
     BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
-use crate::frontend::eth::mpt::generators::LeGenerator;
+use crate::frontend::eth::mpt::generators::LteGenerator;
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
@@ -366,8 +368,8 @@ where
             sha256_generator_id,
         );
 
-        let le_generator_id = LeGenerator::<L, D>::id();
-        r.register_simple::<LeGenerator<L, D>>(le_generator_id);
+        let le_generator_id = LteGenerator::<L, D>::id();
+        r.register_simple::<LteGenerator<L, D>>(le_generator_id);
 
         let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
             ScalarMulEd25519<L::Field, L::CubicParams>,
@@ -427,6 +429,12 @@ where
 
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
+
+        let id = ArithmeticCubicGenerator::<L::Field, D>::id();
+        r.register_simple::<ArithmeticCubicGenerator<L::Field, D>>(id);
+
+        let id = MulCubicGenerator::<L::Field, D>::id();
+        r.register_simple::<MulCubicGenerator<L::Field, D>>(id);
 
         r.register_async_hint::<BeaconValidatorsHint>();
 

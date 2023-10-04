@@ -10,12 +10,13 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
-use crate::frontend::num::u32::gadgets::multiple_comparison::list_le_circuit;
+use crate::frontend::num::u32::gadgets::multiple_comparison::list_lte_circuit;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
 use crate::prelude::*;
 
-/// A variable in the circuit representing a u32 value. Under the hood, it is represented as
-/// a single field element.
+/// A variable in the circuit representing a u32 value.
+///
+/// Under the hood, it is represented as a single field element.
 #[derive(Debug, Clone, Copy)]
 pub struct U32Variable(pub Variable);
 
@@ -43,7 +44,6 @@ impl CircuitVariable for U32Variable {
     }
 
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
-        assert_eq!(variables.len(), 1);
         Self(variables[0])
     }
 
@@ -112,10 +112,10 @@ impl EvmVariable for U32Variable {
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> Le<L, D> for U32Variable {
-    fn le(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
+impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for U32Variable {
+    fn lte(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
         BoolVariable(Variable(
-            list_le_circuit(&mut builder.api, self.targets(), rhs.targets(), 32).target,
+            list_lte_circuit(&mut builder.api, self.targets(), rhs.targets(), 32).target,
         ))
     }
 }

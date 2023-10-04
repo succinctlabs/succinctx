@@ -94,7 +94,7 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
         const D: usize = 2;
         utils::disable_logging();
         let mut builder = CircuitBuilder::<L, D>::new();
-        let variable = builder.init::<Self>();
+        let variable = builder.init_unsafe::<Self>();
         utils::enable_logging();
         variable.variables().len()
     }
@@ -125,12 +125,12 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     ) -> Self::ValueType<L::Field> {
         utils::disable_logging();
         let mut builder = CircuitBuilder::<L, D>::new();
-        let variable = builder.init::<Self>();
+        let variable = builder.init_unsafe::<Self>();
         let variables = variable.variables();
         assert_eq!(variables.len(), elements.len());
         let mut pw = PartialWitness::new();
-        for i in 0..elements.len() {
-            variables[i].set(&mut pw, elements[i])
+        for (var, element) in variables.iter().zip(elements.iter()) {
+            var.set(&mut pw, *element);
         }
         utils::enable_logging();
         variable.get(&pw)

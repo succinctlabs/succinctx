@@ -12,21 +12,21 @@ use crate::prelude::{
 };
 
 #[derive(Debug, Clone)]
-pub struct LeGenerator<L: PlonkParameters<D>, const D: usize> {
+pub struct LteGenerator<L: PlonkParameters<D>, const D: usize> {
     pub lhs: Variable,
     pub rhs: Variable,
     pub output: BoolVariable,
     pub _phantom: PhantomData<L>,
 }
 
-impl<L: PlonkParameters<D>, const D: usize> LeGenerator<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> LteGenerator<L, D> {
     pub fn id() -> String {
         "LeGenerator".to_string()
     }
 }
 
 // TODO: add LeGenerator to macro
-impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for LeGenerator<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for LteGenerator<L, D> {
     fn id(&self) -> String {
         Self::id()
     }

@@ -13,6 +13,9 @@ use crate::prelude::{ByteVariable, Variable};
 use crate::utils::eth::beacon::BeaconValidator;
 use crate::utils::{bytes, bytes32, hex};
 
+const ZERO_BYTE32: &str = "0x0000000000000000000000000000000000000000000000000000000000000000";
+const ZERO_VALIDATOR_PUBKEY: &str = "0x111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+
 #[derive(Debug, Clone, Copy)]
 pub struct BeaconValidatorVariable {
     pub pubkey: BLSPubkeyVariable,
@@ -159,8 +162,6 @@ impl SSZVariable for BeaconValidatorVariable {
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) -> Bytes32Variable {
-        // Reference: https://www.ssz.dev/sszexplorer
-
         let zero = builder.constant::<ByteVariable>(0);
         let one = builder.constant::<ByteVariable>(1);
 
@@ -198,7 +199,12 @@ impl SSZVariable for BeaconValidatorVariable {
         let mut c1 = builder.curta_sha256(&b1).0 .0.to_vec();
         c1.extend(builder.curta_sha256(&b2).0 .0.to_vec());
 
-        builder.curta_sha256(&c1)
+        let leaf = builder.curta_sha256(&c1);
+        let zero_leaf = builder.constant::<Bytes32Variable>(bytes32!(ZERO_BYTE32));
+        let zero_validator_pubkey =
+            builder.constant::<BLSPubkeyVariable>(bytes!(ZERO_VALIDATOR_PUBKEY));
+        let is_zero_validator = builder.is_equal(self.pubkey, zero_validator_pubkey);
+        builder.select(is_zero_validator, zero_leaf, leaf)
     }
 }
 

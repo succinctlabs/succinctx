@@ -10,9 +10,10 @@ use plonky2::util::ceil_div_usize;
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
 use crate::frontend::num::u32::gates::comparison::ComparisonGate;
 
-/// Returns true if a is less than or equal to b, considered as base-`2^num_bits` limbs of a large value.
-/// This range-checks its inputs.
-pub fn list_le_circuit<F: RichField + Extendable<D>, const D: usize>(
+/// Computes the less than or equal to operation between a and b encoded as base-`2^num_bits` limbs.
+///
+/// Note that this function performs a range check on its inputs.
+pub fn list_lte_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     a: Vec<Target>,
     b: Vec<Target>,
@@ -74,7 +75,7 @@ pub fn list_le_u32_circuit<F: RichField + Extendable<D>, const D: usize>(
     let a_targets: Vec<Target> = a.iter().map(|&t| t.0).collect();
     let b_targets: Vec<Target> = b.iter().map(|&t| t.0).collect();
 
-    list_le_circuit(builder, a_targets, b_targets, 32)
+    list_lte_circuit(builder, a_targets, b_targets, 32)
 }
 
 #[cfg(test)]
@@ -129,7 +130,7 @@ mod tests {
             .map(|&x| builder.constant(F::from_canonical_u64(x)))
             .collect();
 
-        let result = list_le_circuit(&mut builder, a, b, num_bits);
+        let result = list_lte_circuit(&mut builder, a, b, num_bits);
 
         let expected_result = builder.constant_bool(a_biguint <= b_biguint);
         builder.connect(result.target, expected_result.target);

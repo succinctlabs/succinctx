@@ -278,6 +278,117 @@ impl<
         V3: CircuitVariable,
         V4: CircuitVariable,
         V5: CircuitVariable,
+    > CircuitVariable for (V1, V2, V3, V4, V5)
+{
+    type ValueType<F: RichField> = (
+        V1::ValueType<F>,
+        V2::ValueType<F>,
+        V3::ValueType<F>,
+        V4::ValueType<F>,
+        V5::ValueType<F>,
+    );
+
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        (
+            V1::init_unsafe(builder),
+            V2::init_unsafe(builder),
+            V3::init_unsafe(builder),
+            V4::init_unsafe(builder),
+            V5::init_unsafe(builder),
+        )
+    }
+
+    fn constant<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        value: Self::ValueType<L::Field>,
+    ) -> Self {
+        (
+            V1::constant(builder, value.0),
+            V2::constant(builder, value.1),
+            V3::constant(builder, value.2),
+            V4::constant(builder, value.3),
+            V5::constant(builder, value.4),
+        )
+    }
+
+    fn variables(&self) -> Vec<Variable> {
+        [
+            &self.0.variables()[..],
+            &self.1.variables()[..],
+            &self.2.variables()[..],
+            &self.3.variables()[..],
+            &self.4.variables()[..],
+        ]
+        .concat()
+    }
+
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        assert_eq!(
+            variables.len(),
+            V1::nb_elements()
+                + V2::nb_elements()
+                + V3::nb_elements()
+                + V4::nb_elements()
+                + V5::nb_elements()
+        );
+
+        let v1 = V1::from_variables_unsafe(&variables[..V1::nb_elements()]);
+        let v2 = V2::from_variables_unsafe(
+            &variables[V1::nb_elements()..V1::nb_elements() + V2::nb_elements()],
+        );
+        let v3 = V3::from_variables_unsafe(
+            &variables[V1::nb_elements() + V2::nb_elements()
+                ..V1::nb_elements() + V2::nb_elements() + V3::nb_elements()],
+        );
+        let v4 = V4::from_variables_unsafe(
+            &variables[V1::nb_elements() + V2::nb_elements() + V3::nb_elements()..],
+        );
+        let v5 = V5::from_variables_unsafe(
+            &variables
+                [V1::nb_elements() + V2::nb_elements() + V3::nb_elements() + V4::nb_elements()..],
+        );
+
+        (v1, v2, v3, v4, v5)
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        self.0.assert_is_valid(builder);
+        self.1.assert_is_valid(builder);
+        self.2.assert_is_valid(builder);
+        self.3.assert_is_valid(builder);
+        self.4.assert_is_valid(builder);
+    }
+
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+        (
+            self.0.get(witness),
+            self.1.get(witness),
+            self.2.get(witness),
+            self.3.get(witness),
+            self.4.get(witness),
+        )
+    }
+
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+        self.0.set(witness, value.0);
+        self.1.set(witness, value.1);
+        self.2.set(witness, value.2);
+        self.3.set(witness, value.3);
+        self.4.set(witness, value.4);
+    }
+}
+
+impl<
+        V1: CircuitVariable,
+        V2: CircuitVariable,
+        V3: CircuitVariable,
+        V4: CircuitVariable,
+        V5: CircuitVariable,
         V6: CircuitVariable,
         V7: CircuitVariable,
         V8: CircuitVariable,

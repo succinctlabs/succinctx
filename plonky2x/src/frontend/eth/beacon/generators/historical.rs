@@ -84,10 +84,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
         let result = self
             .client
-            .get_historical_block(
-                hex!(block_root.as_bytes()).to_string(),
-                target_slot.as_u64(),
-            )
+            .get_historical_block(hex!(block_root.as_bytes()).to_string(), target_slot)
             .expect("failed to get validators root");
 
         self.target_block_root
