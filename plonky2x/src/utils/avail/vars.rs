@@ -9,7 +9,7 @@ use crate::prelude::{
 };
 
 /// Justification related constants and types
-
+pub const MAX_AUTHORITY_SET_SIZE: usize = 100;
 pub const ENCODED_PRECOMMIT_LENGTH: usize = 53;
 
 pub type Curve = Ed25519;
