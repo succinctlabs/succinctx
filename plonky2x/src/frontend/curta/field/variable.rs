@@ -39,17 +39,20 @@ impl<P: FieldParameters> CircuitVariable for FieldVariable<P> {
         todo!("range checks on field variable")
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        let limb_values = to_u16_le_limbs_polynomial::<L::Field, P>(&value).as_coefficients();
+    fn nb_elements() -> usize {
+        P::NB_LIMBS
+    }
 
-        let limbs = limb_values
-            .into_iter()
-            .map(|limb| builder.constant(limb))
-            .collect();
-        Self::new(limbs)
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        to_u16_le_limbs_polynomial::<F, P>(&value).as_coefficients()
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        let limbs = elements
+            .iter()
+            .map(|v| v.as_canonical_u64() as u16)
+            .collect::<Vec<_>>();
+        digits_to_biguint(&limbs)
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -59,33 +62,4 @@ impl<P: FieldParameters> CircuitVariable for FieldVariable<P> {
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
         Self::new(variables.to_vec())
     }
-
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        let limbs = self
-            .limbs
-            .iter()
-            .map(|v| v.get(witness).as_canonical_u64() as u16)
-            .collect::<Vec<_>>();
-        digits_to_biguint(&limbs)
-    }
-
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        let limb_values = to_u16_le_limbs_polynomial::<F, P>(&value).as_coefficients();
-
-        for (limb, value) in self.limbs.iter().zip(limb_values) {
-            limb.set(witness, value);
-        }
-    }
-
-    // fn elements<L: PlonkParameters<D>, const D: usize>(
-    //     value: Self::ValueType<L::Field>,
-    // ) -> Vec<L::Field> {
-    //     to_u16_le_limbs_polynomial::<L::Field, P>(&value).as_coefficients()
-    // }
-
-    // fn from_elements<L: PlonkParameters<D>, const D: usize>(
-    //     elements: &[L::Field],
-    // ) -> Self::ValueType<L::Field> {
-    //     field_limbs_to_biguint(elements)
-    // }
 }
