@@ -26,13 +26,6 @@ impl CircuitVariable for ByteVariable {
         Self(array![_ => BoolVariable::init_unsafe(builder); 8])
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self(array![i => BoolVariable::constant(builder, (value >> (7 - i)) & 1 == 1); 8])
-    }
-
     fn variables(&self) -> Vec<Variable> {
         self.0.iter().map(|x| x.0).collect()
     }
@@ -51,22 +44,27 @@ impl CircuitVariable for ByteVariable {
         }
     }
 
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        let mut acc: u64 = 0;
-        for i in 0..8 {
-            let term = (1 << (7 - i)) * (BoolVariable::get(&self.0[i], witness) as u64);
-            acc += term;
-        }
-        acc as u8
+    fn nb_elements() -> usize {
+        8
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
         let value_be_bits = (0..8)
             .map(|i| ((1 << (7 - i)) & value) != 0)
             .collect::<Vec<_>>();
+        value_be_bits
+            .into_iter()
+            .map(|x| F::from_canonical_u64(x as u64))
+            .collect()
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        let mut acc: u64 = 0;
         for i in 0..8 {
-            BoolVariable::set(&self.0[i], witness, value_be_bits[i]);
+            let term = (1 << (7 - i)) * ((elements[i] == F::ONE) as u64);
+            acc += term;
         }
+        acc as u8
     }
 }
 

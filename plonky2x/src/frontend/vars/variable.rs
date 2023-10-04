@@ -50,12 +50,17 @@ impl CircuitVariable for Variable {
     ) {
     }
 
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        witness.get_target(self.0)
+    fn nb_elements() -> usize {
+        1
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        witness.set_target(self.0, value);
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        vec![value]
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        assert_eq!(elements.len(), 1);
+        elements[0]
     }
 }
 

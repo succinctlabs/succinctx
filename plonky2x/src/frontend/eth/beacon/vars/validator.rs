@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{Witness, WitnessWrite};
+use plonky2x_derive::CircuitVariable;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;

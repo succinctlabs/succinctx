@@ -24,16 +24,6 @@ impl CircuitVariable for BoolVariable {
         Self(Variable::init_unsafe(builder))
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self(Variable::constant(
-            builder,
-            L::Field::from_canonical_u64(value as u64),
-        ))
-    }
-
     fn variables(&self) -> Vec<Variable> {
         vec![self.0]
     }
@@ -52,12 +42,17 @@ impl CircuitVariable for BoolVariable {
             .assert_bool(BoolTarget::new_unsafe(self.targets()[0]))
     }
 
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        witness.get_target(self.0 .0) == F::from_canonical_u64(1)
+    fn nb_elements() -> usize {
+        1
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        witness.set_target(self.0 .0, F::from_canonical_u64(value as u64));
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        vec![F::from_canonical_u64(value as u64)]
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        assert_eq!(elements.len(), 1);
+        elements[0] == F::ONE
     }
 }
 

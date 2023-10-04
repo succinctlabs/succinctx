@@ -76,16 +76,6 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
         }
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Vec<V::ValueType<L::Field>>,
-    ) -> Self {
-        assert_eq!(value.len(), N);
-        Self {
-            data: value.into_iter().map(|x| V::constant(builder, x)).collect(),
-        }
-    }
-
     fn variables(&self) -> Vec<Variable> {
         self.data.iter().flat_map(|x| x.variables()).collect()
     }
@@ -112,15 +102,28 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
         }
     }
 
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        self.data.iter().map(|x| x.get(witness)).collect()
+    fn nb_elements() -> usize {
+        N * V::nb_elements()
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        assert_eq!(value.len(), N);
-        for (element, value) in self.data.iter().zip(value) {
-            element.set(witness, value);
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        value
+            .into_iter()
+            .flat_map(|x| V::elements(x))
+            .collect::<Vec<_>>()
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        assert_eq!(elements.len(), N * V::nb_elements());
+        let mut res = Vec::new();
+        for i in 0..N {
+            let start = i * V::nb_elements();
+            let end = (i + 1) * V::nb_elements();
+            let slice = &elements[start..end];
+            res.push(V::from_elements(slice));
         }
+
+        res
     }
 }
 
