@@ -44,7 +44,7 @@ pub(crate) fn from_elements(data: &StructData) -> TokenStream {
 }
 
 pub(crate) fn nb_elements(data: &StructData) -> TokenStream {
-    let value_recurse = data.fields.iter().map(|(_, ty, _)| {
+    let _value_recurse = data.fields.iter().map(|(_, ty, _)| {
         quote! {
             res += <#ty as CircuitVariable>::nb_elements();
         }

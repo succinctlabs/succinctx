@@ -72,12 +72,12 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
     let (_, value_ty_generics, _) = value_generics.split_for_impl();
 
     let init_unsafe_expanded = init_unsafe(&data);
-    let constant_expanded = constant(&data);
+    let _constant_expanded = constant(&data);
     let variables_expanded = variables(&data);
     let from_variables_unsafe_expanded = from_variables_unsafe(&data);
     let assert_is_valid_expanded = assert_is_valid(&data);
-    let set_expanded = set(&data);
-    let get_expanded = get(&data);
+    let _set_expanded = set(&data);
+    let _get_expanded = get(&data);
     let elements_expanded = elements(&data);
     let from_elements_expanded = from_elements(&data);
     let nb_elements_expanded = nb_elements(&data);
