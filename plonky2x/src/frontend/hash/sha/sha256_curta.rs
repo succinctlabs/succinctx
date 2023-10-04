@@ -315,7 +315,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 rq_idx += 1;
             }
 
-            self.api.constrain_sha256_gadget::<L::CurtaConfig>(gadget);
+            self.constrain_sha256_gadget(gadget);
         }
     }
 }
