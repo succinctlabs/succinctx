@@ -371,8 +371,6 @@ mod tests {
         // Build your circuit.
         let circuit = builder.build();
 
-        debug!("built circuit");
-
         // Write to the circuit input.
         // These values are taken from Ethereum block https://etherscan.io/block/17880427
         let mut input = circuit.input();
@@ -388,11 +386,8 @@ mod tests {
         // Generate a proof.
         let (proof, mut output) = circuit.prove(&input);
 
-        debug!("proven!");
         // Verify proof.
         circuit.verify(&proof, &input, &output);
-
-        debug!("verified!");
 
         // Read output.
         let circuit_value = output.read::<EthLogVariable>();

@@ -52,6 +52,7 @@ pub(crate) fn nb_elements(data: &StructData) -> TokenStream {
 
     quote! {
         let mut res = 0;
+
         #(#value_recurse)*
 
         res

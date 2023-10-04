@@ -340,8 +340,6 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for Eth
             })
             .expect("No transaction receipt found");
 
-        debug!("got transaction receipt {:?}", result.logs[0]);
-
         let log = &result.logs[self.log_index as usize];
         let value = EthLog {
             address: log.address,
@@ -349,8 +347,6 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for Eth
             data_hash: ethers::types::H256::from_slice(sha2::Sha256::digest(&log.data).as_ref()),
         };
         self.value.set(buffer, value);
-
-        debug!("setting value");
     }
 
     #[allow(unused_variables)]
