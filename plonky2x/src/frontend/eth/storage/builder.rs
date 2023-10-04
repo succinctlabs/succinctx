@@ -65,7 +65,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         log_index: u64,
     ) -> EthLogVariable {
         let generator = EthLogGenerator::new(self, transaction_hash, block_hash, log_index);
-        let value = generator.value;
+        let value = generator.clone().value;
         self.add_simple_generator(generator);
         value
     }
@@ -366,10 +366,12 @@ mod tests {
         let log_index = 0u64;
 
         let value = builder.eth_get_transaction_log(transaction_hash, block_hash, log_index);
-        builder.write(value);
+        builder.write::<EthLogVariable>(value);
 
         // Build your circuit.
         let circuit = builder.build();
+
+        debug!("built circuit");
 
         // Write to the circuit input.
         // These values are taken from Ethereum block https://etherscan.io/block/17880427
@@ -386,8 +388,11 @@ mod tests {
         // Generate a proof.
         let (proof, mut output) = circuit.prove(&input);
 
+        debug!("proven!");
         // Verify proof.
         circuit.verify(&proof, &input, &output);
+
+        debug!("verified!");
 
         // Read output.
         let circuit_value = output.read::<EthLogVariable>();
@@ -400,7 +405,8 @@ mod tests {
                     bytes32!("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
                     bytes32!("0x00000000000000000000000059b4bb1f5d943cf71a10df63f6b743ee4a4489ee"),
                     bytes32!("0x000000000000000000000000def1c0ded9bec7f1a1670819833240f027b25eff")
-                ],
+                ]
+                .to_vec(),
                 data_hash: bytes32!(
                     "0x5cdda96947975d4afbc971c9aa8bb2cc684e158d10a0d878b3a5b8b0f895262c"
                 )

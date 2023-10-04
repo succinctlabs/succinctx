@@ -7,7 +7,7 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable, U256Variable};
-use crate::prelude::Variable;
+use crate::prelude::{ArrayVariable, Variable};
 
 #[derive(Debug, Clone, Copy, CircuitVariable)]
 #[value_name(EthProof)]
@@ -24,11 +24,11 @@ pub struct EthAccountVariable {
     pub storage_hash: Bytes32Variable,
 }
 
-#[derive(Debug, Clone, Copy, CircuitVariable)]
+#[derive(Debug, Clone, CircuitVariable)]
 #[value_name(EthLog)]
 #[value_derive(PartialEq, Eq)]
 pub struct EthLogVariable {
     pub address: AddressVariable,
-    pub topics: [Bytes32Variable; 3],
+    pub topics: ArrayVariable<Bytes32Variable, 3>,
     pub data_hash: Bytes32Variable,
 }
