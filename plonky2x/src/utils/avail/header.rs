@@ -32,11 +32,6 @@ impl<
         let mut last_block = input_stream.read_value::<U32Variable>();
         let max_block = input_stream.read_value::<U32Variable>();
 
-        println!(
-            "HeaderFetcherHint called with params start_block: {}, last_block: {}, max_block: {}",
-            start_block, last_block, max_block
-        );
-
         last_block = last_block.min(max_block);
 
         let mut headers = Vec::new();
