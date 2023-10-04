@@ -1,5 +1,4 @@
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::frontend::eth::vars::BLSPubkeyVariable;
 use crate::prelude::{Bytes32Variable, CircuitBuilder, CircuitVariable, PlonkParameters, Variable};

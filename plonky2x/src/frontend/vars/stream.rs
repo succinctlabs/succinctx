@@ -146,7 +146,7 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
 
     pub fn read_value<V: CircuitVariable>(&mut self) -> V::ValueType<L::Field> {
         let elements = self.0.read_exact(V::nb_elements());
-        V::from_elements::<L, D>(elements)
+        V::from_elements::<L::Field>(elements)
     }
 
     pub fn read_exact(&mut self, len: usize) -> &[L::Field] {
@@ -162,7 +162,7 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
     }
 
     pub fn write_value<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) {
-        self.0.write_slice(&V::elements::<L, D>(value));
+        self.0.write_slice(&V::elements::<L::Field>(value));
     }
 }
 

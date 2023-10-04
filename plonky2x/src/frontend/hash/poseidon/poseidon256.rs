@@ -1,7 +1,6 @@
 use array_macro::array;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use crate::backend::circuit::PlonkParameters;

@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use ethers::types::H256;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{
     ByteVariable, BytesVariable, CircuitVariable, EvmVariable, SSZVariable, U256Variable, Variable,
@@ -49,16 +48,6 @@ impl CircuitVariable for Bytes32Variable {
         Self(BytesVariable::init_unsafe(builder))
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self(BytesVariable::constant(
-            builder,
-            value.as_bytes().try_into().unwrap(),
-        ))
-    }
-
     fn variables(&self) -> Vec<super::Variable> {
         self.0.variables()
     }
@@ -74,13 +63,16 @@ impl CircuitVariable for Bytes32Variable {
         self.0.assert_is_valid(builder)
     }
 
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        let bytes = self.0.get(witness);
-        H256::from_slice(&bytes)
+    fn nb_elements() -> usize {
+        BytesVariable::<32>::nb_elements()
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        self.0.set(witness, value.0);
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        BytesVariable::<32>::elements(value.as_bytes().try_into().unwrap())
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        H256::from_slice(&BytesVariable::<32>::from_elements(elements))
     }
 }
 

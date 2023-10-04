@@ -1,7 +1,6 @@
 use array_macro::array;
 use ethers::types::U128;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::Uint;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
