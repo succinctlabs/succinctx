@@ -67,7 +67,7 @@ impl<L: PlonkParameters<D>, const D: usize> PublicOutput<L, D> {
         match self {
             PublicOutput::Elements(output) => {
                 let elements = output.drain(0..V::nb_elements()).collect_vec();
-                V::from_elements::<L, D>(&elements)
+                V::from_elements::<L::Field>(&elements)
             }
             _ => panic!("field io is not enabled"),
         }

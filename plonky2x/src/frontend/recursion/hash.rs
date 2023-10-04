@@ -32,19 +32,24 @@ impl CircuitVariable for HashOutVariable {
         }
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self {
-            elements: value.elements.map(|e| builder.constant(e)),
-        }
-    }
-
     fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
         &self,
         _builder: &mut CircuitBuilder<L, D>,
     ) {
+    }
+
+    fn nb_elements() -> usize {
+        NUM_HASH_OUT_ELTS
+    }
+
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        value.elements.to_vec()
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        HashOut {
+            elements: elements.try_into().unwrap(),
+        }
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -54,18 +59,6 @@ impl CircuitVariable for HashOutVariable {
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
         Self {
             elements: variables.try_into().unwrap(),
-        }
-    }
-
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        HashOut {
-            elements: self.elements.map(|v| v.get(witness)),
-        }
-    }
-
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        for (elt, value) in self.elements.iter().zip(value.elements.iter()) {
-            elt.set(witness, *value)
         }
     }
 }

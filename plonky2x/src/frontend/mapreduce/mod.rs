@@ -23,7 +23,6 @@ use core::marker::PhantomData;
 use itertools::Itertools;
 use log::debug;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x_derive::CircuitVariable;
 
