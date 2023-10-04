@@ -3,7 +3,6 @@ use std::ops::{Index, Range};
 
 use array_macro::array;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::{CircuitVariable, EvmVariable, Variable};
 use crate::backend::circuit::PlonkParameters;
@@ -22,13 +21,6 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         builder: &mut CircuitBuilder<L, D>,
     ) -> Self {
         Self(array![_ => ByteVariable::init_unsafe(builder); N])
-    }
-
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self(array![i => ByteVariable::constant(builder, value[i]); N])
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -56,20 +48,32 @@ impl<const N: usize> CircuitVariable for BytesVariable<N> {
         }
     }
 
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        self.0.map(|b| b.get(witness))
+    fn nb_elements() -> usize {
+        // ByteVariable::nb_elements() * N
+        8 * N
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
         assert!(
             value.len() == N,
             "vector of values has wrong length: expected {} got {}",
             N,
             value.len()
         );
-        for (b, v) in self.0.iter().zip(value) {
-            b.set(witness, v);
-        }
+        value
+            .iter()
+            .flat_map(|b| ByteVariable::elements(*b))
+            .collect()
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        assert_eq!(elements.len(), N * 8);
+        elements
+            .chunks_exact(8)
+            .map(ByteVariable::from_elements)
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
     }
 }
 

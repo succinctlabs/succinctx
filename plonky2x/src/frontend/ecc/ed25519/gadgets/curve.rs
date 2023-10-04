@@ -3,7 +3,7 @@ use plonky2::field::extension::Extendable;
 use plonky2::field::types::{Field, PrimeField, PrimeField64};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::iop::witness::{Witness, WitnessWrite};
+use plonky2::iop::witness::Witness;
 use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
 use plonky2::util::serialization::{Buffer, IoResult};
 
@@ -35,14 +35,22 @@ impl<C: Curve> CircuitVariable for AffinePointTarget<C> {
         }
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self {
-            x: NonNativeTarget::constant(builder, value.x),
-            y: NonNativeTarget::constant(builder, value.y),
-        }
+    fn nb_elements() -> usize {
+        NonNativeTarget::<C::BaseField>::nb_elements() * 2
+    }
+
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        let mut elements = Vec::new();
+        elements.extend(NonNativeTarget::<C::BaseField>::elements::<F>(value.x));
+        elements.extend(NonNativeTarget::<C::BaseField>::elements::<F>(value.y));
+        elements
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        let nb_elements = NonNativeTarget::<C::BaseField>::nb_elements();
+        let x = NonNativeTarget::<C::BaseField>::from_elements(&elements[0..nb_elements]);
+        let y = NonNativeTarget::<C::BaseField>::from_elements(&elements[nb_elements..]);
+        AffinePoint::nonzero(x, y)
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -65,15 +73,6 @@ impl<C: Curve> CircuitVariable for AffinePointTarget<C> {
         builder: &mut CircuitBuilder<L, D>,
     ) {
         builder.api.curve_assert_valid(self);
-    }
-
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        AffinePoint::nonzero(self.x.get(witness), self.y.get(witness))
-    }
-
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        self.x.set(witness, value.x);
-        self.y.set(witness, value.y);
     }
 }
 

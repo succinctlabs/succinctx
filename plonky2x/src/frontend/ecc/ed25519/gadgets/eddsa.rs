@@ -19,9 +19,7 @@ use crate::frontend::hash::sha::sha512::{
 use crate::frontend::num::biguint::BigUintTarget;
 use crate::frontend::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
-use crate::prelude::{
-    CircuitBuilder, CircuitVariable, PlonkParameters, Variable, Witness, WitnessWrite,
-};
+use crate::prelude::{CircuitBuilder, CircuitVariable, PlonkParameters, Variable};
 
 const MAX_NUM_SIGS: usize = 256;
 const COMPRESSED_SIG_AND_PK_LEN_BITS: usize = 512;
