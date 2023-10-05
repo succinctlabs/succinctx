@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2x::backend::circuit::{Circuit, PlonkParameters};
+use plonky2x::backend::circuit::{Circuit, DefaultSerializer, PlonkParameters};
 use plonky2x::backend::function::VerifiableFunction;
 use plonky2x::frontend::eth::beacon::vars::BeaconBalancesVariable;
 use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
@@ -30,7 +30,7 @@ impl Circuit for MapReduceBalanceCircuit {
         let idxs = (0..NB_BALANCES).map(|idx| idx as u64).collect_vec();
 
         let output = builder
-            .mapreduce::<BeaconBalancesVariable, U64Variable, (Bytes32Variable, U64Variable), _, _, BATCH_SIZE>(
+            .mapreduce::<BeaconBalancesVariable, U64Variable, (Bytes32Variable, U64Variable), DefaultSerializer, BATCH_SIZE,  _, _>(
                 partial_balances,
                 idxs,
                 |balances_root, idxs, builder| {
