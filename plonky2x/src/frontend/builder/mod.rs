@@ -232,7 +232,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Build the circuit.
     pub fn build(mut self) -> CircuitBuild<L, D> {
-        debug!("Building circuit, yo!");
+        debug!("Building circuit, yo yo yo!");
         self.pre_build();
         let data = self.api.build();
         let async_hints = Self::async_hint_map(&data.prover_only.generators, self.async_hints);
