@@ -83,8 +83,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
             receipt_hash: result.receipts_root,
             // bloom: H256::from_slice(&result.logs_bloom.expect("No bloom").0),
             difficulty: result.difficulty,
-            // TODO: Convert to U64Variable
-            number: result.number.expect("No block number"),
+            number: result.number.unwrap().as_u64(),
             gas_limit: result.gas_limit,
             gas_used: result.gas_used,
             time: result.timestamp,

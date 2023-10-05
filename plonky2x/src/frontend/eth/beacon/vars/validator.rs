@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
@@ -46,32 +45,67 @@ impl CircuitVariable for BeaconValidatorVariable {
         }
     }
 
-    #[allow(unused_variables)]
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self {
-            pubkey: BLSPubkeyVariable::constant(builder, bytes!(value.pubkey)),
-            withdrawal_credentials: Bytes32Variable::constant(
-                builder,
-                bytes32!(value.withdrawal_credentials),
-            ),
-            effective_balance: U256Variable::constant(builder, value.effective_balance.into()),
-            slashed: BoolVariable::constant(builder, value.slashed),
-            activation_eligibility_epoch: U256Variable::constant(
-                builder,
-                value.activation_eligibility_epoch.into(),
-            ),
-            activation_epoch: U256Variable::constant(builder, value.activation_epoch.into()),
-            exit_epoch: U256Variable::constant(
-                builder,
-                value.exit_epoch.parse::<u64>().unwrap().into(),
-            ),
-            withdrawable_epoch: U256Variable::constant(
-                builder,
-                value.withdrawable_epoch.parse::<u64>().unwrap().into(),
-            ),
+    fn nb_elements() -> usize {
+        let pubkey = BLSPubkeyVariable::nb_elements();
+        let withdrawal_credentials = Bytes32Variable::nb_elements();
+        let effective_balance = U256Variable::nb_elements();
+        let slashed = BoolVariable::nb_elements();
+        let activation_eligibility_epoch = U256Variable::nb_elements();
+        let activation_epoch = U256Variable::nb_elements();
+        let exit_epoch = U256Variable::nb_elements();
+        let withdrawable_epoch = U256Variable::nb_elements();
+        pubkey
+            + withdrawal_credentials
+            + effective_balance
+            + slashed
+            + activation_eligibility_epoch
+            + activation_epoch
+            + exit_epoch
+            + withdrawable_epoch
+    }
+
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        let pubkey = BLSPubkeyVariable::elements(bytes!(value.pubkey));
+        let withdrawal_credentials =
+            Bytes32Variable::elements(bytes32!(value.withdrawal_credentials));
+        let effective_balance = U256Variable::elements(value.effective_balance.into());
+        let slashed = BoolVariable::elements(value.slashed);
+        let activation_eligibility_epoch =
+            U256Variable::elements(value.activation_eligibility_epoch.into());
+        let activation_epoch = U256Variable::elements(value.activation_epoch.into());
+        let exit_epoch = U256Variable::elements(value.exit_epoch.parse::<u64>().unwrap().into());
+        let withdrawable_epoch =
+            U256Variable::elements(value.withdrawable_epoch.parse::<u64>().unwrap().into());
+        pubkey
+            .into_iter()
+            .chain(withdrawal_credentials)
+            .chain(effective_balance)
+            .chain(slashed)
+            .chain(activation_eligibility_epoch)
+            .chain(activation_epoch)
+            .chain(exit_epoch)
+            .chain(withdrawable_epoch)
+            .collect()
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        let pubkey = BLSPubkeyVariable::from_elements(&elements[0..384]);
+        let withdrawal_credentials = Bytes32Variable::from_elements(&elements[384..640]);
+        let effective_balance = U256Variable::from_elements(&elements[640..648]);
+        let slashed = BoolVariable::from_elements(&elements[648..649]);
+        let activation_eligibility_epoch = U256Variable::from_elements(&elements[649..657]);
+        let activation_epoch = U256Variable::from_elements(&elements[657..665]);
+        let exit_epoch = U256Variable::from_elements(&elements[665..673]);
+        let withdrawable_epoch = U256Variable::from_elements(&elements[673..681]);
+        BeaconValidator {
+            pubkey: hex!(pubkey),
+            withdrawal_credentials: hex!(withdrawal_credentials),
+            effective_balance: effective_balance.as_u64(),
+            slashed,
+            activation_eligibility_epoch: activation_eligibility_epoch.as_u64(),
+            activation_epoch: activation_epoch.as_u64(),
+            exit_epoch: exit_epoch.as_u64().to_string(),
+            withdrawable_epoch: withdrawable_epoch.as_u64().to_string(),
         }
     }
 
@@ -122,38 +156,6 @@ impl CircuitVariable for BeaconValidatorVariable {
         self.activation_epoch.assert_is_valid(builder);
         self.exit_epoch.assert_is_valid(builder);
         self.withdrawable_epoch.assert_is_valid(builder);
-    }
-
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        BeaconValidator {
-            pubkey: hex!(self.pubkey.get(witness)),
-            withdrawal_credentials: hex!(self.withdrawal_credentials.get(witness)),
-            effective_balance: self.effective_balance.get(witness).as_u64(),
-            slashed: self.slashed.get(witness),
-            activation_eligibility_epoch: self.activation_eligibility_epoch.get(witness).as_u64(),
-            activation_epoch: self.activation_epoch.get(witness).as_u64(),
-            exit_epoch: self.exit_epoch.get(witness).as_u64().to_string(),
-            withdrawable_epoch: self.withdrawable_epoch.get(witness).as_u64().to_string(),
-        }
-    }
-
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        self.pubkey.set(witness, bytes!(value.pubkey));
-        self.withdrawal_credentials
-            .set(witness, bytes32!(value.withdrawal_credentials));
-        self.effective_balance
-            .set(witness, value.effective_balance.into());
-        self.slashed.set(witness, value.slashed);
-        self.activation_eligibility_epoch
-            .set(witness, value.activation_eligibility_epoch.into());
-        self.activation_epoch
-            .set(witness, value.activation_epoch.into());
-        self.exit_epoch
-            .set(witness, value.exit_epoch.parse::<u64>().unwrap().into());
-        self.withdrawable_epoch.set(
-            witness,
-            value.withdrawable_epoch.parse::<u64>().unwrap().into(),
-        );
     }
 }
 

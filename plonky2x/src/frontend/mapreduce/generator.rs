@@ -181,7 +181,7 @@ where
         // Write vector of input values.
         dst.write_usize(self.inputs.len())?;
         for i in 0..self.inputs.len() {
-            dst.write_field_vec::<L::Field>(&Input::elements::<L, D>(self.inputs[i].clone()))?;
+            dst.write_field_vec::<L::Field>(&Input::elements::<L::Field>(self.inputs[i].clone()))?;
         }
 
         // Write proof target.
@@ -212,7 +212,7 @@ where
         let inputs_len = src.read_usize()?;
         for _ in 0..inputs_len {
             let input_elements: Vec<L::Field> = src.read_field_vec(Input::nb_elements())?;
-            inputs.push(Input::from_elements::<L, D>(&input_elements));
+            inputs.push(Input::from_elements::<L::Field>(&input_elements));
         }
 
         // Read proof.

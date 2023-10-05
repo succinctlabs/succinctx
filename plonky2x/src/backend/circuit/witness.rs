@@ -10,6 +10,7 @@ use alloc::collections::BTreeMap;
 
 use anyhow::{anyhow, Error, Result};
 use curta::maybe_rayon::rayon;
+use log::trace;
 use plonky2::iop::generator::{GeneratedValues, WitnessGeneratorRef};
 use plonky2::iop::witness::{PartialWitness, PartitionWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CommonCircuitData, ProverOnlyCircuitData};
@@ -197,6 +198,10 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
         ));
     }
 
+    trace!(
+        "finished filling in witness: nb_public_inputs={}",
+        prover_data.public_inputs.len()
+    );
     Ok(witness)
 }
 
