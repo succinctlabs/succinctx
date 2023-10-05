@@ -13,7 +13,9 @@ pub use self::config::{DefaultParameters, Groth16VerifierParameters, PlonkParame
 pub use self::input::PublicInput;
 pub use self::mock::MockCircuitBuild;
 pub use self::output::PublicOutput;
-pub use self::serialization::{GateRegistry, HintRegistry, Serializer};
+pub use self::serialization::{
+    CircuitSerializer, DefaultSerializer, GateRegistry, HintRegistry, Serializer,
+};
 pub use self::witness::{generate_witness, generate_witness_async};
 use crate::prelude::CircuitBuilder;
 

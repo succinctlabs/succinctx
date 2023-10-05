@@ -140,9 +140,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
     }
 
     // Keep running generators until we fail to make progress.
-    let mut iter: usize = 0;
     while !pending_generator_indices.is_empty() {
-        trace!("iter: {}", iter);
         let mut next_pending_generator_indices = Vec::new();
         // let mut next_pending_async_generator_indices = Vec::new();
 
@@ -191,10 +189,6 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
         }
 
         pending_generator_indices = next_pending_generator_indices;
-        iter += 1;
-        if iter % 100 == 0 {
-            trace!("pending_generator_indices: {:?}", pending_generator_indices);
-        }
     }
 
     if remaining_generators > 0 {
