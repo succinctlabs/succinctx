@@ -89,8 +89,8 @@ where
         out_buffer: &mut GeneratedValues<L::Field>,
     ) {
         // The gate and witness generator serializers.
-        let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = HintRegistry::<L, D>::new();
+        let gate_serializer = Serializer::gate_registry::<L, D>();
+        let generator_serializer = Serializer::generator_registry::<L, D>();
 
         // Create the prover and the async runtime.
         let prover = EnvProver::new();
