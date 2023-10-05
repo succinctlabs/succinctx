@@ -48,13 +48,14 @@ impl RpcDataFetcher {
         block_hash.unwrap().unwrap()
     }
 
+    /// Will download the block headers for the given block numbers range (inclusive)
     pub async fn get_block_headers_range(
         &self,
         start_block_number: u32,
         end_block_number: u32,
     ) -> Vec<Header> {
         let mut headers = Vec::new();
-        for block_number in start_block_number..end_block_number {
+        for block_number in start_block_number..end_block_number + 1 {
             let block_hash = self.get_block_hash(block_number).await;
             let header_result = self.client.rpc().header(Some(block_hash)).await;
             let header: Header = header_result.unwrap().unwrap();

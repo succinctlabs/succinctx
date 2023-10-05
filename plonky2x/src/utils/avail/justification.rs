@@ -1,3 +1,4 @@
+use log::debug;
 use num::traits::ToBytes;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
@@ -42,6 +43,12 @@ impl<const NUM_AUTHORITIES: usize, L: PlonkParameters<D>, const D: usize> Hint<L
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let block_number = input_stream.read_value::<U32Variable>();
         let authority_set_id = input_stream.read_value::<U64Variable>();
+
+        debug!(
+            "HintSimpleJustification: downloading justification for block_number {} and authority_set_id {}",
+            block_number,
+            authority_set_id
+        );
 
         let rt = Runtime::new().expect("failed to create tokio runtime");
         let justification_data: SimpleJustificationData = rt.block_on(async {

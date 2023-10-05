@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 
 use codec::Encode;
+use log::debug;
 use plonky2::field::extension::Extendable;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
@@ -33,6 +34,11 @@ impl<
         let max_block = input_stream.read_value::<U32Variable>();
 
         last_block = last_block.min(max_block);
+
+        debug!(
+            "HeaderFetcherHint: downloading header range of start_block={}, last_block={}",
+            start_block, last_block
+        );
 
         let mut headers = Vec::new();
         if last_block >= start_block {
@@ -74,7 +80,6 @@ impl<
             };
             header_variables.push(header_variable);
         }
-        //println!("header_variables {:?}", header_variables);
         output_stream
             .write_value::<ArrayVariable<EncodedHeaderVariable<HEADER_LENGTH>, NUM_HEADERS>>(
                 header_variables,
