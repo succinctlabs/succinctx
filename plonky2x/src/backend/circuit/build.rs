@@ -112,6 +112,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
             )
             .unwrap();
             let output = PublicOutput::from_proof_with_pis(&self.io, &proof_with_pis);
+            let elapsed_time = start_time.elapsed();
+            debug!("proving took: {:?}", elapsed_time);
             (proof_with_pis, output)
         })
     }
