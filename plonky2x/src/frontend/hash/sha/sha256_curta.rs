@@ -389,18 +389,18 @@ mod tests {
             .map(|_| short_msg_bytes.clone())
             .collect::<Vec<_>>();
 
-        // // Requires 3 chunks each.
-        // let long_msg = [1u8; 128];
-        // let long_msg_bytes = long_msg
-        //     .iter()
-        //     .map(|b| builder.constant::<ByteVariable>(*b))
-        //     .collect::<Vec<_>>();
+        // Requires 3 chunks each.
+        let long_msg = [1u8; 128];
+        let long_msg_bytes = long_msg
+            .iter()
+            .map(|b| builder.constant::<ByteVariable>(*b))
+            .collect::<Vec<_>>();
 
-        // msgs.extend(
-        //     (0..2048)
-        //         .map(|_| long_msg_bytes.clone())
-        //         .collect::<Vec<_>>(),
-        // );
+        msgs.extend(
+            (0..2048)
+                .map(|_| long_msg_bytes.clone())
+                .collect::<Vec<_>>(),
+        );
 
         let mut builder = CircuitBuilder::<L, D>::new();
         let digests = msgs
