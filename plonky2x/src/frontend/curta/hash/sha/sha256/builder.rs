@@ -38,7 +38,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         input_stream.write_slice(&chunk_sizes);
 
-        let outputs = self.async_hint(input_stream, Async(hint));
+        // let outputs = self.async_hint(input_stream, Async(hint));
+        let outputs = self.hint(input_stream, hint);
 
         let proof = outputs.read_stark_proof(self, &stark, &config);
 
