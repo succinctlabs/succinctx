@@ -44,7 +44,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Sha256ProofHint<L, D>
             Some(chunk)
         });
 
-        // Write trace values
+        // Write trace values.
         let num_rows = 1 << 16;
         let writer = trace_generator.new_writer();
         table.write_table_entries(&writer);
