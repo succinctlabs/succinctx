@@ -168,7 +168,6 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
 
         // If the hint is waiting, try to receive the output.
         if waiting {
-            debug!("Waiting for hint output");
             let mut rx_out = self.channel.rx_out.lock().unwrap();
             if let Ok(mut output_stream) = rx_out.try_recv() {
                 let output_values = output_stream.read_all();
