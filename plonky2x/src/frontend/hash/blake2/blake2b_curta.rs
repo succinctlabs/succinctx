@@ -121,7 +121,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // For now, only allow 1 blake2b curta proof per circuit
         assert!(
-            padded_messages.len() <= MAX_NUM_CURTA_CHUNKS,
+            padded_messages.len() <= MAX_NUM_CURTA_CHUNKS * 128,
             "Too many chunks for Curta BLAKE2B"
         );
 
