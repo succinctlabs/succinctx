@@ -354,18 +354,18 @@ mod tests {
         builder.assert_is_equal(result, expected_digest);
 
         let circuit = builder.build();
-        // let gate_serializer = GateRegistry::<L, D>::new();
-        // let generator_serializer = HintRegistry::<L, D>::new();
-        // let bytes = circuit
-        //     .serialize(&gate_serializer, &generator_serializer)
-        //     .unwrap();
-        // let circuit =
-        //     CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer)
-        //         .unwrap();
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = HintRegistry::<L, D>::new();
+        let bytes = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
+        let circuit =
+            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer)
+                .unwrap();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        // circuit.test_default_serializers();
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -403,7 +403,7 @@ mod tests {
         );
 
         let mut builder = CircuitBuilder::<L, D>::new();
-        let digests = msgs
+        let _ = msgs
             .iter()
             .map(|msg| builder.curta_sha256(msg))
             .collect::<Vec<_>>();
