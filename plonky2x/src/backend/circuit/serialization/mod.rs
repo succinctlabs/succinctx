@@ -30,16 +30,14 @@ impl CircuitSerializer for DefaultSerializer {
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        let mut generator_registry = HintRegistry::new();
-        generator_registry
+        HintRegistry::new()
     }
 
     fn gate_registry<L: PlonkParameters<D>, const D: usize>() -> GateRegistry<L, D>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        let mut gate_registry = GateRegistry::new();
-        gate_registry
+        GateRegistry::new()
     }
 }
 
