@@ -13,7 +13,7 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use super::{MapReduceInputVariable, MapReduceInputVariableValue};
 use crate::backend::circuit::{CircuitBuild, CircuitSerializer, PublicInput};
 use crate::backend::prover::{EnvProver, ProverOutputs};
-use crate::prelude::{CircuitVariable, GateRegistry, HintRegistry, PlonkParameters};
+use crate::prelude::{CircuitVariable, PlonkParameters};
 
 #[derive(Debug, Clone)]
 pub struct MapReduceGenerator<L, Ctx, Input, Output, Serializer, const B: usize, const D: usize>
