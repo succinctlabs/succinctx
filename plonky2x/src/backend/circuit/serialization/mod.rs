@@ -2,6 +2,8 @@ pub mod gates;
 pub mod hints;
 pub mod registry;
 
+use core::fmt::Debug;
+
 pub use gates::GateRegistry;
 pub use hints::HintRegistry;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
@@ -12,7 +14,7 @@ use super::{Circuit, PlonkParameters};
 /// A trait that allows a type to define a custom generator and gate registry.
 ///
 /// It is used when builder methods need access to custom serializers for recursive proofs.
-pub trait CircuitSerializer {
+pub trait CircuitSerializer: Debug + Clone + Send + Sync + 'static {
     fn generator_registry<L: PlonkParameters<D>, const D: usize>() -> HintRegistry<L, D>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>;
@@ -23,6 +25,7 @@ pub trait CircuitSerializer {
 }
 
 /// A serializer that has the default gate registry and generator registry.
+#[derive(Debug, Clone)]
 pub struct DefaultSerializer;
 
 impl CircuitSerializer for DefaultSerializer {

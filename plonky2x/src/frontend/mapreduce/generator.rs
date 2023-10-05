@@ -11,12 +11,12 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use super::{MapReduceInputVariable, MapReduceInputVariableValue};
-use crate::backend::circuit::{CircuitBuild, PublicInput};
+use crate::backend::circuit::{CircuitBuild, CircuitSerializer, PublicInput};
 use crate::backend::prover::{EnvProver, ProverOutputs};
 use crate::prelude::{CircuitVariable, GateRegistry, HintRegistry, PlonkParameters};
 
 #[derive(Debug, Clone)]
-pub struct MapReduceGenerator<L, Ctx, Input, Output, const B: usize, const D: usize>
+pub struct MapReduceGenerator<L, Ctx, Input, Output, Serializer, const B: usize, const D: usize>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
@@ -24,6 +24,7 @@ where
     Ctx: CircuitVariable,
     Input: CircuitVariable,
     Output: CircuitVariable,
+    Serializer: CircuitSerializer,
 {
     /// The identifier for the compiled map circuit.
     pub map_circuit_id: String,
@@ -41,12 +42,11 @@ where
     pub proof: ProofWithPublicInputsTarget<D>,
 
     /// Phantom data.
-    pub _phantom1: PhantomData<L>,
-    pub _phantom2: PhantomData<Output>,
+    pub _phantom: PhantomData<(L, Output, Serializer)>,
 }
 
-impl<L, Ctx, Input, Output, const B: usize, const D: usize>
-    MapReduceGenerator<L, Ctx, Input, Output, B, D>
+impl<L, Ctx, Input, Output, Serializer, const B: usize, const D: usize>
+    MapReduceGenerator<L, Ctx, Input, Output, Serializer, B, D>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
@@ -54,14 +54,15 @@ where
     Ctx: CircuitVariable,
     Input: CircuitVariable,
     Output: CircuitVariable,
+    Serializer: CircuitSerializer,
 {
     pub fn id() -> String {
         "MapReduceGenerator".to_string()
     }
 }
 
-impl<L, Ctx, Input, Output, const B: usize, const D: usize> SimpleGenerator<L::Field, D>
-    for MapReduceGenerator<L, Ctx, Input, Output, B, D>
+impl<L, Ctx, Input, Output, Serializer, const B: usize, const D: usize> SimpleGenerator<L::Field, D>
+    for MapReduceGenerator<L, Ctx, Input, Output, Serializer, B, D>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
@@ -69,6 +70,7 @@ where
     Ctx: CircuitVariable,
     Input: CircuitVariable,
     Output: CircuitVariable,
+    Serializer: CircuitSerializer,
     <Input as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
 {
     fn id(&self) -> String {
@@ -224,8 +226,7 @@ where
             ctx,
             inputs,
             proof,
-            _phantom1: PhantomData::<L>,
-            _phantom2: PhantomData::<Output>,
+            _phantom: PhantomData,
         })
     }
 }
