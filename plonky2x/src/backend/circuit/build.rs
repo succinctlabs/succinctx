@@ -55,7 +55,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         let start_time = Instant::now();
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
-        debug!("Begin witness generation");
+        debug!("Begin witness generation, yo!");
         let partition_witness = generate_witness(
             pw,
             &self.data.prover_only,

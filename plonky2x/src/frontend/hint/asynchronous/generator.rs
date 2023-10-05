@@ -20,6 +20,8 @@ pub trait AsyncGeneratorData<L: PlonkParameters<D>, const D: usize>: HintGenerat
     fn generator(&self, tx: UnboundedSender<HintInMessage<L, D>>) -> AsyncHintRef<L, D>;
 }
 
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AsyncHintRunnerState {
     Idle,
     Waiting,
@@ -66,7 +68,7 @@ pub(crate) struct AsyncHintGenerator<L: PlonkParameters<D>, H, const D: usize> {
     pub(crate) channel: HintChannel<L, D>,
     pub(crate) input_stream: VariableStream,
     pub(crate) output_stream: VariableStream,
-    pub(crate) waiting: bool,
+    pub(crate) state: AsyncHintRunnerState,
 }
 
 /// A dummy witness generator containing the hint data and input/output streams.
@@ -132,7 +134,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintGenerat
             hint,
             tx,
             channel,
-            waiting: false,
+            state: AsyncHintRunnerState::Idle,
         }
     }
 
@@ -164,48 +166,84 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
     ) -> Result<AsyncHintRunnerState> {
-        // check if all the inputs has been set.
-        if !self.watch_list().iter().all(|v| witness.contains(v.0)) {
-            return Ok(AsyncHintRunnerState::Idle);
-        }
-        // check if the hint is already waiting for output.
-        let waiting = self.waiting;
+        let state = self.state;
 
-        // If the hint is waiting, try to receive the output.
-        if waiting {
-            let mut rx_out = self.channel.rx_out.lock().unwrap();
-            if let Ok(mut output_stream) = rx_out.try_recv() {
-                let output_values = output_stream.read_all();
-                let output_vars = self.output_stream.real_all();
-                assert_eq!(output_values.len(), output_vars.len());
-
-                for (var, val) in output_vars.iter().zip(output_values) {
-                    var.set(out_buffer, *val)
-                }
-                debug!("Received hint output");
-                return Ok(AsyncHintRunnerState::Done);
+        match state {
+            AsyncHintRunnerState::Idle => {
+                // check if all the inputs has been set.
+                if !self.watch_list().iter().all(|v| witness.contains(v.0)) {
+                    return Ok(AsyncHintRunnerState::Idle);
+                } 
+                debug!("Sending hint input");
+                let input_values = self
+                    .input_stream
+                    .real_all()
+                    .iter()
+                    .map(|v| v.get(witness))
+                    .collect::<Vec<_>>();
+    
+                let input_stream = ValueStream::<L, D>::from_values(input_values);
+    
+                self.send(input_stream).unwrap();
+    
+                // update the waiting flag to `true`.
+                self.state = AsyncHintRunnerState::Waiting;
+    
+                Ok(AsyncHintRunnerState::Waiting)
             }
-            Ok(AsyncHintRunnerState::Waiting)
+            AsyncHintRunnerState::Waiting => {
+                let mut rx_out = self.channel.rx_out.lock().unwrap();
+                if let Ok(mut output_stream) = rx_out.try_recv() {
+                    let output_values = output_stream.read_all();
+                    let output_vars = self.output_stream.real_all();
+                    assert_eq!(output_values.len(), output_vars.len());
+    
+                    for (var, val) in output_vars.iter().zip(output_values) {
+                        var.set(out_buffer, *val)
+                    }
+                    debug!("Received hint output");
+                    return Ok(AsyncHintRunnerState::Done);
+                }
+                Ok(AsyncHintRunnerState::Waiting) 
+            }
+            _ => Ok(AsyncHintRunnerState::Done),
         }
-        // if the hint is not waiting, send the input and update the waiting flag.
-        else {
-            debug!("Sending hint input");
-            let input_values = self
-                .input_stream
-                .real_all()
-                .iter()
-                .map(|v| v.get(witness))
-                .collect::<Vec<_>>();
 
-            let input_stream = ValueStream::<L, D>::from_values(input_values);
+        // // If the hint is waiting, try to receive the output.
+        // if waiting {
+        //     let mut rx_out = self.channel.rx_out.lock().unwrap();
+        //     if let Ok(mut output_stream) = rx_out.try_recv() {
+        //         let output_values = output_stream.read_all();
+        //         let output_vars = self.output_stream.real_all();
+        //         assert_eq!(output_values.len(), output_vars.len());
 
-            self.send(input_stream).unwrap();
+        //         for (var, val) in output_vars.iter().zip(output_values) {
+        //             var.set(out_buffer, *val)
+        //         }
+        //         debug!("Received hint output");
+        //         return Ok(AsyncHintRunnerState::Done);
+        //     }
+        //     Ok(AsyncHintRunnerState::Waiting)
+        // }
+        // // if the hint is not waiting, send the input and update the waiting flag.
+        // else {
+        //     debug!("Sending hint input");
+        //     let input_values = self
+        //         .input_stream
+        //         .real_all()
+        //         .iter()
+        //         .map(|v| v.get(witness))
+        //         .collect::<Vec<_>>();
 
-            // update the waiting flag to `true`.
-            self.waiting = true;
+        //     let input_stream = ValueStream::<L, D>::from_values(input_values);
 
-            Ok(AsyncHintRunnerState::Waiting)
-        }
+        //     self.send(input_stream).unwrap();
+
+        //     // update the waiting flag to `true`.
+        //     self.waiting = true;
+
+        //     Ok(AsyncHintRunnerState::Waiting)
+        // }
     }
 }
 
