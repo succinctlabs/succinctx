@@ -45,6 +45,7 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSeria
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
+use crate::frontend::curta::hash::sha::sha256::hint::Sha256ProofHint;
 use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
@@ -70,6 +71,7 @@ use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
+use crate::frontend::hint::synchronous::Async;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::nonnative::nonnative::{
     NonNativeAdditionGenerator, NonNativeInverseGenerator, NonNativeMultipleAddsGenerator,
@@ -397,13 +399,17 @@ where
         r.register_hint::<BeaconExecutionPayloadHint>();
         r.register_hint::<BeaconHeaderHint>();
         r.register_hint::<BeaconAllWithdrawalsHint>();
+        r.register_hint::<Sha256ProofHint<L, D>>();
+
+        r.register_async_hint::<EthStorageProofHint<L, D>>();
+        r.register_async_hint::<BeaconValidatorsHint>();
+        r.register_async_hint::<Async<Sha256ProofHint<L, D>>>();
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
         register_powers_of_two!(r, BeaconPartialBalancesHint);
         register_powers_of_two!(r, BeaconValidatorBatchHint);
         register_powers_of_two!(r, BeaconPartialValidatorsHint);
         register_powers_of_two!(r, CompressedBeaconValidatorBatchHint);
-        r.register_async_hint::<EthStorageProofHint<L, D>>();
         let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519Base>::default().id();
         r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519Base>>(id);
 
@@ -434,8 +440,6 @@ where
 
         let id = MulCubicGenerator::<L::Field, D>::id();
         r.register_simple::<MulCubicGenerator<L::Field, D>>(id);
-
-        r.register_async_hint::<BeaconValidatorsHint>();
 
         let blake2b_hint_generator_id = BLAKE2BHintGenerator::id();
         r.register_simple::<BLAKE2BHintGenerator>(blake2b_hint_generator_id);
