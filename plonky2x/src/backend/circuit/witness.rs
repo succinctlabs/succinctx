@@ -17,7 +17,9 @@ use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::oneshot;
 
 use super::PlonkParameters;
-use crate::frontend::hint::asynchronous::generator::{AsyncHintDataRef, AsyncHintRef};
+use crate::frontend::hint::asynchronous::generator::{
+    AsyncHintDataRef, AsyncHintRef, AsyncHintRunnerState,
+};
 use crate::frontend::hint::asynchronous::handler::HintHandler;
 
 /// Given a `PartialWitness` that has only inputs set, populates the rest of the witness using the
@@ -152,12 +154,16 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
                 if let Ok(e) = rx_handler_error.try_recv() {
                     return Err(e);
                 }
-                let finished = async_gen.0.run(&witness, &mut buffer)?;
-                if finished {
-                    generator_is_expired[generator_idx] = true;
-                    remaining_generators -= 1;
-                } else {
-                    next_pending_generator_indices.push(generator_idx);
+                let state = async_gen.0.run(&witness, &mut buffer)?;
+                match state {
+                    AsyncHintRunnerState::Idle => {}
+                    AsyncHintRunnerState::Waiting => {
+                        next_pending_generator_indices.push(generator_idx);
+                    }
+                    AsyncHintRunnerState::Done => {
+                        generator_is_expired[generator_idx] = true;
+                        remaining_generators -= 1;
+                    }
                 }
             } else {
                 let finished = generators[generator_idx].0.run(&witness, &mut buffer);

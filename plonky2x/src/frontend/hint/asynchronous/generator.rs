@@ -20,6 +20,12 @@ pub trait AsyncGeneratorData<L: PlonkParameters<D>, const D: usize>: HintGenerat
     fn generator(&self, tx: UnboundedSender<HintInMessage<L, D>>) -> AsyncHintRef<L, D>;
 }
 
+pub enum AsyncHintRunnerState {
+    Idle,
+    Waiting,
+    Done,
+}
+
 pub trait AsyncHintRunner<L: PlonkParameters<D>, const D: usize>:
     'static + Debug + Send + Sync
 {
@@ -29,7 +35,7 @@ pub trait AsyncHintRunner<L: PlonkParameters<D>, const D: usize>:
         &mut self,
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
-    ) -> Result<bool>;
+    ) -> Result<AsyncHintRunnerState>;
 }
 
 #[derive(Debug)]
@@ -157,10 +163,10 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
         &mut self,
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
-    ) -> Result<bool> {
+    ) -> Result<AsyncHintRunnerState> {
         // check if all the inputs has been set.
         if !self.watch_list().iter().all(|v| witness.contains(v.0)) {
-            return Ok(false);
+            return Ok(AsyncHintRunnerState::Idle);
         }
         // check if the hint is already waiting for output.
         let waiting = self.waiting;
@@ -177,9 +183,9 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
                     var.set(out_buffer, *val)
                 }
                 debug!("Received hint output");
-                return Ok(true);
+                return Ok(AsyncHintRunnerState::Done);
             }
-            Ok(false)
+            Ok(AsyncHintRunnerState::Waiting)
         }
         // if the hint is not waiting, send the input and update the waiting flag.
         else {
@@ -198,7 +204,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
             // update the waiting flag to `true`.
             self.waiting = true;
 
-            Ok(false)
+            Ok(AsyncHintRunnerState::Waiting)
         }
     }
 }
