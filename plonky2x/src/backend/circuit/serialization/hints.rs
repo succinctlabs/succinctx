@@ -439,21 +439,6 @@ where
         let blake2b_hint_generator_id = BLAKE2BHintGenerator::id();
         r.register_simple::<BLAKE2BHintGenerator>(blake2b_hint_generator_id);
 
-        let blake2b_generator = BLAKE2BGenerator::<
-            L::Field,
-            L::CubicParams,
-            L::CurtaConfig,
-            D,
-            BLAKE2BAirParameters<L::Field, L::CubicParams>,
-        >::id();
-        r.register_simple::<BLAKE2BGenerator<
-            L::Field,
-            L::CubicParams,
-            L::CurtaConfig,
-            D,
-            BLAKE2BAirParameters<L::Field, L::CubicParams>,
-        >>(blake2b_generator);
-
         r.register_hint::<SubArrayExtractorHint>();
 
         register_watch_generator!(

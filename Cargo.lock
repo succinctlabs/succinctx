@@ -691,7 +691,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git#1a36e5681c1e25f108c89270ae480a5f0efe317b"
+source = "git+https://github.com/succinctlabs/curta.git#b397226c359a372726316e99397db68272f20b04"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2675,7 +2675,7 @@ checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/mir-protocol/plonky2.git#3ac0c4ae18b9b550ce8e70949feeff94ab132f77"
+source = "git+https://github.com/mir-protocol/plonky2.git#51eb7c0b5221e6fce5a39beac6a9ba274b2d71b3"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2699,7 +2699,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#3ac0c4ae18b9b550ce8e70949feeff94ab132f77"
+source = "git+https://github.com/mir-protocol/plonky2.git#51eb7c0b5221e6fce5a39beac6a9ba274b2d71b3"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2723,7 +2723,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#3ac0c4ae18b9b550ce8e70949feeff94ab132f77"
+source = "git+https://github.com/mir-protocol/plonky2.git#51eb7c0b5221e6fce5a39beac6a9ba274b2d71b3"
 dependencies = [
  "rayon",
 ]
@@ -2731,7 +2731,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#3ac0c4ae18b9b550ce8e70949feeff94ab132f77"
+source = "git+https://github.com/mir-protocol/plonky2.git#51eb7c0b5221e6fce5a39beac6a9ba274b2d71b3"
 
 [[package]]
 name = "plonky2x"
@@ -3125,9 +3125,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.15"
+version = "0.38.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2f9da0cbd88f9f09e7814e388301c8414c51c62aa6ce1e4b5c551d49d96e531"
+checksum = "f25469e9ae0f3d0047ca8b93fc56843f38e6774f0914a107ff8b41be8be8e0b7"
 dependencies = [
  "bitflags 2.4.0",
  "errno",
@@ -3466,9 +3466,9 @@ dependencies = [
 
 [[package]]
 name = "sharded-slab"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1b21f559e07218024e7e9f90f96f601825397de0e25420135f7f952453fed0b"
+checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
 ]

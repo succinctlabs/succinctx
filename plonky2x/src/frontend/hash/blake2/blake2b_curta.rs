@@ -107,7 +107,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let mut blake2b_builder_gadget: BLAKE2BBuilderGadget<
-            BLAKE2BAirParameters<L::Field, L::CubicParams>,
+            BLAKE2BAirParameters<L::Field, L::CubicParams>, 4
         > = self.api.init_blake2b();
         blake2b_builder_gadget
             .padded_messages
@@ -117,7 +117,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         blake2b_builder_gadget.chunk_sizes.extend(chunk_sizes);
 
         // For now, only allow 1 blake2b curta proof per circuit
-        let max_num_chunks = blake2b_builder_gadget.max_num_chunks();
+        let max_num_chunks = 4;
         assert!(
             padded_messages.len() <= max_num_chunks * 128,
             "Too many chunks for Curta BLAKE2B"
