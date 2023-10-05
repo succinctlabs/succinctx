@@ -14,7 +14,7 @@ ci = []
 
 [dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false }
-curta = { git = "https://github.com/succinctlabs/curta.git" }
+curta = { git = "https://github.com/succinctlabs/curta.git", ref = "1a36e5681c1e25f108c89270ae480a5f0efe317b" }
 plonky2x-derive = { path = "../plonky2x-derive" }
 
 num = { version = "0.4", default-features = false }
