@@ -1,7 +1,7 @@
 use core::fmt::Debug;
-use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
+use log::trace;
 use plonky2::iop::generator::{GeneratedValues, WitnessGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness};
@@ -45,6 +45,10 @@ pub struct AsyncHintRef<L, const D: usize>(pub Box<dyn AsyncHintRunner<L, D>>);
 impl<L: PlonkParameters<D>, const D: usize> AsyncHintRef<L, D> {
     pub fn new<H: AsyncHintRunner<L, D>>(hint: H) -> Self {
         Self(Box::new(hint))
+    }
+
+    pub(crate) fn id(hint_id: String) -> String {
+        format!("--async hint: {:?}", hint_id).to_string()
     }
 }
 
@@ -170,6 +174,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
                 if !self.watch_list().iter().all(|v| witness.contains(v.0)) {
                     return HintPoll::InputPending;
                 }
+                trace!("Async Hint {:?} : Sending input to hint", H::id());
                 let input_values = self
                     .input_stream
                     .real_all()
@@ -188,6 +193,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
             }
             HintPoll::Pending => {
                 if let Ok(mut output_stream) = self.channel.rx_out.try_recv() {
+                    trace!("Async Hint {:?} : recieved output from hint", H::id());
                     let output_values = output_stream.read_all();
                     let output_vars = self.output_stream.real_all();
                     assert_eq!(output_values.len(), output_vars.len());
@@ -208,7 +214,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
     for AsyncHintData<L, H, D>
 {
     fn id(&self) -> String {
-        H::id()
+        AsyncHintRef::<L, D>::id(H::id())
     }
 
     fn watch_list(&self) -> Vec<Target> {

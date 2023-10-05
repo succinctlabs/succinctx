@@ -63,6 +63,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
             &self.async_hints,
         )
         .unwrap();
+        let elapsed_time = start_time.elapsed();
+        debug!("Witness generation took {:?}", elapsed_time);
         trace!("finished generating witness");
         trace!("generating proof...");
         let proof_with_pis = prove_with_partition_witness::<L::Field, L::Config, D>(
@@ -91,8 +93,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
+        let start_time = tokio::time::Instant::now();
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
+        trace!("generating witness...");
         let partition_witness = generate_witness_async(
             pw,
             &self.data.prover_only,
@@ -101,7 +105,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         )
         .await
         .unwrap();
-
+        let elapsed_time = start_time.elapsed();
+        debug!("Witness generation took {:?}", elapsed_time);
+        trace!("finished generating witness");
+        trace!("generating proof...");
         tokio::task::block_in_place(|| {
             let proof_with_pis = prove_with_partition_witness::<L::Field, L::Config, D>(
                 &self.data.prover_only,
@@ -111,6 +118,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
             )
             .unwrap();
             let output = PublicOutput::from_proof_with_pis(&self.io, &proof_with_pis);
+            let elapsed_time = start_time.elapsed();
+            debug!("proving took: {:?}", elapsed_time);
             (proof_with_pis, output)
         })
     }
