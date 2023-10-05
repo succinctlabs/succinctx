@@ -6,8 +6,7 @@ use num::BigInt;
 
 use super::generators::RLPDecodeListGenerator;
 use crate::debug;
-use crate::frontend::ops::math::{Add, LessThanOrEqual};
-use crate::frontend::vars::CircuitVariable;
+use crate::frontend::ops::math::LessThanOrEqual;
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, BytesVariable, CircuitBuilder, PlonkParameters,
     Variable,
@@ -23,10 +22,8 @@ pub fn bool_to_u32(b: bool) -> u32 {
 // Note this only decodes bytes and doesn't support long strings
 pub fn rlp_decode_bytes(input: &[u8]) -> (Vec<u8>, usize) {
     let prefix = input[0];
-    if prefix <= 0x7F {
+    if prefix <= 0x80 {
         (vec![prefix], 1)
-    } else if prefix == 0x80 {
-        (vec![], 1) // null value
     } else if prefix <= 0xB7 {
         // Short string (0-55 bytes length)
         let length = (prefix - 0x80) as usize;
@@ -158,7 +155,7 @@ pub fn verify_decoded_list<const L: usize, const M: usize>(
         for j in 0..32 {
             poly += list[i][j] as u32
                 * (random.pow(1 + size_accumulator + j as u32))
-                * bool_to_u32(j as u32 <= list_len);
+                * bool_to_u32((j as u32) < list_len);
         }
         size_accumulator += 1 + list_len;
         claim_poly += poly;
@@ -176,15 +173,12 @@ pub fn verify_decoded_list<const L: usize, const M: usize>(
     assert!(claim_poly == encoding_poly);
 }
 
-static mut now_debugging: i32 = 0;
-
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    fn parse_list_element<const ELEMENT_LEN: usize>(
+    fn parse_list_element(
         &mut self,
-        element: ArrayVariable<ByteVariable, ELEMENT_LEN>,
+        prefix: ByteVariable,
         len: Variable,
     ) -> (ByteVariable, Variable) {
-        let prefix = element[0];
         let prefix_var = prefix.to_variable(self);
 
         let zero_byte = self.constant::<ByteVariable>(0);
@@ -201,18 +195,32 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let len_eq_1 = self.is_equal(len, one_var);
         let prx_leq_n = prefix_var.lte(_0x7f_var, self);
 
-        let _0x80_0 = BytesVariable::<2>([_0x80, zero_byte]);
+        let prefix_is_128 = self.is_equal(prefix, _0x80);
+        let prefix_is_0 = self.is_equal(prefix, zero_byte);
+
+        let _to_be_0x80 = self.or(prefix_is_0, prefix_is_128);
+        let _base = self.select(prefix_is_128, _0x80, zero_byte);
+
         let prx_0 = BytesVariable::<2>([prefix, zero_byte]);
         let _len_0x80 = self.add(len, _0x80_var);
-        let len_0x80 =
-            BytesVariable::<2>([_len_0x80.to_byte_variable(self), len.to_byte_variable(self)]);
+        let _len_0x80_var = _len_0x80.to_byte_variable(self);
+        let len_byte = len.to_byte_variable(self);
+        let len_0x80 = self.select(
+            prefix_is_128,
+            BytesVariable::<2>([prefix, zero_byte]),
+            BytesVariable::<2>([_len_0x80_var, len_byte]),
+        );
 
         let len_is_leq_55_pred = len.lte(max_len_55, self);
         self.assert_is_true(len_is_leq_55_pred);
 
         let len_eq_1_prx = self.and(len_eq_1, prx_leq_n);
         let greater_than_0x80 = self.select(len_eq_1_prx, prx_0, len_0x80);
-        let res = self.select(len_eq_0, _0x80_0, greater_than_0x80);
+        let res = self.select(
+            len_eq_0,
+            BytesVariable::<2>([_base, zero_byte]),
+            greater_than_0x80,
+        );
 
         (res[0], res[1].to_variable(self))
     }
@@ -227,92 +235,49 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         lens: ArrayVariable<Variable, LIST_LEN>,
         encoding: ArrayVariable<ByteVariable, ENCODING_LEN>,
     ) {
-        unsafe {
-            now_debugging += 1;
-            if now_debugging == 0 {
-                return;
+        // @TODO: Accumulate the length and check the prefix (first 2 or 3 bytes of the encoding).
+        let zero = self.zero();
+        let one = self.one();
+        let two = self.constant::<Variable>(L::Field::from_canonical_u8(2));
+
+        let const_0xf7 = self.constant::<Variable>(L::Field::from_canonical_u8(0xf7));
+        let const_0xf8 = self.constant::<Variable>(L::Field::from_canonical_u8(0xf8));
+        let first_byte = encoding[0].to_variable(self);
+
+        let is_long_list = self.gte(first_byte, const_0xf8);
+        let len_if_long_list = self.sub(first_byte, const_0xf7);
+        let len_if_long_list = self.mul(is_long_list.0, len_if_long_list);
+
+        // Constrain len_if_long_list to be 0, 1 or 2.
+        let is_zero = self.is_equal(len_if_long_list, zero);
+        let is_one = self.is_equal(len_if_long_list, one);
+        let is_two = self.is_equal(len_if_long_list, two);
+        let is_zero_one = self.or(is_zero, is_one);
+        let is_zero_one_two = self.or(is_zero_one, is_two);
+        self.assert_is_true(is_zero_one_two);
+
+        let mut start_idx = self.add(len_if_long_list, one);
+
+        let mut encoded_decoding: Vec<ByteVariable> = Vec::new();
+
+        for i in 0..LIST_LEN {
+            let (start_byte, list_len) = self.parse_list_element(list[i][0], lens[i]);
+            encoded_decoding.push(start_byte);
+            for j in 0..ELEMENT_LEN {
+                encoded_decoding.push(list[i][j]);
             }
-            // @TODO: Accumulate the length and check the prefix (first 2 or 3 bytes of the encoding).
-            let zero = self.zero();
-            let one = self.one();
-            let two = self.constant::<Variable>(L::Field::from_canonical_u8(2));
 
-            let const_0xf7 = self.constant::<Variable>(L::Field::from_canonical_u8(0xf7));
-            let first_byte = encoding[0].to_variable(self);
-            let second_byte = encoding[1].to_variable(self);
+            let encoded_decoding_len = self.add(list_len, one);
 
-            debug::debug(self, "first_byte".to_string(), first_byte);
-            debug::debug(self, "second_byte".to_string(), second_byte);
-
-            let is_long_list = self.gte(first_byte, const_0xf7);
-            let len_if_long_list = self.sub(first_byte, const_0xf7);
-            let len_if_long_list = self.mul(is_long_list.0, len_if_long_list);
-
-            debug::debug(self, "len_if_long_list".to_string(), len_if_long_list);
-
-            // Constrain len_if_long_list to be 0, 1 or 2.
-            let is_zero = self.is_equal(len_if_long_list, zero);
-            let is_one = self.is_equal(len_if_long_list, one);
-            let is_two = self.is_equal(len_if_long_list, two);
-            let is_zero_one = self.or(is_zero, is_one);
-            let is_zero_one_two = self.or(is_zero_one, is_two);
-            let _true = self._true();
-            self.assert_is_equal(is_zero_one_two, _true);
-
-            let mut start_idx = self.add(len_if_long_list, one);
-
-            let mut encoded_decoding: Vec<ByteVariable> = Vec::new();
-
-            for i in 0..LIST_LEN {
-                let (mut start_byte, list_len) = self.parse_list_element(list[i].clone(), lens[i]);
-                let start_byte_var = start_byte.to_variable(self);
-                encoded_decoding.push(start_byte);
-                for j in 0..ELEMENT_LEN {
-                    encoded_decoding.push(list[i][j]);
-                }
-
-                debug::debug(
-                    self,
-                    format!("start_byte[{}]", i).to_string(),
-                    start_byte_var,
-                );
-                debug::debug(self, format!("lens[{}]", i).to_string(), lens[i]);
-                debug::debug(self, format!("list_len[{}]", i).to_string(), list_len);
-
-                // let const_0x80 = self.constant::<Variable>(L::Field::from_canonical_u8(8));
-                //let has_prefix_byte = self.lt(first_byte, const_0x80);
-                //let byte_is_not_its_own_encoding = self.not(has_prefix_byte);
-                // let len_is_zero = self.is_zero(lens[i]);
-                // let len_is_not_zero = self.not(len_is_zero);
-                // let encoded_decoding_len = self.add(list_len, len_is_not_zero.0);
-                // let encoded_decoding_len =
-                //     self.mul(encoded_decoding_len, byte_is_not_its_own_encoding.0);
-
-                let first_element = list[i][0].to_variable(self);
-                let first_element_is_zero = self.is_zero(first_element);
-                let len_is_zero = self.is_zero(list_len);
-                let should_skip = self.and(first_element_is_zero, len_is_zero);
-                let should_skip_multiplier = self.not(should_skip);
-
-                let encoded_decoding_len = self.add(list_len, one);
-                let encoded_decoding_len = self.mul(encoded_decoding_len, should_skip_multiplier.0);
-
-                debug::debug(
-                    self,
-                    format!("encoded_decoding_len[{}]", i).to_string(),
-                    encoded_decoding_len,
-                );
-
-                self.assert_subarray_equal(
-                    &encoded_decoding[..],
-                    zero,
-                    encoding.as_slice(),
-                    start_idx,
-                    encoded_decoding_len,
-                );
-                start_idx = self.add(start_idx, encoded_decoding_len);
-                encoded_decoding.clear();
-            }
+            self.assert_subarray_equal(
+                &encoded_decoding[..],
+                zero,
+                encoding.as_slice(),
+                start_idx,
+                encoded_decoding_len,
+            );
+            start_idx = self.add(start_idx, encoded_decoding_len);
+            encoded_decoding.clear();
         }
     }
 

@@ -12,16 +12,20 @@ use crate::prelude::{CircuitBuilder, PlonkParameters};
 
 #[derive(Debug, Clone)]
 pub struct DebugGenerator<L: PlonkParameters<D>, const D: usize> {
-    format: String,
-    variable: Variable,
+    pub string: Vec<String>,
+    pub value: Vec<Variable>,
     _phantom: PhantomData<L>,
 }
 
 impl<L: PlonkParameters<D>, const D: usize> DebugGenerator<L, D> {
-    pub fn new(builder: &mut CircuitBuilder<L, D>, format: String, variable: Variable) -> Self {
+    pub fn new(
+        _builder: &mut CircuitBuilder<L, D>,
+        string: Vec<String>,
+        value: Vec<Variable>,
+    ) -> Self {
         Self {
-            format,
-            variable,
+            string,
+            value,
             _phantom: PhantomData,
         }
     }
@@ -34,7 +38,9 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for Deb
 
     fn dependencies(&self) -> Vec<Target> {
         let mut targets: Vec<Target> = Vec::new();
-        targets.extend(self.variable.targets());
+        for v in &self.value {
+            targets.extend(v.targets());
+        }
         targets
     }
 
@@ -44,8 +50,14 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for Deb
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
     ) {
-        let value = self.variable.get(witness).to_canonical_u64();
-        println!("{} = {}", self.format, value);
+        for i in 0..self.value.len() {
+            println!(
+                "{}: {}",
+                self.string[i],
+                self.value[i].get(witness).to_canonical_u64()
+            );
+        }
+        println!();
     }
 
     #[allow(unused_variables)]
@@ -68,9 +80,9 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for Deb
 
 pub fn debug<L: PlonkParameters<D>, const D: usize>(
     builder: &mut CircuitBuilder<L, D>,
-    format: String,
-    variable: Variable,
+    format: Vec<String>,
+    variable: Vec<Variable>,
 ) {
-    let generator = DebugGenerator::new(builder, format, variable);
+    let generator: DebugGenerator<L, D> = DebugGenerator::new(builder, format, variable);
     builder.add_simple_generator(generator.clone());
 }
