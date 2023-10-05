@@ -3,6 +3,7 @@ use std::env;
 use std::net::ToSocketAddrs;
 
 use anyhow::{anyhow, Result};
+use bincode::de;
 use itertools::Itertools;
 use log::debug;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
@@ -117,7 +118,13 @@ impl RemoteProver {
         const MAX_RETRIES: usize = 500;
         for _ in 0..MAX_RETRIES {
             sleep(Duration::from_secs(10)).await;
-            let request = service.get_batch::<L, D>(batch_id)?;
+            let request = match service.get_batch::<L, D>(batch_id) {
+                Ok(request) => request,
+                Err(e) => {
+                    debug!("proof batch {:?}: error={:?}", batch_id, e);
+                    continue;
+                }
+            };
             request.statuses.iter().for_each(|(status, count)| {
                 debug!(
                     "proof batch {:?}: status={:?}, count={}",
