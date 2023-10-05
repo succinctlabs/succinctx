@@ -226,14 +226,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let reduce_circuit_ids = reduce_circuits.iter().map(|c| c.id()).collect_vec();
         let final_circuit = &reduce_circuits[reduce_circuits.len() - 1];
         let final_proof = self.add_virtual_proof_with_pis(&final_circuit.data.common);
-        let generator = MapReduceGenerator::<L, Ctx, Input, Output, B, D> {
+        let generator = MapReduceGenerator::<L, Ctx, Input, Output, Serializer, B, D> {
             map_circuit_id,
             reduce_circuit_ids,
             ctx: ctx.clone(),
             inputs: inputs.clone(),
             proof: final_proof.clone(),
-            _phantom1: PhantomData,
-            _phantom2: PhantomData,
+            _phantom: PhantomData,
         };
         self.add_simple_generator(generator);
 
