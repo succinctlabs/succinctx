@@ -7,7 +7,6 @@ use curta::chip::trace::generator::ArithmeticGenerator;
 use curta::plonky2::stark::config::StarkyConfig;
 use curta::plonky2::stark::prover::StarkyProver;
 use curta::plonky2::stark::Starky;
-use log::debug;
 use plonky2::field::types::PrimeField64;
 use serde::{Deserialize, Serialize};
 
