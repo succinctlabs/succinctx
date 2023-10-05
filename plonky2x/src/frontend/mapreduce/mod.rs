@@ -28,10 +28,10 @@ use plonky2x_derive::CircuitVariable;
 
 use self::generator::MapReduceGenerator;
 use super::hash::poseidon::poseidon256::PoseidonHashOutVariable;
-use crate::backend::circuit::CircuitBuild;
+use crate::backend::circuit::{CircuitBuild, CircuitSerializer};
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::CircuitVariable;
-use crate::prelude::{ArrayVariable, GateRegistry, HintRegistry, PlonkParameters, Variable};
+use crate::prelude::{ArrayVariable, PlonkParameters, Variable};
 use crate::utils::poseidon::mapreduce_merkle_tree_root;
 use crate::utils::proof::ProofWithPublicInputsTargetUtils;
 
@@ -155,7 +155,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         builder.build()
     }
 
-    pub fn mapreduce<Ctx, Input, Output, MapFn, ReduceFn, const B: usize>(
+    pub fn mapreduce<Ctx, Input, Output, Serializer, const B: usize, MapFn, ReduceFn>(
         &mut self,
         ctx: Ctx,
         inputs: Vec<Input::ValueType<L::Field>>,
@@ -166,6 +166,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         Ctx: CircuitVariable,
         Input: CircuitVariable,
         Output: CircuitVariable,
+        Serializer: CircuitSerializer,
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
         <Input as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
@@ -186,8 +187,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             ));
 
         // The gate and witness generator serializers.
-        let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = HintRegistry::<L, D>::new();
+        let gate_serializer = Serializer::gate_registry::<L, D>();
+        let generator_serializer = Serializer::generator_registry::<L, D>();
 
         // Build a map circuit which maps from I -> O using the closure `m`.
         let map_circuit = self.build_map(&map_fn);
@@ -261,6 +262,7 @@ pub(crate) mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
+    use crate::backend::circuit::DefaultSerializer;
     use crate::prelude::{CircuitBuilder, DefaultParameters, Variable};
 
     type F = GoldilocksField;
@@ -280,7 +282,7 @@ pub(crate) mod tests {
             F::from_canonical_u64(3),
         ];
 
-        let output = builder.mapreduce::<Variable, Variable, Variable, _, _, 2>(
+        let output = builder.mapreduce::<Variable, Variable, Variable, DefaultSerializer, 2, _, _>(
             ctx,
             inputs,
             |ctx, inputs, builder| {

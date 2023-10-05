@@ -63,6 +63,7 @@ use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
 use crate::frontend::hash::bit_operations::XOR3Generator;
+use crate::frontend::hash::blake2::blake2b_curta::MAX_NUM_CURTA_CHUNKS;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::hint::asynchronous::hint::AsyncHint;
@@ -445,6 +446,7 @@ where
             L::CurtaConfig,
             D,
             BLAKE2BAirParameters<L::Field, L::CubicParams>,
+            MAX_NUM_CURTA_CHUNKS,
         >::id();
         r.register_simple::<BLAKE2BGenerator<
             L::Field,
@@ -452,6 +454,7 @@ where
             L::CurtaConfig,
             D,
             BLAKE2BAirParameters<L::Field, L::CubicParams>,
+            MAX_NUM_CURTA_CHUNKS,
         >>(blake2b_generator);
 
         r.register_hint::<SubArrayExtractorHint>();
