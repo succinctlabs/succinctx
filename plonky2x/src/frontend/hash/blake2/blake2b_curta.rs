@@ -107,7 +107,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let mut blake2b_builder_gadget: BLAKE2BBuilderGadget<
-            BLAKE2BAirParameters<L::Field, L::CubicParams>, 4
+            BLAKE2BAirParameters<L::Field, L::CubicParams>,
+            4,
         > = self.api.init_blake2b();
         blake2b_builder_gadget
             .padded_messages

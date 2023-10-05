@@ -7,6 +7,7 @@ use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness};
 use plonky2::util::serialization::IoError;
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::debug;
 
 use super::channel::{HintChannel, HintInMessage};
 use super::hint::{AnyAsyncHint, AnyHint, AsyncHint};
@@ -167,6 +168,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
 
         // If the hint is waiting, try to receive the output.
         if waiting {
+            debug!("Waiting for hint output");
             let mut rx_out = self.channel.rx_out.lock().unwrap();
             if let Ok(mut output_stream) = rx_out.try_recv() {
                 let output_values = output_stream.read_all();
@@ -176,12 +178,14 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
                 for (var, val) in output_vars.iter().zip(output_values) {
                     var.set(out_buffer, *val)
                 }
+                debug!("Received hint output");
                 return Ok(true);
             }
             Ok(false)
         }
         // if the hint is not waiting, send the input and update the waiting flag.
         else {
+            debug!("Sending hint input");
             let input_values = self
                 .input_stream
                 .real_all()

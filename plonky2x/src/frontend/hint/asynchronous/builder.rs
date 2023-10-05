@@ -68,7 +68,7 @@ mod tests {
             if time == 20 {
                 panic!("Test panic, immediate failure");
             }
-            let sum = (0..(1<<25)).into_par_iter().sum::<usize>();
+            let sum = (0..(1 << 25)).into_par_iter().sum::<usize>();
             std::thread::sleep(Duration::from_secs(time.into()));
             if time == 10 {
                 panic!("Test panic, delayed failure");
