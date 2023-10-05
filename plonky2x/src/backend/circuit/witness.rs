@@ -18,7 +18,7 @@ use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::oneshot;
 
 use super::PlonkParameters;
-use crate::frontend::hint::asynchronous::generator::{AsyncHintDataRef, AsyncHintRef};
+use crate::frontend::hint::asynchronous::generator::{AsyncHintDataRef, AsyncHintRef, HintPoll};
 use crate::frontend::hint::asynchronous::handler::HintHandler;
 
 /// Given a `PartialWitness` that has only inputs set, populates the rest of the witness using the
@@ -113,7 +113,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
     inputs: PartialWitness<L::Field>,
     prover_data: &'a ProverOnlyCircuitData<L::Field, L::Config, D>,
     common_data: &'a CommonCircuitData<L::Field, D>,
-    async_generators: BTreeMap<usize, AsyncHintRef<L, D>>,
+    mut async_generators: BTreeMap<usize, AsyncHintRef<L, D>>,
     mut rx_handler_error: oneshot::Receiver<Error>,
 ) -> Result<PartitionWitness<'a, L::Field>> {
     let config = &common_data.config;
@@ -142,23 +142,27 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
     // Keep running generators until we fail to make progress.
     while !pending_generator_indices.is_empty() {
         let mut next_pending_generator_indices = Vec::new();
-        // let mut next_pending_async_generator_indices = Vec::new();
-
         for &generator_idx in &pending_generator_indices {
             if generator_is_expired[generator_idx] {
                 continue;
             }
 
-            if let Some(async_gen) = async_generators.get(&generator_idx) {
+            // Run the generator, depending on whether it is an asyncronous or not.
+            if let Some(async_gen) = async_generators.get_mut(&generator_idx) {
+                // Check if the hint handler has returned an error, and if so, return it.
                 if let Ok(e) = rx_handler_error.try_recv() {
                     return Err(e);
                 }
-                let finished = async_gen.0.run(&witness, &mut buffer)?;
-                if finished {
-                    generator_is_expired[generator_idx] = true;
-                    remaining_generators -= 1;
-                } else {
-                    next_pending_generator_indices.push(generator_idx);
+                let pol = async_gen.0.run(&witness, &mut buffer);
+                match pol {
+                    HintPoll::InputPending => {}
+                    HintPoll::Pending => {
+                        next_pending_generator_indices.push(generator_idx);
+                    }
+                    HintPoll::Ready => {
+                        generator_is_expired[generator_idx] = true;
+                        remaining_generators -= 1;
+                    }
                 }
             } else {
                 let finished = generators[generator_idx].0.run(&witness, &mut buffer);

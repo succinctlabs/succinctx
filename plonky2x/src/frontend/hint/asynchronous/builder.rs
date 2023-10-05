@@ -29,8 +29,11 @@ mod tests {
     use tokio::time::{sleep, Duration};
 
     use super::*;
+    use crate::backend::circuit::CircuitBuild;
     use crate::frontend::vars::ValueStream;
-    use crate::prelude::{ByteVariable, DefaultBuilder};
+    use crate::prelude::{
+        ByteVariable, DefaultBuilder, DefaultParameters, GateRegistry, HintRegistry,
+    };
     use crate::utils::setup_logger;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,6 +74,20 @@ mod tests {
         builder.write(back_time);
 
         let circuit = builder.build();
+
+        let gate_serializer = GateRegistry::<DefaultParameters, 2>::new();
+        let mut hint_serializer = HintRegistry::new();
+        hint_serializer.register_async_hint::<TestAsyncGenerator>();
+
+        let circuit_bytes = circuit
+            .serialize(&gate_serializer, &hint_serializer)
+            .unwrap();
+        let circuit = CircuitBuild::<DefaultParameters, 2>::deserialize(
+            &circuit_bytes,
+            &gate_serializer,
+            &hint_serializer,
+        )
+        .unwrap();
 
         // Write to the circuit input.
         let mut input = circuit.input();

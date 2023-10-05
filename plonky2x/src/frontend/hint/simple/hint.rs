@@ -7,6 +7,35 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::{OutputVariableStream, ValueStream, VariableStream};
 use crate::prelude::CircuitBuilder;
 
+/// A hint for out of circuit computations.
+///
+/// A hint can be used to make a computation during witness generation that is not included in the
+/// cicuit constraints. For example, this can be used for offloading difficult computations (i.e.
+/// field inversion) outside the circuit and constraining the result to be correct.
+///
+/// ## Example
+/// The following example shows how to use a hint that gets a field element and returns the inverse.
+/// ```
+/// # use serde::{Deserialize, Serialize};
+/// # use plonky2x::frontend::vars::ValueStream;
+/// # use plonky2x::prelude::*;
+/// # use plonky2x::frontend::hint::simple::hint::Hint;
+///
+/// #[derive(Debug, Clone, Serialize, Deserialize)]
+/// struct InverseHint;
+///
+/// impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for InverseHint {
+///    fn hint(
+///        &self,
+///        input_stream: &mut ValueStream<L, D>,
+///        output_stream: &mut ValueStream<L, D>,
+///     ) {
+///         let input = input_stream.read_value::<Variable>();
+///         let inverse = input.inverse();
+///         output_stream.write_value::<Variable>(inverse);
+///     }
+/// }
+/// ```
 pub trait Hint<L: PlonkParameters<D>, const D: usize>:
     'static + Debug + Clone + Send + Sync + serde::Serialize + DeserializeOwned
 {
