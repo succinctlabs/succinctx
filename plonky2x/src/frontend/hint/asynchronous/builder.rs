@@ -25,10 +25,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 #[cfg(test)]
 mod tests {
     use async_trait::async_trait;
+    use curta::maybe_rayon::*;
     use serde::{Deserialize, Serialize};
     use tokio::time::{sleep, Duration};
 
     use super::*;
+    use crate::frontend::hint::simple::hint::Hint;
+    use crate::frontend::hint::synchronous::Async;
     use crate::frontend::vars::ValueStream;
     use crate::prelude::{ByteVariable, DefaultBuilder};
     use crate::utils::setup_logger;
@@ -55,6 +58,25 @@ mod tests {
         }
     }
 
+    impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for TestAsyncGenerator {
+        fn hint(
+            &self,
+            input_stream: &mut ValueStream<L, D>,
+            output_stream: &mut ValueStream<L, D>,
+        ) {
+            let time = input_stream.read_value::<ByteVariable>();
+            if time == 20 {
+                panic!("Test panic, immediate failure");
+            }
+            let sum = (0..(1<<25)).into_par_iter().sum::<usize>();
+            std::thread::sleep(Duration::from_secs(time.into()));
+            if time == 10 {
+                panic!("Test panic, delayed failure");
+            }
+            output_stream.write_value::<ByteVariable>(time);
+        }
+    }
+
     #[test]
     fn test_async_hint() {
         setup_logger();
@@ -66,7 +88,21 @@ mod tests {
         input_stream.write(&time);
 
         let hint = TestAsyncGenerator {};
-        let output_stream = builder.async_hint(input_stream, hint);
+        let output_stream = builder.async_hint(input_stream.clone(), hint.clone());
+        let back_time = output_stream.read::<ByteVariable>(&mut builder);
+        let output_stream = builder.async_hint(input_stream.clone(), hint.clone());
+        let back_time = output_stream.read::<ByteVariable>(&mut builder);
+        let output_stream = builder.async_hint(input_stream.clone(), Async(hint.clone()));
+        let back_time = output_stream.read::<ByteVariable>(&mut builder);
+        let output_stream = builder.async_hint(input_stream.clone(), hint.clone());
+        let back_time = output_stream.read::<ByteVariable>(&mut builder);
+        let output_stream = builder.async_hint(input_stream.clone(), hint.clone());
+        let back_time = output_stream.read::<ByteVariable>(&mut builder);
+        let output_stream = builder.async_hint(input_stream.clone(), Async(hint.clone()));
+        let back_time = output_stream.read::<ByteVariable>(&mut builder);
+        let output_stream = builder.async_hint(input_stream.clone(), Async(hint.clone()));
+        let back_time = output_stream.read::<ByteVariable>(&mut builder);
+        let output_stream = builder.async_hint(input_stream.clone(), hint.clone());
         let back_time = output_stream.read::<ByteVariable>(&mut builder);
         builder.write(back_time);
 
@@ -74,7 +110,8 @@ mod tests {
 
         // Write to the circuit input.
         let mut input = circuit.input();
-        input.write::<ByteVariable>(5u8);
+        let time_value = 3u8;
+        input.write::<ByteVariable>(time_value);
 
         // Generate a proof.
         let (proof, mut output) = circuit.prove(&input);
@@ -83,8 +120,8 @@ mod tests {
         circuit.verify(&proof, &input, &output);
 
         // Read output.
-        let byte_plus_one = output.read::<ByteVariable>();
-        assert_eq!(byte_plus_one, 5u8);
+        let byte_back = output.read::<ByteVariable>();
+        assert_eq!(byte_back, time_value);
     }
 
     #[test]

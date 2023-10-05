@@ -91,6 +91,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
         let mut pw = PartialWitness::new();
+        let start_time = tokio::time::Instant::now();
         self.io.set_witness(&mut pw, input);
         let partition_witness = generate_witness_async(
             pw,
@@ -100,7 +101,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         )
         .await
         .unwrap();
-
+        let elapsed_time = start_time.elapsed();
+        debug!("Witness generation took {:?}", elapsed_time);
         tokio::task::block_in_place(|| {
             let proof_with_pis = prove_with_partition_witness::<L::Field, L::Config, D>(
                 &self.data.prover_only,
