@@ -3,7 +3,6 @@ use std::env;
 use std::net::ToSocketAddrs;
 
 use anyhow::{anyhow, Result};
-use bincode::de;
 use itertools::Itertools;
 use log::debug;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
