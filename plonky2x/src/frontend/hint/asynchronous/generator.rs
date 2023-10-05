@@ -1,5 +1,4 @@
 use core::fmt::Debug;
-use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use plonky2::iop::generator::{GeneratedValues, WitnessGenerator};
@@ -27,7 +26,7 @@ pub trait AsyncHintRunner<L: PlonkParameters<D>, const D: usize>:
     fn watch_list(&self) -> &[Variable];
 
     fn run(
-        &self,
+        &mut self,
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
     ) -> Result<bool>;
@@ -61,7 +60,7 @@ pub(crate) struct AsyncHintGenerator<L: PlonkParameters<D>, H, const D: usize> {
     pub(crate) channel: HintChannel<L, D>,
     pub(crate) input_stream: VariableStream,
     pub(crate) output_stream: VariableStream,
-    pub(crate) waiting: AtomicBool,
+    pub(crate) waiting: bool,
 }
 
 /// A dummy witness generator containing the hint data and input/output streams.
@@ -127,7 +126,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintGenerat
             hint,
             tx,
             channel,
-            waiting: AtomicBool::new(false),
+            waiting: false,
         }
     }
 
@@ -155,7 +154,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
     }
 
     fn run(
-        &self,
+        &mut self,
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
     ) -> Result<bool> {
@@ -164,7 +163,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
             return Ok(false);
         }
         // check if the hint is already waiting for output.
-        let waiting = self.waiting.load(Ordering::Relaxed);
+        let waiting = self.waiting;
 
         // If the hint is waiting, try to receive the output.
         if waiting {
@@ -197,7 +196,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
             self.send(input_stream).unwrap();
 
             // update the waiting flag to `true`.
-            self.waiting.store(true, Ordering::Relaxed);
+            self.waiting = true;
 
             Ok(false)
         }
