@@ -84,7 +84,7 @@ use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
 use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
-use crate::prelude::{BoolVariable, Variable};
+use crate::prelude::{BoolVariable, U32Variable, Variable};
 
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
     WitnessGeneratorSerializer<L::Field, D>
@@ -469,6 +469,7 @@ where
             D,
             Variable,
             BoolVariable,
+            U32Variable,
             U64Variable,
             U256Variable,
             Bytes32Variable,
