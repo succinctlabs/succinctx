@@ -331,6 +331,7 @@ macro_rules! make_uint32_n_tests {
             use $crate::frontend::vars::EvmVariable;
             use $crate::prelude::*;
 
+            #[allow(unused_imports)]
             use super::*;
 
             type L = DefaultParameters;

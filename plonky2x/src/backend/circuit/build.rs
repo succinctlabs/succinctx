@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
-use log::debug;
+use log::{debug, trace};
 use plonky2::field::types::PrimeField64;
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_data::CircuitData;
@@ -55,6 +55,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         let start_time = Instant::now();
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
+        trace!("generating witness...");
         let partition_witness = generate_witness(
             pw,
             &self.data.prover_only,
@@ -62,6 +63,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
             &self.async_hints,
         )
         .unwrap();
+        trace!("finished generating witness");
+        trace!("generating proof...");
         let proof_with_pis = prove_with_partition_witness::<L::Field, L::Config, D>(
             &self.data.prover_only,
             &self.data.common,
@@ -69,6 +72,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
             &mut TimingTree::default(),
         )
         .unwrap();
+        trace!("finished generating proof");
         let output = PublicOutput::from_proof_with_pis(&self.io, &proof_with_pis);
         let elapsed_time = start_time.elapsed();
         debug!("proving took: {:?}", elapsed_time);
