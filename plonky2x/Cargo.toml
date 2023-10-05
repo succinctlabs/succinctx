@@ -16,13 +16,6 @@ ci = []
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false }
 curta = { git = "https://github.com/succinctlabs/curta.git" }
 plonky2x-derive = { path = "../plonky2x-derive" }
-avail-subxt = {git = "https://github.com/availproject/avail.git", rev = "b68af9607e3d0db972eb54b1ccea70223584cfe9"}
-subxt = "0.27"
-pallet-grandpa = "23.0.0"
-sp-application-crypto = "25.0.0"
-ed25519-dalek = "1.0.1"
-succinct_avail_utils = { git = "https://github.com/succinctlabs/avail.git", branch = "kevjue/mapreduce_experiment" }
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full", "bit-vec"] }
 
 num = { version = "0.4", default-features = false }
 sha2 = "0.10.7"
@@ -59,6 +52,14 @@ ed25519-consensus = "2.1.0"
 async-trait = "0.1.73"
 digest = "0.10.7"
 sha256 = "1.4.0"
+avail-subxt = {git = "https://github.com/availproject/avail.git", rev = "b68af9607e3d0db972eb54b1ccea70223584cfe9"}
+subxt = "0.27"
+pallet-grandpa = "23.0.0"
+primitive-types = "0.12.1"
+sp-application-crypto = "25.0.0"
+sp-core = { version = "16.0.0", default-features = false }
+ed25519-dalek = "1.0.1"
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full", "bit-vec"] }
 
 [dev-dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", features = [

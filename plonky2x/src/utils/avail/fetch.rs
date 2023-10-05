@@ -9,11 +9,11 @@ use sp_application_crypto::RuntimeAppPublic;
 use subxt::rpc::RpcParams;
 use subxt::utils::H256;
 use subxt::OnlineClient;
-use succinct_avail_utils::get_justification::{
-    EncodedFinalityProof, FinalityProof, GrandpaJustification, SignerMessage,
-};
 
-use super::vars::{Curve, SimpleJustificationData};
+use super::vars::{
+    Curve, EncodedFinalityProof, FinalityProof, GrandpaJustification, SignerMessage,
+    SimpleJustificationData,
+};
 use crate::frontend::ecc::ed25519::curve::curve_types::AffinePoint;
 use crate::frontend::ecc::ed25519::gadgets::verify::{DUMMY_PUBLIC_KEY, DUMMY_SIGNATURE};
 
