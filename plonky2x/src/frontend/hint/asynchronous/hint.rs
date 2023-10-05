@@ -11,7 +11,7 @@ use crate::frontend::vars::ValueStream;
 ///
 /// This type of hint can used to perform asynchronous operations during witness generation.
 ///
-/// # Example
+/// ## Example
 /// The following example shows how to use an asynchronous hint that gets an input byte, sleeps
 /// for the number of miliseconds specified by the byte, and then outputs the byte.
 /// ```

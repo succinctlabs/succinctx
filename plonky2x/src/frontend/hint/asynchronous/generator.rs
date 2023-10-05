@@ -16,10 +16,14 @@ use crate::frontend::vars::{ValueStream, VariableStream};
 use crate::prelude::{CircuitVariable, Variable};
 use crate::utils::serde::BufferWrite;
 
+/// The result of running an asynchronous hint.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum HintPoll {
+    /// The hint is waiting for all input variables to be set.
     InputPending,
+    /// The hint is still running.
     Pending,
+    /// The hint has finished and all output variables have been set.
     Ready,
 }
 
@@ -171,9 +175,11 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
     ) -> HintPoll {
         match self.state {
             HintPoll::InputPending => {
+                // Check if all input variables are set, otherwise return.
                 if !self.watch_list().iter().all(|v| witness.contains(v.0)) {
                     return HintPoll::InputPending;
                 }
+                // Send the input to the hint.
                 trace!("Async Hint {:?} : Sending input to hint", H::id());
                 let input_values = self
                     .input_stream
@@ -188,10 +194,10 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
 
                 // Update and return the state.
                 self.state = HintPoll::Pending;
-
                 HintPoll::Pending
             }
             HintPoll::Pending => {
+                // Check the hint channel for the output. If not ready, return `HintPoll::Pending`.
                 if let Ok(mut output_stream) = self.channel.rx_out.try_recv() {
                     trace!("Async Hint {:?} : recieved output from hint", H::id());
                     let output_values = output_stream.read_all();

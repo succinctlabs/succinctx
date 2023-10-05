@@ -142,14 +142,14 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
     // Keep running generators until we fail to make progress.
     while !pending_generator_indices.is_empty() {
         let mut next_pending_generator_indices = Vec::new();
-        // let mut next_pending_async_generator_indices = Vec::new();
-
         for &generator_idx in &pending_generator_indices {
             if generator_is_expired[generator_idx] {
                 continue;
             }
 
+            // Run the generator, depending on whether it is an asyncronous or not.
             if let Some(async_gen) = async_generators.get_mut(&generator_idx) {
+                // Check if the hint handler has returned an error, and if so, return it.
                 if let Ok(e) = rx_handler_error.try_recv() {
                     return Err(e);
                 }
