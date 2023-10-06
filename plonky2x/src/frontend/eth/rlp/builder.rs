@@ -124,9 +124,7 @@ pub fn decode_element_as_list<
 
 fn parse_list_element(element: [u8; 32], len: u8) -> (u32, u32) {
     let prefix = element[0];
-    if len == 0 {
-        (0x80, 0)
-    } else if len == 1 && prefix <= 0x7F {
+    if len == 1 && prefix <= 0x80 {
         (prefix as u32, 0)
     } else if len == 1 && prefix > 0x7F {
         // TODO: maybe this is the same as the below case
@@ -421,7 +419,7 @@ mod tests {
         assert!(len == F::from_canonical_usize(17));
         for i in 0..17 {
             if i == 16 {
-                assert!(decoded_element_lens[i] == F::from_canonical_usize(0));
+                assert!(decoded_element_lens[i] == F::from_canonical_usize(1));
             } else {
                 assert!(decoded_element_lens[i] == F::from_canonical_usize(32));
             }
