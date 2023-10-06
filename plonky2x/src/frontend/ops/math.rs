@@ -171,19 +171,19 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The less than operation (<).
     pub fn lt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
-        Lhs: LessThanOrEqual<L, D, Lhs>,
-        Rhs: Sub<L, D, Rhs, Output = Lhs> + One<L, D>,
+        Lhs: Add<L, D, Rhs, Output = Lhs> + LessThanOrEqual<L, D, Rhs>,
+        Rhs: One<L, D>,
     {
         let one = self.one::<Rhs>();
-        let upper_bound = rhs.sub(one, self);
-        self.lte(lhs, upper_bound)
+        let lower_bound = lhs.add(one, self);
+        self.lte(lower_bound, rhs)
     }
 
     /// The greater than operation (>).
     pub fn gt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
-        Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
-        Rhs: LessThanOrEqual<L, D, Rhs>,
+        Lhs: One<L, D>,
+        Rhs: Add<L, D, Lhs, Output = Rhs> + LessThanOrEqual<L, D, Lhs>,
     {
         self.lt(rhs, lhs)
     }
@@ -200,7 +200,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The within range operation (lhs <= variable < rhs).
     pub fn within_range<V>(&mut self, variable: V, lhs: V, rhs: V) -> BoolVariable
     where
-        V: LessThanOrEqual<L, D, V> + Sub<L, D, V, Output = V> + One<L, D> + Clone,
+        V: LessThanOrEqual<L, D, V> + Add<L, D, V, Output = V> + One<L, D> + Clone,
     {
         let lower_bound_satisfied = self.lte(lhs, variable.clone());
         let upper_bound_satisfied = self.lt(variable, rhs);

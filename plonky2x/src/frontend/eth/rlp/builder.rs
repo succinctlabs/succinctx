@@ -286,6 +286,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut accumulated_list_len = zero;
         let mut encoded_decoding: Vec<ByteVariable> = Vec::new();
 
+        let encoding_start_byte = encoding[0].to_variable(self);
+        let encoding_start_byte_not_zero = self.is_not_zero(encoding_start_byte);
+        let end_index =
+            self.add_many(&[encoding_start_byte_not_zero.0, len_of_len, extracted_length]);
+
         for i in 0..LIST_LEN {
             let (start_byte, list_len) = self.parse_list_element(list[i][0], lens[i]);
             encoded_decoding.push(start_byte);
@@ -296,20 +301,23 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let encoded_decoding_len = self.add(list_len, one);
 
             self.assert_subarray_equal(
-                &encoded_decoding[..],
+                encoded_decoding.as_slice(),
                 zero,
                 encoding.as_slice(),
                 start_idx,
                 encoded_decoding_len,
             );
-            start_idx = self.add(start_idx, encoded_decoding_len);
 
-            let start_byte_var = start_byte.to_variable(self);
-            let start_byte_not_zero = self.is_not_zero(start_byte_var);
-            let list_len_zero = self.mul(start_byte_not_zero.0, encoded_decoding_len);
-            accumulated_list_len = self.add(accumulated_list_len, list_len_zero);
+            let is_within_encoding = self.lt(start_idx, end_index);
+            let increment = self.mul(is_within_encoding.0, encoded_decoding_len);
+            accumulated_list_len = self.add(accumulated_list_len, increment);
+
+            start_idx = self.add(start_idx, encoded_decoding_len);
             encoded_decoding.clear();
         }
+
+        // TODO assert that when the encoding finishes the rest is all zero padding
+
         self.assert_is_equal(extracted_length, accumulated_list_len);
     }
 
