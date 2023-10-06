@@ -316,6 +316,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
     }
 
+    /// Fails if i1 != true.
+    pub fn assert_is_true<V: CircuitVariable>(&mut self, i1: V) {
+        let one = self.api.one();
+        for t1 in i1.targets().iter() {
+            self.api.connect(*t1, one);
+        }
+    }
+
     /// Returns 1 if i1 == i2 and 0 otherwise as a BoolVariable.
     pub fn is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) -> BoolVariable {
         let mut result = self._true();
@@ -341,6 +349,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn to_be_bits<V: EvmVariable>(&mut self, variable: V) -> Vec<BoolVariable> {
         variable.to_be_bits(self)
+    }
+
+    /// Takes a slice of bits and returns the number with little-endian bit representation as a Variable.
+    pub fn le_sum(&mut self, bits: &[BoolVariable]) -> Variable {
+        let bits = bits
+            .iter()
+            .map(|x| BoolTarget::new_unsafe(x.0.0))
+            .collect_vec();
+        Variable(self.api.le_sum(bits.into_iter()))
     }
 }
 
