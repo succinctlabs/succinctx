@@ -309,6 +309,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.api.is_equal(i1.0, zero).target.into()
     }
 
+    /// Returns 1 if i1 is not zero, 0 otherwise as a boolean.
+    pub fn is_not_zero(&mut self, i1: Variable) -> BoolVariable {
+        let is_zero = self.is_zero(i1);
+        self.not(is_zero)
+    }
+
     /// Fails if i1 != i2.
     pub fn assert_is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) {
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
@@ -355,7 +361,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn le_sum(&mut self, bits: &[BoolVariable]) -> Variable {
         let bits = bits
             .iter()
-            .map(|x| BoolTarget::new_unsafe(x.0.0))
+            .map(|x| BoolTarget::new_unsafe(x.0 .0))
             .collect_vec();
         Variable(self.api.le_sum(bits.into_iter()))
     }

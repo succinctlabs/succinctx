@@ -129,8 +129,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let case_len_le_32 = self.and(node_len_le_32, first_32_bytes_eq);
                 let inter = self.not(node_len_le_32);
                 let case_len_gt_32 = self.and(inter, hash_eq);
-                let equality_fulfilled = self.or(case_len_le_32, case_len_gt_32);
-                let checked_equality = self.or(equality_fulfilled, finished);
+                let checked_equality = self.or_many(&[case_len_le_32, case_len_gt_32, finished]);
                 let t = self._true();
                 self.assert_is_equal(checked_equality, t);
             }
@@ -199,9 +198,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             let prefix_leaf_even_and_leaf = self.and(prefix_leaf_even, is_leaf);
             let prefix_leaf_odd_and_leaf = self.and(prefix_leaf_odd, is_leaf);
-            let l = self.or(is_branch_and_key_terminated, prefix_leaf_even_and_leaf);
-            let m = self.or(l, prefix_leaf_odd_and_leaf);
-            finished = self.or(finished, m);
+            finished = self.or_many(&[
+                finished,
+                is_branch_and_key_terminated,
+                prefix_leaf_even_and_leaf,
+                prefix_leaf_odd_and_leaf,
+            ]);
         }
 
         let current_node_len = self.sub_byte(current_node_id[0], const_128);

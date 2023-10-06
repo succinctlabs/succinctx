@@ -237,14 +237,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let is_zero = self.is_equal(len_of_len, zero);
         let is_one = self.is_equal(len_of_len, one);
         let is_two = self.is_equal(len_of_len, two);
-        let is_zero_one = self.or(is_zero, is_one);
-        let is_zero_one_two = self.or(is_zero_one, is_two);
+        let is_zero_one_two = self.or_many(&[is_zero, is_one, is_two]);
         self.assert_is_true(is_zero_one_two);
 
         let list_prefix_byte = self.select_array(encoding.as_slice(), zero);
         let list_prefix_byte_var = list_prefix_byte.to_variable(self);
-        let list_prefix_byte_is_zero = self.is_zero(list_prefix_byte_var);
-        let list_prefix_byte_is_not_zero = self.not(list_prefix_byte_is_zero);
+        let list_prefix_byte_is_not_zero = self.is_not_zero(list_prefix_byte_var);
 
         let first_len_byte = self.select_array(encoding.as_slice(), one);
         let first_len_var = first_len_byte.to_variable(self);
@@ -305,8 +303,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             start_idx = self.add(start_idx, encoded_decoding_len);
 
             let start_byte_var = start_byte.to_variable(self);
-            let start_byte_is_zero = self.is_zero(start_byte_var);
-            let start_byte_not_zero = self.not(start_byte_is_zero);
+            let start_byte_not_zero = self.is_not_zero(start_byte_var);
             let list_len_zero = self.mul(start_byte_not_zero.0, encoded_decoding_len);
             accumulated_list_len = self.add(accumulated_list_len, list_len_zero);
             encoded_decoding.clear();
