@@ -112,7 +112,6 @@ impl RemoteProver {
             .iter()
             .map(|input| ProofRequest::new(circuit_id, input))
             .collect_vec();
-        debug!("{:?}", requests[0]);
         let (batch_id, proof_ids) = service.submit_batch(&requests)?;
 
         const MAX_RETRIES: usize = 500;
