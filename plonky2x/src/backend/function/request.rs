@@ -52,6 +52,7 @@ pub struct RemoteRecursiveProofsRequestData {
 #[serde(rename_all = "camelCase")]
 pub struct ProofRequestBase<D> {
     pub release_id: String,
+    pub files: Option<Vec<String>>,
     pub data: D,
 }
 
@@ -80,12 +81,14 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
         match input {
             PublicInput::Bytes(input) => ProofRequest::Bytes(ProofRequestBase {
                 release_id,
+                files: Some(vec![format!("main.circuit")]),
                 data: BytesRequestData {
                     input: input.clone(),
                 },
             }),
             PublicInput::Elements(input) => ProofRequest::Elements(ProofRequestBase {
                 release_id,
+                files: Some(vec![format!("{}.circuit", circuit_id)]),
                 data: ElementsRequestData {
                     circuit_id: circuit_id.to_string(),
                     input: input.clone(),
@@ -94,6 +97,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
             PublicInput::RecursiveProofs(input) => {
                 ProofRequest::RecursiveProofs(ProofRequestBase {
                     release_id,
+                    files: Some(vec![format!("{}.circuit", circuit_id)]),
                     data: RecursiveProofsRequestData {
                         circuit_id: circuit_id.to_string(),
                         proofs: input.clone(),
@@ -103,6 +107,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
             PublicInput::RemoteRecursiveProofs(input) => {
                 ProofRequest::RemoteRecursiveProofs(ProofRequestBase {
                     release_id,
+                    files: Some(vec![format!("{}.circuit", circuit_id)]),
                     data: RemoteRecursiveProofsRequestData {
                         circuit_id: circuit_id.to_string(),
                         proof_ids: input.clone(),
