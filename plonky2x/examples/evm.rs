@@ -20,7 +20,8 @@ use plonky2x::backend::function::VerifiableFunction;
 use plonky2x::frontend::vars::ByteVariable;
 use plonky2x::prelude::CircuitBuilder;
 
-struct SimpleAdditionCircuit {}
+#[derive(Debug, Clone)]
+struct SimpleAdditionCircuit;
 
 impl Circuit for SimpleAdditionCircuit {
     fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) {

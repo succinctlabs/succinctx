@@ -17,6 +17,7 @@ const NB_BALANCES: usize = 1048576;
 /// The batch size for fetching balances and computing the local balance roots.
 const BATCH_SIZE: usize = 2048;
 
+#[derive(Debug, Clone)]
 struct MapReduceBalanceCircuit;
 
 impl Circuit for MapReduceBalanceCircuit {
@@ -83,6 +84,7 @@ impl Circuit for MapReduceBalanceCircuit {
             BeaconBalancesVariable,
             U64Variable,
             (Bytes32Variable, U64Variable),
+            Self,
             BATCH_SIZE,
             D,
         >::id();
@@ -91,6 +93,7 @@ impl Circuit for MapReduceBalanceCircuit {
             BeaconBalancesVariable,
             U64Variable,
             (Bytes32Variable, U64Variable),
+            Self,
             BATCH_SIZE,
             D,
         >>(id);
