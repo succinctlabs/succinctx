@@ -171,6 +171,66 @@ pub fn verify_decoded_list<const L: usize, const M: usize>(
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    fn extract_list_len(&mut self, prefix_bytes: &[ByteVariable]) -> (Variable, Variable) {
+        let zero = self.zero();
+        let one = self.one();
+        let two = self.constant::<Variable>(L::Field::from_canonical_u8(2));
+
+        let const_247 = self.constant::<Variable>(L::Field::from_canonical_u8(0xf7));
+        let const_248 = self.constant::<Variable>(L::Field::from_canonical_u8(0xf8));
+
+        let prefix_byte_var = prefix_bytes[0].to_variable(self);
+        let first_len_byte_var = prefix_bytes[1].to_variable(self);
+        let second_len_byte_var = prefix_bytes[2].to_variable(self);
+
+        // Extract the number of bytes the length of the list is encoded in
+        // len_if_long_list will be 0, 1 or 2
+        let is_long_list = self.gte(prefix_byte_var, const_248);
+        let len_of_len = self.sub(prefix_byte_var, const_247);
+        let len_of_len = self.mul(is_long_list.0, len_of_len);
+
+        // Constrain len_of_len to be 0, 1 or 2.
+        let is_zero = self.is_equal(len_of_len, zero);
+        let is_one = self.is_equal(len_of_len, one);
+        let is_two = self.is_equal(len_of_len, two);
+        let is_zero_one_two = self.or_many(&[is_zero, is_one, is_two]);
+        self.assert_is_true(is_zero_one_two);
+
+        let list_prefix_byte = prefix_bytes[0];
+        let list_prefix_byte_var = list_prefix_byte.to_variable(self);
+        let list_prefix_byte_is_not_zero = self.is_not_zero(list_prefix_byte_var);
+
+        let len_len_is_zero = self.is_equal(len_of_len, zero);
+        let len_len_is_one = self.is_equal(len_of_len, one);
+        let len_len_is_two = self.is_equal(len_of_len, two);
+
+        let const_192 = self.constant::<Variable>(L::Field::from_canonical_u8(0xc0));
+        let extracted_length_if_len_len_0 = self.sub(list_prefix_byte_var, const_192);
+        let extracted_length_if_len_len_0 = self.mul(
+            list_prefix_byte_is_not_zero.0,
+            extracted_length_if_len_len_0,
+        );
+        let extracted_length_if_len_len_0 =
+            self.mul(len_len_is_zero.0, extracted_length_if_len_len_0);
+
+        let const_256 = self.constant::<Variable>(L::Field::from_canonical_u64(256));
+        let extracted_length_if_len_len_1 = self.mul(len_len_is_one.0, first_len_byte_var);
+
+        let extracted_length_if_len_len_2 = self.mul(first_len_byte_var, const_256);
+        let extracted_length_if_len_len_2 =
+            self.add(extracted_length_if_len_len_2, second_len_byte_var);
+        let extracted_length_if_len_len_2 =
+            self.mul(len_len_is_two.0, extracted_length_if_len_len_2);
+
+        let extracted_length = self.add_many(&[
+            extracted_length_if_len_len_0,
+            extracted_length_if_len_len_1,
+            extracted_length_if_len_len_2,
+        ]);
+
+        (extracted_length, len_of_len)
+    }
+
     fn parse_list_element(
         &mut self,
         prefix: ByteVariable,
@@ -219,68 +279,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ) {
         let zero = self.zero();
         let one = self.one();
-        let two = self.constant::<Variable>(L::Field::from_canonical_u8(2));
 
-        let const_247 = self.constant::<Variable>(L::Field::from_canonical_u8(0xf7));
-        let const_248 = self.constant::<Variable>(L::Field::from_canonical_u8(0xf8));
-        let first_byte = encoding[0].to_variable(self);
-
-        // Extract the number of bytes the length of the list is encoded in
-        // len_if_long_list will be 0, 1 or 2
-        let is_long_list = self.gte(first_byte, const_248);
-        let len_of_len = self.sub(first_byte, const_247);
-        let len_of_len = self.mul(is_long_list.0, len_of_len);
-
-        // Constrain len_of_len to be 0, 1 or 2.
-        let is_zero = self.is_equal(len_of_len, zero);
-        let is_one = self.is_equal(len_of_len, one);
-        let is_two = self.is_equal(len_of_len, two);
-        let is_zero_one_two = self.or_many(&[is_zero, is_one, is_two]);
-        self.assert_is_true(is_zero_one_two);
-
-        let list_prefix_byte = self.select_array(encoding.as_slice(), zero);
-        let list_prefix_byte_var = list_prefix_byte.to_variable(self);
-        let list_prefix_byte_is_not_zero = self.is_not_zero(list_prefix_byte_var);
-
-        let first_len_byte = self.select_array(encoding.as_slice(), one);
-        let first_len_var = first_len_byte.to_variable(self);
-        let second_len_byte = self.select_array(encoding.as_slice(), two);
-
-        let len_len_is_zero = self.is_equal(len_of_len, zero);
-        let len_len_is_one = self.is_equal(len_of_len, one);
-        let len_len_is_two = self.is_equal(len_of_len, two);
-
-        let const_192 = self.constant::<Variable>(L::Field::from_canonical_u8(0xc0));
-        let extracted_length_if_len_len_0 = self.sub(list_prefix_byte_var, const_192);
-        let extracted_length_if_len_len_0 = self.mul(
-            list_prefix_byte_is_not_zero.0,
-            extracted_length_if_len_len_0,
-        );
-        let extracted_length_if_len_len_0 =
-            self.mul(len_len_is_zero.0, extracted_length_if_len_len_0);
-
-        let const_256 = self.constant::<Variable>(L::Field::from_canonical_u64(256));
-        let extracted_length_if_len_len_1 = self.mul(len_len_is_one.0, first_len_var);
-
-        let first_len_byte_as_var = first_len_byte.to_variable(self);
-        let second_len_byte_as_var = second_len_byte.to_variable(self);
-        let extracted_length_if_len_len_2 = self.mul(first_len_byte_as_var, const_256);
-        let extracted_length_if_len_len_2 =
-            self.add(extracted_length_if_len_len_2, second_len_byte_as_var);
-        let extracted_length_if_len_len_2 =
-            self.mul(len_len_is_two.0, extracted_length_if_len_len_2);
-
-        let extracted_length = self.add_many(&[
-            extracted_length_if_len_len_0,
-            extracted_length_if_len_len_1,
-            extracted_length_if_len_len_2,
-        ]);
-
+        let (extracted_length, len_of_len) = self.extract_list_len(&encoding.as_slice()[..3]);
         let mut start_idx = self.add(len_of_len, one);
 
+        let mut accumulated_list_len = zero;
         let mut encoded_decoding: Vec<ByteVariable> = Vec::new();
-
-        let mut accumulated_list_len = self.zero();
 
         for i in 0..LIST_LEN {
             let (start_byte, list_len) = self.parse_list_element(list[i][0], lens[i]);
