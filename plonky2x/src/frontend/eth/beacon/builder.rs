@@ -825,12 +825,13 @@ pub(crate) mod tests {
 
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
-        let latest_block_root = client.get_finalized_block_root().unwrap();
+        let latest_block_root =
+            "0x1bfb9d3eda9f16e2f50dedf079798ce218748d48024d8150a0299688bb528735";
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
-        let zero = builder.constant::<U64Variable>(0);
+        let zero = builder.constant::<U64Variable>(857088);
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let validators = builder.beacon_get_validators(block_root);
         let validators = builder.beacon_witness_validator_batch::<512>(validators, zero);
