@@ -4,7 +4,7 @@ use std::env;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use serde::{Deserialize, Serialize};
 
-use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput};
+use crate::backend::circuit::{PlonkParameters, PublicInput};
 use crate::backend::prover::ProofId;
 use crate::utils::serde::{
     deserialize_elements, deserialize_hex, deserialize_proof_with_pis_vec, serialize_elements,
@@ -75,7 +75,7 @@ pub enum ProofRequest<L: PlonkParameters<D>, const D: usize> {
 
 impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
     /// Creates a new function request from a circuit and public input.
-    pub fn new(circuit: &CircuitBuild<L, D>, input: &PublicInput<L, D>) -> Self {
+    pub fn new(circuit_id: &str, input: &PublicInput<L, D>) -> Self {
         let release_id = env::var("RELEASE_ID").unwrap();
         match input {
             PublicInput::Bytes(input) => ProofRequest::Bytes(ProofRequestBase {
@@ -87,7 +87,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
             PublicInput::Elements(input) => ProofRequest::Elements(ProofRequestBase {
                 release_id,
                 data: ElementsRequestData {
-                    circuit_id: circuit.id(),
+                    circuit_id: circuit_id.to_string(),
                     input: input.clone(),
                 },
             }),
@@ -95,7 +95,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
                 ProofRequest::RecursiveProofs(ProofRequestBase {
                     release_id,
                     data: RecursiveProofsRequestData {
-                        circuit_id: circuit.id(),
+                        circuit_id: circuit_id.to_string(),
                         proofs: input.clone(),
                     },
                 })
@@ -104,7 +104,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
                 ProofRequest::RemoteRecursiveProofs(ProofRequestBase {
                     release_id,
                     data: RemoteRecursiveProofsRequestData {
-                        circuit_id: circuit.id(),
+                        circuit_id: circuit_id.to_string(),
                         proof_ids: input.clone(),
                     },
                 })

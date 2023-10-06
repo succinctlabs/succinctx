@@ -11,7 +11,7 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use super::{MapReduceInputVariable, MapReduceInputVariableValue};
-use crate::backend::circuit::{CircuitBuild, CircuitSerializer, PublicInput};
+use crate::backend::circuit::{CircuitSerializer, PublicInput};
 use crate::backend::prover::{EnvProver, ProverOutputs};
 use crate::prelude::{CircuitVariable, PlonkParameters};
 
@@ -88,25 +88,15 @@ where
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
     ) {
-        // The gate and witness generator serializers.
-        let gate_serializer = Serializer::gate_registry::<L, D>();
-        let generator_serializer = Serializer::generator_registry::<L, D>();
-
         // Create the prover and the async runtime.
         let prover = EnvProver::new();
-
-        // Load the map circuit from disk & generate the proofs.
-        let map_circuit_path = format!("./build/{}.circuit", self.map_circuit_id);
-        let map_circuit =
-            CircuitBuild::<L, D>::load(&map_circuit_path, &gate_serializer, &generator_serializer)
-                .unwrap();
 
         // Calculate the inputs to the map.
         let ctx_value = self.ctx.get(witness);
         let map_input_values = &self.inputs;
         let mut map_inputs = Vec::new();
         for i in 0..map_input_values.len() / B {
-            let mut map_input = map_circuit.input();
+            let mut map_input = PublicInput::Elements(Vec::new());
             let input = array![j => map_input_values[i * B + j].clone(); B];
             map_input.write::<MapReduceInputVariable<Ctx, Input, B>>(MapReduceInputVariableValue {
                 ctx: ctx_value.clone(),
@@ -116,20 +106,13 @@ where
         }
 
         // Generate the proofs for the map layer.
-        let mut outputs = prover.batch_prove(&map_circuit, &map_inputs).unwrap();
+        let mut outputs = prover
+            .batch_prove::<L, Serializer, D>(&self.map_circuit_id, &map_inputs)
+            .unwrap();
 
         // Process each reduce layer.
         let nb_reduce_layers = ((self.inputs.len() / B) as f64).log2().ceil() as usize;
         for i in 0..nb_reduce_layers {
-            // Load the reduce circuit from disk.
-            let reduce_circuit_path = format!("./build/{}.circuit", self.reduce_circuit_ids[i]);
-            let reduce_circuit = CircuitBuild::<L, D>::load(
-                &reduce_circuit_path,
-                &gate_serializer,
-                &generator_serializer,
-            )
-            .unwrap();
-
             // Calculate the inputs to the reduce layer.
             debug!("reduce time");
             let nb_proofs = (self.inputs.len() / B) / (2usize.pow((i + 1) as u32));
@@ -138,7 +121,7 @@ where
             match outputs {
                 ProverOutputs::Local(proofs, _) => {
                     for j in 0..nb_proofs {
-                        let mut reduce_input = reduce_circuit.input();
+                        let mut reduce_input = PublicInput::RecursiveProofs(Vec::new());
                         reduce_input.proof_write(proofs[j * 2].clone());
                         reduce_input.proof_write(proofs[j * 2 + 1].clone());
                         reduce_inputs.push(reduce_input);
@@ -157,7 +140,9 @@ where
 
             // Generate the proofs for the reduce layer and update the proofs buffer.
             debug!("reduce batch proofs");
-            outputs = prover.batch_prove(&reduce_circuit, &reduce_inputs).unwrap();
+            outputs = prover
+                .batch_prove::<L, Serializer, D>(&self.reduce_circuit_ids[i], &reduce_inputs)
+                .unwrap();
         }
 
         // Set the proof target with the final proof.
