@@ -22,7 +22,7 @@ use crate::backend::wrapper::wrap::WrappedCircuit;
 use crate::frontend::builder::CircuitIO;
 use crate::prelude::{CircuitBuilder, GateRegistry, HintRegistry};
 
-const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
+const VERIFIER_CONTRACT: &str = include_str!("../../../../../assets/Verifier.sol");
 
 /// `Plonky2xFunction`s have all necessary code for a circuit to be deployed end-to-end.
 pub trait Plonky2xFunction {
