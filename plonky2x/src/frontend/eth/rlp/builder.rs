@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use curta::math::field::Field;
+use curta::math::field::{Field, Ring};
 use curta::math::prelude::PrimeField64;
 use ethers::types::Bytes;
 use log::info;
@@ -11,10 +11,13 @@ use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
+use serde::{Deserialize, Serialize};
 
+use crate::backend;
+use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
-    Variable,
+    Add, ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, Mul, One,
+    PlonkParameters, U64Variable, ValueStream, Variable, VariableStream, Zero,
 };
 
 pub fn bool_to_u32(b: bool) -> u32 {
@@ -313,6 +316,99 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             generator.decoded_element_lens,
             generator.len_decoded_list,
         )
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MaskHint<V: CircuitVariable, const N: usize> {
+    _marker: Option<PhantomData<V>>,
+}
+
+impl<L: PlonkParameters<D>, const D: usize, V: CircuitVariable, const N: usize> Hint<L, D>
+    for MaskHint<V, N>
+{
+    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
+        let input = input_stream.read_value::<ArrayVariable<V, N>>();
+        let mask = input_stream.read_value::<ArrayVariable<BoolVariable, N>>();
+
+        let size = V::nb_elements();
+        let zero = V::from_elements(&vec![L::Field::ZERO; size]);
+
+        let mut masked_input: Vec<V::ValueType<L::Field>> = vec![zero; N];
+        let mut j = 0;
+        for i in 0..input.len() {
+            if mask[i] {
+                masked_input[j] = input[i].clone();
+                j += 1;
+            }
+        }
+
+        output_stream.write_value::<ArrayVariable<V, N>>(masked_input);
+    }
+}
+
+impl<L, const D: usize> CircuitBuilder<L, D>
+where
+    L: PlonkParameters<D>,
+{
+    pub fn check_array<
+        V: CircuitVariable + Add<L, D, Output = V> + Mul<L, D, Output = V> + Zero<L, D> + One<L, D>,
+        const N: usize,
+    >(
+        builder: &mut CircuitBuilder<L, D>,
+        input: ArrayVariable<V, N>,
+        mask: ArrayVariable<BoolVariable, N>,
+    ) -> ArrayVariable<V, N>  where <<L as backend::circuit::config::PlonkParameters<D>>::Config as plonky2::plonk::config::GenericConfig<D>>::Hasher: plonky2::plonk::config::AlgebraicHasher<<L as backend::circuit::config::PlonkParameters<D>>::Field>{
+        if V::nb_elements() > 1 {
+            panic!("Variable type is too big");
+        }
+
+        let zero = builder.zero::<V>();
+        let one = builder.one::<V>();
+
+        // Offload output computation to the prover
+        let hint: MaskHint<V, N> = MaskHint { _marker: None };
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&input);
+        input_stream.write(&mask);
+
+        let output_stream = builder.hint(input_stream, hint);
+        let output = output_stream.read::<ArrayVariable<V, N>>(builder);
+
+        // Random number
+        let random = V::from_variables_unsafe(
+            &builder
+                .poseidon_hash(&input.variables())
+                .elements
+                .variables()[0..1],
+        );
+        let mut r = one.clone();
+
+        // Compute polynomial commitment w.r.t masked_input (output)
+        let mut commitment_1 = zero.clone();
+        for i in 0..N {
+            let summand = builder.mul(output[i].clone(), r.clone());
+            commitment_1 = builder.add(commitment_1, summand);
+
+            r = builder.mul(r.clone(), random.clone());
+        }
+
+        // Compute polynomial commitment w.r.t input, mask
+        let mut r = one.clone();
+        let mut commitment_2 = zero.clone();
+        for i in 0..N {
+            let s: V = builder.select(mask[i], one.clone(), zero.clone());
+            let r_val = builder.mul(s, r.clone());
+            let summand = builder.mul(input[i].clone(), r_val);
+            commitment_2 = builder.add(commitment_2, summand);
+
+            let s: V = builder.select(mask[i], random.clone(), one.clone());
+            r = builder.mul(r, s);
+        }
+
+        builder.assert_is_equal(commitment_1, commitment_2);
+
+        output
     }
 }
 
