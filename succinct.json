@@ -1,8 +1,15 @@
 {
     "entrypoints": [
         {
+            "name": "evm",
+            "framework": "plonky2x",
+            "baseDir": ".",
+            "buildCommand": "mkdir build && cargo run --release --example evm build && mv ./target/release/examples/evm ./build/evm",
+            "proveCommand": "./build/evm prove input.json"
+        },
+        {
             "name": "eth_call",
-            "framework": "succinctx",
+            "framework": "rustx",
             "baseDir": ".",
             "buildCommand": "mkdir build && cargo run --release --example eth_call build && mv ./target/release/examples/eth_call ./build/eth_call",
             "proveCommand": "./build/eth_call prove input.json"
