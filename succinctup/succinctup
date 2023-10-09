@@ -137,11 +137,11 @@ main() {
 
     # Download and extract the binaries archive
     say "downloading latest succinct binaries from $RELEASE_URL..."
-    tmp_file="$(mktemp -t succinct.tar.gz)"
+    tmp_file="$(mktemp -t succinct.tar.gz.XXXXXXXXXX)"
     # Use wget with the GitHub API to download the tarball, suppress output with -q
     ensure wget -q -O "$tmp_file" "$RELEASE_URL" >/dev/null 2>&1
     file "$tmp_file" # Print the file type
-    tmp_dir="$(mktemp -d -t succinct)"
+    tmp_dir="$(mktemp -d -t succinct.XXXXXXXXXX)"
     ensure tar -xzC "$tmp_dir" -f "$tmp_file"
     # Move the content from the top-level directory to the desired location
     ensure mv "$tmp_dir"/*/* "$SUCCINCT_BIN_DIR"
