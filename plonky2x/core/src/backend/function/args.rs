@@ -17,7 +17,7 @@ pub struct ProveArgs {
     #[arg(long, default_value = "./build")]
     pub build_dir: String,
 
-    #[arg(long)]
+    #[arg(long, default_value = "/verifier-build")]
     pub wrapper_path: String,
 }
 
