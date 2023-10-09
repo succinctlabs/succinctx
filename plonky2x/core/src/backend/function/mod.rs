@@ -15,7 +15,7 @@ pub use result::*;
 use serde::Serialize;
 use sha2::Digest;
 
-use self::args::{CompileArgs, ProveArgs};
+use self::args::{BuildArgs, ProveArgs};
 use crate::backend::circuit::*;
 use crate::backend::function::args::{Args, Commands};
 use crate::backend::wrapper::wrap::WrappedCircuit;
@@ -27,7 +27,7 @@ const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
 /// `Plonky2xFunction`s have all necessary code for a circuit to be deployed end-to-end.
 pub trait Plonky2xFunction {
     /// Builds the circuit and saves it to disk.
-    fn compile<L: PlonkParameters<D>, const D: usize>(args: CompileArgs)
+    fn build<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>;
 
@@ -52,7 +52,7 @@ pub trait Plonky2xFunction {
 }
 
 impl<C: Circuit> Plonky2xFunction for C {
-    fn compile<L: PlonkParameters<D>, const D: usize>(args: CompileArgs)
+    fn build<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
@@ -227,8 +227,8 @@ impl<C: Circuit> Plonky2xFunction for C {
 
         let args = Args::parse();
         match args.command {
-            Commands::Compile(args) => {
-                Self::compile::<L, D>(args);
+            Commands::Build(args) => {
+                Self::build::<L, D>(args);
             }
             Commands::Prove(args) => {
                 let request = ProofRequest::<L, D>::load(&args.input_json);

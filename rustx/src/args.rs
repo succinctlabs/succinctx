@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Compile a program.")]
-pub struct CompileArgs {
+pub struct BuildArgs {
     #[arg(long, default_value = "./build")]
     pub build_dir: String,
 }
@@ -10,16 +10,15 @@ pub struct CompileArgs {
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Run a program.")]
 pub struct ProveArgs {
+    pub input_json: String,
+
     #[arg(long, default_value = "./build")]
     pub build_dir: String,
-
-    #[clap(long)]
-    pub input_json: String,
 }
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
-    Compile(CompileArgs),
+    Build(BuildArgs),
     Prove(ProveArgs),
 }
 

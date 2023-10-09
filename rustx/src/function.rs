@@ -6,11 +6,11 @@ use log::info;
 use plonky2x::backend::function::{ProofRequest, ProofResult};
 use plonky2x::prelude::DefaultParameters;
 
-use crate::args::{Args, Commands, CompileArgs};
+use crate::args::{Args, BuildArgs, Commands};
 use crate::program::Program;
 
 pub trait RustFunction {
-    fn compile(args: CompileArgs);
+    fn build(args: BuildArgs);
 
     fn prove(input_json: String);
 
@@ -20,7 +20,7 @@ pub trait RustFunction {
 }
 
 impl<P: Program> RustFunction for P {
-    fn compile(args: CompileArgs) {
+    fn build(args: BuildArgs) {
         info!("Building verifier contract...");
         let contract_path = format!("{}/FunctionVerifier.sol", args.build_dir);
         let mut contract_file = File::create(&contract_path).unwrap();
@@ -60,8 +60,8 @@ impl<P: Program> RustFunction for P {
 
         let args = Args::parse();
         match args.command {
-            Commands::Compile(args) => {
-                Self::compile(args);
+            Commands::Build(args) => {
+                Self::build(args);
             }
             Commands::Prove(args) => {
                 Self::prove(args.input_json);
@@ -70,7 +70,7 @@ impl<P: Program> RustFunction for P {
     }
 
     fn verifier(tx_origin: &str) -> String {
-        "
+        "// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
 interface IFunctionVerifier {
@@ -83,7 +83,7 @@ contract FunctionVerifier is IFunctionVerifier {
 
     address public constant TX_ORIGIN = {TX_ORIGIN};
 
-    function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool) {
+    function verify(bytes32, bytes32, bytes memory) external view returns (bool) {
         return tx.origin == TX_ORIGIN;
     }
 

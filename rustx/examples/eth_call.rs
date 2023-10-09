@@ -1,3 +1,19 @@
+//! An example of a basic EVM function which takes in on-chain input bytes and returns output bytes
+//! that correspond to the result of an `eth_call`.
+//!
+//! To build the binary:
+//!
+//!     `cargo build --example eth_call --release`
+//!
+//! To build the function, which saves the verifier contract:
+//!
+//!     `./target/release/example/eth_call build`
+//!
+//! To generate the output and proof:
+//!
+//!    `./target/release/example/eth_call prove --input-json input.json`
+//!
+
 use std::env;
 
 use alloy_sol_types::{sol, SolType};
