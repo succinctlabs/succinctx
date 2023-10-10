@@ -3,24 +3,31 @@ pub mod io;
 mod proof;
 pub mod watch;
 
+use alloc::collections::BTreeMap;
 use std::collections::HashMap;
+use std::env;
 
 use backtrace::Backtrace;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
-use plonky2::iop::generator::SimpleGenerator;
+use itertools::Itertools;
+use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
 use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
-use super::generator::HintRef;
+use super::hash::blake2::blake2b_curta::Blake2bAccelerator;
+use super::hash::sha::sha256_curta::Sha256Accelerator;
+use super::hint::HintGenerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
+use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::prelude::ArrayVariable;
 use crate::utils::eth::beacon::BeaconClient;
+use crate::utils::eth::beaconchain::BeaconchainAPIClient;
 
 /// The universal builder for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
@@ -29,11 +36,17 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
+    pub beaconchain_api_client: Option<BeaconchainAPIClient>,
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
-    pub(crate) hints: Vec<Box<dyn HintRef<L, D>>>,
-    pub sha256_requests: Vec<Vec<Target>>,
-    pub sha256_responses: Vec<[Target; 32]>,
+    pub(crate) hints: Vec<Box<dyn HintGenerator<L, D>>>,
+    pub(crate) async_hints: Vec<AsyncHintDataRef<L, D>>,
+    pub(crate) async_hints_indices: Vec<usize>,
+
+    // We currently have only two accelerators, so we just have individual fields for each one.
+    // If we start adding more, then we should have a hashmap of accelerators.
+    pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
+    pub sha256_accelerator: Option<Sha256Accelerator<L, D>>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
@@ -51,18 +64,35 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn new() -> Self {
         let config = CircuitConfig::standard_recursion_config();
         let api = CircuitAPI::new(config);
-        Self {
+        let mut builder = Self {
             api,
             io: CircuitIO::new(),
             beacon_client: None,
+            beaconchain_api_client: None,
             execution_client: None,
             chain_id: None,
             debug: false,
             debug_variables: HashMap::new(),
             hints: Vec::new(),
-            sha256_requests: Vec::new(),
-            sha256_responses: Vec::new(),
+            async_hints: Vec::new(),
+            async_hints_indices: Vec::new(),
+            blake2b_accelerator: None,
+            sha256_accelerator: None,
+        };
+
+        if let Ok(rpc_url) = env::var("CONSENSUS_RPC_1") {
+            let client = BeaconClient::new(rpc_url);
+            builder.set_beacon_client(client);
         }
+
+        if let Ok(api_url) = env::var("BEACONCHAIN_API_URL_1") {
+            if let Ok(api_key) = env::var("BEACONCHAIN_API_KEY_1") {
+                let client = BeaconchainAPIClient::new(api_url, api_key);
+                builder.set_beaconchain_api_client(client);
+            }
+        }
+
+        builder
     }
 
     pub fn set_debug(&mut self) {
@@ -103,27 +133,50 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.beacon_client = Some(client);
     }
 
-    /// Build the circuit.
-    pub fn build(mut self) -> CircuitBuild<L, D> {
-        if !self.sha256_requests.is_empty() {
-            self.curta_constrain_sha256();
+    pub fn set_beaconchain_api_client(&mut self, client: BeaconchainAPIClient) {
+        self.beaconchain_api_client = Some(client);
+    }
+
+    /// Adds all the constraints nedded before building the circuit and registering hints.
+    fn pre_build(&mut self) {
+        let blake2b_accelerator = self.blake2b_accelerator.clone();
+        if let Some(accelerator) = blake2b_accelerator {
+            accelerator.build(self);
+        }
+
+        let sha256_accelerator = self.sha256_accelerator.clone();
+        if let Some(mut accelerator) = sha256_accelerator {
+            accelerator.build(self);
+        }
+
+        for (index, gen_ref) in self
+            .async_hints_indices
+            .iter()
+            .zip(self.async_hints.iter_mut())
+        {
+            let new_output_stream = self.hints[*index].output_stream_mut();
+            let output_stream = gen_ref.0.output_stream_mut();
+            *output_stream = new_output_stream.clone();
         }
 
         let hints = self.hints.drain(..).collect::<Vec<_>>();
-        for hint in hints {
-            hint.register(&mut self);
-        }
+        let generators = hints
+            .into_iter()
+            .map(|h| WitnessGeneratorRef(h))
+            .collect::<Vec<_>>();
+        self.api.add_generators(generators);
+
         match self.io {
             CircuitIO::Bytes(ref io) => {
                 let input = io
                     .input
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 let output = io
                     .output
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 self.register_public_inputs(input.as_slice());
                 self.register_public_inputs(output.as_slice());
@@ -132,30 +185,73 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let input = io
                     .input
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 let output = io
                     .output
                     .iter()
-                    .flat_map(|b| b.targets())
+                    .flat_map(|b| b.variables())
                     .collect::<Vec<_>>();
                 self.register_public_inputs(input.as_slice());
                 self.register_public_inputs(output.as_slice());
             }
+            CircuitIO::RecursiveProofs(ref io) => {
+                let output = io
+                    .output
+                    .iter()
+                    .flat_map(|b| b.variables())
+                    .collect::<Vec<_>>();
+                self.register_public_inputs(output.as_slice());
+            }
             CircuitIO::None() => {}
-            _ => panic!("unsupported io type"),
         };
-
-        let data = self.api.build();
-        CircuitBuild { data, io: self.io }
     }
 
-    pub fn mock_build(self) -> MockCircuitBuild<L, D> {
-        let mock_circuit = self.api.mock_build();
+    /// Constructs a map of async hints according to their generator indices.
+    fn async_hint_map(
+        generators: &[WitnessGeneratorRef<L::Field, D>],
+        async_hints: Vec<AsyncHintDataRef<L, D>>,
+    ) -> BTreeMap<usize, AsyncHintDataRef<L, D>> {
+        let mut async_hint_indices = Vec::new();
+
+        for (i, generator) in generators.iter().enumerate() {
+            if generator.0.id().starts_with("--async") {
+                async_hint_indices.push(i);
+            }
+        }
+
+        assert_eq!(async_hint_indices.len(), async_hints.len());
+
+        let mut async_hints_map = BTreeMap::new();
+        for (key, gen) in async_hint_indices.iter().zip(async_hints) {
+            async_hints_map.insert(*key, gen);
+        }
+
+        async_hints_map
+    }
+
+    /// Build the circuit.
+    pub fn build(mut self) -> CircuitBuild<L, D> {
+        self.pre_build();
+        let data = self.api.build();
+        let async_hints = Self::async_hint_map(&data.prover_only.generators, self.async_hints);
+        CircuitBuild {
+            data,
+            io: self.io,
+            async_hints,
+        }
+    }
+
+    pub fn mock_build(mut self) -> MockCircuitBuild<L, D> {
+        self.pre_build();
+        let mock_data = self.api.mock_build();
+        let async_hints = Self::async_hint_map(&mock_data.prover_only.generators, self.async_hints);
+
         MockCircuitBuild {
-            data: mock_circuit,
+            data: mock_data,
             io: self.io,
             debug_variables: self.debug_variables,
+            async_hints,
         }
     }
 
@@ -179,6 +275,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         ArrayVariable::init_unsafe(self)
     }
 
+    /// Initializes a variable with no value in the circuit without any validity checks.
+    pub fn init_unsafe<V: CircuitVariable>(&mut self) -> V {
+        V::init_unsafe(self)
+    }
+
     /// Initializes a variable with a constant value in the circuit.
     pub fn constant<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) -> V {
         V::constant(self, value)
@@ -199,35 +300,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Registers the given targets as public inputs.
-    pub fn register_public_inputs(&mut self, inputs: &[Target]) {
-        self.api.register_public_inputs(inputs);
-    }
-
-    /// Add returns res = i1 + i2 + ...
-    pub fn add_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].0;
-        for i in 1..values.len() {
-            acc = self.api.add(acc, values[i].0);
-        }
-        acc.into()
-    }
-
-    /// Sub returns res = i1 - i2 - ...
-    pub fn sub_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].0;
-        for i in 1..values.len() {
-            acc = self.api.sub(acc, values[i].0);
-        }
-        acc.into()
-    }
-
-    /// Mul returns res = i1 * i2 * ...
-    pub fn mul_many(&mut self, values: &[Variable]) -> Variable {
-        let mut acc = values[0].0;
-        for i in 1..values.len() {
-            acc = self.api.mul(acc, values[i].0);
-        }
-        acc.into()
+    pub(crate) fn register_public_inputs(&mut self, inputs: &[Variable]) {
+        self.api
+            .register_public_inputs(&inputs.iter().map(|v| v.0).collect_vec());
     }
 
     /// Inverse returns res = 1 / i1.
@@ -271,6 +346,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         result
     }
 
+    /// Connects two variables.
+    pub fn connect<V: CircuitVariable>(&mut self, i1: V, i2: V) {
+        let i1 = i1.targets();
+        let i2 = i2.targets();
+        for i in 0..i1.len() {
+            self.api.connect(i1[i], i2[i]);
+        }
+    }
+
     pub fn to_le_bits<V: EvmVariable>(&mut self, variable: V) -> Vec<BoolVariable> {
         variable.to_le_bits(self)
     }
@@ -289,13 +373,16 @@ impl<L: PlonkParameters<D>, const D: usize> Default for CircuitBuilder<L, D> {
 #[cfg(test)]
 pub(crate) mod tests {
 
+    use log::debug;
     use plonky2::field::types::Field;
 
     use super::DefaultBuilder;
     use crate::prelude::*;
+    use crate::utils;
 
     #[test]
     fn test_simple_circuit_with_field_io() {
+        utils::setup_logger();
         // Define your circuit.
         let mut builder = DefaultBuilder::new();
         let a = builder.read::<Variable>();
@@ -319,11 +406,12 @@ pub(crate) mod tests {
 
         // Read output.
         let sum = output.read::<Variable>();
-        println!("{}", sum.0);
+        debug!("{}", sum.0);
     }
 
     #[test]
     fn test_simple_circuit_with_evm_io() {
+        utils::setup_logger();
         // Define your circuit.
         let mut builder = DefaultBuilder::new();
         let a = builder.evm_read::<ByteVariable>();
@@ -347,6 +435,6 @@ pub(crate) mod tests {
 
         // Read output.
         let xor = output.evm_read::<ByteVariable>();
-        println!("{}", xor);
+        debug!("{}", xor);
     }
 }

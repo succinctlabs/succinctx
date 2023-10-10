@@ -4,7 +4,7 @@ mod result;
 
 use std::fs::File;
 use std::io::{BufReader, Write};
-use std::path;
+use std::{fs, path};
 
 use clap::Parser;
 use log::info;
@@ -28,7 +28,7 @@ use crate::backend::circuit::{
 use crate::backend::function::cli::{Args, Commands};
 use crate::backend::wrapper::wrap::WrappedCircuit;
 use crate::frontend::builder::CircuitIO;
-use crate::prelude::{CircuitBuilder, GateRegistry, WitnessGeneratorRegistry};
+use crate::prelude::{CircuitBuilder, GateRegistry, HintRegistry};
 
 const VERIFIER_CONTRACT: &str = include_str!("../../resources/Verifier.sol");
 
@@ -60,10 +60,10 @@ impl<C: Circuit> VerifiableFunction<C> {
         info!("> Degree: {}", circuit.data.common.degree());
         info!("> Number of Gates: {}", circuit.data.common.gates.len());
         let path = format!("{}/main.circuit", args.build_dir);
-        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
-        C::add_generators::<L, D>(&mut generator_registry);
-        C::add_gates::<L, D>(&mut gate_registry);
+        C::register_generators::<L, D>(&mut generator_registry);
+        C::register_gates::<L, D>(&mut gate_registry);
         circuit.save(&path, &gate_registry, &generator_registry);
         info!("Successfully saved circuit to disk at {}.", path);
 
@@ -127,12 +127,28 @@ impl<C: Circuit> VerifiableFunction<C> {
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        let path = format!("{}/main.circuit", args.build_dir);
-        info!("Loading circuit from {}...", path);
-        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
-        C::add_generators::<L, D>(&mut generator_registry);
-        C::add_gates::<L, D>(&mut gate_registry);
+        C::register_generators::<L, D>(&mut generator_registry);
+        C::register_gates::<L, D>(&mut gate_registry);
+
+        let mut path = match request {
+            ProofRequest::Bytes(_) => {
+                format!("{}/main.circuit", args.build_dir)
+            }
+            ProofRequest::Elements(ref request) => {
+                format!("{}/{}.circuit", args.build_dir, request.data.circuit_id)
+            }
+            ProofRequest::RecursiveProofs(ref request) => {
+                format!("{}/{}.circuit", args.build_dir, request.data.circuit_id)
+            }
+            _ => todo!(),
+        };
+        if fs::metadata(&path).is_err() {
+            path = format!("{}/main.circuit", args.build_dir);
+        }
+
+        info!("Loading circuit from {}...", path);
         let circuit =
             CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap();
         info!("Successfully loaded circuit.");
@@ -143,9 +159,9 @@ impl<C: Circuit> VerifiableFunction<C> {
 
         let result = ProofResult::from_proof_output(proof, output);
         let json = serde_json::to_string_pretty(&result).unwrap();
-        let mut file = File::create("plonky2x_output.json").unwrap();
+        let mut file = File::create("output.json").unwrap();
         file.write_all(json.as_bytes()).unwrap();
-        info!("Successfully saved proof to disk at plonky2x_output.json.");
+        info!("Successfully saved proof to disk at output.json.");
     }
 
     fn prove_wrapped<
@@ -160,12 +176,28 @@ impl<C: Circuit> VerifiableFunction<C> {
             AlgebraicHasher<InnerParameters::Field>,
         OuterParameters::Config: Serialize,
     {
-        let path = format!("{}/main.circuit", args.build_dir);
-        info!("Loading circuit from {}...", path);
-        let mut generator_registry = WitnessGeneratorRegistry::new();
+        let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
-        C::add_generators::<InnerParameters, D>(&mut generator_registry);
-        C::add_gates::<InnerParameters, D>(&mut gate_registry);
+        C::register_generators::<InnerParameters, D>(&mut generator_registry);
+        C::register_gates::<InnerParameters, D>(&mut gate_registry);
+
+        let mut path = match request {
+            ProofRequest::Bytes(_) => {
+                format!("{}/main.circuit", args.build_dir)
+            }
+            ProofRequest::Elements(ref request) => {
+                format!("{}/{}.circuit", args.build_dir, request.data.circuit_id)
+            }
+            ProofRequest::RecursiveProofs(ref request) => {
+                format!("{}/{}.circuit", args.build_dir, request.data.circuit_id)
+            }
+            _ => todo!(),
+        };
+        if fs::metadata(&path).is_err() {
+            path = format!("{}/main.circuit", args.build_dir);
+        }
+
+        info!("Loading circuit from {}...", path);
         let circuit =
             CircuitBuild::<InnerParameters, D>::load(&path, &gate_registry, &generator_registry)
                 .unwrap();
@@ -217,7 +249,11 @@ impl<C: Circuit> VerifiableFunction<C> {
             file.write_all(json.as_bytes()).unwrap();
             info!("Successfully saved full result to disk at output.json.");
         } else {
-            panic!("output is not bytes")
+            let result = ProofResult::from_proof_output(proof, output);
+            let json = serde_json::to_string_pretty(&result).unwrap();
+            let mut file = File::create("output.json").unwrap();
+            file.write_all(json.as_bytes()).unwrap();
+            info!("Successfully saved proof to disk at output.json.");
         }
     }
 
@@ -226,6 +262,7 @@ impl<C: Circuit> VerifiableFunction<C> {
         type L = DefaultParameters;
         const D: usize = 2;
 
+        dotenv::dotenv().ok();
         env_logger::try_init().unwrap_or_default();
 
         let args = Args::parse();

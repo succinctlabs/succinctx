@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 
+use plonky2::iop::target::Target;
 use plonky2::util::serialization::{IoResult, Read, Write};
 use serde::{Deserialize, Serialize};
 
@@ -51,6 +52,14 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
         let variables = self.read_exact(builder, V::nb_elements());
         V::from_variables_unsafe(&variables)
     }
+
+    pub fn read_vec<V: CircuitVariable>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+        len: usize,
+    ) -> Vec<V> {
+        (0..len).map(|_| self.read::<V>(builder)).collect()
+    }
 }
 
 impl VariableStream {
@@ -60,6 +69,12 @@ impl VariableStream {
 
     pub fn from_variables(variables: Vec<Variable>) -> Self {
         Self(Stream::new(variables))
+    }
+
+    pub fn from_targets(targets: Vec<Target>) -> Self {
+        Self(Stream::new(
+            targets.into_iter().map(Variable).collect::<Vec<_>>(),
+        ))
     }
 
     pub fn init<L: PlonkParameters<D>, const D: usize>(
@@ -76,13 +91,25 @@ impl VariableStream {
         self.0.read_all()
     }
 
+    pub fn read_exact(&mut self, len: usize) -> &[Variable] {
+        self.0.read_exact(len)
+    }
+
     pub fn read<V: CircuitVariable>(&mut self) -> V {
         let variables = self.0.read_exact(V::nb_elements());
         V::from_variables_unsafe(variables)
     }
 
+    pub fn read_vec<V: CircuitVariable>(&mut self, len: usize) -> Vec<V> {
+        (0..len).map(|_| self.read::<V>()).collect()
+    }
+
     pub fn write<V: CircuitVariable>(&mut self, value: &V) {
         self.0.write_slice(&value.variables());
+    }
+
+    pub fn write_slice<V: CircuitVariable>(&mut self, values: &[V]) {
+        values.iter().for_each(|v| self.write(v));
     }
 
     /// Derialize the stream from a buffer compatible with `Plonky2` serialization
@@ -119,15 +146,27 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
 
     pub fn read_value<V: CircuitVariable>(&mut self) -> V::ValueType<L::Field> {
         let elements = self.0.read_exact(V::nb_elements());
-        V::from_elements::<L, D>(elements)
+        V::from_elements::<L::Field>(elements)
     }
 
-    pub(crate) fn read_all(&mut self) -> &[L::Field] {
+    pub fn read_exact(&mut self, len: usize) -> &[L::Field] {
+        self.0.read_exact(len)
+    }
+
+    pub fn read_vec<V: CircuitVariable>(&mut self, len: usize) -> Vec<V::ValueType<L::Field>> {
+        (0..len).map(|_| self.read_value::<V>()).collect()
+    }
+
+    pub fn write_slice(&mut self, values: &[L::Field]) {
+        self.0.write_slice(values);
+    }
+
+    pub fn read_all(&mut self) -> &[L::Field] {
         self.0.read_all()
     }
 
     pub fn write_value<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) {
-        self.0.write_slice(&V::elements::<L, D>(value));
+        self.0.write_slice(&V::elements::<L::Field>(value));
     }
 }
 

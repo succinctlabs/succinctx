@@ -9,36 +9,38 @@
 //!
 //!     `./target/release/circuit_function_field build`
 //!
-//! To prove the circuit using field-based io:
+//! To prove the circuit using evm io:
 //!
-//!    `./target/release/circuit_function_field prove --input-json input.json`
+//!    `./target/release/circuit_function_evm prove --input-json src/bin/circuit_function_evm_input.json`
 //!
-//! Note that this circuit will not work with evm-based io.
+//! Note that this circuit will not work with field-based io.
 
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::VerifiableFunction;
-use plonky2x::prelude::{CircuitBuilder, Variable};
+use plonky2x::frontend::vars::ByteVariable;
+use plonky2x::prelude::CircuitBuilder;
 
-struct SimpleCircuit {}
+#[derive(Debug, Clone)]
+struct SimpleAdditionCircuit;
 
-impl Circuit for SimpleCircuit {
+impl Circuit for SimpleAdditionCircuit {
     fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) {
-        let a = builder.read::<Variable>();
-        let b = builder.read::<Variable>();
-        let c = builder.add(a, b);
-        builder.write(c);
+        let a = builder.evm_read::<ByteVariable>();
+        let b = builder.evm_read::<ByteVariable>();
+        let c = builder.xor(a, b);
+        builder.evm_write(c);
     }
 }
 
 fn main() {
-    VerifiableFunction::<SimpleCircuit>::entrypoint();
+    VerifiableFunction::<SimpleAdditionCircuit>::entrypoint();
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
-    use plonky2::field::types::Field;
+    use plonky2x::backend::config::DefaultParameters;
     use plonky2x::prelude::{GoldilocksField, PoseidonGoldilocksConfig};
 
     use super::*;
@@ -47,26 +49,23 @@ mod tests {
     const D: usize = 2;
 
     #[test]
-    fn test_circuit_function_field() {
+    fn test_circuit_function_evm() {
         let mut builder = CircuitBuilder::<L, D>::new();
         SimpleCircuit::define(&mut builder);
         let circuit = builder.build();
         let mut input = circuit.input();
-        input.write::<Variable>(F::from_canonical_u64(1));
-        input.write::<Variable>(F::from_canonical_u64(2));
-        let (proof, output) = circuit.prove(&input);
+        input.evm_write::<ByteVariable>(0u8);
+        input.evm_write::<ByteVariable>(1u8);
+        let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        let sum = output.read::<Variable>();
-        assert_eq!(sum, F::from_canonical_u64(3));
+        let xor = output.evm_read::<ByteVariable>();
+        assert_eq!(xor, 1u8);
     }
 
     #[test]
-    fn test_circuit_function_field_input_json() {
+    fn test_circuit_function_evm_input_json() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let path = format!(
-            "{}/examples/circuit_function_field_input.json",
-            root.display()
-        );
-        Function::test::<L, D>(path);
+        let path = format!("{}/examples/evm.json", root.display());
+        Function::test::<F, C, D>(path);
     }
 }

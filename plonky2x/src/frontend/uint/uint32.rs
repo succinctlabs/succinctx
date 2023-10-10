@@ -1,20 +1,20 @@
 use std::fmt::Debug;
 
-use curta::math::field::Field;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use crate::frontend::num::u32::gadgets::multiple_comparison::list_lte_circuit;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
 use crate::prelude::*;
 
-/// A variable in the circuit representing a u32 value. Under the hood, it is represented as
-/// a single field element.
+/// A variable in the circuit representing a u32 value.
+///
+/// Under the hood, it is represented as a single field element.
 #[derive(Debug, Clone, Copy)]
 pub struct U32Variable(pub Variable);
 
@@ -27,22 +27,11 @@ impl CircuitVariable for U32Variable {
         Self(Variable::init_unsafe(builder))
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self(Variable::constant(
-            builder,
-            L::Field::from_canonical_u32(value),
-        ))
-    }
-
     fn variables(&self) -> Vec<Variable> {
         vec![self.0]
     }
 
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
-        assert_eq!(variables.len(), 1);
         Self(variables[0])
     }
 
@@ -53,13 +42,17 @@ impl CircuitVariable for U32Variable {
         builder.api.u32_to_bits_le(U32Target(self.targets()[0]));
     }
 
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        let v = witness.get_target(self.0 .0);
-        v.to_canonical_u64() as u32
+    fn nb_elements() -> usize {
+        1
     }
 
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        witness.set_target(self.0 .0, F::from_canonical_u32(value));
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        vec![F::from_canonical_u32(value)]
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        let v = Variable::from_elements(&[elements[0]]);
+        v.to_canonical_u64() as u32
     }
 }
 
@@ -108,6 +101,14 @@ impl EvmVariable for U32Variable {
             value |= (bytes[i] as u32) << ((4 - i - 1) * 8);
         }
         value
+    }
+}
+
+impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for U32Variable {
+    fn lte(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
+        BoolVariable(Variable(
+            list_lte_circuit(&mut builder.api, self.targets(), rhs.targets(), 32).target,
+        ))
     }
 }
 

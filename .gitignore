@@ -17,6 +17,7 @@ keystore
 **/*.bin
 **/target
 **/build
+!/build
 **/data
 
 **/__pycache__

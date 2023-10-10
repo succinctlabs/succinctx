@@ -1,13 +1,16 @@
+use alloc::collections::BTreeMap;
 use std::collections::HashMap;
 
 use plonky2::iop::witness::{PartialWitness, PartitionWitness};
 use plonky2::plonk::circuit_data::MockCircuitData;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 use super::input::PublicInput;
 use super::output::PublicOutput;
-use super::witness::{generate_witness, GenerateWitnessError};
+use super::witness::generate_witness;
 use super::PlonkParameters;
 use crate::frontend::builder::CircuitIO;
+use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 
 /// A mock circuit that can be used for testing.
 ///
@@ -18,6 +21,7 @@ pub struct MockCircuitBuild<L: PlonkParameters<D>, const D: usize> {
     pub data: MockCircuitData<L::Field, L::Config, D>,
     pub io: CircuitIO<D>,
     pub debug_variables: HashMap<usize, String>,
+    pub async_hints: BTreeMap<usize, AsyncHintDataRef<L, D>>,
 }
 
 impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
@@ -30,7 +34,11 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
     pub fn mock_prove(
         &self,
         input: &PublicInput<L, D>,
-    ) -> (PartitionWitness<L::Field>, PublicOutput<L, D>) {
+    ) -> (PartitionWitness<L::Field>, PublicOutput<L, D>)
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
         // Initialize the witness.
         let mut pw = PartialWitness::new();
 
@@ -38,12 +46,13 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
         self.io.set_witness(&mut pw, input);
 
         // Generate the rest of witness.
-        let witness = match generate_witness(pw, &self.data.prover_only, &self.data.common) {
-            Ok(witness) => witness,
-            Err(GenerateWitnessError::GeneratorsNotRun(targets)) => {
-                panic!("generators not run: {:?}", targets)
-            }
-        };
+        let witness = generate_witness(
+            pw,
+            &self.data.prover_only,
+            &self.data.common,
+            &self.async_hints,
+        )
+        .unwrap();
 
         // Get the output from the witness.
         let output = PublicOutput::from_witness(&self.io, &witness);
@@ -55,12 +64,16 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
 #[cfg(test)]
 pub(crate) mod tests {
 
+    use log::debug;
     use plonky2::field::types::Field;
 
     use crate::prelude::*;
+    use crate::utils;
 
     #[test]
     fn test_mock_circuit_with_field_io() {
+        utils::setup_logger();
+
         // Define your circuit.
         let mut builder = DefaultBuilder::new();
         let a = builder.read::<Variable>();
@@ -81,11 +94,13 @@ pub(crate) mod tests {
 
         // Read output.
         let sum = output.read::<Variable>();
-        println!("{}", sum.0);
+        debug!("{}", sum.0);
     }
 
     #[test]
     fn test_simple_circuit_with_evm_io() {
+        utils::setup_logger();
+
         // Define your circuit.
         let mut builder = DefaultBuilder::new();
         let a = builder.evm_read::<ByteVariable>();
@@ -106,6 +121,6 @@ pub(crate) mod tests {
 
         // // Read output.
         let xor = output.evm_read::<ByteVariable>();
-        println!("{}", xor);
+        debug!("{}", xor);
     }
 }

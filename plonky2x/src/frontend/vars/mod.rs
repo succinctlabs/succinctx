@@ -16,14 +16,15 @@ pub use bytes32::*;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
+use plonky2::iop::witness::{Witness, WitnessWrite};
 pub use stream::*;
 pub use variable::*;
 
 pub use super::uint::uint256::*;
 pub use super::uint::uint32::*;
-use crate::backend::circuit::{generate_witness, DefaultParameters, PlonkParameters};
+use crate::backend::circuit::{DefaultParameters, PlonkParameters};
 use crate::frontend::builder::CircuitBuilder;
+use crate::utils;
 
 pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     /// The underlying type of the variable if it were not in a circuit.
@@ -46,7 +47,16 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     fn constant<L: PlonkParameters<D>, const D: usize>(
         builder: &mut CircuitBuilder<L, D>,
         value: Self::ValueType<L::Field>,
-    ) -> Self;
+    ) -> Self {
+        let field_elements = Self::elements::<L::Field>(value);
+        let variables = field_elements
+            .into_iter()
+            .map(|element| builder.constant::<Variable>(element))
+            .collect_vec();
+        // Because this is a constant, we do not need to add constraints to ensure validity
+        // as it is assumed that the value is valid.
+        Self::from_variables_unsafe(&variables)
+    }
 
     /// Serializes the circuit variable to variables.
     fn variables(&self) -> Vec<Variable>;
@@ -72,10 +82,24 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     );
 
     /// Gets the value of the variable from the witness.
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F>;
+    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
+        let target_values = self
+            .targets()
+            .into_iter()
+            .map(|t| witness.get_target(t))
+            .collect::<Vec<F>>();
+        Self::from_elements::<F>(&target_values)
+    }
 
     /// Sets the value of the variable in the witness.
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>);
+    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
+        let elements = Self::elements::<F>(value);
+        let targets = self.targets();
+        assert_eq!(elements.len(), targets.len());
+        for (element, target) in elements.into_iter().zip(targets.into_iter()) {
+            witness.set_target(target, element);
+        }
+    }
 
     /// Serializes the circuit variable to targets.
     fn targets(&self) -> Vec<Target> {
@@ -91,38 +115,18 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     fn nb_elements() -> usize {
         type L = DefaultParameters;
         const D: usize = 2;
+        utils::disable_logging();
         let mut builder = CircuitBuilder::<L, D>::new();
-        let variable = builder.init::<Self>();
+        let variable = builder.init_unsafe::<Self>();
+        utils::enable_logging();
         variable.variables().len()
     }
 
-    /// Serializes the value to a list of field elements.
-    fn elements<L: PlonkParameters<D>, const D: usize>(
-        value: Self::ValueType<L::Field>,
-    ) -> Vec<L::Field> {
-        let mut builder = CircuitBuilder::<L, D>::new();
-        let variables = builder.constant::<Self>(value).variables();
-        let circuit = builder.build();
-        let pw = PartialWitness::new();
-        let witness =
-            generate_witness(pw, &circuit.data.prover_only, &circuit.data.common).unwrap();
-        variables.iter().map(|v| v.get(&witness)).collect_vec()
-    }
+    /// Serializes the value type to a list of field elements.
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F>;
 
-    /// Deserializes the value to a list of field elements.
-    fn from_elements<L: PlonkParameters<D>, const D: usize>(
-        elements: &[L::Field],
-    ) -> Self::ValueType<L::Field> {
-        let mut builder = CircuitBuilder::<L, D>::new();
-        let variable = builder.init::<Self>();
-        let variables = variable.variables();
-        assert_eq!(variables.len(), elements.len());
-        let mut pw = PartialWitness::new();
-        for i in 0..elements.len() {
-            variables[i].set(&mut pw, elements[i])
-        }
-        variable.get(&pw)
-    }
+    /// Deserializes a list of field elements to the value type.
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F>;
 }
 
 pub trait EvmVariable: CircuitVariable {

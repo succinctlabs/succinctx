@@ -1,11 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::needless_range_loop)]
 #![allow(incomplete_features)]
-#![feature(generic_const_exprs)]
 #![feature(trait_alias)]
 #![feature(decl_macro)]
 #![feature(core_intrinsics)]
-#![feature(async_fn_in_trait)]
+#![feature(trait_upcasting)]
 
 extern crate alloc;
 extern crate clap;
@@ -25,12 +24,15 @@ pub mod prelude {
     pub use plonky2x_derive::CircuitVariable;
 
     pub use crate::backend::circuit::config::{DefaultParameters, PlonkParameters};
-    pub use crate::backend::circuit::{GateRegistry, WitnessGeneratorRegistry};
+    pub use crate::backend::circuit::{GateRegistry, HintRegistry};
     pub use crate::frontend::builder::{CircuitBuilder, DefaultBuilder};
     pub use crate::frontend::ops::*;
+    pub use crate::frontend::uint::uint128::U128Variable;
+    pub use crate::frontend::uint::uint256::U256Variable;
+    pub use crate::frontend::uint::uint64::U64Variable;
     pub use crate::frontend::vars::{
         ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable,
-        Variable,
+        OutputVariableStream, U32Variable, ValueStream, Variable, VariableStream,
     };
     pub use crate::utils::{address, bytes, bytes32, hex};
 }

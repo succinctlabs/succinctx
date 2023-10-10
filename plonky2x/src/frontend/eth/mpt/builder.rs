@@ -5,8 +5,7 @@ use curta::math::field::Field;
 use super::generators::*;
 use crate::frontend::vars::Nibbles;
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, PlonkParameters,
-    Variable,
+    ArrayVariable, ByteVariable, Bytes32Variable, CircuitBuilder, PlonkParameters, Variable,
 };
 
 pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usize>(
@@ -43,17 +42,6 @@ pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usi
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn le(&mut self, lhs: Variable, rhs: Variable) -> BoolVariable {
-        let generator: LeGenerator<L, D> = LeGenerator {
-            lhs,
-            rhs,
-            output: self.init::<BoolVariable>(),
-            _phantom: PhantomData,
-        };
-        self.add_simple_generator(generator.clone());
-        generator.output
-    }
-
     pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
         let generator: ByteToVariableGenerator<L, D> = ByteToVariableGenerator {
             lhs,
@@ -137,7 +125,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     current_node_hash,
                     current_node_id.as_slice()[0..32].into(),
                 );
-                let node_len_le_32 = self.le(len_nodes[i], const_32);
+                let node_len_le_32 = self.lte(len_nodes[i], const_32);
                 let case_len_le_32 = self.and(node_len_le_32, first_32_bytes_eq);
                 let inter = self.not(node_len_le_32);
                 let case_len_gt_32 = self.and(inter, hash_eq);
@@ -233,15 +221,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 #[cfg(test)]
 mod tests {
     use curta::math::field::Field;
+    use log::debug;
 
     use super::super::utils::{read_fixture, EIP1186ProofResponse};
     use super::*;
     use crate::frontend::eth::utils::u256_to_h256_be;
     use crate::prelude::{DefaultBuilder, GoldilocksField};
+    use crate::utils;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_mpt_circuit() {
+        utils::setup_logger();
         type F = GoldilocksField;
 
         let storage_result: EIP1186ProofResponse =
@@ -256,10 +247,10 @@ mod tests {
         let key = storage_result.storage_proof[0].key;
         let value = storage_result.storage_proof[0].value;
 
-        println!("root {:?} key {:?} value {:?}", root, key, value);
+        debug!("root {:?} key {:?} value {:?}", root, key, value);
 
         let value_as_h256 = u256_to_h256_be(value);
-        println!("value_as_h256 {:?}", value_as_h256);
+        debug!("value_as_h256 {:?}", value_as_h256);
 
         const ENCODING_LEN: usize = 600;
         const PROOF_LEN: usize = 16;

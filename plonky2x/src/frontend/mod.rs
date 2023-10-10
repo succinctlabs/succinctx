@@ -1,11 +1,13 @@
 pub mod builder;
+pub mod curta;
 pub mod ecc;
 pub mod eth;
-pub mod generator;
 pub mod hash;
-// pub mod mapreduce;
+pub mod hint;
+pub mod mapreduce;
 pub mod merkle;
 pub mod num;
 pub mod ops;
+pub mod recursion;
 pub mod uint;
 pub mod vars;

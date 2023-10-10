@@ -2,6 +2,7 @@ extern crate proc_macro;
 
 mod assert_is_valid;
 mod constant;
+mod elements;
 mod init;
 mod value;
 mod variables;
@@ -9,6 +10,7 @@ mod witness;
 
 use assert_is_valid::assert_is_valid;
 use constant::constant;
+use elements::{elements, from_elements, nb_elements};
 use init::init_unsafe;
 use proc_macro2::Ident;
 use quote::quote;
@@ -70,12 +72,15 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
     let (_, value_ty_generics, _) = value_generics.split_for_impl();
 
     let init_unsafe_expanded = init_unsafe(&data);
-    let constant_expanded = constant(&data);
+    let _constant_expanded = constant(&data);
     let variables_expanded = variables(&data);
     let from_variables_unsafe_expanded = from_variables_unsafe(&data);
     let assert_is_valid_expanded = assert_is_valid(&data);
-    let set_exapaned = set(&data);
-    let get_exapaned = get(&data);
+    let _set_expanded = set(&data);
+    let _get_expanded = get(&data);
+    let elements_expanded = elements(&data);
+    let from_elements_expanded = from_elements(&data);
+    let nb_elements_expanded = nb_elements(&data);
 
     let expanded = quote! {
 
@@ -87,13 +92,6 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
 
             fn init_unsafe<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) -> Self {
                 #init_unsafe_expanded
-            }
-
-            fn constant<L: PlonkParameters<D>, const D: usize>(
-                builder: &mut CircuitBuilder<L, D>,
-                value: Self::ValueType<L::Field>,
-            ) -> Self {
-                #constant_expanded
             }
 
             fn variables(&self) -> Vec<Variable> {
@@ -108,12 +106,16 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
                 #assert_is_valid_expanded
             }
 
-            fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-                #get_exapaned
+            fn nb_elements() -> usize {
+                #nb_elements_expanded
             }
 
-            fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-                #set_exapaned
+            fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+                #elements_expanded
+            }
+
+            fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+                #from_elements_expanded
             }
         }
     };

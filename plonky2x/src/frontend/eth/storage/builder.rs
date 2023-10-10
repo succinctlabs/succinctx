@@ -1,14 +1,14 @@
 use ethers::types::Address;
 
 use super::generators::{
-    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofGenerator,
+    EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
 use super::vars::{EthAccountVariable, EthHeaderVariable, EthLogVariable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::AddressVariable;
 use crate::frontend::uint::uint256::U256Variable;
-use crate::frontend::vars::Bytes32Variable;
+use crate::frontend::vars::{Bytes32Variable, VariableStream};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn get_storage_key_at(
@@ -29,10 +29,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         address: AddressVariable,
         storage_key: Bytes32Variable,
     ) -> Bytes32Variable {
-        let generator = EthStorageProofGenerator::new(self, block_hash, address, storage_key);
-        let value = generator.value;
-        self.add_simple_generator(generator);
-        value
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&block_hash);
+        input_stream.write(&address);
+        input_stream.write(&storage_key);
+
+        let hint = EthStorageProofHint::new(self);
+        let output_stream = self.async_hint(input_stream, hint);
+
+        output_stream.read::<Bytes32Variable>(self)
     }
 
     #[allow(non_snake_case)]
@@ -60,7 +65,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         log_index: u64,
     ) -> EthLogVariable {
         let generator = EthLogGenerator::new(self, transaction_hash, block_hash, log_index);
-        let value = generator.value;
+        let value = generator.clone().value;
         self.add_simple_generator(generator);
         value
     }
@@ -72,13 +77,14 @@ mod tests {
 
     use ethers::providers::{Http, Provider};
     use ethers::types::{U256, U64};
+    use log::debug;
 
     use super::*;
-    use crate::backend::circuit::{DefaultParameters, GateRegistry, WitnessGeneratorRegistry};
+    use crate::backend::circuit::{CircuitBuild, DefaultParameters, GateRegistry, HintRegistry};
     use crate::frontend::eth::storage::utils::get_map_storage_location;
     use crate::frontend::eth::storage::vars::{EthHeader, EthLog};
     use crate::prelude::DefaultBuilder;
-    use crate::utils::{address, bytes32};
+    use crate::utils::{self, address, bytes32};
 
     type L = DefaultParameters;
     const D: usize = 2;
@@ -87,6 +93,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
     fn test_eth_get_storage_at() {
+        utils::setup_logger();
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
@@ -125,7 +132,7 @@ mod tests {
 
         // Read output.
         let circuit_value = output.evm_read::<Bytes32Variable>();
-        println!("{:?}", circuit_value);
+        debug!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
             bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
@@ -133,18 +140,89 @@ mod tests {
 
         // initialize serializers
         let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let hint_serializer = HintRegistry::<L, D>::new();
 
         // test serialization
-        let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
+        let bytes = circuit
+            .serialize(&gate_serializer, &hint_serializer)
             .unwrap();
+
+        let circuit =
+            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &hint_serializer).unwrap();
+
+        // Generate a proof.
+        let (proof, output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    #[allow(non_snake_case)]
+    fn test_many_eth_get_storage_at() {
+        utils::setup_logger();
+        dotenv::dotenv().ok();
+        let rpc_url = env::var("RPC_1").unwrap();
+        let provider = Provider::<Http>::try_from(rpc_url).unwrap();
+
+        let num_requests = 100;
+
+        // This is the circuit definition
+        let mut builder = DefaultBuilder::new();
+        builder.set_execution_client(provider);
+
+        for _ in 0..num_requests {
+            let block_hash = builder.evm_read::<Bytes32Variable>();
+            let address = builder.evm_read::<AddressVariable>();
+            let location = builder.evm_read::<Bytes32Variable>();
+            let value = builder.eth_get_storage_at(block_hash, address, location);
+            builder.evm_write(value);
+        }
+
+        // Build your circuit.
+        let circuit = builder.build();
+
+        // Write to the circuit input.
+        // These values are taken from Ethereum block https://etherscan.io/block/17880427
+        let mut input = circuit.input();
+        for _ in 0..num_requests {
+            // block hash
+            input.evm_write::<Bytes32Variable>(bytes32!(
+                "0x281dc31bb78779a1ede7bf0f4d2bc5f07ddebc9f9d1155e413d8804384604bbe"
+            ));
+            // address
+            input.evm_write::<AddressVariable>(address!(
+                "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"
+            ));
+            // location
+            input.evm_write::<Bytes32Variable>(bytes32!(
+                "0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5"
+            ));
+        }
+
+        // Generate a proof.
+        let (proof, mut output) = circuit.prove(&input);
+
+        // Verify proof.
+        circuit.verify(&proof, &input, &output);
+
+        // Read output.
+        for _ in 0..num_requests {
+            let circuit_value = output.evm_read::<Bytes32Variable>();
+            debug!("{:?}", circuit_value);
+            assert_eq!(
+                circuit_value,
+                bytes32!("0x0000000000000000000000dd4bc51496dc93a0c47008e820e0d80745476f2201"),
+            );
+        }
     }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
     fn test_get_storage_key_at() {
+        utils::setup_logger();
         dotenv::dotenv().ok();
         // This is the circuit definition
         let mut builder = DefaultBuilder::new();
@@ -168,7 +246,7 @@ mod tests {
         // map_key
         input.write::<Bytes32Variable>(map_key);
 
-        println!(
+        debug!(
             "storage key: {:?}",
             get_map_storage_location(mapping_location.as_u128(), map_key)
         );
@@ -181,7 +259,7 @@ mod tests {
 
         // Read output.
         let circuit_value = output.read::<Bytes32Variable>();
-        println!("{:?}", circuit_value);
+        debug!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
             bytes32!("0xca77d4e79102603cb6842afffd8846a3123877159ed214aeadfc4333d595fd50"),
@@ -189,11 +267,11 @@ mod tests {
 
         // initialize serializers
         let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let hint_serializer = HintRegistry::<L, D>::new();
 
         // test serialization
         let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
+            .serialize(&gate_serializer, &hint_serializer)
             .unwrap();
     }
 
@@ -201,6 +279,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
     fn test_eth_get_block_by_hash() {
+        utils::setup_logger();
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
@@ -232,7 +311,7 @@ mod tests {
 
         // Read output
         let circuit_value = output.read::<EthHeaderVariable>();
-        println!("{:?}", circuit_value);
+        debug!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
             EthHeader {
@@ -253,7 +332,7 @@ mod tests {
                     "0x8fa46ad6b448faefbfc010736a3d39595ca68eb8bdd4e6b4ab30513bab688068"
                 ),
                 difficulty: U256::from("0x0"),
-                number: U64::from("0x110d56b"),
+                number: U64::from("0x110d56b").as_u64(),
                 gas_limit: U256::from("0x1c9c380"),
                 gas_used: U256::from("0x16041f6"),
                 time: U256::from("0x64d41817"),
@@ -262,11 +341,11 @@ mod tests {
 
         // initialize serializers
         let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let hint_serializer = HintRegistry::<L, D>::new();
 
         // test serialization
         let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
+            .serialize(&gate_serializer, &hint_serializer)
             .unwrap();
     }
 
@@ -274,6 +353,7 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
     fn test_eth_get_transaction_log() {
+        utils::setup_logger();
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
         let provider = Provider::<Http>::try_from(rpc_url).unwrap();
@@ -286,7 +366,7 @@ mod tests {
         let log_index = 0u64;
 
         let value = builder.eth_get_transaction_log(transaction_hash, block_hash, log_index);
-        builder.write(value);
+        builder.write::<EthLogVariable>(value);
 
         // Build your circuit.
         let circuit = builder.build();
@@ -311,7 +391,7 @@ mod tests {
 
         // Read output.
         let circuit_value = output.read::<EthLogVariable>();
-        println!("{:?}", circuit_value);
+        debug!("{:?}", circuit_value);
         assert_eq!(
             circuit_value,
             EthLog {
@@ -320,7 +400,8 @@ mod tests {
                     bytes32!("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
                     bytes32!("0x00000000000000000000000059b4bb1f5d943cf71a10df63f6b743ee4a4489ee"),
                     bytes32!("0x000000000000000000000000def1c0ded9bec7f1a1670819833240f027b25eff")
-                ],
+                ]
+                .to_vec(),
                 data_hash: bytes32!(
                     "0x5cdda96947975d4afbc971c9aa8bb2cc684e158d10a0d878b3a5b8b0f895262c"
                 )
@@ -329,11 +410,11 @@ mod tests {
 
         // initialize serializers
         let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = WitnessGeneratorRegistry::<L, D>::new();
+        let hint_serializer = HintRegistry::<L, D>::new();
 
         // test serialization
         let _ = circuit
-            .serialize(&gate_serializer, &generator_serializer)
+            .serialize(&gate_serializer, &hint_serializer)
             .unwrap();
     }
 }

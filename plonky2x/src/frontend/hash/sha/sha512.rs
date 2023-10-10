@@ -156,9 +156,9 @@ fn select_chunk<F: RichField + Extendable<D>, const D: usize>(
     res.map(|x| BoolTarget::new_unsafe(x.unwrap()))
 }
 
-pub const fn calculate_num_chunks(length: usize) -> usize {
+pub const fn calculate_num_chunks(length_bits: usize) -> usize {
     // Add 128 bits for the length and 1 bit for the padding bit
-    let msg_with_min_padding_len = length + LENGTH_BITS_128 + 1;
+    let msg_with_min_padding_len = length_bits + LENGTH_BITS_128 + 1;
 
     let additional_padding_len = CHUNK_BITS_1024 - (msg_with_min_padding_len % CHUNK_BITS_1024);
 
@@ -296,7 +296,12 @@ pub fn sha512_variable<F: RichField + Extendable<D>, const D: usize>(
         msg_input.push(builder.add_virtual_bool_target_safe());
     }
 
-    let length_bits = builder.split_le(hash_msg_length_bits, 64);
+    // Add 128 bits for the length and 1 bit for the padding bit before calculating last_block_num
+    let length_and_padding_bits = builder.constant(F::from_canonical_usize(128 + 1));
+
+    let total_hash_msg_length_bits = builder.add(hash_msg_length_bits, length_and_padding_bits);
+
+    let length_bits = builder.split_le(total_hash_msg_length_bits, 64);
 
     let last_block_num = builder.le_sum(length_bits[10..64].to_vec().iter());
 
@@ -461,8 +466,8 @@ pub fn sha512<F: RichField + Extendable<D>, const D: usize>(
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use hex::decode;
+    use log::debug;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -470,6 +475,7 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use super::*;
+    use crate::utils;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -486,13 +492,9 @@ mod tests {
         res
     }
 
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha512_empty() -> Result<()> {
-        let msg = b"";
-        let msg_bits = to_bits(msg.to_vec());
-        let expected_digest = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
+    fn test_sha512_fixed(msg: Vec<u8>, expected_digest: Vec<u8>) {
+        let msg_bits = to_bits(msg);
+        let digest_bits = to_bits(expected_digest);
 
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -516,86 +518,15 @@ mod tests {
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
 
-        data.verify(proof)
+        let _ = data.verify(proof);
     }
 
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha512_small_msg() -> Result<()> {
-        let msg = b"plonky2";
+    fn test_sha512_variable(msg: Vec<u8>, expected_digest: Vec<u8>) {
+        utils::setup_logger();
+        // Input message of length N has N % 1024 > 1024 - 129
+        // Tests that the last chunk is selected correctly.
         let msg_bits = to_bits(msg.to_vec());
-        let expected_digest = "7c6159dd615db8c15bc76e23d36106e77464759979a0fcd1366e531f552cfa0852dbf5c832f00bb279cbc945b44a132bff3ed0028259813b6a07b57326e88c87";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
-
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
-        let message = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let digest = sha512(&mut builder, &message);
-        let pw = PartialWitness::new();
-
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(digest[i].target);
-            } else {
-                builder.assert_zero(digest[i].target);
-            }
-        }
-
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-
-        data.verify(proof)
-    }
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha512_large_msg() -> Result<()> {
-        let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
-        let msg_bits = to_bits(msg.to_vec());
-        let expected_digest = "4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
-
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
-        let message = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let digest = sha512(&mut builder, &message);
-        let pw = PartialWitness::new();
-
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(digest[i].target);
-            } else {
-                builder.assert_zero(digest[i].target);
-            }
-        }
-
-        dbg!(builder.num_gates());
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-
-        data.verify(proof)
-    }
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha512_large_msg_variable() -> Result<()> {
-        // This test tests both the variable length and the no-op skip for processing each chunk of the sha512
-        // 77-byte message fits in one chunk, but we make MAX_NUM_CHUNKS 2 to test the no-op skip
-        let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
-        let msg_bits = to_bits(msg.to_vec());
-
-        let expected_digest = "4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
+        let digest_bits = to_bits(expected_digest);
 
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -603,9 +534,9 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_ecc_config());
 
         // Note: This should be computed from the maximum SHA512 size for the circuit
-        const MAX_NUM_CHUNKS: usize = 2;
+        let max_num_chunks = calculate_num_chunks(msg_bits.len());
 
-        let sha512_target = sha512_variable::<F, D>(&mut builder, MAX_NUM_CHUNKS);
+        let sha512_target = sha512_variable::<F, D>(&mut builder, max_num_chunks);
         let mut pw = PartialWitness::new();
 
         // Pass in the bit length of the message to hash as a target
@@ -620,7 +551,7 @@ mod tests {
         }
 
         // Add extra bool targets
-        for i in msg_bits.len()..MAX_NUM_CHUNKS * CHUNK_BITS_1024 {
+        for i in msg_bits.len()..max_num_chunks * CHUNK_BITS_1024 {
             pw.set_bool_target(sha512_target.message[i], false);
         }
 
@@ -636,11 +567,38 @@ mod tests {
         let data = builder.build::<C>();
 
         let circuit_digest = data.verifier_only.circuit_digest;
-        println!("circuit_digest: {:?}", circuit_digest);
+        debug!("circuit_digest: {:?}", circuit_digest);
 
         let proof = data.prove(pw).unwrap();
 
-        data.verify(proof)
+        let _ = data.verify(proof);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_empty() {
+        let msg = b"";
+        let expected_digest = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e";
+
+        test_sha512_fixed(msg.to_vec(), decode(expected_digest).unwrap());
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_small_msg() {
+        let msg = b"plonky2";
+        let expected_digest = "7c6159dd615db8c15bc76e23d36106e77464759979a0fcd1366e531f552cfa0852dbf5c832f00bb279cbc945b44a132bff3ed0028259813b6a07b57326e88c87";
+
+        test_sha512_fixed(msg.to_vec(), decode(expected_digest).unwrap());
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_large_msg() {
+        let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
+        let expected_digest = "4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39";
+
+        test_sha512_fixed(msg.to_vec(), decode(expected_digest).unwrap());
     }
 
     #[test]
@@ -648,32 +606,34 @@ mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_failure() {
         let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
-        let msg_bits = to_bits(msg.to_vec());
         let expected_digest = "3388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
 
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
-        let message = msg_bits
-            .iter()
-            .map(|b| builder.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let digest = sha512(&mut builder, &message);
-        let pw = PartialWitness::new();
+        test_sha512_fixed(msg.to_vec(), decode(expected_digest).unwrap());
+    }
 
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.assert_one(digest[i].target);
-            } else {
-                builder.assert_zero(digest[i].target);
-            }
-        }
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_variable_no_op() {
+        utils::setup_logger();
+        // This tests the no-op skip for when the last_chunk of the message is < max_num_chunks.
+        // Specifically, msg is 77 bytes (fits in one chunk), and MAX_NUM_CHUNKS is 2.
+        let msg = decode("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273").unwrap();
 
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
+        let expected_digest = decode("4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39").unwrap();
 
-        data.verify(proof).expect("sha512 error");
+        test_sha512_variable(msg, expected_digest);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_variable_last_chunk_select() {
+        utils::setup_logger();
+        // Input message of length N has N % 1024 > 1024 - 129
+        // Tests that the last chunk is selected correctly.
+        let msg = [1u8; 124].to_vec();
+
+        let expected_digest = decode("effc039e1a5323c9cf0646ac157fcba5bee852b0e2f11b53f548b4cf099b02f7c1ccc7536195b60609b23312791a0ff7dfc4b599641b890a5db133b3774f0495").unwrap();
+
+        test_sha512_variable(msg, expected_digest);
     }
 }

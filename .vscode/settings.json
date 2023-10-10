@@ -1,4 +1,10 @@
 {
+    "editor.inlineSuggest.enabled": true,
+    "[rust]": {
+      "editor.defaultFormatter": "rust-lang.rust-analyzer",
+      "editor.formatOnSave": true,
+    },
+    "editor.rulers": [100],
     "rust-analyzer.linkedProjects": [
         "./plonky2x/Cargo.toml",
         "./plonky2x-derive/Cargo.toml"
@@ -23,5 +29,5 @@
     ],
     "rust-analyzer.diagnostics.disabled": [
         "unresolved-proc-macro"
-    ],
+    ], 
 }

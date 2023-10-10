@@ -1,13 +1,17 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
+use async_trait::async_trait;
 use ethers::providers::Middleware;
 use ethers::types::{EIP1186ProofResponse, TransactionReceipt};
+use futures::executor;
+use log::debug;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use tokio::runtime::Runtime;
 
@@ -17,9 +21,47 @@ use crate::frontend::eth::storage::utils::get_map_storage_location;
 use crate::frontend::eth::storage::vars::{EthLog, EthLogVariable};
 use crate::frontend::eth::utils::u256_to_h256_be;
 use crate::frontend::eth::vars::AddressVariable;
+use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::uint::uint256::U256Variable;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, ValueStream};
 use crate::utils::eth::get_provider;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EthStorageProofHint<L: PlonkParameters<D>, const D: usize> {
+    chain_id: u64,
+    _phantom: PhantomData<L>,
+}
+
+impl<L: PlonkParameters<D>, const D: usize> EthStorageProofHint<L, D> {
+    pub fn new(builder: &CircuitBuilder<L, D>) -> EthStorageProofHint<L, D> {
+        let chain_id = builder.get_chain_id();
+        EthStorageProofHint {
+            chain_id,
+            _phantom: PhantomData::<L>,
+        }
+    }
+}
+
+#[async_trait]
+impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for EthStorageProofHint<L, D> {
+    async fn hint(
+        &self,
+        input_stream: &mut ValueStream<L, D>,
+        output_stream: &mut ValueStream<L, D>,
+    ) {
+        let block_hash = input_stream.read_value::<Bytes32Variable>();
+        let address = input_stream.read_value::<AddressVariable>();
+        let location = input_stream.read_value::<Bytes32Variable>();
+
+        let provider = get_provider(self.chain_id);
+        let result = provider
+            .get_proof(address, vec![location], Some(block_hash.into()))
+            .await
+            .expect("Failed to get proof");
+        let value = u256_to_h256_be(result.storage_proof[0].value);
+        output_stream.write_value::<Bytes32Variable>(value);
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct EthStorageProofGenerator<L: PlonkParameters<D>, const D: usize> {
@@ -79,12 +121,17 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         let location = self.storage_key.get(witness);
         let block_hash = self.block_hash.get(witness);
         let provider = get_provider(self.chain_id);
-        let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result: EIP1186ProofResponse = rt.block_on(async {
-            provider
+        let result: EIP1186ProofResponse = executor::block_on(async {
+            debug!(
+                "querying proof {:?} {:?} {:?}",
+                address, location, block_hash
+            );
+            let proof = provider
                 .get_proof(address, vec![location], Some(block_hash.into()))
                 .await
-                .expect("Failed to get proof")
+                .expect("Failed to get proof");
+            debug!("got proof {:?}", proof.storage_proof[0].value);
+            proof
         });
         let value = u256_to_h256_be(result.storage_proof[0].value);
         self.value.set(buffer, value);
@@ -281,7 +328,9 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for Eth
         let _block_hash = self.block_hash.get(witness);
 
         let provider = get_provider(self.chain_id);
-        let rt = Runtime::new().expect("failed to create tokio runtime");
+
+        let rt = Runtime::new().unwrap();
+
         let result: TransactionReceipt = rt
             .block_on(async {
                 provider
@@ -294,7 +343,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for Eth
         let log = &result.logs[self.log_index as usize];
         let value = EthLog {
             address: log.address,
-            topics: [log.topics[0], log.topics[1], log.topics[2]],
+            topics: [log.topics[0], log.topics[1], log.topics[2]].to_vec(),
             data_hash: ethers::types::H256::from_slice(sha2::Sha256::digest(&log.data).as_ref()),
         };
         self.value.set(buffer, value);

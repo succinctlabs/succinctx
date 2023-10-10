@@ -1,15 +1,15 @@
 use core::marker::PhantomData;
 
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
+use plonky2::iop::generator::{GeneratedValues, WitnessGenerator};
 use plonky2::iop::target::Target;
-use plonky2::iop::witness::PartitionWitness;
+use plonky2::iop::witness::{PartitionWitness, Witness};
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoError, IoResult};
 
 use super::hint::Hint;
-use crate::frontend::generator::HintRef;
+use crate::frontend::hint::HintGenerator;
 use crate::frontend::vars::{ValueStream, VariableStream};
-use crate::prelude::{CircuitBuilder, CircuitVariable, PlonkParameters};
+use crate::prelude::{CircuitVariable, PlonkParameters};
 use crate::utils::serde::BufferWrite;
 
 #[derive(Debug, Clone)]
@@ -31,34 +31,33 @@ impl<L, H> HintSimpleGenerator<L, H> {
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> HintRef<L, D>
+impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> HintGenerator<L, D>
     for HintSimpleGenerator<L, H>
 {
     fn output_stream_mut(&mut self) -> &mut VariableStream {
         &mut self.output_stream
     }
-
-    fn register(&self, builder: &mut CircuitBuilder<L, D>) {
-        builder.add_simple_generator(self.clone())
-    }
 }
 
-impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> SimpleGenerator<L::Field, D>
+impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> WitnessGenerator<L::Field, D>
     for HintSimpleGenerator<L, H>
 {
     fn id(&self) -> String {
         H::id()
     }
 
-    fn dependencies(&self) -> Vec<Target> {
+    fn watch_list(&self) -> Vec<Target> {
         self.input_stream.real_all().iter().map(|v| v.0).collect()
     }
 
-    fn run_once(
+    fn run(
         &self,
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
-    ) {
+    ) -> bool {
+        if !witness.contains_all(&self.watch_list()) {
+            return false;
+        }
         let input_values = self
             .input_stream
             .real_all()
@@ -72,11 +71,16 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> SimpleGenerator<L::Fi
 
         let output_values = output_stream.read_all();
         let output_vars = self.output_stream.real_all();
-        assert_eq!(output_values.len(), output_vars.len());
+        assert_eq!(
+            output_values.len(),
+            output_vars.len(),
+            "Hint output stream length does not match output variables length"
+        );
 
         for (var, val) in output_vars.iter().zip(output_values) {
-            var.set(out_buffer, *val)
+            var.set(out_buffer, *val);
         }
+        true
     }
 
     fn serialize(

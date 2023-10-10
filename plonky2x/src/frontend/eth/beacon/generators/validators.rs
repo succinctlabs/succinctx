@@ -1,28 +1,64 @@
 use core::marker::PhantomData;
 use std::env;
 
-use array_macro::array;
+use async_trait::async_trait;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
-use tokio::runtime::Runtime;
+use serde::{Deserialize, Serialize};
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::{Bytes32Variable, CircuitVariable};
+use crate::frontend::hint::asynchronous::hint::AsyncHint;
+use crate::frontend::vars::{Bytes32Variable, CircuitVariable, ValueStream};
 use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::{bytes32, hex};
 
-const DEPTH: usize = 8;
+pub(crate) const DEPTH: usize = 8;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BeaconValidatorsHint {
+    client: BeaconClient,
+}
+
+impl BeaconValidatorsHint {
+    pub fn new(client: BeaconClient) -> Self {
+        Self { client }
+    }
+}
+
+#[async_trait]
+impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconValidatorsHint {
+    async fn hint(
+        &self,
+        input_stream: &mut ValueStream<L, D>,
+        output_stream: &mut ValueStream<L, D>,
+    ) {
+        let block_root = input_stream.read_value::<Bytes32Variable>();
+
+        let result = self
+            .client
+            .get_validators_root(hex!(block_root.as_bytes()).to_string())
+            .expect("failed to get validators root");
+
+        // write root
+        output_stream.write_value::<Bytes32Variable>(bytes32!(result.validators_root));
+
+        // write proof
+        for i in 0..DEPTH {
+            output_stream.write_value::<Bytes32Variable>(bytes32!(result.proof[i]));
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct BeaconValidatorsGenerator<L: PlonkParameters<D>, const D: usize> {
     client: BeaconClient,
     block_root: Bytes32Variable,
     pub validators_root: Bytes32Variable,
-    pub proof: [Bytes32Variable; DEPTH],
+    pub proof: Vec<Bytes32Variable>,
     _phantom: PhantomData<L>,
 }
 
@@ -36,7 +72,9 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconValidatorsGenerator<L, D> {
             client,
             block_root,
             validators_root: builder.init::<Bytes32Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            proof: (0..DEPTH)
+                .map(|_| builder.init::<Bytes32Variable>())
+                .collect::<Vec<_>>(),
             _phantom: Default::default(),
         }
     }
@@ -64,13 +102,10 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
     ) {
         let block_root = self.block_root.get(witness);
 
-        let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result = rt.block_on(async {
-            self.client
-                .get_validators_root(hex!(block_root.as_bytes()).to_string())
-                .await
-                .expect("failed to get validators root")
-        });
+        let result = self
+            .client
+            .get_validators_root(hex!(block_root.as_bytes()).to_string())
+            .expect("failed to get validators root");
 
         self.validators_root
             .set(out_buffer, bytes32!(result.validators_root));
@@ -110,7 +145,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
             client,
             block_root,
             validators_root,
-            proof: proof.try_into().unwrap(),
+            proof,
             _phantom: Default::default(),
         })
     }

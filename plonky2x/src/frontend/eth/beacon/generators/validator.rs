@@ -1,13 +1,11 @@
 use core::marker::PhantomData;
 use std::env;
 
-use array_macro::array;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
-use tokio::runtime::Runtime;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
@@ -35,7 +33,7 @@ pub struct BeaconValidatorGenerator<L: PlonkParameters<D>, const D: usize> {
     input: BeaconValidatorGeneratorInput,
     pub validator: BeaconValidatorVariable,
     pub validator_idx: U64Variable,
-    pub proof: [Bytes32Variable; DEPTH],
+    pub proof: Vec<Bytes32Variable>,
     _phantom: PhantomData<L>,
 }
 
@@ -51,7 +49,10 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconValidatorGenerator<L, D> {
             input: BeaconValidatorGeneratorInput::IndexConst(validator_idx),
             validator: builder.init::<BeaconValidatorVariable>(),
             validator_idx: builder.init::<U64Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            // proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH].to_vec(),
+            proof: (0..DEPTH)
+                .map(|_| builder.init::<Bytes32Variable>())
+                .collect::<Vec<_>>(),
             _phantom: PhantomData,
         }
     }
@@ -67,7 +68,9 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconValidatorGenerator<L, D> {
             input: BeaconValidatorGeneratorInput::IndexVariable(validator_idx),
             validator: builder.init::<BeaconValidatorVariable>(),
             validator_idx: builder.init::<U64Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            proof: (0..DEPTH)
+                .map(|_| builder.init::<Bytes32Variable>())
+                .collect::<Vec<_>>(),
             _phantom: PhantomData,
         }
     }
@@ -83,7 +86,9 @@ impl<L: PlonkParameters<D>, const D: usize> BeaconValidatorGenerator<L, D> {
             input: BeaconValidatorGeneratorInput::PubkeyVariable(pubkey),
             validator: builder.init::<BeaconValidatorVariable>(),
             validator_idx: builder.init::<U64Variable>(),
-            proof: array![_ => builder.init::<Bytes32Variable>(); DEPTH],
+            proof: (0..DEPTH)
+                .map(|_| builder.init::<Bytes32Variable>())
+                .collect::<Vec<_>>(),
             _phantom: PhantomData,
         }
     }
@@ -121,33 +126,26 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         out_buffer: &mut GeneratedValues<L::Field>,
     ) {
         let block_root = self.block_root.get(witness);
-        let rt = Runtime::new().expect("failed to create tokio runtime");
-        let result = rt.block_on(async {
-            match &self.input {
-                BeaconValidatorGeneratorInput::IndexConst(idx) => self
-                    .client
-                    .get_validator(hex!(block_root), *idx)
-                    .await
-                    .expect("failed to get validator"),
-                BeaconValidatorGeneratorInput::IndexVariable(idx) => {
-                    let idx = idx.get(witness).as_u64();
-                    self.client
-                        .get_validator(hex!(block_root), idx)
-                        .await
-                        .expect("failed to get validator")
-                }
-                BeaconValidatorGeneratorInput::PubkeyVariable(pubkey) => {
-                    let pubkey = hex!(pubkey.get(witness));
-                    self.client
-                        .get_validator_by_pubkey(hex!(block_root), pubkey)
-                        .await
-                        .expect("failed to get validator")
-                }
+        let result = match &self.input {
+            BeaconValidatorGeneratorInput::IndexConst(idx) => self
+                .client
+                .get_validator(hex!(block_root), *idx)
+                .expect("failed to get validator"),
+            BeaconValidatorGeneratorInput::IndexVariable(idx) => {
+                let idx = idx.get(witness);
+                self.client
+                    .get_validator(hex!(block_root), idx)
+                    .expect("failed to get validator")
             }
-        });
+            BeaconValidatorGeneratorInput::PubkeyVariable(pubkey) => {
+                let pubkey = hex!(pubkey.get(witness));
+                self.client
+                    .get_validator_by_pubkey(hex!(block_root), pubkey)
+                    .expect("failed to get validator")
+            }
+        };
         self.validator.set(out_buffer, result.validator);
-        self.validator_idx
-            .set(out_buffer, result.validator_idx.into());
+        self.validator_idx.set(out_buffer, result.validator_idx);
         for i in 0..DEPTH {
             self.proof[i].set(out_buffer, bytes32!(result.proof[i]));
         }
@@ -203,7 +201,9 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         };
         let validator = BeaconValidatorVariable::from_targets(&src.read_target_vec()?);
         let validator_idx = U64Variable::from_targets(&src.read_target_vec()?);
-        let proof = array![_ => Bytes32Variable::from_targets(&src.read_target_vec()?); DEPTH];
+        let proof = (0..DEPTH)
+            .map(|_| Bytes32Variable::from_targets(&src.read_target_vec().unwrap()))
+            .collect::<Vec<_>>();
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         Ok(Self {

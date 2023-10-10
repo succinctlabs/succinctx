@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 use plonky2x_derive::CircuitVariable;
 
 use crate::backend::circuit::PlonkParameters;
@@ -12,7 +11,7 @@ use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable};
 use crate::prelude::{ByteVariable, Variable};
 
-#[derive(Debug, Clone, CircuitVariable)]
+#[derive(Debug, Copy, Clone, CircuitVariable)]
 #[value_name(BeaconWithdrawalValue)]
 pub struct BeaconWithdrawalVariable {
     pub index: U64Variable,
@@ -45,16 +44,16 @@ impl SSZVariable for BeaconWithdrawalVariable {
         let mut ab_input = Vec::new();
         ab_input.extend(index_bytes);
         ab_input.extend(validator_index_bytes);
-        let ab = builder.sha256(&ab_input);
+        let ab = builder.curta_sha256(&ab_input);
 
         let mut cd_input = Vec::new();
         cd_input.extend(address_bytes);
         cd_input.extend(amount_bytes);
-        let cd = builder.sha256(&cd_input);
+        let cd = builder.curta_sha256(&cd_input);
 
         let mut input = Vec::new();
         input.extend(ab.0 .0);
         input.extend(cd.0 .0);
-        builder.sha256(&input)
+        builder.curta_sha256(&input)
     }
 }

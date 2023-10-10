@@ -293,9 +293,19 @@ impl<L: PlonkParameters<D>, const D: usize> Plonky2xCircuitBuilder<L, D> {
             .chunks(8)
             .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8]))
             .collect::<Vec<_>>();
-        let mut hash_bytes_array = [ByteVariable::init(self); 32];
+        let mut hash_bytes_array = [ByteVariable::init_unsafe(self); 32];
         hash_bytes_array.copy_from_slice(&hash_bytes_vec);
         Bytes32Variable(BytesVariable(hash_bytes_array))
+    }
+
+    pub fn sha256_pair(
+        &mut self,
+        left: Bytes32Variable,
+        right: Bytes32Variable,
+    ) -> Bytes32Variable {
+        let mut left_bytes = left.as_bytes().to_vec();
+        left_bytes.extend(&right.as_bytes());
+        self.sha256(&left_bytes)
     }
 }
 
@@ -303,6 +313,7 @@ impl<L: PlonkParameters<D>, const D: usize> Plonky2xCircuitBuilder<L, D> {
 mod tests {
     use anyhow::Result;
     use hex::decode;
+    use log::debug;
     use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -310,6 +321,7 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use super::*;
+    use crate::utils;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
         let mut res = Vec::new();
@@ -329,6 +341,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_bench() -> Result<()> {
+        utils::setup_logger();
         let mut msg = String::new();
         for _ in 0..8 {
             msg.push_str("abcdefghij");
@@ -366,7 +379,7 @@ mod tests {
             }
             let now = std::time::Instant::now();
             let _proof = data.prove(pw).unwrap();
-            println!("{} step, time elapsed {}", i, now.elapsed().as_millis());
+            debug!("{} step, time elapsed {}", i, now.elapsed().as_millis());
         }
 
         Ok(())

@@ -2,12 +2,13 @@ use std::fmt::Debug;
 
 use ethers::types::H160;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::vars::{ByteVariable, BytesVariable, CircuitVariable, EvmVariable};
-use crate::prelude::Variable;
+use crate::frontend::vars::{
+    ByteVariable, BytesVariable, CircuitVariable, EvmVariable, SSZVariable,
+};
+use crate::prelude::{Bytes32Variable, Variable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BLSPubkeyVariable(pub BytesVariable<48>);
@@ -21,11 +22,16 @@ impl CircuitVariable for BLSPubkeyVariable {
         Self(BytesVariable::init_unsafe(builder))
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self(BytesVariable::constant(builder, value))
+    fn nb_elements() -> usize {
+        BytesVariable::<48>::nb_elements()
+    }
+
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        BytesVariable::<48>::elements(value)
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        BytesVariable::<48>::from_elements(elements)
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -41,14 +47,6 @@ impl CircuitVariable for BLSPubkeyVariable {
         builder: &mut CircuitBuilder<L, D>,
     ) {
         self.0.assert_is_valid(builder);
-    }
-
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        self.0.get(witness)
-    }
-
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        self.0.set(witness, value)
     }
 }
 
@@ -64,14 +62,16 @@ impl CircuitVariable for AddressVariable {
         Self(BytesVariable::init_unsafe(builder))
     }
 
-    fn constant<L: PlonkParameters<D>, const D: usize>(
-        builder: &mut CircuitBuilder<L, D>,
-        value: Self::ValueType<L::Field>,
-    ) -> Self {
-        Self(BytesVariable::constant(
-            builder,
-            value.as_bytes().try_into().expect("wrong slice length"),
-        ))
+    fn nb_elements() -> usize {
+        BytesVariable::<20>::nb_elements()
+    }
+
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        BytesVariable::<20>::elements(value.into())
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        H160::from_slice(&BytesVariable::<20>::from_elements(elements))
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -87,17 +87,6 @@ impl CircuitVariable for AddressVariable {
         builder: &mut CircuitBuilder<L, D>,
     ) {
         self.0.assert_is_valid(builder);
-    }
-
-    fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-        H160::from_slice(&self.0.get(witness))
-    }
-
-    fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: Self::ValueType<F>) {
-        self.0.set(
-            witness,
-            value.as_bytes().try_into().expect("wrong slice length"),
-        )
     }
 }
 
@@ -122,5 +111,18 @@ impl EvmVariable for AddressVariable {
 
     fn decode_value<F: RichField>(bytes: &[u8]) -> Self::ValueType<F> {
         H160::from_slice(bytes)
+    }
+}
+
+impl SSZVariable for AddressVariable {
+    fn hash_tree_root<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Bytes32Variable {
+        let mut bytes = self.encode(builder);
+        bytes.reverse();
+        let zero = builder.constant::<ByteVariable>(0);
+        bytes.extend([zero; 12]);
+        Bytes32Variable(BytesVariable::<32>(bytes.try_into().unwrap()))
     }
 }
