@@ -46,14 +46,14 @@ contract FunctionGateway is
     /// @param _input The function input.
     /// @param _context The function context.
     /// @param _callbackSelector The selector of the callback function.
-    function request(
+    function zkRequest(
         bytes32 _functionId,
         bytes memory _input,
         bytes memory _context,
         bytes4 _callbackSelector
     ) external payable returns (bytes32) {
         return
-            request(
+            zkRequest(
                 _functionId,
                 _input,
                 _context,
