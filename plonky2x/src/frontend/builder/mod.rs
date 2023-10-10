@@ -187,7 +187,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Initializes an array of variables with a constant value in the circuit.
     pub fn constant_array<V: CircuitVariable, const N: usize>(
         &mut self,
-        value: &[V::ValueType<L::Field>; N],
+        value: &[V::ValueType<L::Field>],
     ) -> ArrayVariable<V, N> {
         assert_eq!(value.len(), N);
         ArrayVariable::constant(self, value.to_vec())
