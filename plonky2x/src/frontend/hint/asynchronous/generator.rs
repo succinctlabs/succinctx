@@ -1,7 +1,7 @@
 use core::fmt::Debug;
-use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
+use log::trace;
 use plonky2::iop::generator::{GeneratedValues, WitnessGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness};
@@ -16,6 +16,17 @@ use crate::frontend::vars::{ValueStream, VariableStream};
 use crate::prelude::{CircuitVariable, Variable};
 use crate::utils::serde::BufferWrite;
 
+/// The result of running an asynchronous hint.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum HintPoll {
+    /// The hint is waiting for all input variables to be set.
+    InputPending,
+    /// The hint is still running.
+    Pending,
+    /// The hint has finished and all output variables have been set.
+    Ready,
+}
+
 pub trait AsyncGeneratorData<L: PlonkParameters<D>, const D: usize>: HintGenerator<L, D> {
     fn generator(&self, tx: UnboundedSender<HintInMessage<L, D>>) -> AsyncHintRef<L, D>;
 }
@@ -26,10 +37,10 @@ pub trait AsyncHintRunner<L: PlonkParameters<D>, const D: usize>:
     fn watch_list(&self) -> &[Variable];
 
     fn run(
-        &self,
+        &mut self,
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
-    ) -> Result<bool>;
+    ) -> HintPoll;
 }
 
 #[derive(Debug)]
@@ -38,6 +49,10 @@ pub struct AsyncHintRef<L, const D: usize>(pub Box<dyn AsyncHintRunner<L, D>>);
 impl<L: PlonkParameters<D>, const D: usize> AsyncHintRef<L, D> {
     pub fn new<H: AsyncHintRunner<L, D>>(hint: H) -> Self {
         Self(Box::new(hint))
+    }
+
+    pub(crate) fn id(hint_id: String) -> String {
+        format!("--async hint: {:?}", hint_id).to_string()
     }
 }
 
@@ -60,7 +75,7 @@ pub(crate) struct AsyncHintGenerator<L: PlonkParameters<D>, H, const D: usize> {
     pub(crate) channel: HintChannel<L, D>,
     pub(crate) input_stream: VariableStream,
     pub(crate) output_stream: VariableStream,
-    pub(crate) waiting: AtomicBool,
+    pub(crate) state: HintPoll,
 }
 
 /// A dummy witness generator containing the hint data and input/output streams.
@@ -126,7 +141,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintGenerat
             hint,
             tx,
             channel,
-            waiting: AtomicBool::new(false),
+            state: HintPoll::InputPending,
         }
     }
 
@@ -154,49 +169,49 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
     }
 
     fn run(
-        &self,
+        &mut self,
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
-    ) -> Result<bool> {
-        // check if all the inputs has been set.
-        if !self.watch_list().iter().all(|v| witness.contains(v.0)) {
-            return Ok(false);
-        }
-        // check if the hint is already waiting for output.
-        let waiting = self.waiting.load(Ordering::Relaxed);
-
-        // If the hint is waiting, try to receive the output.
-        if waiting {
-            let mut rx_out = self.channel.rx_out.lock().unwrap();
-            if let Ok(mut output_stream) = rx_out.try_recv() {
-                let output_values = output_stream.read_all();
-                let output_vars = self.output_stream.real_all();
-                assert_eq!(output_values.len(), output_vars.len());
-
-                for (var, val) in output_vars.iter().zip(output_values) {
-                    var.set(out_buffer, *val)
+    ) -> HintPoll {
+        match self.state {
+            HintPoll::InputPending => {
+                // Check if all input variables are set, otherwise return.
+                if !self.watch_list().iter().all(|v| witness.contains(v.0)) {
+                    return HintPoll::InputPending;
                 }
-                return Ok(true);
+                // Send the input to the hint.
+                trace!("Async Hint {:?} : Sending input to hint", H::id());
+                let input_values = self
+                    .input_stream
+                    .real_all()
+                    .iter()
+                    .map(|v| v.get(witness))
+                    .collect::<Vec<_>>();
+
+                let input_stream = ValueStream::<L, D>::from_values(input_values);
+
+                self.send(input_stream).unwrap();
+
+                // Update and return the state.
+                self.state = HintPoll::Pending;
+                HintPoll::Pending
             }
-            Ok(false)
-        }
-        // if the hint is not waiting, send the input and update the waiting flag.
-        else {
-            let input_values = self
-                .input_stream
-                .real_all()
-                .iter()
-                .map(|v| v.get(witness))
-                .collect::<Vec<_>>();
+            HintPoll::Pending => {
+                // Check the hint channel for the output. If not ready, return `HintPoll::Pending`.
+                if let Ok(mut output_stream) = self.channel.rx_out.try_recv() {
+                    trace!("Async Hint {:?} : recieved output from hint", H::id());
+                    let output_values = output_stream.read_all();
+                    let output_vars = self.output_stream.real_all();
+                    assert_eq!(output_values.len(), output_vars.len());
 
-            let input_stream = ValueStream::<L, D>::from_values(input_values);
-
-            self.send(input_stream).unwrap();
-
-            // update the waiting flag to `true`.
-            self.waiting.store(true, Ordering::Relaxed);
-
-            Ok(false)
+                    for (var, val) in output_vars.iter().zip(output_values) {
+                        var.set(out_buffer, *val)
+                    }
+                    return HintPoll::Ready;
+                }
+                HintPoll::Pending
+            }
+            HintPoll::Ready => HintPoll::Ready,
         }
     }
 }
@@ -205,7 +220,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
     for AsyncHintData<L, H, D>
 {
     fn id(&self) -> String {
-        H::id()
+        AsyncHintRef::<L, D>::id(H::id())
     }
 
     fn watch_list(&self) -> Vec<Target> {

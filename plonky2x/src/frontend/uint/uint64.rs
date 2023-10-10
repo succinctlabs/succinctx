@@ -1,7 +1,6 @@
 use array_macro::array;
 use ethers::types::U64;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::witness::{Witness, WitnessWrite};
 
 use super::uint256::U256Variable;
 use super::Uint;

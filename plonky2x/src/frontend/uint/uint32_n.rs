@@ -18,16 +18,6 @@ macro_rules! make_uint32_n {
                 }
             }
 
-            fn constant<L: PlonkParameters<D>, const D: usize>(
-                builder: &mut CircuitBuilder<L, D>,
-                value: Self::ValueType<L::Field>,
-            ) -> Self {
-                let limbs = <$b as Uint<$c>>::to_u32_limbs(value);
-                Self {
-                    limbs: array![i => U32Variable::constant(builder, limbs[i]); $c],
-                }
-            }
-
             fn variables(&self) -> Vec<Variable> {
                 self.limbs.iter().map(|x| x.0).collect()
             }
@@ -48,20 +38,22 @@ macro_rules! make_uint32_n {
                 }
             }
 
-            fn get<F: RichField, W: Witness<F>>(&self, witness: &W) -> Self::ValueType<F> {
-                let mut value_limbs: [u32; $c] = [0; $c];
-                for i in 0..$c {
-                    value_limbs[i] = self.limbs[i].get(witness);
-                }
-
-                <$b as Uint<$c>>::from_u32_limbs(value_limbs)
+            fn nb_elements() -> usize {
+                U32Variable::nb_elements() * $c
             }
 
-            fn set<F: RichField, W: WitnessWrite<F>>(&self, witness: &mut W, value: $b) {
+            fn elements<F: RichField>(value: $b) -> Vec<F> {
                 let limbs = <$b as Uint<$c>>::to_u32_limbs(value);
+                limbs.iter().flat_map(|x| U32Variable::elements(*x)).collect()
+            }
+
+            fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+                let mut value_limbs: [u32; $c] = [0; $c];
                 for i in 0..$c {
-                    self.limbs[i].set(witness, limbs[i]);
+                    // There is 1 element in each U32 Variable
+                    value_limbs[i] = U32Variable::from_elements(&elements[i .. i+1]);
                 }
+                <$b as Uint<$c>>::from_u32_limbs(value_limbs)
             }
         }
 
@@ -339,6 +331,7 @@ macro_rules! make_uint32_n_tests {
             use $crate::frontend::vars::EvmVariable;
             use $crate::prelude::*;
 
+            #[allow(unused_imports)]
             use super::*;
 
             type L = DefaultParameters;

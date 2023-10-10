@@ -1042,12 +1042,14 @@ pub(crate) mod tests {
         let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
+        let slot = client.get_finalized_slot().unwrap();
+        let slot: u64 = slot.parse().unwrap();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.set_beacon_client(client);
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
-        let idx = builder.constant::<U64Variable>(0);
+        let idx = builder.constant::<U64Variable>(slot - 100);
         let historical_block = builder.beacon_get_historical_block(block_root, idx);
         builder.watch(&historical_block, "historical_block");
 

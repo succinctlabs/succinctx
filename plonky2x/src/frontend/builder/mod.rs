@@ -26,6 +26,7 @@ use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
 use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
+use crate::prelude::ArrayVariable;
 use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::eth::beaconchain::BeaconchainAPIClient;
 
@@ -265,6 +266,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::init(self)
     }
 
+    /// Initializes an array of variables with no value in the circuit.
+    pub fn init_array<V: CircuitVariable, const N: usize>(&mut self) -> ArrayVariable<V, N> {
+        ArrayVariable::init(self)
+    }
+
+    /// Initializes an array of variables with no value in the circuit without any validity checks.
+    pub fn init_array_unsafe<V: CircuitVariable, const N: usize>(&mut self) -> ArrayVariable<V, N> {
+        ArrayVariable::init_unsafe(self)
+    }
+
     /// Initializes a variable with no value in the circuit without any validity checks.
     pub fn init_unsafe<V: CircuitVariable>(&mut self) -> V {
         V::init_unsafe(self)
@@ -275,13 +286,22 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::constant(self, value)
     }
 
+    /// Initializes an array of variables with a constant value in the circuit.
+    pub fn constant_array<V: CircuitVariable, const N: usize>(
+        &mut self,
+        value: &[V::ValueType<L::Field>],
+    ) -> ArrayVariable<V, N> {
+        assert_eq!(value.len(), N);
+        ArrayVariable::constant(self, value.to_vec())
+    }
+
     /// Asserts that the given variable is valid.
     pub fn assert_is_valid<V: CircuitVariable>(&mut self, variable: V) {
         variable.assert_is_valid(self)
     }
 
     /// Registers the given targets as public inputs.
-    pub fn register_public_inputs(&mut self, inputs: &[Variable]) {
+    pub(crate) fn register_public_inputs(&mut self, inputs: &[Variable]) {
         self.api
             .register_public_inputs(&inputs.iter().map(|v| v.0).collect_vec());
     }

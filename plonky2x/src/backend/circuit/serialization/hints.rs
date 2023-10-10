@@ -11,6 +11,8 @@ use curta::chip::hash::blake::blake2b::generator::{
 use curta::chip::hash::sha::sha256::generator::{
     SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
 };
+use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
+use curta::plonky2::cubic::mul_gate::MulCubicGenerator;
 use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
@@ -43,6 +45,7 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSeria
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
+use crate::frontend::curta::hash::sha::sha256::hint::Sha256ProofHint;
 use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
@@ -62,12 +65,14 @@ use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
 use crate::frontend::hash::bit_operations::XOR3Generator;
+use crate::frontend::hash::blake2::blake2b_curta::MAX_NUM_CURTA_CHUNKS;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
-use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
+use crate::frontend::hint::asynchronous::generator::{AsyncHintDataRef, AsyncHintRef};
 use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
+use crate::frontend::hint::synchronous::Async;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::nonnative::nonnative::{
     NonNativeAdditionGenerator, NonNativeInverseGenerator, NonNativeMultipleAddsGenerator,
@@ -81,6 +86,7 @@ use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
 use crate::prelude::{ArrayVariable, BoolVariable, Variable};
+use crate::prelude::{ArrayVariable, BoolVariable, U32Variable, Variable};
 
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
     WitnessGeneratorSerializer<L::Field, D>
@@ -159,7 +165,7 @@ impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
     /// Registers an asynchronous hint into the registry.
     pub fn register_async_hint<H: AsyncHint<L, D>>(&mut self) {
         let serializer = AsyncHintSerializer::<L, H>::new();
-        let id = H::id();
+        let id = AsyncHintRef::<L, D>::id(H::id());
         self.generators
             .register(id.clone(), serializer.clone())
             .unwrap();
@@ -395,13 +401,17 @@ where
         r.register_hint::<BeaconExecutionPayloadHint>();
         r.register_hint::<BeaconHeaderHint>();
         r.register_hint::<BeaconAllWithdrawalsHint>();
+        r.register_hint::<Sha256ProofHint<L, D>>();
+
+        r.register_async_hint::<EthStorageProofHint<L, D>>();
+        r.register_async_hint::<BeaconValidatorsHint>();
+        r.register_async_hint::<Async<Sha256ProofHint<L, D>>>();
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
         register_powers_of_two!(r, BeaconPartialBalancesHint);
         register_powers_of_two!(r, BeaconValidatorBatchHint);
         register_powers_of_two!(r, BeaconPartialValidatorsHint);
         register_powers_of_two!(r, CompressedBeaconValidatorBatchHint);
-        r.register_async_hint::<EthStorageProofHint<L, D>>();
         let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519Base>::default().id();
         r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519Base>>(id);
 
@@ -427,7 +437,11 @@ where
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
 
-        r.register_async_hint::<BeaconValidatorsHint>();
+        let id = ArithmeticCubicGenerator::<L::Field, D>::id();
+        r.register_simple::<ArithmeticCubicGenerator<L::Field, D>>(id);
+
+        let id = MulCubicGenerator::<L::Field, D>::id();
+        r.register_simple::<MulCubicGenerator<L::Field, D>>(id);
 
         let blake2b_hint_generator_id = BLAKE2BHintGenerator::id();
         r.register_simple::<BLAKE2BHintGenerator>(blake2b_hint_generator_id);
@@ -438,6 +452,7 @@ where
             L::CurtaConfig,
             D,
             BLAKE2BAirParameters<L::Field, L::CubicParams>,
+            MAX_NUM_CURTA_CHUNKS,
         >::id();
         r.register_simple::<BLAKE2BGenerator<
             L::Field,
@@ -445,6 +460,7 @@ where
             L::CurtaConfig,
             D,
             BLAKE2BAirParameters<L::Field, L::CubicParams>,
+            MAX_NUM_CURTA_CHUNKS,
         >>(blake2b_generator);
 
         r.register_hint::<SubArrayExtractorHint>();
@@ -461,6 +477,7 @@ where
             D,
             Variable,
             BoolVariable,
+            U32Variable,
             U64Variable,
             U256Variable,
             Bytes32Variable,

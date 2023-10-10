@@ -6,6 +6,8 @@ mod output;
 mod serialization;
 mod witness;
 
+use core::fmt::Debug;
+
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
 pub use self::build::CircuitBuild;
@@ -13,11 +15,13 @@ pub use self::config::{DefaultParameters, Groth16VerifierParameters, PlonkParame
 pub use self::input::PublicInput;
 pub use self::mock::MockCircuitBuild;
 pub use self::output::PublicOutput;
-pub use self::serialization::{GateRegistry, HintRegistry, Serializer};
+pub use self::serialization::{
+    CircuitSerializer, DefaultSerializer, GateRegistry, HintRegistry, Serializer,
+};
 pub use self::witness::{generate_witness, generate_witness_async};
 use crate::prelude::CircuitBuilder;
 
-pub trait Circuit {
+pub trait Circuit: Debug + Clone + Send + Sync + 'static {
     /// Takes in an empty builder and defines the circuit.
     fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>)
     where

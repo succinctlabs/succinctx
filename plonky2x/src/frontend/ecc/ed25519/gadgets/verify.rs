@@ -21,10 +21,10 @@ pub struct DummySignatureTarget<C: Curve, const MAX_MESSAGE_LENGTH: usize> {
     pub message_byte_length: U32Variable,
 }
 
-// DUMMY_PRIVATE_KEY is [0u8; 32].
+// DUMMY_PRIVATE_KEY is [1u8; 32].
 pub const DUMMY_PUBLIC_KEY: [u8; 32] = [
-    59, 106, 39, 188, 206, 182, 164, 45, 98, 163, 168, 208, 42, 111, 13, 115, 101, 50, 21, 119, 29,
-    226, 67, 166, 58, 192, 72, 161, 139, 89, 218, 41,
+    138, 136, 227, 221, 116, 9, 241, 149, 253, 82, 219, 45, 60, 186, 93, 114, 202, 103, 9, 191, 29,
+    148, 18, 27, 243, 116, 136, 1, 180, 15, 111, 92,
 ];
 pub const DUMMY_MSG: [u8; 32] = [0u8; 32];
 pub const DUMMY_MSG_LENGTH_BYTES: u32 = 32;
@@ -32,10 +32,10 @@ pub const DUMMY_MSG_LENGTH_BITS: u32 = 256;
 
 // Produced by signing DUMMY_MSG with DUMMY_PRIVATE_KEY.
 pub const DUMMY_SIGNATURE: [u8; 64] = [
-    61, 161, 235, 223, 169, 110, 221, 24, 29, 190, 54, 89, 209, 192, 81, 196, 49, 240, 86, 165,
-    173, 106, 151, 166, 13, 92, 202, 16, 70, 4, 56, 120, 53, 70, 70, 30, 49, 40, 95, 197, 159, 145,
-    199, 7, 38, 66, 116, 80, 97, 226, 69, 29, 95, 243, 59, 204, 216, 195, 199, 77, 171, 202, 246,
-    10,
+    55, 20, 104, 158, 84, 120, 194, 17, 6, 237, 157, 164, 85, 88, 158, 137, 187, 119, 187, 240,
+    159, 73, 80, 63, 133, 162, 74, 91, 48, 53, 6, 138, 1, 41, 22, 121, 249, 46, 198, 145, 155, 102,
+    3, 210, 168, 135, 173, 55, 252, 72, 45, 126, 169, 178, 191, 7, 153, 67, 112, 90, 150, 33, 140,
+    7,
 ];
 
 pub trait EDDSABatchVerify<L: PlonkParameters<D>, const D: usize> {
@@ -343,8 +343,9 @@ pub(crate) mod tests {
 
         let mut input = circuit.input();
         input.write::<ArrayVariable<BoolVariable, 1>>(vec![active]);
-        input
-            .write::<ArrayVariable<BytesVariable<124>, 1>>(vec![new_msg_bytes.try_into().unwrap()]);
+        input.write::<ArrayVariable<BytesVariable<MESSAGE_BYTES_LENGTH_MAX>, 1>>(vec![
+            new_msg_bytes.try_into().unwrap(),
+        ]);
         input.write::<ArrayVariable<U32Variable, 1>>(vec![msg_bytes.len() as u32]);
         input.write::<ArrayVariable<EDDSASignatureTarget<Curve>, 1>>(vec![
             EDDSASignatureTargetValue { r: sig_r, s: sig_s },
@@ -365,6 +366,33 @@ pub(crate) mod tests {
         let sig_bytes = hex::decode(sig).unwrap();
         verify_conditional_eddsa_signature(msg_bytes, pub_key_bytes, sig_bytes, true)
     }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_verify_eddsa_avail() {
+        let msg_bytes: [u8; 53] = [
+            1, 164, 81, 146, 119, 87, 120, 84, 45, 84, 206, 199, 171, 245, 50, 223, 18, 145, 16,
+            20, 30, 74, 39, 118, 236, 132, 187, 1, 187, 203, 3, 182, 59, 16, 197, 8, 0, 235, 7, 0,
+            0, 0, 0, 0, 0, 25, 2, 0, 0, 0, 0, 0, 0,
+        ];
+        let pub_key_bytes: [u8; 32] = [
+            43, 167, 192, 11, 252, 193, 43, 86, 163, 6, 196, 30, 196, 76, 65, 16, 66, 208, 184, 55,
+            164, 13, 128, 252, 101, 47, 165, 140, 207, 183, 134, 0,
+        ];
+        let sig_bytes: [u8; 64] = [
+            181, 147, 15, 125, 55, 28, 34, 104, 182, 165, 82, 204, 204, 73, 16, 207, 185, 157, 77,
+            145, 128, 9, 51, 132, 54, 115, 29, 172, 162, 95, 181, 176, 47, 25, 165, 27, 174, 193,
+            83, 51, 85, 17, 162, 57, 133, 169, 77, 68, 160, 216, 58, 230, 14, 128, 149, 202, 53, 8,
+            232, 253, 28, 251, 207, 6,
+        ];
+        verify_conditional_eddsa_signature(
+            msg_bytes.to_vec(),
+            pub_key_bytes.to_vec(),
+            sig_bytes.to_vec(),
+            true,
+        )
+    }
+
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_verify_eddsa_signature_conditional_dummy() {
@@ -386,5 +414,24 @@ pub(crate) mod tests {
         let pub_key_bytes = hex::decode(pubkey).unwrap();
         let sig_bytes = hex::decode(sig).unwrap();
         verify_eddsa_signature::<MSG_BYTES_LENGTH>(msg_bytes, pub_key_bytes, sig_bytes)
+    }
+
+    #[test]
+    fn generate_eddsa_public_key() {
+        let priv_key_bytes = [1u8; 32];
+        let signing_key = ed25519_consensus::SigningKey::try_from(&priv_key_bytes[..])
+            .expect("failed to create key");
+
+        let verification_key = signing_key.verification_key();
+
+        println!("public key: {:?}", verification_key.clone().to_bytes());
+
+        let signature = signing_key.sign(&[0u8; 32]);
+
+        println!("signature: {:?}", signature.clone().to_bytes());
+
+        verification_key
+            .verify(&signature, &[0u8; 32])
+            .expect("failed to verify signature");
     }
 }

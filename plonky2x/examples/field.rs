@@ -19,7 +19,8 @@ use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::VerifiableFunction;
 use plonky2x::prelude::{CircuitBuilder, Variable};
 
-struct SimpleCircuit {}
+#[derive(Debug, Clone)]
+struct SimpleCircuit;
 
 impl Circuit for SimpleCircuit {
     fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>) {

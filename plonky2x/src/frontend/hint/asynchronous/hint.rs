@@ -11,7 +11,7 @@ use crate::frontend::vars::ValueStream;
 ///
 /// This type of hint can used to perform asynchronous operations during witness generation.
 ///
-/// # Example
+/// ## Example
 /// The following example shows how to use an asynchronous hint that gets an input byte, sleeps
 /// for the number of miliseconds specified by the byte, and then outputs the byte.
 /// ```
@@ -64,10 +64,8 @@ pub trait AsyncHint<L: PlonkParameters<D>, const D: usize>:
     ///
     /// By default, this is the type name of the hint. This function should be overwriten in case
     /// type names vary between compilation units.
-    ///
-    /// The string must start with `--async` to be identified as an asynchronous hint.
     fn id() -> String {
-        format!("--async hint: {:?}", std::any::type_name::<Self>()).to_string()
+        std::any::type_name::<Self>().to_string()
     }
 }
 

@@ -4,7 +4,7 @@ mod result;
 
 use std::fs::File;
 use std::io::{BufReader, Write};
-use std::path;
+use std::{fs, path};
 
 use clap::Parser;
 use log::info;
@@ -127,29 +127,31 @@ impl<C: Circuit> VerifiableFunction<C> {
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        let path = format!("{}/main.circuit", args.build_dir);
-        info!("Loading circuit from {}...", path);
         let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
         C::register_generators::<L, D>(&mut generator_registry);
         C::register_gates::<L, D>(&mut gate_registry);
-        let mut circuit =
+
+        let mut path = match request {
+            ProofRequest::Bytes(_) => {
+                format!("{}/main.circuit", args.build_dir)
+            }
+            ProofRequest::Elements(ref request) => {
+                format!("{}/{}.circuit", args.build_dir, request.data.circuit_id)
+            }
+            ProofRequest::RecursiveProofs(ref request) => {
+                format!("{}/{}.circuit", args.build_dir, request.data.circuit_id)
+            }
+            _ => todo!(),
+        };
+        if fs::metadata(&path).is_err() {
+            path = format!("{}/main.circuit", args.build_dir);
+        }
+
+        info!("Loading circuit from {}...", path);
+        let circuit =
             CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap();
         info!("Successfully loaded circuit.");
-
-        if let ProofRequest::RecursiveProofs(ref request) = request {
-            if circuit.id() != request.data.circuit_id {
-                let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
-                circuit =
-                    CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap()
-            }
-        } else if let ProofRequest::Elements(ref request) = request {
-            if circuit.id() != request.data.circuit_id {
-                let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
-                circuit =
-                    CircuitBuild::<L, D>::load(&path, &gate_registry, &generator_registry).unwrap()
-            }
-        }
 
         let input = request.input();
         let (proof, output) = circuit.prove(&input);
@@ -174,38 +176,32 @@ impl<C: Circuit> VerifiableFunction<C> {
             AlgebraicHasher<InnerParameters::Field>,
         OuterParameters::Config: Serialize,
     {
-        let path = format!("{}/main.circuit", args.build_dir);
-        info!("Loading circuit from {}...", path);
         let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
         C::register_generators::<InnerParameters, D>(&mut generator_registry);
         C::register_gates::<InnerParameters, D>(&mut gate_registry);
-        let mut circuit =
+
+        let mut path = match request {
+            ProofRequest::Bytes(_) => {
+                format!("{}/main.circuit", args.build_dir)
+            }
+            ProofRequest::Elements(ref request) => {
+                format!("{}/{}.circuit", args.build_dir, request.data.circuit_id)
+            }
+            ProofRequest::RecursiveProofs(ref request) => {
+                format!("{}/{}.circuit", args.build_dir, request.data.circuit_id)
+            }
+            _ => todo!(),
+        };
+        if fs::metadata(&path).is_err() {
+            path = format!("{}/main.circuit", args.build_dir);
+        }
+
+        info!("Loading circuit from {}...", path);
+        let circuit =
             CircuitBuild::<InnerParameters, D>::load(&path, &gate_registry, &generator_registry)
                 .unwrap();
         info!("Successfully loaded circuit.");
-
-        if let ProofRequest::RecursiveProofs(ref request) = request {
-            if circuit.id() != request.data.circuit_id {
-                let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
-                circuit = CircuitBuild::<InnerParameters, D>::load(
-                    &path,
-                    &gate_registry,
-                    &generator_registry,
-                )
-                .unwrap()
-            }
-        } else if let ProofRequest::Elements(ref request) = request {
-            if circuit.id() != request.data.circuit_id {
-                let path = format!("{}/{}.circuit", args.build_dir, request.data.circuit_id);
-                circuit = CircuitBuild::<InnerParameters, D>::load(
-                    &path,
-                    &gate_registry,
-                    &generator_registry,
-                )
-                .unwrap()
-            }
-        }
 
         let input = request.input();
         let (proof, output) = circuit.prove(&input);

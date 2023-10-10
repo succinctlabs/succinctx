@@ -11,12 +11,12 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use super::{MapReduceInputVariable, MapReduceInputVariableValue};
-use crate::backend::circuit::{CircuitBuild, PublicInput};
+use crate::backend::circuit::{CircuitBuild, CircuitSerializer, PublicInput};
 use crate::backend::prover::{EnvProver, ProverOutputs};
-use crate::prelude::{CircuitVariable, GateRegistry, HintRegistry, PlonkParameters};
+use crate::prelude::{CircuitVariable, PlonkParameters};
 
 #[derive(Debug, Clone)]
-pub struct MapReduceGenerator<L, Ctx, Input, Output, const B: usize, const D: usize>
+pub struct MapReduceGenerator<L, Ctx, Input, Output, Serializer, const B: usize, const D: usize>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
@@ -24,6 +24,7 @@ where
     Ctx: CircuitVariable,
     Input: CircuitVariable,
     Output: CircuitVariable,
+    Serializer: CircuitSerializer,
 {
     /// The identifier for the compiled map circuit.
     pub map_circuit_id: String,
@@ -41,12 +42,11 @@ where
     pub proof: ProofWithPublicInputsTarget<D>,
 
     /// Phantom data.
-    pub _phantom1: PhantomData<L>,
-    pub _phantom2: PhantomData<Output>,
+    pub _phantom: PhantomData<(L, Output, Serializer)>,
 }
 
-impl<L, Ctx, Input, Output, const B: usize, const D: usize>
-    MapReduceGenerator<L, Ctx, Input, Output, B, D>
+impl<L, Ctx, Input, Output, Serializer, const B: usize, const D: usize>
+    MapReduceGenerator<L, Ctx, Input, Output, Serializer, B, D>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
@@ -54,14 +54,15 @@ where
     Ctx: CircuitVariable,
     Input: CircuitVariable,
     Output: CircuitVariable,
+    Serializer: CircuitSerializer,
 {
     pub fn id() -> String {
         "MapReduceGenerator".to_string()
     }
 }
 
-impl<L, Ctx, Input, Output, const B: usize, const D: usize> SimpleGenerator<L::Field, D>
-    for MapReduceGenerator<L, Ctx, Input, Output, B, D>
+impl<L, Ctx, Input, Output, Serializer, const B: usize, const D: usize> SimpleGenerator<L::Field, D>
+    for MapReduceGenerator<L, Ctx, Input, Output, Serializer, B, D>
 where
     L: PlonkParameters<D>,
     <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
@@ -69,6 +70,7 @@ where
     Ctx: CircuitVariable,
     Input: CircuitVariable,
     Output: CircuitVariable,
+    Serializer: CircuitSerializer,
     <Input as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
 {
     fn id(&self) -> String {
@@ -87,8 +89,8 @@ where
         out_buffer: &mut GeneratedValues<L::Field>,
     ) {
         // The gate and witness generator serializers.
-        let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = HintRegistry::<L, D>::new();
+        let gate_serializer = Serializer::gate_registry::<L, D>();
+        let generator_serializer = Serializer::generator_registry::<L, D>();
 
         // Create the prover and the async runtime.
         let prover = EnvProver::new();
@@ -181,7 +183,7 @@ where
         // Write vector of input values.
         dst.write_usize(self.inputs.len())?;
         for i in 0..self.inputs.len() {
-            dst.write_field_vec::<L::Field>(&Input::elements::<L, D>(self.inputs[i].clone()))?;
+            dst.write_field_vec::<L::Field>(&Input::elements::<L::Field>(self.inputs[i].clone()))?;
         }
 
         // Write proof target.
@@ -212,7 +214,7 @@ where
         let inputs_len = src.read_usize()?;
         for _ in 0..inputs_len {
             let input_elements: Vec<L::Field> = src.read_field_vec(Input::nb_elements())?;
-            inputs.push(Input::from_elements::<L, D>(&input_elements));
+            inputs.push(Input::from_elements::<L::Field>(&input_elements));
         }
 
         // Read proof.
@@ -224,8 +226,7 @@ where
             ctx,
             inputs,
             proof,
-            _phantom1: PhantomData::<L>,
-            _phantom2: PhantomData::<Output>,
+            _phantom: PhantomData,
         })
     }
 }

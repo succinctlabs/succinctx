@@ -2,11 +2,68 @@ pub mod gates;
 pub mod hints;
 pub mod registry;
 
+use core::fmt::Debug;
+
 pub use gates::GateRegistry;
 pub use hints::HintRegistry;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 pub use registry::Serializer;
 
-use super::PlonkParameters;
+use super::{Circuit, PlonkParameters};
+
+/// A trait that allows a type to define a custom generator and gate registry.
+///
+/// It is used when builder methods need access to custom serializers for recursive proofs.
+pub trait CircuitSerializer: Debug + Clone + Send + Sync + 'static {
+    fn generator_registry<L: PlonkParameters<D>, const D: usize>() -> HintRegistry<L, D>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>;
+
+    fn gate_registry<L: PlonkParameters<D>, const D: usize>() -> GateRegistry<L, D>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>;
+}
+
+/// A serializer that has the default gate registry and generator registry.
+#[derive(Debug, Clone)]
+pub struct DefaultSerializer;
+
+impl CircuitSerializer for DefaultSerializer {
+    fn generator_registry<L: PlonkParameters<D>, const D: usize>() -> HintRegistry<L, D>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        HintRegistry::new()
+    }
+
+    fn gate_registry<L: PlonkParameters<D>, const D: usize>() -> GateRegistry<L, D>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        GateRegistry::new()
+    }
+}
+
+/// A default implementation of `CircuitSerializer` for any `Circuit`.
+impl<C: Circuit> CircuitSerializer for C {
+    fn generator_registry<L: PlonkParameters<D>, const D: usize>() -> HintRegistry<L, D>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        let mut generator_registry = HintRegistry::new();
+        C::register_generators::<L, D>(&mut generator_registry);
+        generator_registry
+    }
+
+    fn gate_registry<L: PlonkParameters<D>, const D: usize>() -> GateRegistry<L, D>
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        let mut gate_registry = GateRegistry::new();
+        C::register_gates::<L, D>(&mut gate_registry);
+        gate_registry
+    }
+}
 
 #[cfg(test)]
 mod tests {
