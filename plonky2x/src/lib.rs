@@ -9,6 +9,8 @@
 extern crate alloc;
 extern crate clap;
 
+pub mod debug;
+
 pub mod backend;
 pub mod frontend;
 pub mod utils;

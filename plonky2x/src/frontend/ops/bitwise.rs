@@ -23,7 +23,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 /// The bitwise OR operation.
 ///
-/// Types implementing this trait can be used within the `builder.or(lhs, rhs)` method.
+/// Types implementing this trait can be used within the `builder.or(lhs, rhs)` method or the `builder.or_many(values)` method.
 pub trait BitOr<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
     type Output;
 
@@ -36,6 +36,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         Lhs: BitOr<L, D, Rhs>,
     {
         lhs.bitor(rhs, self)
+    }
+
+    pub fn or_many<T>(&mut self, values: &[T]) -> <T as BitOr<L, D, T>>::Output
+    where
+        T: BitOr<L, D, T, Output = T> + Clone,
+    {
+        let mut or_res = values[0].clone();
+        for i in 1..values.len() {
+            or_res = or_res.bitor(values[i].clone(), self);
+        }
+        or_res
     }
 }
 

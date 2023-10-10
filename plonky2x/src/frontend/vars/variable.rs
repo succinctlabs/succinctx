@@ -1,10 +1,11 @@
 use std::fmt::Debug;
 
+use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use serde::{Deserialize, Serialize};
 
-use super::CircuitVariable;
+use super::{BoolVariable, ByteVariable, CircuitVariable};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::ops::{Add, Div, Mul, Neg, One, Sub, Zero};
@@ -60,6 +61,31 @@ impl CircuitVariable for Variable {
     fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
         assert_eq!(elements.len(), 1);
         elements[0]
+    }
+}
+
+impl Variable {
+    pub fn to_bits<const N: usize, L: PlonkParameters<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> [BoolVariable; N] {
+        builder
+            .api
+            .split_le(self.0, N)
+            .iter()
+            .rev()
+            .map(|x| BoolVariable::from(x.target))
+            .collect_vec()
+            .try_into()
+            .unwrap()
+    }
+
+    pub fn to_byte_variable<L: PlonkParameters<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> ByteVariable {
+        let bits: [BoolVariable; 8] = self.to_bits(builder);
+        ByteVariable(bits)
     }
 }
 
