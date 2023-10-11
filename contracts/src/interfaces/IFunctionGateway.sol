@@ -30,7 +30,7 @@ interface IFunctionGatewayErrors {
         bytes32 requestHash
     );
     error CallbackFailed(bytes4 callbackSelector, bytes output, bytes context);
-    error InvalidCall(bytes32 functionId, bytes32 inputHash);
+    error InvalidCall(bytes32 functionId, bytes input);
     error CallFailed(address callbackAddress, bytes callbackData);
     error InvalidProof(
         address verifier,
@@ -52,5 +52,5 @@ interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
     function zkCall(
         bytes32 _functionId,
         bytes memory _input
-    ) external view returns (bytes memory);
+    ) external view returns (bool, bytes memory);
 }

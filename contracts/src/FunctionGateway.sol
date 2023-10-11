@@ -52,7 +52,7 @@ contract FunctionGateway is
     /// @param _context The function context.
     /// @param _callbackSelector The selector of the callback function.
     /// @param _callbackGasLimit The gas limit for the callback function.
-    function zkRequest(
+    function requestCallback(
         bytes32 _functionId,
         bytes memory _input,
         bytes memory _context,
@@ -61,7 +61,7 @@ contract FunctionGateway is
     ) external payable returns (bytes32) {
         // Compute the callback hash uniquely associated with this request.
         bytes32 inputHash = sha256(_input);
-        bytes32 contextHash = sha256(_context);
+        bytes32 contextHash = keccak256(_context);
         address callbackAddress = msg.sender;
         bytes32 requestHash = _requestHash(
             nonce,
@@ -73,6 +73,9 @@ contract FunctionGateway is
             _callbackGasLimit
         );
 
+        // Increment the nonce.
+        nonce++;
+
         // Store the callback hash.
         requests[nonce] = requestHash;
         emit Request(
@@ -83,9 +86,6 @@ contract FunctionGateway is
             _callbackSelector,
             _callbackGasLimit
         );
-
-        // Increment the nonce.
-        nonce++;
 
         // Send the fee to the vault.
         IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
@@ -103,7 +103,7 @@ contract FunctionGateway is
     /// @param _context The function context.
     /// @param _output The function output.
     /// @param _proof The function proof.
-    function zkRequestFulfill(
+    function fulfillCallback(
         uint32 _nonce,
         bytes32 _functionId,
         bytes32 _inputHash,
@@ -115,7 +115,7 @@ contract FunctionGateway is
         bytes memory _proof
     ) external {
         // Reconstruct the callback hash.
-        bytes32 contextHash = sha256(_context);
+        bytes32 contextHash = keccak256(_context);
         bytes32 requestHash = _requestHash(
             _nonce,
             _functionId,
@@ -130,6 +130,9 @@ contract FunctionGateway is
         if (requests[_nonce] != requestHash) {
             revert InvalidRequest(_nonce, requests[_nonce], requestHash);
         }
+
+        // Delete the callback hash for a gas refund.
+        delete requests[_nonce];
 
         // Compute the output hash.
         bytes32 outputHash = sha256(_output);
@@ -149,28 +152,45 @@ contract FunctionGateway is
             revert CallbackFailed(_callbackSelector, _output, _context);
         }
 
-        // Delete the callback hash for a gas refund.
-        delete requests[_nonce];
-
         // Emit event.
         emit RequestFulfilled(_nonce, _functionId, _inputHash, outputHash);
     }
+
+    // function requestCall(bytes32 _functionId, bytes memory _input) external payable {
+    //     emit Request(
+    //         -1,
+    //         _functionId,
+    //         _input,
+    //         "",
+    //         bytes4(0),
+    //         0    
+    //     ); 
+    // }
 
     /// @dev If the call matches the currently verified function, returns the output. Otherwise,
     ///      this function reverts.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
-    function zkCall(
+    function verifyCall(
         bytes32 _functionId,
         bytes memory _input
-    ) external view returns (bytes memory) {
+    ) external view returns (bool, bytes memory) {
         bytes32 inputHash = sha256(_input);
         if (
             verifiedFunctionId == _functionId && verifiedInputHash == inputHash
         ) {
-            return verifiedOutput;
+            return (true, verifiedOutput);
+        } else {
+            emit Request(
+                4294967295,
+                _functionId,
+                _input,
+                "",
+                ,
+                _callbackGasLimit
+            );
+            return (false, "");
         }
-        revert InvalidCall(_functionId, inputHash);
     }
 
     /// @dev The entrypoint for fulfilling a call.
@@ -180,7 +200,7 @@ contract FunctionGateway is
     /// @param _proof The function proof.
     /// @param _callbackAddress The address of the callback contract.
     /// @param _callbackData The data for the callback function.
-    function zkCallFulfill(
+    function fulfillCall(
         bytes32 _functionId,
         bytes memory _input,
         bytes memory _output,
