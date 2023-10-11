@@ -6,8 +6,8 @@
     },
     "editor.rulers": [100],
     "rust-analyzer.linkedProjects": [
-        "./plonky2x/Cargo.toml",
-        "./plonky2x-derive/Cargo.toml"
+        "./plonky2x/core/Cargo.toml",
+        "./plonky2x/derive/Cargo.toml"
     ],
     "rust-analyzer.check.overrideCommand": [
         "cargo",
