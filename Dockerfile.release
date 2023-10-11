@@ -1,6 +1,0 @@
-FROM alpine:3.17
-
-ARG BINARY_NAME
-
-COPY $BINARY_NAME /usr/bin/app
-ENTRYPOINT ["/usr/bin/app"]

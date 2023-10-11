@@ -1,0 +1,32 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "entrypoints": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "framework": {
+                        "type": "string",
+                        "enum": ["rustx", "gnarkx", "circomx", "plonky2x"]
+                    },
+                    "baseDir": {
+                        "type": "string"
+                    },
+                    "buildCommand": {
+                        "type": "string"
+                    },
+                    "proveCommand": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "framework", "baseDir", "buildCommand", "proveCommand"]
+            }
+        }
+    },
+    "required": ["entrypoints"]
+}
