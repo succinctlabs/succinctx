@@ -15,6 +15,7 @@ use crate::prelude::CircuitVariable;
 pub struct WatchGenerator<L: PlonkParameters<D>, const D: usize, V: CircuitVariable> {
     pub variables: Vec<V>,
     pub log: String,
+    pub log_level: Level,
     _phantom: PhantomData<L>,
 }
 
@@ -26,6 +27,25 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let generator: WatchGenerator<L, D, V> = WatchGenerator {
             variables: vec![variable],
             log,
+            log_level: Level::Info,
+            _phantom: PhantomData,
+        };
+        self.add_simple_generator(generator);
+    }
+
+    pub fn watch_with_level<V: CircuitVariable>(
+        &mut self,
+        variable: &V,
+        log: &str,
+        log_level: Level,
+    ) {
+        let variable = variable.clone();
+        let log = String::from(log);
+
+        let generator: WatchGenerator<L, D, V> = WatchGenerator {
+            variables: vec![variable],
+            log,
+            log_level,
             _phantom: PhantomData,
         };
         self.add_simple_generator(generator);
@@ -38,6 +58,25 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let generator: WatchGenerator<L, D, V> = WatchGenerator {
             variables,
             log,
+            log_level: Level::Info,
+            _phantom: PhantomData,
+        };
+        self.add_simple_generator(generator);
+    }
+
+    pub fn watch_slice_with_level<V: CircuitVariable>(
+        &mut self,
+        variables: &[V],
+        log: &str,
+        log_level: Level,
+    ) {
+        let variables = variables.to_vec();
+        let log = String::from(log);
+
+        let generator: WatchGenerator<L, D, V> = WatchGenerator {
+            variables,
+            log,
+            log_level,
             _phantom: PhantomData,
         };
         self.add_simple_generator(generator);
@@ -73,6 +112,16 @@ impl<L: PlonkParameters<D>, V: CircuitVariable, const D: usize> SimpleGenerator<
         let log_bytes = self.log.as_bytes();
         dst.write_usize(log_bytes.len())?;
         dst.write_all(log_bytes)?;
+
+        let log_level_num = match self.log_level {
+            Level::Trace => 1,
+            Level::Debug => 2,
+            Level::Info => 3,
+            Level::Warn => 4,
+            Level::Error => 5,
+        };
+        dst.write_usize(log_level_num)?;
+
         dst.write_usize(self.variables.len())?;
         self.variables
             .iter()
@@ -92,6 +141,16 @@ impl<L: PlonkParameters<D>, V: CircuitVariable, const D: usize> SimpleGenerator<
         src.read_exact(&mut log_bytes)?;
         let log = String::from_utf8(log_bytes).unwrap();
 
+        let log_num = src.read_usize()?;
+        let log_level = match log_num {
+            1 => Level::Trace,
+            2 => Level::Debug,
+            3 => Level::Info,
+            4 => Level::Warn,
+            5 => Level::Error,
+            _ => panic!("Invalid log level"),
+        };
+
         let variables_len = src.read_usize()?;
         let mut variables = Vec::new();
 
@@ -103,6 +162,7 @@ impl<L: PlonkParameters<D>, V: CircuitVariable, const D: usize> SimpleGenerator<
         Ok(Self {
             variables,
             log,
+            log_level,
             _phantom: PhantomData,
         })
     }
@@ -119,13 +179,13 @@ impl<L: PlonkParameters<D>, V: CircuitVariable, const D: usize> SimpleGenerator<
         } else {
             format!("[Watch] {}: {:?}", self.log, values)
         };
-        log!(Level::Info, "{}", formatted_log);
+        log!(self.log_level, "{}", formatted_log);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use log::debug;
+    use log::{debug, Level};
     use plonky2::field::types::Field;
 
     use crate::frontend::builder::DefaultBuilder;
@@ -140,6 +200,7 @@ mod tests {
         let a = builder.read::<Variable>();
         let b = builder.read::<Variable>();
         let c = builder.add(a, b);
+        builder.watch_with_level(&b, "b", Level::Debug);
         builder.watch(&c, "c");
         builder.write(c);
 
