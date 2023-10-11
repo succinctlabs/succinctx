@@ -17,12 +17,10 @@ keystore
 **/*.bin
 **/target
 **/build
-!/build
 **/data
 
 **/__pycache__
 **/FunctionVerifier.sol
-
 
 .idea/
 proof.json

@@ -27,6 +27,10 @@ func NewTestCircuit() *TestCircuit {
 	}
 }
 
+func (c *TestCircuit) Assign(in []byte) error {
+	return nil
+}
+
 func (c *TestCircuit) GetInputBytes() *[]vars.Byte {
 	return &c.InputBytes
 }
@@ -81,10 +85,19 @@ func TestSimpleCircuit(t *testing.T) {
 
 	// sha256(input)
 	expectedInputHash, err := hex.DecodeString("ae964f1e8905240278a7429d6573ba715baf3f4134693c94533ba8a7e57b636e")
+	if err != nil {
+		t.Fatal(err)
+	}
 	// uint64(489)
 	expectedOutput, err := hex.DecodeString("00000000000001e9")
+	if err != nil {
+		t.Fatal(err)
+	}
 	// sha256(uint64(489))
 	expectedOutputHash, err := hex.DecodeString("080f024e0afaa2f4ed40a8bb08976d6c1bf771342a7ddec9de94a97c0598846a")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Truncate hashes to rightmost 253 bits as we would in Solidity
 	truncatedInputHash := byteutils.TruncateBytes32([32]byte(expectedInputHash), 253)

@@ -1,5 +1,19 @@
 {
-    "preset": "plonky2",
-    "build_command": "rm -rf ./build && mkdir build && rustup override set nightly && RUST_LOG=debug cargo run --release --example mapreduce_validators build && cp ./target/release/examples/mapreduce_validators ./build/mapreduce_validators",
-    "prove_command": "RUST_LOG=debug ./build/mapreduce_validators prove --input-json input.json"
+    "$schema": "https://raw.githubusercontent.com/succinctlabs/succinctx/main/assets/schema.json",
+    "entrypoints": [
+        {
+            "name": "evm",
+            "framework": "plonky2x",
+            "baseDir": ".",
+            "buildCommand": "mkdir build && cargo run --release --example evm build && mv ./target/release/examples/evm ./build/evm",
+            "proveCommand": "./build/evm prove input.json"
+        },
+        {
+            "name": "eth_call",
+            "framework": "rustx",
+            "baseDir": ".",
+            "buildCommand": "mkdir build && cargo run --release --example eth_call build && mv ./target/release/examples/eth_call ./build/eth_call",
+            "proveCommand": "./build/eth_call prove input.json"
+        }
+    ]
 }
