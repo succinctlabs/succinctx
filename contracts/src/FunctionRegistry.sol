@@ -4,10 +4,10 @@ pragma solidity ^0.8.16;
 import {IFunctionRegistry} from "./interfaces/IFunctionRegistry.sol";
 
 contract FunctionRegistry is IFunctionRegistry {
-    /// @dev Maps functionId's to their corresponding verifiers.
+    /// @dev Maps function identifiers to their corresponding verifiers.
     mapping(bytes32 => address) public verifiers;
 
-    /// @dev Maps functionId's to their corresponding owners.
+    /// @dev Maps function identifiers to their corresponding owners.
     mapping(bytes32 => address) public verifierOwners;
 
     /// @notice Registers a function, using a pre-deployed verifier.
