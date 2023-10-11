@@ -7,6 +7,7 @@ interface IFunctionGatewayEvents {
         bytes32 indexed functionId,
         bytes input,
         bytes context,
+        address callbackAddress,
         bytes4 callbackSelector,
         uint32 callbackGasLimit
     );
@@ -62,7 +63,7 @@ interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
         bytes memory _callbackData
     ) external payable;
 
-     function verifyCall(
+    function verifiedCall(
         bytes32 _functionId,
         bytes memory _input
     ) external view returns (bytes memory);

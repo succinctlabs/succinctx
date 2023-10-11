@@ -83,6 +83,7 @@ contract FunctionGateway is
             _functionId,
             _input,
             _context,
+            callbackAddress,
             _callbackSelector,
             _callbackGasLimit
         );
@@ -93,35 +94,35 @@ contract FunctionGateway is
         return requestHash;
     }
 
-    /// @dev Creates a proof request for a call. This function is equivalent to an off-chain 
-    ///      request.
+    /// @dev Creates a proof request for a call. This function is equivalent to an off-chain request
+    ///      through an API.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
-    /// @param _callbackAddress The address of the callback contract.
-    /// @param _callbackData The data for the callback function.
+    /// @param _address The address of the callback contract.
+    /// @param _data The data for the callback function.
     function requestCall(
         bytes32 _functionId,
         bytes memory _input,
-        address _callbackAddress,
-        bytes memory _callbackData
+        address _address,
+        bytes memory _data
     ) external payable {
         // Emit event.
         emit RequestCall(
             _functionId,
             _input,
-            _callbackAddress,
-            _callbackData
+            _address,
+            _data
         );
 
         // Send the fee to the vault.
-        IFeeVault(feeVault).depositNative{value: msg.value}(_callbackAddress);
+        IFeeVault(feeVault).depositNative{value: msg.value}(_address);
     }
 
     /// @dev If the call matches the currently verified function, returns the output. Otherwise,
     ///      this function reverts.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
-    function verifyCall(
+    function verifiedCall(
         bytes32 _functionId,
         bytes memory _input
     ) external view returns (bytes memory) {
