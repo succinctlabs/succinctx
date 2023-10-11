@@ -6,14 +6,15 @@ import {IFunctionGateway} from "./interfaces/IFunctionGateway.sol";
 import {IFunctionVerifier} from "./interfaces/IFunctionVerifier.sol";
 import {FunctionRegistry} from "./FunctionRegistry.sol";
 import {TimelockedUpgradeable} from "./upgrades/TimelockedUpgradeable.sol";
+import {IFeeVault} from "./payments/interfaces/IFeeVault.sol";
 
 contract FunctionGateway is
     IFunctionGateway,
     FunctionRegistry,
     TimelockedUpgradeable
 {
-    /// @dev The default gas limit for requests.
-    uint32 public constant DEFAULT_GAS_LIMIT = 1000000;
+    /// @dev The address of the fee vault.
+    address public feeVault;
 
     /// @dev A nonce for keeping track of requests.
     uint32 public nonce;
@@ -46,28 +47,6 @@ contract FunctionGateway is
     /// @param _input The function input.
     /// @param _context The function context.
     /// @param _callbackSelector The selector of the callback function.
-    function zkRequest(
-        bytes32 _functionId,
-        bytes memory _input,
-        bytes memory _context,
-        bytes4 _callbackSelector
-    ) external returns (bytes32) {
-        return
-            zkRequest(
-                _functionId,
-                _input,
-                _context,
-                _callbackSelector,
-                DEFAULT_GAS_LIMIT
-            );
-    }
-
-    /// @dev Creates a onchain request for a proof. The output and proof is fulfilled asynchronously
-    ///      by the provided callback.
-    /// @param _functionId The function identifier.
-    /// @param _input The function input.
-    /// @param _context The function context.
-    /// @param _callbackSelector The selector of the callback function.
     /// @param _callbackGasLimit The gas limit for the callback function.
     function zkRequest(
         bytes32 _functionId,
@@ -75,7 +54,7 @@ contract FunctionGateway is
         bytes memory _context,
         bytes4 _callbackSelector,
         uint32 _callbackGasLimit
-    ) public returns (bytes32) {
+    ) external payable returns (bytes32) {
         // Compute the callback hash uniquely associated with this request.
         bytes32 inputHash = sha256(_input);
         bytes32 contextHash = sha256(_context);
@@ -103,6 +82,10 @@ contract FunctionGateway is
 
         // Increment the nonce.
         nonce++;
+
+        // Send the fee to the vault.
+        IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
+
         return requestHash;
     }
 

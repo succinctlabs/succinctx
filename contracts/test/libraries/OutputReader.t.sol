@@ -5,7 +5,7 @@ import "forge-std/Vm.sol";
 import "forge-std/console.sol";
 import "forge-std/Test.sol";
 
-import {OutputReader} from "src/libraries/OutputReader.sol";
+import {OutputReader} from "../../src/libraries/OutputReader.sol";
 
 contract OutputReaderTest is Test {
     function setUp() public {}

@@ -45,16 +45,9 @@ interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
         bytes32 _functionId,
         bytes memory _input,
         bytes memory _context,
-        bytes4 _callbackSelector
-    ) external returns (bytes32);
-
-    function zkRequest(
-        bytes32 _functionId,
-        bytes memory _input,
-        bytes memory _context,
         bytes4 _callbackSelector,
         uint32 _callbackGasLimit
-    ) external returns (bytes32);
+    ) external payable returns (bytes32);
 
     function zkCall(
         bytes32 _functionId,
