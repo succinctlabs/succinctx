@@ -1,4 +1,5 @@
 {
+    "$schema": "https://raw.githubusercontent.com/succinctlabs/succinctx/main/assets/schema.json",
     "entrypoints": [
         {
             "name": "evm",
