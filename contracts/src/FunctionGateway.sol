@@ -31,6 +31,9 @@ contract FunctionGateway is
     /// @dev The currently verified function output.
     bytes public verifiedOutput;
 
+    /// @dev A flag that indicates whether the contract is currently making a callback.
+    bool public isCallback;
+
     /// @dev Initializes the contract.
     /// @param _timelock The address of the timelock contract.
     /// @param _guardian The address of the guardian.
@@ -38,6 +41,7 @@ contract FunctionGateway is
         address _timelock,
         address _guardian
     ) external initializer {
+        isCallback = false;
         __TimelockedUpgradeable_init(_timelock, _guardian);
     }
 
@@ -134,9 +138,11 @@ contract FunctionGateway is
         _verify(_functionId, _inputHash, outputHash, _proof);
 
         // Execute the callback.
+        isCallback = true;
         (bool status, ) = _callbackAddress.call(
             abi.encodeWithSelector(_callbackSelector, _output, _context)
         );
+        isCallback = false;
 
         // If the callback failed, revert.
         if (!status) {
