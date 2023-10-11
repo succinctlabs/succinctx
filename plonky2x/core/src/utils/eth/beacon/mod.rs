@@ -71,8 +71,8 @@ pub struct BeaconValidator {
     pub withdrawal_credentials: String,
     pub effective_balance: u64,
     pub slashed: bool,
-    pub activation_eligibility_epoch: u64,
-    pub activation_epoch: u64,
+    pub activation_eligibility_epoch: String,
+    pub activation_epoch: String,
     pub exit_epoch: String,
     pub withdrawable_epoch: String,
 }
@@ -98,11 +98,15 @@ impl BeaconValidator {
         let mut slashed = [0u8; 32];
         slashed[0] = if self.slashed { 1u8 } else { 0u8 };
 
-        let activation_eligibility_epoch_bytes = self.activation_eligibility_epoch.to_le_bytes();
+        let activation_eligibility_epoch_bytes = self
+            .activation_eligibility_epoch
+            .parse::<u64>()
+            .unwrap()
+            .to_le_bytes();
         let mut activation_eligibility_epoch = [0u8; 32];
         activation_eligibility_epoch[0..8].copy_from_slice(&activation_eligibility_epoch_bytes);
 
-        let activation_epoch_bytes = self.activation_epoch.to_le_bytes();
+        let activation_epoch_bytes = self.activation_epoch.parse::<u64>().unwrap().to_le_bytes();
         let mut activation_epoch = [0u8; 32];
         activation_epoch[0..8].copy_from_slice(&activation_epoch_bytes);
 
@@ -666,8 +670,8 @@ mod tests {
             withdrawal_credentials: "0xfad764748d2fb342f8e9f88ea2ffb9833b7c2e8ae1f78921057e4749688cd13b".to_string(),
             effective_balance: 6,
             slashed: true,
-            activation_eligibility_epoch: 6,
-            activation_epoch: 7,
+            activation_eligibility_epoch: "6".to_string(),
+            activation_epoch: "7".to_string(),
             exit_epoch: "0".to_string(),
             withdrawable_epoch: "0".to_string()
         };

@@ -11,7 +11,7 @@ use reqwest::Client;
 use tokio::time::sleep;
 
 use super::ProverOutput;
-use crate::backend::circuit::{CircuitBuild, PlonkParameters, PublicInput};
+use crate::backend::circuit::{PlonkParameters, PublicInput};
 use crate::backend::function::ProofRequest;
 use crate::backend::prover::service::{ProofRequestStatus, ProofService};
 use crate::backend::prover::ProverOutputs;
@@ -40,14 +40,14 @@ impl RemoteProver {
 
     pub async fn prove<L: PlonkParameters<D>, const D: usize>(
         &self,
-        circuit: &CircuitBuild<L, D>,
+        circuit_id: &str,
         input: &PublicInput<L, D>,
     ) -> Result<ProverOutput<L, D>>
     where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        debug!("prove: circuit_id={}", circuit.id());
+        debug!("prove: circuit_id={}", circuit_id);
 
         // Initialize the proof service.
         let service = ProofService::new_from_env();
@@ -56,7 +56,7 @@ impl RemoteProver {
         let mut rng = rand::thread_rng();
         let sleep_time = rng.gen_range(0..=5000);
         sleep(Duration::from_millis(sleep_time)).await;
-        let request = ProofRequest::new(circuit, input);
+        let request = ProofRequest::new(circuit_id, input);
         let proof_id = service
             .submit::<L, D>(request)
             .expect("failed to submit proof request");
@@ -97,7 +97,7 @@ impl RemoteProver {
 
     pub async fn batch_prove<L: PlonkParameters<D>, const D: usize>(
         &self,
-        circuit: &CircuitBuild<L, D>,
+        circuit_id: &str,
         inputs: &[PublicInput<L, D>],
     ) -> Result<ProverOutputs<L, D>>
     where
@@ -110,7 +110,7 @@ impl RemoteProver {
         // Submit the batch proof request.
         let requests = inputs
             .iter()
-            .map(|input| ProofRequest::new(circuit, input))
+            .map(|input| ProofRequest::new(circuit_id, input))
             .collect_vec();
         let (batch_id, proof_ids) = service.submit_batch(&requests)?;
 

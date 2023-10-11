@@ -70,9 +70,15 @@ impl CircuitVariable for BeaconValidatorVariable {
             Bytes32Variable::elements(bytes32!(value.withdrawal_credentials));
         let effective_balance = U256Variable::elements(value.effective_balance.into());
         let slashed = BoolVariable::elements(value.slashed);
-        let activation_eligibility_epoch =
-            U256Variable::elements(value.activation_eligibility_epoch.into());
-        let activation_epoch = U256Variable::elements(value.activation_epoch.into());
+        let activation_eligibility_epoch = U256Variable::elements(
+            value
+                .activation_eligibility_epoch
+                .parse::<u64>()
+                .unwrap()
+                .into(),
+        );
+        let activation_epoch =
+            U256Variable::elements(value.activation_epoch.parse::<u64>().unwrap().into());
         let exit_epoch = U256Variable::elements(value.exit_epoch.parse::<u64>().unwrap().into());
         let withdrawable_epoch =
             U256Variable::elements(value.withdrawable_epoch.parse::<u64>().unwrap().into());
@@ -102,8 +108,8 @@ impl CircuitVariable for BeaconValidatorVariable {
             withdrawal_credentials: hex!(withdrawal_credentials),
             effective_balance: effective_balance.as_u64(),
             slashed,
-            activation_eligibility_epoch: activation_eligibility_epoch.as_u64(),
-            activation_epoch: activation_epoch.as_u64(),
+            activation_eligibility_epoch: activation_eligibility_epoch.as_u64().to_string(),
+            activation_epoch: activation_epoch.as_u64().to_string(),
             exit_epoch: exit_epoch.as_u64().to_string(),
             withdrawable_epoch: withdrawable_epoch.as_u64().to_string(),
         }
@@ -235,8 +241,8 @@ pub(crate) mod tests {
             withdrawal_credentials: "0xc2f56d5e99cd47e06d5a7a449ed9317c843ed5056982a15fac1972eb7b1b6048".to_string(),
             effective_balance: 5,
             slashed: true,
-            activation_eligibility_epoch: 3,
-            activation_epoch: 6,
+            activation_eligibility_epoch: "3".to_string(),
+            activation_epoch: "6".to_string(),
             exit_epoch: "2".to_string(),
             withdrawable_epoch: "2".to_string(),
         };
@@ -265,8 +271,8 @@ pub(crate) mod tests {
             withdrawal_credentials: "0x0100000000000000000000000d369bb49efa5100fd3b86a9f828c55da04d2d50".to_string(),
             effective_balance: 32000000000,
             slashed: false,
-            activation_eligibility_epoch: 0,
-            activation_epoch: 0,
+            activation_eligibility_epoch: "0".to_string(),
+            activation_epoch: "0".to_string(),
             exit_epoch: "18446744073709551615".to_string(),
             withdrawable_epoch: "18446744073709551615".to_string(),
         };
