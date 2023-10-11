@@ -2,13 +2,19 @@
 pragma solidity >=0.8.0;
 
 interface IFunctionGatewayEvents {
-    event Request(
+    event RequestCallback(
         uint32 indexed nonce,
         bytes32 indexed functionId,
         bytes input,
         bytes context,
         bytes4 callbackSelector,
         uint32 callbackGasLimit
+    );
+    event RequestCall(
+        bytes32 indexed functionId,
+        bytes input,
+        address callbackAddress,
+        bytes callbackData
     );
     event RequestFulfilled(
         uint32 indexed nonce,
@@ -41,7 +47,7 @@ interface IFunctionGatewayErrors {
 }
 
 interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
-    function zkRequest(
+    function requestCallback(
         bytes32 _functionId,
         bytes memory _input,
         bytes memory _context,
@@ -49,8 +55,15 @@ interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
         uint32 _callbackGasLimit
     ) external payable returns (bytes32);
 
-    function zkCall(
+    function requestCall(
+        bytes32 _functionId,
+        bytes memory _input,
+        address _callbackAddress,
+        bytes memory _callbackData
+    ) external payable;
+
+     function verifyCall(
         bytes32 _functionId,
         bytes memory _input
-    ) external view returns (bool, bytes memory);
+    ) external view returns (bytes memory);
 }

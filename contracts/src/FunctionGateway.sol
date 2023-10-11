@@ -78,7 +78,7 @@ contract FunctionGateway is
 
         // Store the callback hash.
         requests[nonce] = requestHash;
-        emit Request(
+        emit RequestCallback(
             nonce,
             _functionId,
             _input,
@@ -91,6 +91,48 @@ contract FunctionGateway is
         IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
 
         return requestHash;
+    }
+
+    /// @dev Creates a proof request for a call. This function is equivalent to an off-chain 
+    ///      request.
+    /// @param _functionId The function identifier.
+    /// @param _input The function input.
+    /// @param _callbackAddress The address of the callback contract.
+    /// @param _callbackData The data for the callback function.
+    function requestCall(
+        bytes32 _functionId,
+        bytes memory _input,
+        address _callbackAddress,
+        bytes memory _callbackData
+    ) external payable {
+        // Emit event.
+        emit RequestCall(
+            _functionId,
+            _input,
+            _callbackAddress,
+            _callbackData
+        );
+
+        // Send the fee to the vault.
+        IFeeVault(feeVault).depositNative{value: msg.value}(_callbackAddress);
+    }
+
+    /// @dev If the call matches the currently verified function, returns the output. Otherwise,
+    ///      this function reverts.
+    /// @param _functionId The function identifier.
+    /// @param _input The function input.
+    function verifyCall(
+        bytes32 _functionId,
+        bytes memory _input
+    ) external view returns (bytes memory) {
+        bytes32 inputHash = sha256(_input);
+        if (
+            verifiedFunctionId == _functionId && verifiedInputHash == inputHash
+        ) {
+            return verifiedOutput;
+        } else {
+            revert InvalidCall(_functionId, _input);
+        }
     }
 
     /// @dev Fulfills a request by providing the output and proof.
@@ -154,43 +196,6 @@ contract FunctionGateway is
 
         // Emit event.
         emit RequestFulfilled(_nonce, _functionId, _inputHash, outputHash);
-    }
-
-    // function requestCall(bytes32 _functionId, bytes memory _input) external payable {
-    //     emit Request(
-    //         -1,
-    //         _functionId,
-    //         _input,
-    //         "",
-    //         bytes4(0),
-    //         0    
-    //     ); 
-    // }
-
-    /// @dev If the call matches the currently verified function, returns the output. Otherwise,
-    ///      this function reverts.
-    /// @param _functionId The function identifier.
-    /// @param _input The function input.
-    function verifyCall(
-        bytes32 _functionId,
-        bytes memory _input
-    ) external view returns (bool, bytes memory) {
-        bytes32 inputHash = sha256(_input);
-        if (
-            verifiedFunctionId == _functionId && verifiedInputHash == inputHash
-        ) {
-            return (true, verifiedOutput);
-        } else {
-            emit Request(
-                4294967295,
-                _functionId,
-                _input,
-                "",
-                ,
-                _callbackGasLimit
-            );
-            return (false, "");
-        }
     }
 
     /// @dev The entrypoint for fulfilling a call.
