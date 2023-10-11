@@ -9,12 +9,7 @@ import {AccessControlUpgradeable} from "@openzeppelin-upgradeable/contracts/acce
 /// @title TimelockedUpgradeable
 /// @notice A base contract that has modifiers to specify that certain functions are only callable
 ///         by a sender with a timelock or guardian role.
-abstract contract TimelockedUpgradeable is
-    Versioned,
-    Initializable,
-    UUPSUpgradeable,
-    AccessControlUpgradeable
-{
+abstract contract TimelockedUpgradeable is Versioned, Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     /// @notice A random constant used to identify addresses with the permission of a 'timelock'.
     /// @dev Should be set to a 'timelock' contract, which may only execute calls after being
     ///      for a certain amount of time.
@@ -48,10 +43,7 @@ abstract contract TimelockedUpgradeable is
 
     /// @notice Initializes the contract.
     /// @dev The DEFAULT_ADMIN_ROLE needs to be set but should be unused.
-    function __TimelockedUpgradeable_init(
-        address _timelock,
-        address _guardian
-    ) internal onlyInitializing {
+    function __TimelockedUpgradeable_init(address _timelock, address _guardian) internal onlyInitializing {
         __AccessControl_init();
         __UUPSUpgradeable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _timelock);
@@ -60,7 +52,5 @@ abstract contract TimelockedUpgradeable is
     }
 
     /// @notice Authorizes an upgrade for the implementation contract.
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal virtual override onlyTimelock {}
+    function _authorizeUpgrade(address newImplementation) internal virtual override onlyTimelock {}
 }
