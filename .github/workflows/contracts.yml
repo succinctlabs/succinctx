@@ -7,10 +7,13 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches:
+      - "**"
     paths:
       - "contracts/**"
   workflow_dispatch:
+    branches:
+      - "**"
 
 jobs:
   format:
