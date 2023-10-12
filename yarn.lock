@@ -756,8 +756,6 @@ __metadata:
 "@succinctlabs/succinctx@workspace:.":
   version: 0.0.0-use.local
   resolution: "@succinctlabs/succinctx@workspace:."
-  dependencies:
-    deepmerge: ^4.3.1
   languageName: unknown
   linkType: soft
 
@@ -1165,13 +1163,6 @@ __metadata:
     supports-color:
       optional: true
   checksum: 3dbad3f94ea64f34431a9cbf0bafb61853eda57bff2880036153438f50fb5a84f27683ba0d8e5426bf41a8c6ff03879488120cf5b3a761e77953169c0600a708
-  languageName: node
-  linkType: hard
-
-"deepmerge@npm:^4.3.1":
-  version: 4.3.1
-  resolution: "deepmerge@npm:4.3.1"
-  checksum: 2024c6a980a1b7128084170c4cf56b0fd58a63f2da1660dcfe977415f27b17dbe5888668b59d0b063753f3220719d5e400b7f113609489c90160bb9a5518d052
   languageName: node
   linkType: hard
 
