@@ -4,6 +4,7 @@ use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 
+use super::uint64::U64Variable;
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
@@ -185,6 +186,24 @@ impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for U32Variable {
         let diff_biguint = builder.api.sub_biguint(&self_biguint, &rhs_biguint);
         let diff = diff_biguint.limbs[0].0;
         Self(Variable(diff))
+    }
+}
+
+impl U32Variable {
+    pub fn to_u64<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> U64Variable {
+        let zero = builder.zero::<U32Variable>();
+        let result = builder.init::<U64Variable>();
+        for i in 0..result.limbs.len() {
+            if i == 0 {
+                builder.connect(*self, result.limbs[i]);
+            } else {
+                builder.connect(zero, result.limbs[i]);
+            }
+        }
+        result
     }
 }
 

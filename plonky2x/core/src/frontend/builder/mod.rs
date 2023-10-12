@@ -1,5 +1,6 @@
 mod boolean;
 pub mod io;
+pub mod permutation;
 mod proof;
 pub mod watch;
 
