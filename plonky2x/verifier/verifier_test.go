@@ -70,12 +70,18 @@ func TestPlonky2xVerifierCircuit(t *testing.T) {
 			witness.ProofWithPis = proofWithPisDummy
 			witness.VerifierData = verifierOnlyCircuitDataDummy
 			witness.VerifierDigest = verifierOnlyCircuitDataDummy.CircuitDigest
+		} else if option == 8 {
+			// Fuzz random parts of the proof
+			proofWithPis.Proof.OpeningProof.FinalPoly.Coeffs[0][0] = 0
+			witness.ProofWithPis = variables.DeserializeProofWithPublicInputs(
+				proofWithPis,
+			)
 		}
 		return test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 	}
 
 	assert.NoError(testCase(0))
-	for i := 1; i <= 7; i++ {
+	for i := 1; i <= 8; i++ {
 		assert.Error(testCase(int64(i)))
 	}
 }

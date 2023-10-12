@@ -13,6 +13,8 @@
 //!
 //!    `./target/release/circuit_function_evm prove --input-json src/bin/circuit_function_evm_input.json`
 //!
+//!     cargo run --example evm prove ./examples/evm.json
+//!
 //! Note that this circuit will not work with field-based io.
 
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};

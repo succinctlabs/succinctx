@@ -8,7 +8,6 @@ use std::{fs, path};
 
 use clap::Parser;
 use log::info;
-use plonky2::field::types::PrimeField64;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 pub use request::*;
 pub use result::*;
@@ -94,15 +93,16 @@ impl<C: Circuit> Plonky2xFunction for C {
             // The wrapper circuit digest will get saved in the Solidity smart contract,
             // which will use this value as a public input `VerifierDigest` in the Gnark plonky2 verifier
             let wrapped_circuit = WrappedCircuit::<L, WrapperParameters, D>::build(circuit);
-            let circuit_digest_bytes = wrapped_circuit
+
+            let mut circuit_digest_bytes = wrapped_circuit
                 .wrapper_circuit
                 .data
                 .verifier_only
                 .circuit_digest
-                .to_vec()
-                .iter()
-                .flat_map(|e| e.to_canonical_u64().to_be_bytes())
-                .collect::<Vec<u8>>();
+                .to_bytes();
+            // to_bytes() returns the representation as LE, but we want to save it on-chain
+            // as BE because that is the format of the public input to the Gnark plonky2 verifier.
+            circuit_digest_bytes.reverse();
 
             // The VerifierDigest is stored on-chain as a bytes32, so we need to pad it with 0s
             // to store it in the Solidity smart contract.
