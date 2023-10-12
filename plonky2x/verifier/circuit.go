@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 	"time"
 
@@ -52,14 +53,19 @@ func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error {
 	inputDigest := frontend.Variable(0)
 	for i := 0; i < 32; i++ {
 		pubByte := publicInputs[31-i].Limb
-		inputDigest = api.Add(inputDigest, api.Mul(pubByte, frontend.Variable(1<<(8*i))))
+		fmt.Printf("pubByte: %v\n", pubByte)
+		inputDigest = api.Add(inputDigest, api.Mul(pubByte, frontend.Variable(new(big.Int).Lsh(big.NewInt(1), uint(8*i)))))
+		fmt.Printf("inputDigest: %v\n", inputDigest)
+
 	}
+	fmt.Printf("inputDigest: %v\n", inputDigest)
+	fmt.Printf("inputHash: %v\n", c.InputHash)
 	api.AssertIsEqual(c.InputHash, inputDigest)
 
 	outputDigest := frontend.Variable(0)
 	for i := 0; i < 32; i++ {
 		pubByte := publicInputs[63-i].Limb
-		outputDigest = api.Add(inputDigest, api.Mul(pubByte, frontend.Variable(1<<(8*i))))
+		outputDigest = api.Add(outputDigest, api.Mul(pubByte, frontend.Variable(new(big.Int).Lsh(big.NewInt(1), uint(8*i)))))
 	}
 	api.AssertIsEqual(c.OutputHash, outputDigest)
 

@@ -57,23 +57,45 @@ func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKe
 	return r1cs, pk, nil
 }
 
+func GetInputHashOutputHash(proofWithPis gnark_verifier_types.ProofWithPublicInputsRaw) (*big.Int, *big.Int) {
+	publicInputs := proofWithPis.PublicInputs
+	if len(publicInputs) != 64 {
+		panic("publicInputs must be 64 bytes")
+	}
+	publicInputsBytes := make([]byte, 64)
+	for i, v := range publicInputs {
+		publicInputsBytes[i] = byte(v & 0xFF)
+	}
+	fmt.Printf("publicInputsBytes: %x\n", publicInputsBytes[0:32])
+	inputHash := new(big.Int).SetBytes(publicInputsBytes[0:32])
+	outputHash := new(big.Int).SetBytes(publicInputsBytes[32:64])
+	if inputHash.BitLen() > 253 {
+		panic("inputHash must be at most 253 bits")
+	}
+	if outputHash.BitLen() > 253 {
+		panic("outputHash must be at most 253 bits")
+	}
+	return inputHash, outputHash
+}
+
 func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey) (groth16.Proof, witness.Witness, error) {
 	log := logger.Logger()
 
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
 		gnark_verifier_types.ReadVerifierOnlyCircuitData(circuitPath + "/verifier_only_circuit_data.json"),
 	)
-	proofWithPis := variables.DeserializeProofWithPublicInputs(
-		gnark_verifier_types.ReadProofWithPublicInputs(circuitPath + "/proof_with_public_inputs.json"),
-	)
+	proofWithPis := gnark_verifier_types.ReadProofWithPublicInputs(circuitPath + "/proof_with_public_inputs.json")
+	proofWithPisVariable := variables.DeserializeProofWithPublicInputs(proofWithPis)
+
+	inputHash, outputHash := GetInputHashOutputHash(proofWithPis)
 
 	// Circuit assignment
 	assignment := &Plonky2xVerifierCircuit{
-		ProofWithPis:   proofWithPis,
+		ProofWithPis:   proofWithPisVariable,
 		VerifierData:   verifierOnlyCircuitData,
-		VerifierDigest: frontend.Variable(0),
-		InputHash:      frontend.Variable(0),
-		OutputHash:     frontend.Variable(0),
+		VerifierDigest: verifierOnlyCircuitData.CircuitDigest,
+		InputHash:      frontend.Variable(inputHash),
+		OutputHash:     frontend.Variable(outputHash),
 	}
 
 	log.Debug().Msg("Generating witness")

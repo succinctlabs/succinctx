@@ -16,7 +16,9 @@ use serde::Serialize;
 use crate::backend::circuit::{CircuitBuild, PlonkParameters};
 use crate::frontend::builder::{CircuitBuilder, CircuitIO};
 use crate::frontend::hash::sha::sha256::sha256;
-use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable};
+use crate::frontend::vars::{
+    ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable, Variable,
+};
 #[derive(Debug)]
 pub struct WrappedCircuit<
     InnerParameters: PlonkParameters<D>,
@@ -57,20 +59,51 @@ where
             &circuit.data.common,
         );
 
-        match circuit.io {
-            CircuitIO::Bytes(ref io) => {
-                let input_bytes = &io.input;
-                let output_bytes = &io.output;
-                let input_hash = hash_builder.sha256(input_bytes);
-                let output_hash = hash_builder.sha256(output_bytes);
-                let input_hash_zeroed = hash_builder.zero_top_bits(input_hash, 3);
-                let output_hash_zeroed = hash_builder.zero_top_bits(output_hash, 3);
-                hash_builder.evm_write(input_hash_zeroed);
-                hash_builder.evm_write(output_hash_zeroed);
-            }
-            _ => unimplemented!(), // TODO: better panic message here
-        }
+        let num_input_targets = circuit.io.input().len();
+        let (input_targets, output_targets) = circuit_proof_target
+            .public_inputs
+            .split_at(num_input_targets);
 
+        let input_bytes = input_targets
+            .chunks_exact(ByteVariable::nb_elements())
+            .map(ByteVariable::from_targets)
+            .collect::<Vec<_>>();
+        let output_bytes = output_targets
+            .chunks_exact(ByteVariable::nb_elements())
+            .map(ByteVariable::from_targets)
+            .collect::<Vec<_>>();
+
+        let input_hash = hash_builder.sha256(&input_bytes);
+        let output_hash = hash_builder.sha256(&output_bytes);
+
+        // We must truncate the top 3 bits because in the gnark-plonky2-verifier, the input_hash
+        // and output_hash are both represented as 1 field element in the BN254 field
+        // to reduce on-chain verification costs.
+        let input_hash_zeroed = hash_builder.zero_top_bits(input_hash, 3);
+        let output_hash_zeroed = hash_builder.zero_top_bits(output_hash, 3);
+
+        let input_vars = input_hash_zeroed
+            .as_bytes()
+            .iter()
+            .map(|b| b.to_variable(&mut hash_builder))
+            .collect::<Vec<Variable>>();
+
+        let output_vars = output_hash_zeroed
+            .as_bytes()
+            .iter()
+            .map(|b| b.to_variable(&mut hash_builder))
+            .collect::<Vec<Variable>>();
+
+        // Write input_hash, output_hash to public_inputs
+        // In the gnark-plonky2-verifier, these 32 bytes get summed to 1 field element
+        // that is either the input_hash or output_hash (and is exposed as a public input)
+        input_vars
+            .clone()
+            .into_iter()
+            .chain(output_vars.into_iter())
+            .for_each(|v| {
+                hash_builder.write(v);
+            });
         let hash_circuit = hash_builder.build();
 
         // An inner recursion to standardize the degree
@@ -249,7 +282,7 @@ mod tests {
 
         utils::setup_logger();
 
-        let build_path = "../plonky2x-verifier/data".to_string();
+        let build_path = "../verifier/data".to_string();
         let path = format!("{}/test_circuit/", build_path);
         let dummy_path = format!("{}/dummy/", build_path);
 
