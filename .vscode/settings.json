@@ -29,5 +29,7 @@
     ],
     "rust-analyzer.diagnostics.disabled": [
         "unresolved-proc-macro"
-    ], 
+    ],
+    "editor.defaultFormatter": null,
+    
 }
