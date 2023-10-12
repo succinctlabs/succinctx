@@ -2,9 +2,7 @@
     "name": "@succinctlabs/succinctx",
     "version": "1.0.0",
     "private": true,
-    "workspaces": [
-        "circomx"
-    ],
+    "workspaces": [],
     "packageManager": "yarn@3.3.1",
     "engines": {
         "node": "18.x"
