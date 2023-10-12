@@ -16,7 +16,7 @@ interface IFunctionGatewayEvents {
         bytes32 indexed functionId,
         bytes input,
         address entryAddress,
-        bytes entryData,
+        bytes entryCalldata,
         uint32 entryGasLimit,
         address sender,
         uint256 feeAmount

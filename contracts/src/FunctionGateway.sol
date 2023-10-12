@@ -92,23 +92,23 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
     ///      through an API.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
-    /// @param _callbackAddress The address of the callback contract.
-    /// @param _callbackData The entry calldata for the call.
-    /// @param _callbackGasLimit The gas limit for the call.
+    /// @param _entryAddress The address of the callback contract.
+    /// @param _entryCalldata The entry calldata for the call.
+    /// @param _entryGasLimit The gas limit for the call.
     function requestCall(
         bytes32 _functionId,
         bytes memory _input,
-        address _callbackAddress,
-        bytes memory _callbackData,
-        uint32 _callbackGasLimit
+        address _entryAddress,
+        bytes memory _entryCalldata,
+        uint32 _entryGasLimit
     ) external payable {
         // Emit event.
         emit RequestCall(
             _functionId,
             _input,
-            _callbackAddress,
-            _callbackData,
-            _callbackGasLimit,
+            _entryAddress,
+            _entryCalldata,
+            _entryGasLimit,
             msg.sender,
             msg.value
         );
