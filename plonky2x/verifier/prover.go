@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/backend/plonk"
+
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
@@ -22,13 +23,13 @@ import (
 	"github.com/succinctlabs/sdk/gnarkx/types"
 )
 
-func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKey, error) {
+func LoadProverData(path string) (constraint.ConstraintSystem, plonk.ProvingKey, error) {
 	log := logger.Logger()
 	r1csFile, err := os.Open(path + "/r1cs.bin")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open r1cs file: %w", err)
 	}
-	r1cs := groth16.NewCS(ecc.BN254)
+	r1cs := plonk.NewCS(ecc.BN254)
 	start := time.Now()
 	r1csReader := bufio.NewReader(r1csFile)
 	_, err = r1cs.ReadFrom(r1csReader)
@@ -43,7 +44,7 @@ func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKe
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open pk file: %w", err)
 	}
-	pk := groth16.NewProvingKey(ecc.BN254)
+	pk := plonk.NewProvingKey(ecc.BN254)
 	start = time.Now()
 	pkReader := bufio.NewReader(pkFile)
 	_, err = pk.ReadFrom(pkReader)
@@ -77,7 +78,7 @@ func GetInputHashOutputHash(proofWithPis gnark_verifier_types.ProofWithPublicInp
 	return inputHash, outputHash
 }
 
-func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey) (groth16.Proof, witness.Witness, error) {
+func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk plonk.ProvingKey) (plonk.Proof, witness.Witness, error) {
 	log := logger.Logger()
 
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
@@ -108,7 +109,7 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 
 	log.Debug().Msg("Creating proof")
 	start = time.Now()
-	proof, err := groth16.Prove(r1cs, pk, witness)
+	proof, err := plonk.Prove(r1cs, pk, witness)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create proof: %w", err)
 	}

@@ -5,7 +5,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/logger"
 )
 
@@ -57,13 +57,13 @@ func main() {
 	}
 
 	if *proofFlag {
-		log.Info().Msg("loading the groth16 proving key and circuit data")
+		log.Info().Msg("loading the plonk proving key and circuit data")
 		r1cs, pk, err := LoadProverData(*dataPath)
 		if err != nil {
 			log.Err(err).Msg("failed to load the verifier circuit")
 			os.Exit(1)
 		}
-		log.Info().Msg("creating the groth16 verifier proof")
+		log.Info().Msg("creating the plonk verifier proof")
 		proof, publicWitness, err := Prove(*circuitPath, r1cs, pk)
 		if err != nil {
 			log.Err(err).Msg("failed to create the proof")
@@ -76,7 +76,7 @@ func main() {
 			log.Err(err).Msg("failed to load the verifier key")
 			os.Exit(1)
 		}
-		err = groth16.Verify(proof, vk, publicWitness)
+		err = plonk.Verify(proof, vk, publicWitness)
 		if err != nil {
 			log.Err(err).Msg("failed to verify proof")
 			os.Exit(1)
@@ -102,7 +102,7 @@ func main() {
 			log.Err(err).Msg("failed to load the proof")
 			os.Exit(1)
 		}
-		err = groth16.Verify(proof, vk, publicWitness)
+		err = plonk.Verify(proof, vk, publicWitness)
 		if err != nil {
 			log.Err(err).Msg("failed to verify proof")
 			os.Exit(1)
