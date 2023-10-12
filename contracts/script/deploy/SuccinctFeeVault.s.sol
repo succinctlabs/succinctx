@@ -8,7 +8,9 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract DeploySuccinctFeeVault is BaseScript {
     function run() external broadcaster {
-        console.log("Deploying SuccinctFeeVault contract on chain %s", Strings.toString(block.chainid));
+        console.log(
+            "Deploying SuccinctFeeVault contract on chain %s", Strings.toString(block.chainid)
+        );
 
         // Check inputs
         bytes32 CREATE2_SALT = envBytes32("CREATE2_SALT");

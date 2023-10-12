@@ -10,7 +10,9 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 // "Guardian" refers to a Gnosis Safe proxy.
 contract DeployGuardian is BaseScript {
     function run() external broadcaster {
-        console.log("Deploying Guardian (Safe) contract on chain %s", Strings.toString(block.chainid));
+        console.log(
+            "Deploying Guardian (Safe) contract on chain %s", Strings.toString(block.chainid)
+        );
 
         // Check inputs
 
@@ -48,6 +50,12 @@ contract DeployGuardian is BaseScript {
             address(0)
         );
 
-        return Safe(payable(_safeFactory.createProxyWithNonce(address(_safeSingleton), initializer, uint256(_salt))));
+        return Safe(
+            payable(
+                _safeFactory.createProxyWithNonce(
+                    address(_safeSingleton), initializer, uint256(_salt)
+                )
+            )
+        );
     }
 }

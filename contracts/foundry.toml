@@ -4,4 +4,11 @@ out = "out"
 libs = ["lib"]
 fs_permissions = [{ access = "read-write", path = "./"}]
 
+# https://book.getfoundry.sh/reference/config/formatter#line_length
+[fmt]
+line_length = 100
+tab_width = 4
+func_attrs_with_params_multiline = true
+ignore = ["lib/**"]
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

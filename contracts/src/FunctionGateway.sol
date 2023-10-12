@@ -57,7 +57,13 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
         bytes32 contextHash = keccak256(_context);
         address callbackAddress = msg.sender;
         bytes32 requestHash = _requestHash(
-            nonce, _functionId, inputHash, contextHash, callbackAddress, _callbackSelector, _callbackGasLimit
+            nonce,
+            _functionId,
+            inputHash,
+            contextHash,
+            callbackAddress,
+            _callbackSelector,
+            _callbackGasLimit
         );
 
         // Increment the nonce.
@@ -66,7 +72,13 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
         // Store the callback hash.
         requests[nonce] = requestHash;
         emit RequestCallback(
-            nonce, _functionId, _input, _context, callbackAddress, _callbackSelector, _callbackGasLimit
+            nonce,
+            _functionId,
+            _input,
+            _context,
+            callbackAddress,
+            _callbackSelector,
+            _callbackGasLimit
         );
 
         // Send the fee to the vault.
@@ -81,10 +93,12 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
     /// @param _input The function input.
     /// @param _address The address of the callback contract.
     /// @param _data The data for the callback function.
-    function requestCall(bytes32 _functionId, bytes memory _input, address _address, bytes memory _data)
-        external
-        payable
-    {
+    function requestCall(
+        bytes32 _functionId,
+        bytes memory _input,
+        address _address,
+        bytes memory _data
+    ) external payable {
         // Emit event.
         emit RequestCall(_functionId, _input, _address, _data);
 
@@ -96,7 +110,11 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
     ///      this function reverts.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
-    function verifiedCall(bytes32 _functionId, bytes memory _input) external view returns (bytes memory) {
+    function verifiedCall(bytes32 _functionId, bytes memory _input)
+        external
+        view
+        returns (bytes memory)
+    {
         bytes32 inputHash = sha256(_input);
         if (verifiedFunctionId == _functionId && verifiedInputHash == inputHash) {
             return verifiedOutput;
@@ -129,7 +147,13 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
         // Reconstruct the callback hash.
         bytes32 contextHash = keccak256(_context);
         bytes32 requestHash = _requestHash(
-            _nonce, _functionId, _inputHash, contextHash, _callbackAddress, _callbackSelector, _callbackGasLimit
+            _nonce,
+            _functionId,
+            _inputHash,
+            contextHash,
+            _callbackAddress,
+            _callbackSelector,
+            _callbackGasLimit
         );
 
         // Assert that the callback hash is unfilfilled.
@@ -148,7 +172,8 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
 
         // Execute the callback.
         isCallback = true;
-        (bool status,) = _callbackAddress.call(abi.encodeWithSelector(_callbackSelector, _output, _context));
+        (bool status,) =
+            _callbackAddress.call(abi.encodeWithSelector(_callbackSelector, _output, _context));
         isCallback = false;
 
         // If the callback failed, revert.
@@ -220,7 +245,13 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
     ) internal pure returns (bytes32) {
         return keccak256(
             abi.encodePacked(
-                _nonce, _functionId, _inputHash, _contextHash, _callbackAddress, _callbackSelector, _callbackGasLimit
+                _nonce,
+                _functionId,
+                _inputHash,
+                _contextHash,
+                _callbackAddress,
+                _callbackSelector,
+                _callbackGasLimit
             )
         );
     }
@@ -230,7 +261,12 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
     /// @param _inputHash The hash of the function input.
     /// @param _outputHash The hash of the function output.
     /// @param _proof The function proof.
-    function _verify(bytes32 _functionId, bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) internal {
+    function _verify(
+        bytes32 _functionId,
+        bytes32 _inputHash,
+        bytes32 _outputHash,
+        bytes memory _proof
+    ) internal {
         address verifier = verifiers[_functionId];
         if (!IFunctionVerifier(verifier).verify(_inputHash, _outputHash, _proof)) {
             revert InvalidProof(address(verifier), _inputHash, _outputHash, _proof);

@@ -9,7 +9,9 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract DeployFunctionGateway is BaseScript {
     function run() external broadcaster {
-        console.log("Deploying FunctionGateway contract on chain %s", Strings.toString(block.chainid));
+        console.log(
+            "Deploying FunctionGateway contract on chain %s", Strings.toString(block.chainid)
+        );
 
         address TIMELOCK = envAddress("TIMELOCK", block.chainid);
         address GUARDIAN = envAddress("GUARDIAN", block.chainid);
@@ -20,7 +22,8 @@ contract DeployFunctionGateway is BaseScript {
         FunctionGateway gatewayImpl = new FunctionGateway{salt: CREATE2_SALT}();
         FunctionGateway gateway;
         if (!UPGRADE) {
-            gateway = FunctionGateway(address(new Proxy{salt: CREATE2_SALT}(address(gatewayImpl), "")));
+            gateway =
+                FunctionGateway(address(new Proxy{salt: CREATE2_SALT}(address(gatewayImpl), "")));
             gateway.initialize(TIMELOCK, GUARDIAN);
         } else {
             gateway = FunctionGateway(envAddress("FUNCTION_GATEWAY", block.chainid));
