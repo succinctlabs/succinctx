@@ -15,9 +15,10 @@ interface IFunctionGatewayEvents {
     event RequestCall(
         bytes32 indexed functionId,
         bytes input,
-        address callbackAddress,
-        bytes callbackData,
-        uint32 callbackGasLimit,
+        address entryAddress,
+        bytes entryData,
+        uint32 entryGasLimit,
+        address sender,
         uint256 feeAmount
     );
     event RequestFulfilled(
