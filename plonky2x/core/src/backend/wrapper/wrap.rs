@@ -14,10 +14,9 @@ use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use serde::Serialize;
 
 use crate::backend::circuit::{CircuitBuild, PlonkParameters};
-use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::builder::{CircuitBuilder, CircuitIO};
 use crate::frontend::hash::sha::sha256::sha256;
 use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable};
-
 #[derive(Debug)]
 pub struct WrappedCircuit<
     InnerParameters: PlonkParameters<D>,
@@ -33,7 +32,7 @@ pub struct WrappedCircuit<
     recursive_circuit: CircuitBuild<InnerParameters, D>,
     hash_verifier_target: VerifierCircuitTarget,
     hash_proof_target: ProofWithPublicInputsTarget<D>,
-    wrapper_circuit: CircuitBuild<OuterParameters, D>,
+    pub wrapper_circuit: CircuitBuild<OuterParameters, D>,
     proof_target: ProofWithPublicInputsTarget<D>,
     verifier_target: VerifierCircuitTarget,
 }
@@ -58,89 +57,23 @@ where
             &circuit.data.common,
         );
 
-        let circuit_digest_bits = circuit_verifier_target
-            .constants_sigmas_cap
-            .0
-            .iter()
-            .chain(once(&circuit_verifier_target.circuit_digest))
-            .flat_map(|x| x.elements)
-            .flat_map(|x| {
-                let mut bits = hash_builder.api.split_le(x, 64);
-                bits.reverse();
-                bits
-            })
-            .collect::<Vec<_>>();
-
-        let circuit_digest_hash: [Target; 256] =
-            sha256(&mut hash_builder.api, &circuit_digest_bits)
-                .into_iter()
-                .map(|x| x.target)
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
-
-        let circuit_digest_bytes = Bytes32Variable::from_targets(&circuit_digest_hash);
-        hash_builder.write(circuit_digest_bytes);
-
-        let num_input_targets = circuit
-            .io
-            .input()
-            .iter()
-            .map(|x| x.targets().len())
-            .sum::<usize>();
-        let (input_targets, output_targets) = circuit_proof_target
-            .public_inputs
-            .split_at(num_input_targets);
-
-        let input_bytes = input_targets
-            .chunks_exact(ByteVariable::nb_elements())
-            .map(ByteVariable::from_targets)
-            .collect::<Vec<_>>();
-        let output_bytes = output_targets
-            .chunks_exact(ByteVariable::nb_elements())
-            .map(ByteVariable::from_targets)
-            .collect::<Vec<_>>();
-
-        let input_bits = input_bytes
-            .iter()
-            .flat_map(|b| b.to_le_bits::<InnerParameters, D>(&mut hash_builder))
-            .map(|b| BoolTarget::new_unsafe(b.targets()[0]))
-            .collect::<Vec<_>>();
-
-        let output_bits = output_bytes
-            .iter()
-            .flat_map(|b| b.to_le_bits(&mut hash_builder))
-            .map(|b| BoolTarget::new_unsafe(b.targets()[0]))
-            .collect::<Vec<_>>();
-
-        let mut input_hash = sha256(&mut hash_builder.api, &input_bits)
-            .into_iter()
-            .map(|x| x.target)
-            .collect::<Vec<_>>();
-        // Remove the last bit to make the hash 255 bits and replace with zero
-        input_hash.pop();
-        input_hash.push(hash_builder.api.constant_bool(false).target);
-
-        let mut output_hash = sha256(&mut hash_builder.api, &output_bits)
-            .into_iter()
-            .map(|x| x.target)
-            .collect::<Vec<_>>();
-        // Remove the last bit to make the hash 255 bits and replace with zero
-        output_hash.pop();
-        output_hash.push(hash_builder.api.constant_bool(false).target);
-
-        let input_hash_truncated: [Target; 256] = input_hash.try_into().unwrap();
-        let output_hash_truncated: [Target; 256] = output_hash.try_into().unwrap();
-
-        let input_hash_bytes = Bytes32Variable::from_targets(&input_hash_truncated);
-        let output_hash_bytes = Bytes32Variable::from_targets(&output_hash_truncated);
-
-        hash_builder.write(input_hash_bytes);
-        hash_builder.write(output_hash_bytes);
+        match circuit.io {
+            CircuitIO::Bytes(ref io) => {
+                let input_bytes = &io.input;
+                let output_bytes = &io.output;
+                let input_hash = hash_builder.sha256(input_bytes);
+                let output_hash = hash_builder.sha256(output_bytes);
+                let input_hash_zeroed = hash_builder.zero_top_bits(input_hash, 3);
+                let output_hash_zeroed = hash_builder.zero_top_bits(output_hash, 3);
+                hash_builder.evm_write(input_hash_zeroed);
+                hash_builder.evm_write(output_hash_zeroed);
+            }
+            _ => unimplemented!(), // TODO: better panic message here
+        }
 
         let hash_circuit = hash_builder.build();
 
-        // An inner recursion to standartize the degree
+        // An inner recursion to standardize the degree
         let mut recursive_builder = CircuitBuilder::<InnerParameters, D>::new();
         let hash_proof_target =
             recursive_builder.add_virtual_proof_with_pis(&hash_circuit.data.common);
@@ -151,6 +84,8 @@ where
             &hash_verifier_target,
             &hash_circuit.data.common,
         );
+
+        assert_eq!(hash_proof_target.public_inputs.len(), 32usize * 2);
 
         recursive_builder
             .api
@@ -319,18 +254,21 @@ mod tests {
         let dummy_path = format!("{}/dummy/", build_path);
 
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
-        let _ = builder.constant::<Variable>(F::ONE);
+        let _ = builder.evm_read::<ByteVariable>();
 
         // Set up the dummy circuit and wrapper
         let dummy_circuit = builder.build();
-        let dummy_input = dummy_circuit.input();
+        let mut dummy_input = dummy_circuit.input();
+        dummy_input.evm_write::<ByteVariable>(0u8);
         let (dummy_inner_proof, dummy_output) = dummy_circuit.prove(&dummy_input);
         dummy_circuit.verify(&dummy_inner_proof, &dummy_input, &dummy_output);
+        println!("Verified dummy_circuit");
 
         let dummy_wrapper =
             WrappedCircuit::<InnerParameters, OuterParameters, D>::build(dummy_circuit);
         let dummy_wrapped_proof = dummy_wrapper.prove(&dummy_inner_proof).unwrap();
         dummy_wrapped_proof.save(dummy_path).unwrap();
+        println!("Saved dummy_circuit");
 
         // Set up the circuit and wrapper
         let msg = b"plonky2";

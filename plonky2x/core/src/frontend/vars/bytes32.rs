@@ -4,7 +4,8 @@ use ethers::types::H256;
 use plonky2::hash::hash_types::RichField;
 
 use super::{
-    ByteVariable, BytesVariable, CircuitVariable, EvmVariable, SSZVariable, U256Variable, Variable,
+    BoolVariable, ByteVariable, BytesVariable, CircuitVariable, EvmVariable, SSZVariable,
+    U256Variable, Variable,
 };
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
@@ -107,6 +108,20 @@ impl SSZVariable for Bytes32Variable {
     ) -> Bytes32Variable {
         let bytes = self.encode(builder);
         Bytes32Variable(BytesVariable::<32>(bytes.try_into().unwrap()))
+    }
+}
+
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    // Returns a Bytes32Variable with the first `num_bits` set to 0.
+    pub fn zero_top_bits(&mut self, original: Bytes32Variable, num_bits: usize) -> Bytes32Variable {
+        let variables = original.variables();
+        let mut new_variables = vec![];
+        for _ in 0..num_bits {
+            new_variables.push(self.zero::<Variable>());
+        }
+        new_variables.extend_from_slice(&variables[num_bits..]);
+
+        Bytes32Variable::from_variables_unsafe(&new_variables)
     }
 }
 

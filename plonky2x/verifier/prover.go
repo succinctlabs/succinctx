@@ -16,7 +16,9 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/logger"
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
+	gnark_verifier_types "github.com/succinctlabs/gnark-plonky2-verifier/types"
+	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
+
 	"github.com/succinctlabs/sdk/gnarkx/types"
 )
 
@@ -58,8 +60,12 @@ func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKe
 func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey) (groth16.Proof, witness.Witness, error) {
 	log := logger.Logger()
 
-	verifierOnlyCircuitData := verifier.DeserializeVerifierOnlyCircuitData(circuitPath + "/verifier_only_circuit_data.json")
-	proofWithPis := verifier.DeserializeProofWithPublicInputs(circuitPath + "/proof_with_public_inputs.json")
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
+		gnark_verifier_types.ReadVerifierOnlyCircuitData(circuitPath + "/verifier_only_circuit_data.json"),
+	)
+	proofWithPis := variables.DeserializeProofWithPublicInputs(
+		gnark_verifier_types.ReadProofWithPublicInputs(circuitPath + "/proof_with_public_inputs.json"),
+	)
 
 	// Circuit assignment
 	assignment := &Plonky2xVerifierCircuit{
@@ -68,7 +74,6 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 		VerifierDigest: frontend.Variable(0),
 		InputHash:      frontend.Variable(0),
 		OutputHash:     frontend.Variable(0),
-		CircuitPath:    circuitPath,
 	}
 
 	log.Debug().Msg("Generating witness")

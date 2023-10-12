@@ -27,8 +27,13 @@ const VERIFIER_CONTRACT: &str = include_str!("../../../../../assets/Verifier.sol
 /// `Plonky2xFunction`s have all necessary code for a circuit to be deployed end-to-end.
 pub trait Plonky2xFunction {
     /// Builds the circuit and saves it to disk.
-    fn build<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
-    where
+    fn build<
+        L: PlonkParameters<D>,
+        WrapperParameters: PlonkParameters<D, Field = L::Field>,
+        const D: usize,
+    >(
+        args: BuildArgs,
+    ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>;
 
     /// Generates a proof for the circuit and saves it to disk.
@@ -52,8 +57,13 @@ pub trait Plonky2xFunction {
 }
 
 impl<C: Circuit> Plonky2xFunction for C {
-    fn build<L: PlonkParameters<D>, const D: usize>(args: BuildArgs)
-    where
+    fn build<
+        L: PlonkParameters<D>,
+        WrapperParameters: PlonkParameters<D, Field = L::Field>,
+        const D: usize,
+    >(
+        args: BuildArgs,
+    ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
         // Build the circuit.
@@ -81,7 +91,9 @@ impl<C: Circuit> Plonky2xFunction for C {
             let contract_path = format!("{}/FunctionVerifier.sol", args.build_dir);
             let mut contract_file = File::create(&contract_path).unwrap();
 
-            let circuit_digest_bytes = circuit
+            let wrapped_circuit = WrappedCircuit::<L, WrapperParameters, D>::build(circuit);
+            let circuit_digest_bytes = wrapped_circuit
+                .wrapper_circuit
                 .data
                 .verifier_only
                 .circuit_digest
@@ -89,28 +101,16 @@ impl<C: Circuit> Plonky2xFunction for C {
                 .iter()
                 .flat_map(|e| e.to_canonical_u64().to_be_bytes())
                 .collect::<Vec<u8>>();
-            let full_circuit_digest_bytes = circuit
-                .data
-                .verifier_only
-                .constants_sigmas_cap
-                .0
-                .iter()
-                .flat_map(|x| {
-                    x.elements
-                        .iter()
-                        .flat_map(|e| e.to_canonical_u64().to_be_bytes())
-                })
-                .chain(circuit_digest_bytes.iter().copied())
-                .collect::<Vec<u8>>();
-            let circuit_digest_hash = sha2::Sha256::digest(full_circuit_digest_bytes);
             assert!(
-                circuit_digest_hash.len() <= 32,
-                "circuit digest must be <= 32 bytes"
+                circuit_digest_bytes.len() == 32,
+                "circuit digest must be == 32 bytes"
             );
+            // TODO: assert that the circuit_digest_bytes are smaller than the bn254 field element
+            // assert!("")
 
             let mut padded = vec![0u8; 32];
-            let digest_len = circuit_digest_hash.len();
-            padded[(32 - digest_len)..].copy_from_slice(&circuit_digest_hash);
+            let digest_len = circuit_digest_bytes.len();
+            padded[(32 - digest_len)..].copy_from_slice(&circuit_digest_bytes);
             let circuit_digest = format!("0x{}", hex::encode(padded));
 
             let verifier_contract = Self::verifier(&circuit_digest);
@@ -171,6 +171,7 @@ impl<C: Circuit> Plonky2xFunction for C {
         );
 
         if let PublicOutput::Bytes(output_bytes) = output {
+            // TODO: can optimize this by saving the wrapped circuit in build
             let wrapped_circuit =
                 WrappedCircuit::<InnerParameters, OuterParameters, D>::build(circuit);
             let wrapped_proof = wrapped_circuit.prove(&proof).expect("failed to wrap proof");
@@ -228,7 +229,7 @@ impl<C: Circuit> Plonky2xFunction for C {
         let args = Args::parse();
         match args.command {
             Commands::Build(args) => {
-                Self::build::<L, D>(args);
+                Self::build::<L, Groth16WrapperParameters, D>(args);
             }
             Commands::Prove(args) => {
                 let request = ProofRequest::<L, D>::load(&args.input_json);

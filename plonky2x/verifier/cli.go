@@ -3,9 +3,7 @@ package main
 import (
 	_ "embed"
 	"flag"
-	"fmt"
 	"os"
-	"time"
 
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/logger"
@@ -16,7 +14,6 @@ func main() {
 	dataPath := flag.String("data", "", "data directory")
 	proofFlag := flag.Bool("prove", false, "create a proof")
 	verifyFlag := flag.Bool("verify", false, "verify a proof")
-	testFlag := flag.Bool("test", false, "test the circuit")
 	compileFlag := flag.Bool("compile", false, "Compile and save the universal verifier circuit")
 	contractFlag := flag.Bool("contract", true, "Generate solidity contract")
 	flag.Parse()
@@ -35,18 +32,6 @@ func main() {
 
 	log.Debug().Msg("Circuit path: " + *circuitPath)
 	log.Debug().Msg("Data path: " + *dataPath)
-
-	if *testFlag {
-		log.Debug().Msg("testing circuit")
-		start := time.Now()
-		err := VerifierCircuitTest(*circuitPath, "./data/dummy")
-		if err != nil {
-			fmt.Println("verifier test failed:", err)
-			os.Exit(1)
-		}
-		elasped := time.Since(start)
-		log.Debug().Msg("verifier test succeeded, time: " + elasped.String())
-	}
 
 	if *compileFlag {
 		log.Info().Msg("compiling verifier circuit")

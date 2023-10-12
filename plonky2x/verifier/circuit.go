@@ -11,16 +11,13 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/consensys/gnark/logger"
-	"github.com/consensys/gnark/test"
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
+	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
 )
 
 type Plonky2xVerifierCircuit struct {
-	ProofWithPis types.ProofWithPublicInputs
-	VerifierData types.VerifierOnlyCircuitData
-
-	// A digest of the verifier information of the plonky2x circuit.
+	// A digest of the plonky2x circuit that is being verified.
 	VerifierDigest frontend.Variable `gnark:"verifierDigest,public"`
 
 	// The input hash is the hash of all onchain inputs into the function.
@@ -29,92 +26,67 @@ type Plonky2xVerifierCircuit struct {
 	// The output hash is the hash of all outputs from the function.
 	OutputHash frontend.Variable `gnark:"outputHash,public"`
 
-	verifierChip *verifier.VerifierChip `gnark:"-"`
-	CircuitPath  string                 `gnark:"-"`
+	// Private inputs to the circuit
+	ProofWithPis variables.ProofWithPublicInputs
+	VerifierData variables.VerifierOnlyCircuitData
+
+	// Circuit configuration that is not part of the circuit itself.
+	CommonCircuitData types.CommonCircuitData `gnark:"-"`
 }
 
 func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error {
-	// load the common circuit data
-	commonCircuitData := verifier.DeserializeCommonCircuitData(c.CircuitPath + "/common_circuit_data.json")
 	// initialize the verifier chip
-	c.verifierChip = verifier.NewVerifierChip(api, commonCircuitData)
+	verifierChip := verifier.NewVerifierChip(api, c.CommonCircuitData)
 	// verify the plonky2 proof
-	c.verifierChip.Verify(c.ProofWithPis.Proof, c.ProofWithPis.PublicInputs, c.VerifierData, commonCircuitData)
+	verifierChip.Verify(c.ProofWithPis.Proof, c.ProofWithPis.PublicInputs, c.VerifierData)
 
+	// We assume that the publicInputs have 64 bytes
+	// publicInputs[0:32] is a big-endian representation of a SHA256 hash that has been truncated to 253 bits.
+	// We truncate to 253 bits because we want to only have `InputHash` be 1 BN254 field element.
 	publicInputs := c.ProofWithPis.PublicInputs
 
-	verifierDigestBytes := make([]frontend.Variable, 32)
-	for i := range verifierDigestBytes {
-		pubByte := publicInputs[i].Limb
-		verifierDigestBytes[i] = pubByte
+	if len(publicInputs) != 64 {
+		return fmt.Errorf("expected 64 public inputs, got %d", len(publicInputs))
 	}
-	verifierDigest := frontend.Variable(0)
-	for i := range verifierDigestBytes {
-		verifierDigest = api.Add(verifierDigest, api.Mul(verifierDigestBytes[i], frontend.Variable(1<<(8*i))))
-	}
-	c.VerifierDigest = verifierDigest
 
-	inputDigestBytes := make([]frontend.Variable, 32)
-	for i := range inputDigestBytes {
-		pubByte := publicInputs[i+32].Limb
-		inputDigestBytes[i] = pubByte
-	}
 	inputDigest := frontend.Variable(0)
-	for i := range inputDigestBytes {
-		inputDigest = api.Add(inputDigest, api.Mul(inputDigestBytes[i], frontend.Variable(1<<(8*i))))
+	for i := 0; i < 32; i++ {
+		pubByte := publicInputs[31-i].Limb
+		inputDigest = api.Add(inputDigest, api.Mul(pubByte, frontend.Variable(1<<(8*i))))
 	}
-	c.InputHash = inputDigest
+	api.AssertIsEqual(c.InputHash, inputDigest)
 
-	outputDigestBytes := make([]frontend.Variable, 32)
-	for i := range outputDigestBytes {
-		pubByte := publicInputs[i+64].Limb
-		outputDigestBytes[i] = pubByte
-	}
 	outputDigest := frontend.Variable(0)
-	for i := range outputDigestBytes {
-		outputDigest = api.Add(outputDigest, api.Mul(outputDigestBytes[i], frontend.Variable(1<<(8*i))))
+	for i := 0; i < 32; i++ {
+		pubByte := publicInputs[63-i].Limb
+		outputDigest = api.Add(inputDigest, api.Mul(pubByte, frontend.Variable(1<<(8*i))))
 	}
-	c.OutputHash = outputDigest
+	api.AssertIsEqual(c.OutputHash, outputDigest)
+
+	// Finally we have to assert that the VerifierData we verified the proof with
+	// matches the VerifierDigest public input.
+	api.AssertIsEqual(c.VerifierDigest, c.VerifierData.CircuitDigest)
 
 	return nil
 }
 
-func VerifierCircuitTest(circuitPath string, dummyCircuitPath string) error {
-	verifierOnlyCircuitData := verifier.DeserializeVerifierOnlyCircuitData(dummyCircuitPath + "/verifier_only_circuit_data.json")
-	proofWithPis := verifier.DeserializeProofWithPublicInputs(dummyCircuitPath + "/proof_with_public_inputs.json")
-	circuit := Plonky2xVerifierCircuit{
-		ProofWithPis:   proofWithPis,
-		VerifierData:   verifierOnlyCircuitData,
-		VerifierDigest: new(frontend.Variable),
-		InputHash:      new(frontend.Variable),
-		OutputHash:     new(frontend.Variable),
-		CircuitPath:    dummyCircuitPath,
-	}
-
-	verifierOnlyCircuitData = verifier.DeserializeVerifierOnlyCircuitData(circuitPath + "/verifier_only_circuit_data.json")
-	proofWithPis = verifier.DeserializeProofWithPublicInputs(circuitPath + "/proof_with_public_inputs.json")
-	witness := Plonky2xVerifierCircuit{
-		ProofWithPis:   proofWithPis,
-		VerifierData:   verifierOnlyCircuitData,
-		VerifierDigest: new(frontend.Variable),
-		InputHash:      new(frontend.Variable),
-		OutputHash:     new(frontend.Variable),
-		CircuitPath:    dummyCircuitPath,
-	}
-	return test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
-}
-
 func CompileVerifierCircuit(dummyCircuitPath string) (constraint.ConstraintSystem, groth16.ProvingKey, groth16.VerifyingKey, error) {
 	log := logger.Logger()
-	verifierOnlyCircuitData := verifier.DeserializeVerifierOnlyCircuitData(dummyCircuitPath + "/verifier_only_circuit_data.json")
-	proofWithPis := verifier.DeserializeProofWithPublicInputs(dummyCircuitPath + "/proof_with_public_inputs.json")
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
+		types.ReadVerifierOnlyCircuitData(dummyCircuitPath + "/verifier_only_circuit_data.json"),
+	)
+	proofWithPis := variables.DeserializeProofWithPublicInputs(
+		types.ReadProofWithPublicInputs(dummyCircuitPath + "/proof_with_public_inputs.json"),
+	)
+	commonCircuitData := types.ReadCommonCircuitData(dummyCircuitPath + "/common_circuit_data.json")
+
 	circuit := Plonky2xVerifierCircuit{
-		ProofWithPis:   proofWithPis,
-		VerifierData:   verifierOnlyCircuitData,
-		VerifierDigest: new(frontend.Variable),
-		InputHash:      new(frontend.Variable),
-		OutputHash:     new(frontend.Variable),
-		CircuitPath:    dummyCircuitPath,
+		ProofWithPis:      proofWithPis,
+		VerifierData:      verifierOnlyCircuitData,
+		VerifierDigest:    new(frontend.Variable),
+		InputHash:         new(frontend.Variable),
+		OutputHash:        new(frontend.Variable),
+		CommonCircuitData: commonCircuitData,
 	}
 	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 	if err != nil {
