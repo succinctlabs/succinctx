@@ -1,10 +1,8 @@
-use core::iter::once;
 use std::fs::{self, File};
 use std::path::Path;
 
 use anyhow::Result;
 use log::{debug, info};
-use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{
     CommonCircuitData, VerifierCircuitTarget, VerifierOnlyCircuitData,
@@ -14,11 +12,8 @@ use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use serde::Serialize;
 
 use crate::backend::circuit::{CircuitBuild, PlonkParameters};
-use crate::frontend::builder::{CircuitBuilder, CircuitIO};
-use crate::frontend::hash::sha::sha256::sha256;
-use crate::frontend::vars::{
-    ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable, Variable,
-};
+use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::vars::{ByteVariable, CircuitVariable, Variable};
 #[derive(Debug)]
 pub struct WrappedCircuit<
     InnerParameters: PlonkParameters<D>,
@@ -95,12 +90,12 @@ where
             .collect::<Vec<Variable>>();
 
         // Write input_hash, output_hash to public_inputs
-        // In the gnark-plonky2-verifier, these 32 bytes get summed to 1 field element
-        // that is either the input_hash or output_hash (and is exposed as a public input)
+        // In the gnark-plonky2-verifier, these 64 bytes get summed to 2 field elements that
+        // correspond to the input_hash and output_hash respectively as public inputs.
         input_vars
             .clone()
             .into_iter()
-            .chain(output_vars.into_iter())
+            .chain(output_vars)
             .for_each(|v| {
                 hash_builder.write(v);
             });
@@ -248,7 +243,6 @@ impl<L: PlonkParameters<D>, const D: usize> WrappedOutput<L, D> {
 #[cfg(test)]
 mod tests {
     use hex::decode;
-    use plonky2::field::types::Field;
 
     use super::*;
     use crate::backend::circuit::{DefaultParameters, Groth16WrapperParameters};
@@ -275,7 +269,6 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_wrapper() {
-        type F = GoldilocksField;
         const D: usize = 2;
         type InnerParameters = DefaultParameters;
         type OuterParameters = Groth16WrapperParameters;

@@ -13,7 +13,6 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut};
 pub use request::*;
 pub use result::*;
 use serde::Serialize;
-use sha2::Digest;
 
 use self::args::{BuildArgs, ProveArgs};
 use crate::backend::circuit::*;
@@ -173,7 +172,8 @@ impl<C: Circuit> Plonky2xFunction for C {
         );
 
         if let PublicOutput::Bytes(output_bytes) = output {
-            // TODO: can optimize this by saving the wrapped circuit in build
+            // TODO: can optimize this by saving the wrapped circuit in build and loading it from a binary
+            // instead of rebuilding every time.
             let wrapped_circuit =
                 WrappedCircuit::<InnerParameters, OuterParameters, D>::build(circuit);
             let wrapped_proof = wrapped_circuit.prove(&proof).expect("failed to wrap proof");

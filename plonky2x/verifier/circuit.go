@@ -43,7 +43,9 @@ func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error {
 
 	// We assume that the publicInputs have 64 bytes
 	// publicInputs[0:32] is a big-endian representation of a SHA256 hash that has been truncated to 253 bits.
-	// We truncate to 253 bits because we want to only have `InputHash` be 1 BN254 field element.
+	// Note that this truncation happens in the `WrappedCircuit` when computing the `input_hash`
+	// The reason for truncation is that we only want 1 public input on-chain for the input hash
+	// to save on gas costs
 	publicInputs := c.ProofWithPis.PublicInputs
 
 	if len(publicInputs) != 64 {
@@ -53,13 +55,9 @@ func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error {
 	inputDigest := frontend.Variable(0)
 	for i := 0; i < 32; i++ {
 		pubByte := publicInputs[31-i].Limb
-		fmt.Printf("pubByte: %v\n", pubByte)
 		inputDigest = api.Add(inputDigest, api.Mul(pubByte, frontend.Variable(new(big.Int).Lsh(big.NewInt(1), uint(8*i)))))
-		fmt.Printf("inputDigest: %v\n", inputDigest)
 
 	}
-	fmt.Printf("inputDigest: %v\n", inputDigest)
-	fmt.Printf("inputHash: %v\n", c.InputHash)
 	api.AssertIsEqual(c.InputHash, inputDigest)
 
 	outputDigest := frontend.Variable(0)
@@ -69,7 +67,7 @@ func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error {
 	}
 	api.AssertIsEqual(c.OutputHash, outputDigest)
 
-	// Finally we have to assert that the VerifierData we verified the proof with
+	// We have to assert that the VerifierData we verified the proof with
 	// matches the VerifierDigest public input.
 	api.AssertIsEqual(c.VerifierDigest, c.VerifierData.CircuitDigest)
 

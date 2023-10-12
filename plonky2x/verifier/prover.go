@@ -66,7 +66,6 @@ func GetInputHashOutputHash(proofWithPis gnark_verifier_types.ProofWithPublicInp
 	for i, v := range publicInputs {
 		publicInputsBytes[i] = byte(v & 0xFF)
 	}
-	fmt.Printf("publicInputsBytes: %x\n", publicInputsBytes[0:32])
 	inputHash := new(big.Int).SetBytes(publicInputsBytes[0:32])
 	outputHash := new(big.Int).SetBytes(publicInputsBytes[32:64])
 	if inputHash.BitLen() > 253 {
