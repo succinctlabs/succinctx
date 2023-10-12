@@ -184,9 +184,10 @@ impl<C: Circuit> Plonky2xFunction for C {
                 .save("wrapped")
                 .expect("failed to save wrapped proof");
 
-            // Call go wrapper
-            let verifier_output =
-                std::process::Command::new(path::Path::new(&args.wrapper_path).join("verifier"))
+            let mut command = path::Path::new(&args.wrapper_path).join("verifier");
+            if args.wrapper_path == "local" {
+                command = "go run ../verifier".into();
+                std::process::Command::new("go run ../verifier")
                     .arg("-prove")
                     .arg("-circuit")
                     .arg("wrapped")
@@ -196,6 +197,19 @@ impl<C: Circuit> Plonky2xFunction for C {
                     .stderr(std::process::Stdio::inherit())
                     .output()
                     .expect("failed to execute process");
+            }
+
+            // Call go wrapper
+            let verifier_output = std::process::Command::new(command)
+                .arg("-prove")
+                .arg("-circuit")
+                .arg("wrapped")
+                .arg("-data")
+                .arg(path::Path::new(&args.wrapper_path))
+                .stdout(std::process::Stdio::inherit())
+                .stderr(std::process::Stdio::inherit())
+                .output()
+                .expect("failed to execute process");
 
             if !verifier_output.status.success() {
                 panic!("verifier failed");

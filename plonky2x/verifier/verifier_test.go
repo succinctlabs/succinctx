@@ -1,11 +1,19 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
+	"github.com/consensys/gnark/std/rangecheck"
 	"github.com/consensys/gnark/test"
+	"github.com/rs/zerolog/log"
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 )
@@ -84,4 +92,56 @@ func TestPlonky2xVerifierCircuit(t *testing.T) {
 	for i := 1; i <= 8; i++ {
 		assert.Error(testCase(int64(i)))
 	}
+}
+
+type MyCircuit struct {
+	X frontend.Variable `gnark:",public"`
+	Y frontend.Variable `gnark:",public"`
+	Z frontend.Variable `gnark:",public"`
+	A frontend.Variable `gnark:"-"`
+}
+
+func (circuit *MyCircuit) Define(api frontend.API) error {
+	api.AssertIsEqual(circuit.Z, api.Add(circuit.X, circuit.Y))
+	rangeChecker := rangecheck.New(api)
+	rangeChecker.Check(circuit.X, 100)
+	return nil
+}
+
+func TestSanity(t *testing.T) {
+	circuit := MyCircuit{}
+
+	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Info().Msg("Running circuit setup")
+	start := time.Now()
+	_, vk, err := groth16.Setup(r1cs)
+	if err != nil {
+		panic(err)
+	}
+	elapsed := time.Since(start)
+	log.Info().Msg("Successfully ran circuit setup, time: " + elapsed.String())
+
+	buf := new(bytes.Buffer)
+	err = vk.ExportSolidity(buf)
+	if err != nil {
+		panic(err)
+	}
+	content := buf.String()
+
+	contractFile, err := os.Create("VerifierSanity6.sol")
+	if err != nil {
+		panic(err)
+	}
+	w := bufio.NewWriter(contractFile)
+	// write the new content to the writer
+	_, err = w.Write([]byte(content))
+	if err != nil {
+		panic(err)
+	}
+
+	contractFile.Close()
 }

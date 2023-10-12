@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -10,7 +11,11 @@ import (
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
+	curve "github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	"github.com/consensys/gnark-crypto/utils"
 	"github.com/consensys/gnark/backend/groth16"
+	groth16_bn254 "github.com/consensys/gnark/backend/groth16/bn254"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
@@ -77,7 +82,7 @@ func GetInputHashOutputHash(proofWithPis gnark_verifier_types.ProofWithPublicInp
 	return inputHash, outputHash
 }
 
-func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey) (groth16.Proof, witness.Witness, error) {
+func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey, vk groth16.VerifyingKey) (groth16.Proof, witness.Witness, error) {
 	log := logger.Logger()
 
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
@@ -119,6 +124,56 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	var buf bytes.Buffer
 	proof.WriteRawTo(&buf)
 	proofBytes := buf.Bytes()
+
+	// taken from test/assert_solidity.go
+	proofBytes = proofBytes[:32*8]
+	proofStr := hex.EncodeToString(proofBytes)
+	fmt.Printf("ProofBytes: %v\n", proofStr)
+
+	for i := 0; i < 8; i++ {
+		fmt.Printf("ProofBytes[%v]: %v\n", i, proofStr[fpSize*i:fpSize*(i+1)])
+	}
+
+	pWitness, err := witness.Public()
+	bPublicWitness, err := pWitness.MarshalBinary()
+	bPublicWitness = bPublicWitness[12:]
+	publicWitnessStr := hex.EncodeToString(bPublicWitness)
+	fmt.Printf("PublicWitness: %v\n", publicWitnessStr)
+	witnessVec := pWitness.Vector().(fr.Vector)
+	// end of debug
+
+	for i := 0; i < 3; i++ {
+		fmt.Printf("PublicWitness[%v]: %v\n", i, hex.EncodeToString(bPublicWitness[fpSize*i:fpSize*(i+1)]))
+	}
+
+	// EXTRA LOGIC TO GET EXTRA INPUT
+	vkStruct := vk.(*groth16_bn254.VerifyingKey)
+	proofStruct := proof.(*groth16_bn254.Proof)
+
+	maxNbPublicCommitted := 0
+	for _, s := range vkStruct.PublicAndCommitmentCommitted { // iterate over commitments
+		maxNbPublicCommitted = utils.Max(maxNbPublicCommitted, len(s))
+	}
+	commitmentsSerialized := make([]byte, len(vkStruct.PublicAndCommitmentCommitted)*fr.Bytes)
+	commitmentPrehashSerialized := make([]byte, curve.SizeOfG1AffineUncompressed+maxNbPublicCommitted*fr.Bytes)
+	for i := range vkStruct.PublicAndCommitmentCommitted { // solveCommitmentWire
+		copy(commitmentPrehashSerialized, proofStruct.Commitments[i].Marshal())
+		offset := curve.SizeOfG1AffineUncompressed
+		for j := range vkStruct.PublicAndCommitmentCommitted[i] {
+			copy(commitmentPrehashSerialized[offset:], witnessVec[vkStruct.PublicAndCommitmentCommitted[i][j]-1].Marshal())
+			offset += fr.Bytes
+		}
+		if res, err := fr.Hash(commitmentPrehashSerialized[:offset], []byte(constraint.CommitmentDst), 1); err != nil {
+			panic(err)
+		} else {
+			fmt.Printf("Commitment: %v\n", hex.EncodeToString(res[0].Marshal()))
+			// fmt.Printf("Commitment %v: %v %v\n", i, res[0], res[0].Marshal())
+			witnessVec = append(witnessVec, res[0])
+			copy(commitmentsSerialized[i*fr.Bytes:], res[0].Marshal())
+		}
+	}
+	// asdf
+
 	output := &types.Groth16Proof{}
 	output.A[0] = new(big.Int).SetBytes(proofBytes[fpSize*0 : fpSize*1])
 	output.A[1] = new(big.Int).SetBytes(proofBytes[fpSize*1 : fpSize*2])
@@ -172,6 +227,10 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get public witness: %w", err)
 	}
+
+	vecWitness := publicWitness.Vector()
+	fmt.Printf("Public witness: %v\n", vecWitness)
+	fmt.Printf("%v %v %v\n", assignment.VerifierDigest, assignment.InputHash, assignment.OutputHash)
 
 	log.Info().Msg("Saving public witness to public_witness.bin")
 	witnessFile, err := os.Create("public_witness.bin")

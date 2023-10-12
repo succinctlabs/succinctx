@@ -25,3 +25,6 @@ keystore
 .idea/
 proof.json
 output.json
+
+*.tar.gz
+

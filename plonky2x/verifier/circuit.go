@@ -15,6 +15,7 @@ import (
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
+	// "github.com/succinctlabs/gnark-plonky2-verifier/verifier"
 )
 
 type Plonky2xVerifierCircuit struct {
@@ -28,8 +29,8 @@ type Plonky2xVerifierCircuit struct {
 	OutputHash frontend.Variable `gnark:"outputHash,public"`
 
 	// Private inputs to the circuit
-	ProofWithPis variables.ProofWithPublicInputs
-	VerifierData variables.VerifierOnlyCircuitData
+	ProofWithPis variables.ProofWithPublicInputs   `gnark:",secret"`
+	VerifierData variables.VerifierOnlyCircuitData `gnark:",secret"`
 
 	// Circuit configuration that is not part of the circuit itself.
 	CommonCircuitData types.CommonCircuitData `gnark:"-"`
