@@ -34,7 +34,10 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
     /// @param _feeVault The address of the fee vault.
     /// @param _timelock The address of the timelock contract.
     /// @param _guardian The address of the guardian.
-    function initialize(address _feeVault, address _timelock, address _guardian) external initializer {
+    function initialize(address _feeVault, address _timelock, address _guardian)
+        external
+        initializer
+    {
         feeVault = _feeVault;
         isCallback = false;
         __TimelockedUpgradeable_init(_timelock, _guardian);
