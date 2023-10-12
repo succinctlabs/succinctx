@@ -109,6 +109,9 @@ impl<C: Circuit> Plonky2xFunction for C {
             // Note that we don't need to do any sort of truncation of the top bits because the
             // circuit digest already lives in the bn254 field because the WrappedCircuit config
             // is the Poseidon Bn254 hasher.
+            // In fact in the Solidity smart contract we should *not* truncate the top 3 bits
+            // like we do with input_hash and output_hash, as the circuit digest has a
+            // small probability of being greater than 2^253, as the field modulus is 254 bits.
             let mut padded = vec![0u8; 32];
             let digest_len = circuit_digest_bytes.len();
             padded[(32 - digest_len)..].copy_from_slice(&circuit_digest_bytes);
@@ -262,7 +265,6 @@ contract FunctionVerifier is IFunctionVerifier, Verifier {
             abi.decode(_proof, (uint256[2], uint256[2][2], uint256[2]));
 
         uint256[3] memory input = [uint256(CIRCUIT_DIGEST), uint256(_inputHash), uint256(_outputHash)];
-        input[0] = input[0] & ((1 << 253) - 1);
         input[1] = input[1] & ((1 << 253) - 1);
         input[2] = input[2] & ((1 << 253) - 1); 
 
