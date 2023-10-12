@@ -47,9 +47,9 @@ interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
     function requestCall(
         bytes32 _functionId,
         bytes memory _input,
-        address _address,
-        bytes memory _data,
-        uint32 _gasLimit
+        address _entryAddress,
+        bytes memory _entryData,
+        uint32 _entryGasLimit
     ) external payable;
 
     function verifiedCall(bytes32 _functionId, bytes memory _input)
