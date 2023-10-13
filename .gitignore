@@ -40,3 +40,6 @@ output.json
 #.pnp.*
 
 node_modules
+
+dist/
+tsconfig.tsbuildinfo

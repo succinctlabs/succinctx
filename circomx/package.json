@@ -1,6 +1,6 @@
 {
     "name": "@succinctlabs/circomx",
-    "version": "1.0.0",
+    "version": "0.0.2",
     "packageManager": "yarn@3.3.0",
     "type": "module",
     "main": "dist/index.js",
@@ -51,5 +51,9 @@
     },
     "devDependencies": {
         "typescript": "^5.1.6"
+    },
+    "scripts": {
+        "build": "tsc -b",
+        "prepublishOnly": "yarn build"
     }
 }
