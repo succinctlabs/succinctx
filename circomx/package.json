@@ -22,7 +22,7 @@
     "files": [
         "dist/**/*.d.ts",
         "dist/**/*.js",
-        "dist/**/*.js.map",
+        "dist/**/*.ts.map",
         "*.d.ts",
         "*.js"
     ],
