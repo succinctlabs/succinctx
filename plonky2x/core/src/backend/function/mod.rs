@@ -244,8 +244,9 @@ impl<C: Circuit> Plonky2xFunction for C {
     }
 
     fn verifier(circuit_digest: &str) -> String {
-        let generated_contract =
-            VERIFIER_CONTRACT.replace("pragma solidity ^0.8.0;", "pragma solidity ^0.8.16;");
+        let generated_contract = VERIFIER_CONTRACT
+            .replace("pragma solidity ^0.8.19;", "pragma solidity ^0.8.16;")
+            .replace("function Verify", "function verifyProof");
 
         let verifier_contract = "
 
@@ -265,7 +266,7 @@ contract FunctionVerifier is IFunctionVerifier, PlonkVerifier {
         input[1] = uint256(_inputHash) & ((1 << 253) - 1);
         input[2] = uint256(_outputHash) & ((1 << 253) - 1); 
 
-        return verifyProof(proof, input);
+        return verifyProof(_proof, input);
     }
 
     function verificationKeyHash() external pure returns (bytes32) {
