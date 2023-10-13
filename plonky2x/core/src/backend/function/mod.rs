@@ -266,7 +266,7 @@ contract FunctionVerifier is IFunctionVerifier, PlonkVerifier {
         input[1] = uint256(_inputHash) & ((1 << 253) - 1);
         input[2] = uint256(_outputHash) & ((1 << 253) - 1); 
 
-        return verifyProof(_proof, input);
+        return this.verifyProof(_proof, input);
     }
 
     function verificationKeyHash() external pure returns (bytes32) {
