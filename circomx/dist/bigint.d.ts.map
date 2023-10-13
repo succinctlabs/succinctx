@@ -1,0 +1,1 @@
+{"version":3,"file":"bigint.d.ts","sourceRoot":"","sources":["../src/bigint.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,MAAM,kBAAkB,CAAC;AAE3C,wBAAgB,aAAa,CAAC,KAAK,EAAE,OAAO,GAAG,CAAC,MAAM,EAAE,MAAM,CAAC,CAG9D;AAED,wBAAgB,aAAa,CAAC,CAAC,EAAE,MAAM,EAAE,CAAC,EAAE,MAAM,EAAE,CAAC,EAAE,MAAM,YAa5D"}
