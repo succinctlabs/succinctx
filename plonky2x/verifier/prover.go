@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -11,12 +10,12 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
+	plonk_bn254 "github.com/consensys/gnark/backend/plonk/bn254"
 
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/logger"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	gnark_verifier_types "github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 
@@ -116,44 +115,12 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk plonk.Provin
 	elapsed = time.Since(start)
 	log.Info().Msg("Successfully created proof, time: " + elapsed.String())
 
-	const fpSize = 4 * 8
-	var buf bytes.Buffer
-	proof.WriteRawTo(&buf)
-	proofBytes := buf.Bytes()
-	output := &types.Groth16Proof{}
-	output.A[0] = new(big.Int).SetBytes(proofBytes[fpSize*0 : fpSize*1])
-	output.A[1] = new(big.Int).SetBytes(proofBytes[fpSize*1 : fpSize*2])
-	output.B[0][0] = new(big.Int).SetBytes(proofBytes[fpSize*2 : fpSize*3])
-	output.B[0][1] = new(big.Int).SetBytes(proofBytes[fpSize*3 : fpSize*4])
-	output.B[1][0] = new(big.Int).SetBytes(proofBytes[fpSize*4 : fpSize*5])
-	output.B[1][1] = new(big.Int).SetBytes(proofBytes[fpSize*5 : fpSize*6])
-	output.C[0] = new(big.Int).SetBytes(proofBytes[fpSize*6 : fpSize*7])
-	output.C[1] = new(big.Int).SetBytes(proofBytes[fpSize*7 : fpSize*8])
-
-	// abi.encode(proof.A, proof.B, proof.C)
-	uint256Array, err := abi.NewType("uint256[2]", "", nil)
-	if err != nil {
-		log.Fatal().AnErr("Failed to create uint256[2] type", err)
-	}
-	uint256ArrayArray, err := abi.NewType("uint256[2][2]", "", nil)
-	if err != nil {
-		log.Fatal().AnErr("Failed to create uint256[2][2] type", err)
-	}
-	args := abi.Arguments{
-		{Type: uint256Array},
-		{Type: uint256ArrayArray},
-		{Type: uint256Array},
-	}
-	encodedProofBytes, err := args.Pack(output.A, output.B, output.C)
-	if err != nil {
-		log.Fatal().AnErr("Failed to encode proof", err)
-	}
-
+	_proof := proof.(*plonk_bn254.Proof)
 	log.Info().Msg("Saving proof to proof.json")
 	jsonProof, err := json.Marshal(types.ProofResult{
 		// Output will be filled in by plonky2x CLI
 		Output: []byte{},
-		Proof:  encodedProofBytes,
+		Proof:  _proof.MarshalSolidity(),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to marshal proof: %w", err)

@@ -244,9 +244,8 @@ impl<C: Circuit> Plonky2xFunction for C {
     }
 
     fn verifier(circuit_digest: &str) -> String {
-        let generated_contract = VERIFIER_CONTRACT
-            .replace("pragma solidity ^0.8.0;", "pragma solidity ^0.8.16;")
-            .replace("uint256[3] calldata input", "uint256[3] memory input");
+        let generated_contract =
+            VERIFIER_CONTRACT.replace("pragma solidity ^0.8.0;", "pragma solidity ^0.8.16;");
 
         let verifier_contract = "
 
@@ -256,23 +255,21 @@ interface IFunctionVerifier {
     function verificationKeyHash() external pure returns (bytes32);
 }
 
-contract FunctionVerifier is IFunctionVerifier, Verifier {
+contract FunctionVerifier is IFunctionVerifier, PlonkVerifier {
 
     bytes32 public constant CIRCUIT_DIGEST = {CIRCUIT_DIGEST};
 
     function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool) {
-        (uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c) =
-            abi.decode(_proof, (uint256[2], uint256[2][2], uint256[2]));
+        uint256[] memory input = new uint256[](3);
+        input[0] = uint256(CIRCUIT_DIGEST);
+        input[1] = uint256(_inputHash) & ((1 << 253) - 1);
+        input[2] = uint256(_outputHash) & ((1 << 253) - 1); 
 
-        uint256[3] memory input = [uint256(CIRCUIT_DIGEST), uint256(_inputHash), uint256(_outputHash)];
-        input[1] = input[1] & ((1 << 253) - 1);
-        input[2] = input[2] & ((1 << 253) - 1); 
-
-        return verifyProof(a, b, c, input);
+        return verifyProof(proof, input);
     }
 
     function verificationKeyHash() external pure returns (bytes32) {
-        return keccak256(abi.encode(verifyingKey()));
+        return CIRCUIT_DIGEST;
     }
 }
 ".replace("{CIRCUIT_DIGEST}", circuit_digest);
