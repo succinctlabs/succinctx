@@ -7,12 +7,12 @@ require (
 	github.com/consensys/gnark-crypto v0.12.1
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/stretchr/testify v1.8.4
-	github.com/succinctlabs/gnark-plonky2-verifier v0.0.0-20231012010246-940c81b212ec
+	github.com/succinctlabs/gnark-plonky2-verifier v0.0.0-20231013210054-89b5a01e4b4b
 )
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
-	github.com/bits-and-blooms/bitset v1.9.0 // indirect
+	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
