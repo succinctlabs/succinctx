@@ -2,9 +2,8 @@ import { toHexString, BitArray } from "@chainsafe/ssz";
 import { capella, phase0, ssz } from "@lodestar/types";
 import { PointG1, PointG2 } from "@noble/bls12-381";
 
-import { toLittleEndian, hexToBigIntArray, truncateHexPrefix } from "./ssz";
-
-import { bigIntToArray, pointToBigInt } from "./bigint";
+import { toLittleEndian, hexToBigIntArray, truncateHexPrefix } from "./ssz.js";
+import { bigIntToArray, pointToBigInt } from "./bigint.js";
 
 export type CircomElement = string | bigint | number | CircomElement[];
 

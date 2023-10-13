@@ -3,8 +3,8 @@ import dotenv from "dotenv";
 import fs from "fs";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { encodeGroth16Proof, executeCommand } from "./util";
-import { CircomInput } from "./serializer";
+import { encodeGroth16Proof, executeCommand } from "./util.js";
+import { CircomInput } from "./serializer.js";
 
 const NODE_OPTIONS =
   "--huge-max-old-generation-size --max-old-space-size=2048000 --initial-old-space-size=2048000 --no-global-gc-scheduling --no-incremental-marking --max-semi-space-size=2048000 --initial-heap-size=2048000 --expose-gc";

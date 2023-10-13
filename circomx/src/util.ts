@@ -1,7 +1,7 @@
 import { execSync } from "child_process";
 import { ethers } from "ethers";
 import crypto from "crypto";
-import * as ssz from "./ssz";
+import * as ssz from "./ssz.js";
 
 export function encodeGroth16Proof(proof: any): string {
   // Flatten the proof values into a single array

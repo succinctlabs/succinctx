@@ -1,9 +1,8 @@
 {
     "name": "@succinctlabs/circomx",
-    "version": "0.0.2",
+    "version": "0.0.13",
     "packageManager": "yarn@3.3.0",
     "type": "module",
-    "main": "dist/index.js",
     "exports": {
         ".": {
             "import": "./dist/index.js"
@@ -22,7 +21,7 @@
     "files": [
         "dist/**/*.d.ts",
         "dist/**/*.js",
-        "dist/**/*.ts.map",
+        "dist/**/*.js.map",
         "*.d.ts",
         "*.js"
     ],
@@ -54,6 +53,7 @@
     },
     "scripts": {
         "build": "tsc -b",
-        "prepublishOnly": "yarn build"
+        "clean": "rm -rf dist && rm -f *.tsbuildinfo",
+        "prepublishOnly": "yarn clean && yarn build"
     }
 }
