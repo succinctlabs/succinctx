@@ -11,6 +11,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
 	plonk_bn254 "github.com/consensys/gnark/backend/plonk/bn254"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
@@ -135,6 +136,34 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk plonk.Provin
 	}
 	proofFile.Close()
 	log.Info().Msg("Successfully saved proof")
+
+	// Write proof with all the public inputs and save to disk.
+	jsonProofWithWitness, err := json.Marshal(struct {
+		InputHash      hexutil.Bytes `json:"input_hash"`
+		OutputHash     hexutil.Bytes `json:"output_hash"`
+		VerifierDigest hexutil.Bytes `json:"verifier_digest"`
+		Proof          hexutil.Bytes `json:"proof"`
+	}{
+		InputHash:      inputHash.Bytes(),
+		OutputHash:     outputHash.Bytes(),
+		VerifierDigest: (verifierOnlyCircuitData.CircuitDigest).(*big.Int).Bytes(),
+		Proof:          _proof.MarshalSolidity(),
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal proof with witness: %w", err)
+	}
+	proofFile, err = os.Create("proof_with_witness.json")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create proof_with_witness file: %w", err)
+	}
+	_, err = proofFile.Write(jsonProofWithWitness)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to write proof_with_witness file: %w", err)
+	}
+	proofFile.Close()
+	log.Info().Msg("Proof with witness")
+	log.Info().Msg(string(jsonProofWithWitness))
+	log.Info().Msg("Successfully saved proof_with_witness")
 
 	publicWitness, err := witness.Public()
 	if err != nil {

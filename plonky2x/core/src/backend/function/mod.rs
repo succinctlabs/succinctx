@@ -89,7 +89,7 @@ impl<C: Circuit> Plonky2xFunction for C {
 
             info!("First building wrapper circuit to get the wrapper circuit digest...");
             // The wrapper circuit digest will get saved in the Solidity smart contract,
-            // which will use this value as a public input `VerifierDigest` in the Gnark plonky2 verifier
+            // which will use this value as a public input `VerifierDigest` in the gnark plonky2 verifier
             let wrapped_circuit = WrappedCircuit::<L, WrapperParameters, D>::build(circuit);
 
             let mut circuit_digest_bytes = wrapped_circuit
@@ -99,14 +99,14 @@ impl<C: Circuit> Plonky2xFunction for C {
                 .circuit_digest
                 .to_bytes();
             // to_bytes() returns the representation as LE, but we want to save it on-chain
-            // as BE because that is the format of the public input to the Gnark plonky2 verifier.
+            // as BE because that is the format of the public input to the gnark plonky2 verifier.
             circuit_digest_bytes.reverse();
 
             // The VerifierDigest is stored on-chain as a bytes32, so we need to pad it with 0s
             // to store it in the Solidity smart contract.
             // Note that we don't need to do any sort of truncation of the top bits because the
             // circuit digest already lives in the bn254 field because the WrappedCircuit config
-            // is the Poseidon Bn254 hasher.
+            // is the Poseidon bn254 hasher.
             // In fact in the Solidity smart contract we should *not* truncate the top 3 bits
             // like we do with input_hash and output_hash, as the circuit digest has a
             // small probability of being greater than 2^253, as the field modulus is 254 bits.
@@ -173,8 +173,8 @@ impl<C: Circuit> Plonky2xFunction for C {
         );
 
         if let PublicOutput::Bytes(output_bytes) = output {
-            // TODO: can optimize this by saving the wrapped circuit in build and loading it from a binary
-            // instead of rebuilding every time.
+            // It's quite fast (~5-10 seconds) to rebuild the wrapped circuit. Because of this we
+            // choose to rebuild here instead of loading from disk.
             let wrapped_circuit =
                 WrappedCircuit::<InnerParameters, OuterParameters, D>::build(circuit);
             let wrapped_proof = wrapped_circuit.prove(&proof).expect("failed to wrap proof");

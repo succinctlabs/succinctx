@@ -74,8 +74,8 @@ where
         // We must truncate the top 3 bits because in the gnark-plonky2-verifier, the input_hash
         // and output_hash are both represented as 1 field element in the BN254 field
         // to reduce on-chain verification costs.
-        let input_hash_zeroed = hash_builder.zero_top_bits(input_hash, 3);
-        let output_hash_zeroed = hash_builder.zero_top_bits(output_hash, 3);
+        let input_hash_zeroed = hash_builder.mask_be_bits(input_hash, 3);
+        let output_hash_zeroed = hash_builder.mask_be_bits(output_hash, 3);
 
         let input_vars = input_hash_zeroed
             .as_bytes()

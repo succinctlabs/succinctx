@@ -112,7 +112,7 @@ impl SSZVariable for Bytes32Variable {
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     // Returns a Bytes32Variable with the first `num_bits` set to 0.
-    pub fn zero_top_bits(&mut self, original: Bytes32Variable, num_bits: usize) -> Bytes32Variable {
+    pub fn mask_be_bits(&mut self, original: Bytes32Variable, num_bits: usize) -> Bytes32Variable {
         let variables = original.variables();
         let mut new_variables = vec![];
         for _ in 0..num_bits {
