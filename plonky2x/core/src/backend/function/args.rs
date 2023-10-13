@@ -5,6 +5,12 @@ use clap::{Parser, Subcommand};
 pub struct BuildArgs {
     #[arg(long, default_value = "./build")]
     pub build_dir: String,
+
+    // This argument is needed to generate the FunctionVerifier.sol contract that contains
+    // the verification smart contract for the gnark-plonky-2 verifier.
+    // This needs to match the argument in `ProveArgs`
+    #[arg(long, default_value = "/verifier-build")]
+    pub wrapper_path: String,
 }
 
 #[derive(Parser, Debug, Clone)]

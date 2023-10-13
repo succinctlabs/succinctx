@@ -20,8 +20,6 @@ use crate::backend::wrapper::wrap::WrappedCircuit;
 use crate::frontend::builder::CircuitIO;
 use crate::prelude::{CircuitBuilder, GateRegistry, HintRegistry};
 
-const VERIFIER_CONTRACT: &str = include_str!("../../../../../assets/Verifier.sol");
-
 /// `Plonky2xFunction`s have all necessary code for a circuit to be deployed end-to-end.
 pub trait Plonky2xFunction {
     /// Builds the circuit and saves it to disk.
@@ -51,7 +49,7 @@ pub trait Plonky2xFunction {
     fn entrypoint();
 
     /// Returns the verifier contract for the circuit.
-    fn verifier(circuit_digest: &str) -> String;
+    fn verifier(circuit_digest: &str, wrapper_path: &String) -> String;
 }
 
 impl<C: Circuit> Plonky2xFunction for C {
@@ -117,7 +115,7 @@ impl<C: Circuit> Plonky2xFunction for C {
             padded[(32 - digest_len)..].copy_from_slice(&circuit_digest_bytes);
             let circuit_digest = format!("0x{}", hex::encode(padded));
 
-            let verifier_contract = Self::verifier(&circuit_digest);
+            let verifier_contract = Self::verifier(&circuit_digest, &args.wrapper_path);
             contract_file
                 .write_all(verifier_contract.as_bytes())
                 .unwrap();
@@ -243,8 +241,11 @@ impl<C: Circuit> Plonky2xFunction for C {
         }
     }
 
-    fn verifier(circuit_digest: &str) -> String {
-        let generated_contract = VERIFIER_CONTRACT
+    fn verifier(circuit_digest: &str, wrapper_path: &String) -> String {
+        let wrapper_verifier_path = format!("{}/Verifier.sol", wrapper_path);
+        let wrapper_verifier_contract = fs::read_to_string(wrapper_verifier_path)
+            .expect("Failed to read wrapper_verifier_path");
+        let generated_contract = wrapper_verifier_contract
             .replace("pragma solidity ^0.8.19;", "pragma solidity ^0.8.16;")
             .replace("function Verify", "function verifyProof");
 
