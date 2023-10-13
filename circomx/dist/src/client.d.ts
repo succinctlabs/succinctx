@@ -16,7 +16,7 @@ export declare class ConsensusClient {
     constructor(axiosClient: AxiosInstance, slotsPerEpoch: number, slotsPerPeriod: number);
     toStringFromBeaconId(identifier: any): any;
     getHeader(blockIdentifier: BeaconId): Promise<phase0.BeaconBlockHeader>;
-    getSSZ(blockIdentifier: BeaconId): Promise<typeof ssz.bellatrix | typeof ssz.capella>;
+    getSSZ(blockIdentifier: BeaconId): Promise<typeof ssz.capella | typeof ssz.bellatrix>;
     getBlock(blockIdentifier: BeaconId): Promise<capella.BeaconBlock>;
 }
 export {};

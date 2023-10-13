@@ -3,11 +3,29 @@
     "version": "1.0.0",
     "packageManager": "yarn@3.3.0",
     "type": "module",
-    "main": "src/index.ts",
-    "types": "src/index.ts",
+    "main": "dist/index.js",
     "exports": {
-        ".": "./dist/index.js"
+        ".": {
+            "import": "./dist/index.js"
+        }
     },
+    "typesVersions": {
+        "*": {
+            "*": [
+                "*",
+                "dist/*",
+                "dist/*/index"
+            ]
+        }
+    },
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist/**/*.d.ts",
+        "dist/**/*.js",
+        "dist/**/*.js.map",
+        "*.d.ts",
+        "*.js"
+    ],
     "dependencies": {
         "@chainsafe/persistent-merkle-tree": "^0.6.1",
         "@chainsafe/ssz": "^0.13.0",
