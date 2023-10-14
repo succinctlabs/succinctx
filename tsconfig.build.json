@@ -1,0 +1,26 @@
+{
+    "compilerOptions": {
+      "target": "ESNext",
+      "module": "ESNext",
+      "moduleResolution": "node",
+      "pretty": true,
+      "strict": true,
+      "sourceMap": true,
+      "alwaysStrict": true,
+      "strictNullChecks": true,
+      "strictFunctionTypes": true,
+      "strictBindCallApply": true,
+      "strictPropertyInitialization": true,
+      "useUnknownInCatchVariables": true,
+      "noImplicitAny": true,
+      "noImplicitThis": true,
+      "noImplicitReturns": true,
+      "esModuleInterop": true,
+      "declaration": true,
+      "declarationMap": true,
+      "composite": true,
+      "incremental": true,
+      "preserveWatchOutput": true,
+      "skipLibCheck": true
+    }
+  }
