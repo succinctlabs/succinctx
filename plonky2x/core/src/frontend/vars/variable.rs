@@ -42,11 +42,12 @@ impl CircuitVariable for Variable {
         variables[0]
     }
 
-    #[allow(unused_variables)]
     fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
         &self,
-        builder: &mut CircuitBuilder<L, D>,
+        _builder: &mut CircuitBuilder<L, D>,
     ) {
+        // The Variable's underlying type is plonky2's Target.  That is already within the Goldilock's
+        // field, so we don't need to do any range checks.
     }
 
     fn nb_elements() -> usize {
