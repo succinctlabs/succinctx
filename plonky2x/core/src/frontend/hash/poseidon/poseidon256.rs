@@ -1,5 +1,5 @@
 use array_macro::array;
-use plonky2::hash::hash_types::RichField;
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
@@ -8,9 +8,51 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{ArrayVariable, Bytes32Variable};
 use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable, Variable};
 
-#[derive(Debug, Clone, CircuitVariable)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct PoseidonHashOutVariable {
     pub elements: ArrayVariable<Variable, 4>,
+}
+
+impl CircuitVariable for PoseidonHashOutVariable {
+    type ValueType<F: RichField> = HashOut<F>;
+
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        Self {
+            elements: ArrayVariable::new([builder.init(); 4].to_vec()),
+        }
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        _builder: &mut CircuitBuilder<L, D>,
+    ) {
+    }
+
+    fn nb_elements() -> usize {
+        NUM_HASH_OUT_ELTS
+    }
+
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        value.elements.to_vec()
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        HashOut {
+            elements: elements.try_into().unwrap(),
+        }
+    }
+
+    fn variables(&self) -> Vec<Variable> {
+        self.elements.as_vec()
+    }
+
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        Self {
+            elements: ArrayVariable::from_variables_unsafe(variables),
+        }
+    }
 }
 
 /// Implements the Poseidon hash for CircuitBuilder.
@@ -87,6 +129,27 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 }
 
+impl From<HashOutTarget> for PoseidonHashOutVariable {
+    fn from(target: HashOutTarget) -> Self {
+        Self {
+            elements: ArrayVariable::new(target.elements.map(Variable).to_vec()),
+        }
+    }
+}
+
+impl From<PoseidonHashOutVariable> for HashOutTarget {
+    fn from(target: PoseidonHashOutVariable) -> Self {
+        let element_slice = target.elements.as_slice();
+        Self {
+            elements: [
+                element_slice[0].0,
+                element_slice[1].0,
+                element_slice[2].0,
+                element_slice[3].0,
+            ],
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
