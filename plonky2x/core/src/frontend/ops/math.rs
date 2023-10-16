@@ -185,7 +185,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
         Rhs: LessThanOrEqual<L, D, Lhs>,
     {
-        self.lte(rhs, lhs)
+        self.lt(rhs, lhs)
     }
 
     /// The greater than or equal to operation (>=).
@@ -194,7 +194,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
         Rhs: LessThanOrEqual<L, D, Rhs>,
     {
-        self.lt(rhs, lhs)
+        self.lte(rhs, lhs)
     }
 
     /// The within range operation (lhs <= variable < rhs).
