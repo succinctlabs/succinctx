@@ -183,7 +183,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn gt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
         Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
-        Rhs: LessThanOrEqual<L, D, Lhs>,
+        Rhs: LessThanOrEqual<L, D, Rhs>,
     {
         self.lt(rhs, lhs)
     }
@@ -192,7 +192,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn gte<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
         Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
-        Rhs: LessThanOrEqual<L, D, Rhs>,
+        Rhs: LessThanOrEqual<L, D, Lhs>,
     {
         self.lte(rhs, lhs)
     }
