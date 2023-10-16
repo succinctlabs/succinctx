@@ -26,7 +26,12 @@ export abstract class Circuit {
 
   abstract circuitName(): string;
 
-  build(snarkjsPath: string, circomPath: string, ptauPath: string) {
+  build(
+    snarkjsPath: string,
+    circomPath: string,
+    ptauPath: string,
+    noZkey: boolean
+  ) {
     const circuit = this.circuitName();
 
     // Create build dir if not exists
@@ -48,34 +53,35 @@ export abstract class Circuit {
     );
     executeCommand(`rm -rf build/${buildDirName}`);
     executeCommand(`rm -rf build/${circuit}_cpp`);
-    executeCommand(
-      `node ${NODE_OPTIONS} ${snarkjsPath} zkey new build/${circuitName}.r1cs ${ptauPath} build/p1.zkey`
-    );
-    executeCommand(
-      `node ${NODE_OPTIONS} ${snarkjsPath} zkey export verificationkey build/p1.zkey build/vkey.json`
-    );
-    executeCommand(
-      `node ${NODE_OPTIONS} ${snarkjsPath} zkey export solidityverifier build/p1.zkey build/FunctionVerifier.sol`
-    );
+    if (!noZkey) {
+      executeCommand(
+        `node ${NODE_OPTIONS} ${snarkjsPath} zkey new build/${circuitName}.r1cs ${ptauPath} build/p1.zkey`
+      );
+      executeCommand(
+        `node ${NODE_OPTIONS} ${snarkjsPath} zkey export verificationkey build/p1.zkey build/vkey.json`
+      );
+      executeCommand(
+        `node ${NODE_OPTIONS} ${snarkjsPath} zkey export solidityverifier build/p1.zkey build/FunctionVerifier.sol`
+      );
 
-    // Replace first line of FunctionVerifier.sol with "pragma solidity ^0.8.0;"
-    let solidityVerifier = fs.readFileSync(
-      "build/FunctionVerifier.sol",
-      "utf8"
-    );
-    solidityVerifier = solidityVerifier.replaceAll("calldataload", "mload");
-    solidityVerifier = solidityVerifier.replaceAll("calldata", "memory");
-    solidityVerifier = solidityVerifier.replaceAll(
-      "_pB, _pC",
-      // for some reason, uint256[2][2] memory _pB has two words (two lengths?) prepended to it
-      // and calldata doesn't have it
-      "add(_pB, 64), _pC"
-    );
-    solidityVerifier = solidityVerifier.replaceAll(
-      "pragma solidity >=0.7.0 <0.9.0;",
-      "pragma solidity ^0.8.16;"
-    );
-    solidityVerifier += `
+      // Replace first line of FunctionVerifier.sol with "pragma solidity ^0.8.0;"
+      let solidityVerifier = fs.readFileSync(
+        "build/FunctionVerifier.sol",
+        "utf8"
+      );
+      solidityVerifier = solidityVerifier.replaceAll("calldataload", "mload");
+      solidityVerifier = solidityVerifier.replaceAll("calldata", "memory");
+      solidityVerifier = solidityVerifier.replaceAll(
+        "_pB, _pC",
+        // for some reason, uint256[2][2] memory _pB has two words (two lengths?) prepended to it
+        // and calldata doesn't have it
+        "add(_pB, 64), _pC"
+      );
+      solidityVerifier = solidityVerifier.replaceAll(
+        "pragma solidity >=0.7.0 <0.9.0;",
+        "pragma solidity ^0.8.16;"
+      );
+      solidityVerifier += `
 
 interface IFunctionVerifier {
     function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool);
@@ -109,7 +115,8 @@ contract FunctionVerifier is IFunctionVerifier, Groth16Verifier {
     }
 }
 `;
-    fs.writeFileSync("build/FunctionVerifier.sol", solidityVerifier);
+      fs.writeFileSync("build/FunctionVerifier.sol", solidityVerifier);
+    }
   }
 
   async prove(rapidsnarkPath: string, inputJsonPath: string) {
@@ -189,13 +196,19 @@ contract FunctionVerifier is IFunctionVerifier, Groth16Verifier {
               describe: "Path to powersOfTau.ptau",
               type: "string",
               default: "/root/powersOfTau.ptau",
+            })
+            .option("no-zkey", {
+              describe: "Don't generate zkey",
+              type: "boolean",
+              default: false,
             });
         },
         (args) => {
           const snarkjsPath = args.snarkjs as string;
           const circomPath = args.circom as string;
           const ptauPath = args.ptau as string;
-          this.build(snarkjsPath, circomPath, ptauPath);
+          const noZkey = args["no-zkey"] as boolean;
+          this.build(snarkjsPath, circomPath, ptauPath, noZkey);
         }
       )
       .command(
