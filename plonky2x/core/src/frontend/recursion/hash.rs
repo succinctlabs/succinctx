@@ -36,6 +36,8 @@ impl CircuitVariable for HashOutVariable {
         &self,
         _builder: &mut CircuitBuilder<L, D>,
     ) {
+        // Output is a list of Goldilocks fields.  The underlying elements are plonky2 Targets,
+        // so no need to do any range checking.
     }
 
     fn nb_elements() -> usize {
