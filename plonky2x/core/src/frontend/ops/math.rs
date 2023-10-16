@@ -223,6 +223,7 @@ impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
 }
 
 mod tests {
+    #[allow(unused_imports)]
     use crate::prelude::{BoolVariable, DefaultBuilder, U32Variable};
 
     #[test]
