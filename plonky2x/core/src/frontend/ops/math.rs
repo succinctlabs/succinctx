@@ -221,3 +221,65 @@ impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
         generator.output
     }
 }
+
+mod tests {
+    use crate::prelude::{BoolVariable, DefaultBuilder, U32Variable};
+
+    #[test]
+    fn test_math_gt() {
+        let mut builder = DefaultBuilder::new();
+
+        let v0 = builder.read::<U32Variable>();
+        let v1 = builder.read::<U32Variable>();
+        let result = builder.read::<BoolVariable>();
+        let computed_result = builder.gt(v0, v1);
+        builder.assert_is_equal(result, computed_result);
+
+        let circuit = builder.build();
+
+        let test_cases = [
+            (10u32, 20u32, false),
+            (10u32, 10u32, false),
+            (10u32, 5u32, true),
+        ];
+
+        for test_case in test_cases.iter() {
+            let mut input = circuit.input();
+            input.write::<U32Variable>(test_case.0);
+            input.write::<U32Variable>(test_case.1);
+            input.write::<BoolVariable>(test_case.2);
+
+            let (proof, output) = circuit.prove(&input);
+            circuit.verify(&proof, &input, &output);
+        }
+    }
+
+    #[test]
+    fn test_math_gte() {
+        let mut builder = DefaultBuilder::new();
+
+        let v0 = builder.read::<U32Variable>();
+        let v1 = builder.read::<U32Variable>();
+        let result = builder.read::<BoolVariable>();
+        let computed_result = builder.gte(v0, v1);
+        builder.assert_is_equal(result, computed_result);
+
+        let circuit = builder.build();
+
+        let test_cases = [
+            (10u32, 20u32, false),
+            (10u32, 10u32, true),
+            (10u32, 5u32, true),
+        ];
+
+        for test_case in test_cases.iter() {
+            let mut input = circuit.input();
+            input.write::<U32Variable>(test_case.0);
+            input.write::<U32Variable>(test_case.1);
+            input.write::<BoolVariable>(test_case.2);
+
+            let (proof, output) = circuit.prove(&input);
+            circuit.verify(&proof, &input, &output);
+        }
+    }
+}
