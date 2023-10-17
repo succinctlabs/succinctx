@@ -109,9 +109,9 @@ impl EvmVariable for U32Variable {
 
 impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for U32Variable {
     fn lte(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
-        BoolVariable(Variable(
+        BoolVariable::from_variables_unsafe(&[Variable(
             list_lte_circuit(&mut builder.api, self.targets(), rhs.targets(), 32).target,
-        ))
+        )])
     }
 }
 
@@ -234,7 +234,7 @@ mod tests {
         for (i, byte) in encoded.iter().enumerate() {
             let expected = ByteVariable::constant(&mut builder, bytes[i]).0;
             byte.0.iter().enumerate().for_each(|(j, &bit)| {
-                builder.assert_is_equal(bit.0, expected[j].0);
+                builder.assert_is_equal(bit.variable, expected[j].variable);
             });
         }
 

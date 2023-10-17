@@ -6,7 +6,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::vars::{ArrayVariable, Bytes32Variable};
-use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitVariable, Variable};
+use crate::prelude::{ByteVariable, BytesVariable, CircuitVariable, Variable};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct PoseidonHashOutVariable {
@@ -115,7 +115,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 let hash_byte_vec = bit_list
                     .chunks(8)
-                    .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8]))
+                    .map(|chunk| {
+                        ByteVariable::from_variables_unsafe(
+                            &array![i => Variable(chunk[i].target); 8],
+                        )
+                    })
                     .collect::<Vec<_>>();
 
                 hash_byte_vec

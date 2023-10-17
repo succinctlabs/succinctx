@@ -341,7 +341,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) -> BoolVariable {
         let mut result = self._true();
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
-            let target_eq = BoolVariable(Variable(self.api.is_equal(*t1, *t2).target));
+            let target_eq = BoolVariable::from_variables_unsafe(&[Variable(
+                self.api.is_equal(*t1, *t2).target,
+            )]);
             result = self.and(target_eq, result);
         }
         result

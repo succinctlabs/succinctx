@@ -256,7 +256,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         for i in 0..array.len() {
             let element_equal = self.is_equal(array[i].clone(), element.clone());
-            accumulator = self.add(accumulator, element_equal.0);
+            accumulator = self.add(accumulator, element_equal.variable);
         }
 
         let one = self.constant::<Variable>(L::Field::from_canonical_usize(1));

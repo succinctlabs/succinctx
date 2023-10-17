@@ -26,12 +26,12 @@ impl CircuitVariable for ByteVariable {
     }
 
     fn variables(&self) -> Vec<Variable> {
-        self.0.iter().map(|x| x.0).collect()
+        self.0.iter().map(|x| x.variable).collect()
     }
 
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), 8);
-        Self(array![i => BoolVariable(variables[i]); 8])
+        Self(array![i => BoolVariable::from_variables_unsafe(&[variables[i]]); 8])
     }
 
     fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
@@ -107,7 +107,7 @@ impl ByteVariable {
     pub fn as_bool_targets(&self) -> [BoolTarget; 8] {
         self.0
             .iter()
-            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.0 .0))
+            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.variable.0))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap()
