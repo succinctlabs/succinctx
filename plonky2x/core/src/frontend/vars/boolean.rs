@@ -60,6 +60,12 @@ impl From<Target> for BoolVariable {
     }
 }
 
+impl From<BoolTarget> for BoolVariable {
+    fn from(v: BoolTarget) -> Self {
+        Self(Variable(v.target))
+    }
+}
+
 impl From<Variable> for BoolVariable {
     fn from(v: Variable) -> Self {
         Self(v)
