@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	_ "embed"
 	"flag"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/logger"
@@ -21,8 +24,7 @@ func main() {
 	log := logger.Logger()
 
 	if *circuitPath == "" {
-		log.Error().Msg("please specify a path to circuit dir (containing verifier_only_circuit_data and proof_with_public_inputs)")
-		os.Exit(1)
+		log.Info().Msg("no circuitPath flag found, so user must input circuitPath via stdin")
 	}
 
 	if *dataPath == "" {
@@ -57,25 +59,39 @@ func main() {
 	}
 
 	if *proofFlag {
-		log.Info().Msg("loading the plonk proving key and circuit data")
+		log.Info().Msg("loading the plonk proving key, circuit data and verifying key")
 		r1cs, pk, err := LoadProverData(*dataPath)
 		if err != nil {
 			log.Err(err).Msg("failed to load the verifier circuit")
 			os.Exit(1)
 		}
-		log.Info().Msg("creating the plonk verifier proof")
+		vk, err := LoadVerifierKey(*dataPath)
+		if err != nil {
+			log.Err(err).Msg("failed to load the verifier key")
+			os.Exit(1)
+		}
+
+		// If the circuitPath is "" and not provided as part of the CLI flags, then we wait
+		// for user input.
+		if *circuitPath == "" {
+			log.Info().Msg("Waiting for user to provide circuitPath from stdin")
+			reader := bufio.NewReader(os.Stdin)
+			str, err := reader.ReadString('\n')
+			if err != nil {
+				log.Err(err).Msg("failed to parse the user provided circuitPath")
+			}
+			trimmed := strings.TrimSuffix(str, "\n")
+			circuitPath = &trimmed
+		}
+
+		log.Info().Msg(fmt.Sprintf("Generating the proof with circuitPath %s", *circuitPath))
 		proof, publicWitness, err := Prove(*circuitPath, r1cs, pk)
 		if err != nil {
 			log.Err(err).Msg("failed to create the proof")
 			os.Exit(1)
 		}
 
-		log.Info().Msg("loading the proof, verifying key and verifying proof")
-		vk, err := LoadVerifierKey(*dataPath)
-		if err != nil {
-			log.Err(err).Msg("failed to load the verifier key")
-			os.Exit(1)
-		}
+		log.Info().Msg("Verifying proof")
 		err = plonk.Verify(proof, vk, publicWitness)
 		if err != nil {
 			log.Err(err).Msg("failed to verify proof")
