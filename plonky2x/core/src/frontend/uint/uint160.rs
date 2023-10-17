@@ -1,11 +1,10 @@
 use array_macro::array;
-use ethers::types::U128;
 use plonky2::hash::hash_types::RichField;
 
 use super::Uint;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
-use crate::frontend::vars::{EvmVariable, SSZVariable, U256Variable, U32Variable};
+use crate::frontend::vars::{EvmVariable, SSZVariable, U32Variable};
 use crate::prelude::{
     Add, BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitBuilder,
     CircuitVariable, Div, LessThanOrEqual, Mul, One, PlonkParameters, Rem, Sub, Variable, Zero,
@@ -23,7 +22,11 @@ impl U160 {
 
 impl Uint<5> for U160 {
     fn to_little_endian(&self, bytes: &mut [u8]) {
-        self.0.iter().flat_map(|x| x.to_le_bytes()).zip(bytes).for_each(|(a, b)| *b = a);
+        self.0
+            .iter()
+            .flat_map(|x| x.to_le_bytes())
+            .zip(bytes)
+            .for_each(|(a, b)| *b = a);
     }
 
     fn from_little_endian(slice: &[u8]) -> Self {
@@ -37,7 +40,12 @@ impl Uint<5> for U160 {
     }
 
     fn to_big_endian(&self, bytes: &mut [u8]) {
-        self.0.iter().rev().flat_map(|x| x.to_be_bytes()).zip(bytes).for_each(|(a, b)| *b = a);
+        self.0
+            .iter()
+            .rev()
+            .flat_map(|x| x.to_be_bytes())
+            .zip(bytes)
+            .for_each(|(a, b)| *b = a);
     }
 
     fn from_big_endian(slice: &[u8]) -> Self {
