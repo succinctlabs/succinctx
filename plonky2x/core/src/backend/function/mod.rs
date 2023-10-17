@@ -138,6 +138,22 @@ impl<C: Circuit> Plonky2xFunction for C {
             AlgebraicHasher<InnerParameters::Field>,
         OuterParameters::Config: Serialize,
     {
+        let gnark_wrapper_process = if args.wrapper_path != "" {
+            // If the wrapper path is provided, then we know we will be wrapping the proof
+            let child_process =
+                std::process::Command::new(path::Path::new(&args.wrapper_path).join("verifier"))
+                    .arg("-prove")
+                    .arg("-data")
+                    .arg(path::Path::new(&args.wrapper_path))
+                    .stdout(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::inherit())
+                    .spawn()
+                    .expect("Failed to start gnark wrapper process");
+            Some(child_process)
+        } else {
+            None
+        };
+
         let mut generator_registry = HintRegistry::new();
         let mut gate_registry = GateRegistry::new();
         C::register_generators::<InnerParameters, D>(&mut generator_registry);
@@ -187,22 +203,39 @@ impl<C: Circuit> Plonky2xFunction for C {
                 .save("wrapped")
                 .expect("failed to save wrapped proof");
 
-            // Call go wrapper
-            let verifier_output =
-                std::process::Command::new(path::Path::new(&args.wrapper_path).join("verifier"))
-                    .arg("-prove")
-                    .arg("-circuit")
-                    .arg("wrapped")
-                    .arg("-data")
-                    .arg(path::Path::new(&args.wrapper_path))
-                    .stdout(std::process::Stdio::inherit())
-                    .stderr(std::process::Stdio::inherit())
-                    .output()
-                    .expect("failed to execute process");
+            // The gnark_wrapper_process should have been started
+            let mut gnark_wrapper_process = gnark_wrapper_process.unwrap();
 
+            let stdin = gnark_wrapper_process
+                .stdin
+                .as_mut()
+                .expect("Failed to open stdin of gnark wrapper");
+            stdin
+                .write_all(b"wrapped\n")
+                .expect("Failed to write to stdin");
+            let verifier_output = gnark_wrapper_process
+                .wait_with_output()
+                .expect("failed to execute process");
             if !verifier_output.status.success() {
                 panic!("verifier failed");
             }
+
+            // // Call go wrapper
+            // let verifier_output =
+            //     std::process::Command::new(path::Path::new(&args.wrapper_path).join("verifier"))
+            //         .arg("-prove")
+            //         .arg("-circuit")
+            //         .arg("wrapped")
+            //         .arg("-data")
+            //         .arg(path::Path::new(&args.wrapper_path))
+            //         .stdout(std::process::Stdio::inherit())
+            //         .stderr(std::process::Stdio::inherit())
+            //         .output()
+            //         .expect("failed to execute process");
+
+            // if !verifier_output.status.success() {
+            //     panic!("verifier failed");
+            // }
 
             // Read result from gnark verifier
             let file = std::fs::File::open("proof.json").unwrap();
