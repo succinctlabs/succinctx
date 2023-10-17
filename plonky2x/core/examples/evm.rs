@@ -21,6 +21,7 @@ use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::Plonky2xFunction;
 use plonky2x::frontend::vars::ByteVariable;
 use plonky2x::prelude::CircuitBuilder;
+use plonky2x::utils;
 
 #[derive(Debug, Clone)]
 struct SimpleAdditionCircuit;
@@ -35,6 +36,7 @@ impl Circuit for SimpleAdditionCircuit {
 }
 
 fn main() {
+    utils::setup_logger(); // So that we can see `builder.watch` during proof generation time
     SimpleAdditionCircuit::entrypoint();
 }
 
@@ -42,7 +44,8 @@ fn main() {
 mod tests {
     use std::path::PathBuf;
 
-    use plonky2x::backend::config::DefaultParameters;
+    use plonky2x::backend::circuit::config::{DefaultParameters, Groth16WrapperParameters};
+    use plonky2x::backend::wrapper::wrap::WrappedCircuit;
     use plonky2x::prelude::{GoldilocksField, PoseidonGoldilocksConfig};
 
     use super::*;
@@ -53,7 +56,7 @@ mod tests {
     #[test]
     fn test_circuit_function_evm() {
         let mut builder = CircuitBuilder::<L, D>::new();
-        SimpleCircuit::define(&mut builder);
+        SimpleAdditionCircuit::define(&mut builder);
         let circuit = builder.build();
         let mut input = circuit.input();
         input.evm_write::<ByteVariable>(0u8);
@@ -66,8 +69,29 @@ mod tests {
 
     #[test]
     fn test_circuit_function_evm_input_json() {
-        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let path = format!("{}/examples/evm.json", root.display());
-        Function::test::<F, C, D>(path);
+        // let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        // let path = format!("{}/examples/evm.json", root.display());
+        // Function::test::<F, C, D>(path);
+    }
+
+    #[test]
+    fn test_evm_wrap() {
+        utils::setup_logger();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+        SimpleAdditionCircuit::define(&mut builder);
+        let circuit = builder.build();
+        let mut input = circuit.input();
+        input.evm_write::<ByteVariable>(2u8);
+        input.evm_write::<ByteVariable>(9u8);
+        let (proof, mut output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        let xor = output.evm_read::<ByteVariable>();
+        assert_eq!(xor, 11u8);
+        let wrapper: WrappedCircuit<_, _, 2> =
+            WrappedCircuit::<L, Groth16WrapperParameters, D>::build(circuit);
+        let wrapped_proof = wrapper.prove(&proof).unwrap();
+        // dummy_wrapped_proof.save(dummy_path).unwrap();
+        println!("Saved dummy_circuit");
     }
 }

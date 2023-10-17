@@ -172,7 +172,12 @@ impl<C: Circuit> Plonky2xFunction for C {
             args.wrapper_path
         );
 
+        if let PublicInput::Bytes(input_bytes) = input {
+            info!("Input Bytes: {}", hex::encode(input_bytes));
+        }
+
         if let PublicOutput::Bytes(output_bytes) = output {
+            info!("Output Bytes: {:?}", hex::encode(output_bytes.clone()));
             // It's quite fast (~5-10 seconds) to rebuild the wrapped circuit. Because of this we
             // choose to rebuild here instead of loading from disk.
             let wrapped_circuit =
@@ -209,6 +214,7 @@ impl<C: Circuit> Plonky2xFunction for C {
             let result: ProofResult<OuterParameters, D> =
                 ProofResult::from_bytes(result_data.proof, output_bytes);
             let json = serde_json::to_string_pretty(&result).unwrap();
+            info!("output.json:\n{}", json);
             let mut file = File::create("output.json").unwrap();
             file.write_all(json.as_bytes()).unwrap();
             info!("Successfully saved full result to disk at output.json.");

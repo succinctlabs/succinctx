@@ -5,8 +5,8 @@
             "name": "evm",
             "framework": "plonky2x",
             "baseDir": ".",
-            "buildCommand": "cargo run --release --example evm build && mv ./target/release/examples/evm ./build/evm",
-            "proveCommand": "./build/evm prove input.json"
+            "buildCommand": "RUST_LOG=debug cargo run --release --example evm build && mv ./target/release/examples/evm ./build/evm",
+            "proveCommand": "RUST_LOG=debug ./build/evm prove input.json"
         },
         {
             "name": "eth_call",

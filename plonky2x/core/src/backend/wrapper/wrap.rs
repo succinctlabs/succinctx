@@ -68,14 +68,23 @@ where
             .map(ByteVariable::from_targets)
             .collect::<Vec<_>>();
 
+        hash_builder.watch_slice(&input_bytes, "input_bytes");
+        hash_builder.watch_slice(&output_bytes, "output_bytes");
+
         let input_hash = hash_builder.sha256(&input_bytes);
         let output_hash = hash_builder.sha256(&output_bytes);
+
+        hash_builder.watch(&input_hash, "input_hash");
+        hash_builder.watch(&output_hash, "output_hash");
 
         // We must truncate the top 3 bits because in the gnark-plonky2-verifier, the input_hash
         // and output_hash are both represented as 1 field element in the BN254 field
         // to reduce on-chain verification costs.
         let input_hash_zeroed = hash_builder.mask_be_bits(input_hash, 3);
         let output_hash_zeroed = hash_builder.mask_be_bits(output_hash, 3);
+
+        hash_builder.watch(&input_hash_zeroed, "input_hash_truncated");
+        hash_builder.watch(&output_hash_zeroed, "output_hash_truncated");
 
         let input_vars = input_hash_zeroed
             .as_bytes()
@@ -88,6 +97,9 @@ where
             .iter()
             .map(|b| b.to_variable(&mut hash_builder))
             .collect::<Vec<Variable>>();
+
+        hash_builder.watch_slice(&input_vars, "input_hash_truncated as vars");
+        hash_builder.watch_slice(&output_vars, "output_hash_truncated as vars");
 
         // Write input_hash, output_hash to public_inputs
         // In the gnark-plonky2-verifier, these 64 bytes get summed to 2 field elements that
@@ -278,13 +290,18 @@ mod tests {
         let path = format!("{}/test_circuit/", build_path);
         let dummy_path = format!("{}/dummy/", build_path);
 
+        // Create an inner circuit for verification
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
-        let _ = builder.evm_read::<ByteVariable>();
+        let a = builder.evm_read::<ByteVariable>();
+        let b = builder.evm_read::<ByteVariable>();
+        let c = builder.xor(a, b);
+        builder.evm_write(c);
 
         // Set up the dummy circuit and wrapper
         let dummy_circuit = builder.build();
         let mut dummy_input = dummy_circuit.input();
         dummy_input.evm_write::<ByteVariable>(0u8);
+        dummy_input.evm_write::<ByteVariable>(1u8);
         let (dummy_inner_proof, dummy_output) = dummy_circuit.prove(&dummy_input);
         dummy_circuit.verify(&dummy_inner_proof, &dummy_input, &dummy_output);
         println!("Verified dummy_circuit");
