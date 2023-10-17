@@ -63,9 +63,15 @@ impl<P: FieldParameters> CircuitVariable for FieldVariable<P> {
             ));
         }
 
+        // list_lte_circuit expects that both the operands have the same number of limbs.
+        // Padd the value limbs and modulus limbs with zeros to make them the same length.
         let mut padded_value_limbs = self.limbs.clone();
         for _ in padded_value_limbs.len()..P::NB_LIMBS {
             padded_value_limbs.push(builder.zero());
+        }
+
+        for _ in modulus_limbs.len()..P::NB_LIMBS {
+            modulus_limbs.push(builder.zero());
         }
 
         let cmp = list_lte_circuit(
@@ -112,7 +118,7 @@ mod tests {
     use num_bigint::BigUint;
 
     use super::FieldVariable;
-    use crate::prelude::{CircuitBuilder, DefaultParameters};
+    use crate::prelude::{CircuitBuilder, CircuitVariable, DefaultParameters};
 
     type L = DefaultParameters;
     const D: usize = 2;
@@ -120,7 +126,8 @@ mod tests {
     #[test]
     fn test_assert_is_valid() {
         let mut builder = CircuitBuilder::<L, D>::new();
-        builder.read::<FieldVariable<Bn254BaseField>>();
+        let field_var = builder.read::<FieldVariable<Bn254BaseField>>();
+        field_var.assert_is_valid(&mut builder);
 
         let circuit = builder.build();
 
@@ -139,7 +146,8 @@ mod tests {
     #[should_panic]
     fn test_assert_is_not_valid() {
         let mut builder = CircuitBuilder::<L, D>::new();
-        builder.read::<FieldVariable<Bn254BaseField>>();
+        let field_var = builder.read::<FieldVariable<Bn254BaseField>>();
+        field_var.assert_is_valid(&mut builder);
 
         let circuit = builder.build();
 
