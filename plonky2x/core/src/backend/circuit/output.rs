@@ -81,6 +81,23 @@ impl<L: PlonkParameters<D>, const D: usize> PublicOutput<L, D> {
         }
     }
 
+    pub fn proof_read<V: CircuitVariable>(&mut self) -> V::ValueType<L::Field> {
+        match self {
+            PublicOutput::Proofs(output) => {
+                let elements = output.drain(0..V::nb_elements()).collect_vec();
+                V::from_elements::<L::Field>(&elements)
+            }
+            _ => panic!("proofs io is not enabled"),
+        }
+    }
+
+    pub fn proof_read_all<V: CircuitVariable>(&mut self) -> Vec<L::Field> {
+        match self {
+            PublicOutput::Proofs(output) => output.clone(),
+            _ => panic!("proofs io is not enabled"),
+        }
+    }
+
     /// Reads a value from the public circuit output using byte-based serialization.
     pub fn evm_read<V: EvmVariable>(&mut self) -> V::ValueType<L::Field> {
         match self {
