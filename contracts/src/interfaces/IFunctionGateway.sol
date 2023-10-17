@@ -9,10 +9,17 @@ interface IFunctionGatewayEvents {
         bytes context,
         address callbackAddress,
         bytes4 callbackSelector,
-        uint32 callbackGasLimit
+        uint32 callbackGasLimit,
+        uint256 feeAmount
     );
     event RequestCall(
-        bytes32 indexed functionId, bytes input, address callbackAddress, bytes callbackData
+        bytes32 indexed functionId,
+        bytes input,
+        address entryAddress,
+        bytes entryCalldata,
+        uint32 entryGasLimit,
+        address sender,
+        uint256 feeAmount
     );
     event RequestFulfilled(
         uint32 indexed nonce, bytes32 indexed functionId, bytes32 inputHash, bytes32 outputHash
@@ -40,8 +47,9 @@ interface IFunctionGateway is IFunctionGatewayEvents, IFunctionGatewayErrors {
     function requestCall(
         bytes32 _functionId,
         bytes memory _input,
-        address _callbackAddress,
-        bytes memory _callbackData
+        address _entryAddress,
+        bytes memory _entryData,
+        uint32 _entryGasLimit
     ) external payable;
 
     function verifiedCall(bytes32 _functionId, bytes memory _input)
