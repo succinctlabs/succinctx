@@ -147,7 +147,8 @@ impl ByteVariable {
             .collect_vec()
             .try_into()
             .expect("Expected 8 bits.  Should never happen");
-        let mut bool_variables: [BoolVariable; 8] = le_bits.map(|x| x.into());
+        let mut bool_variables: [BoolVariable; 8] =
+            le_bits.map(|x| BoolVariable::from_variables_unsafe(&[Variable(x)]));
 
         // Need to reverse it to big endian
         bool_variables.reverse();

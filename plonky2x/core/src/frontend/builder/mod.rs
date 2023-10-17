@@ -327,7 +327,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Returns 1 if i1 is zero, 0 otherwise as a boolean.
     pub fn is_zero(&mut self, i1: Variable) -> BoolVariable {
         let zero = self.api.zero();
-        self.api.is_equal(i1.0, zero).target.into()
+        BoolVariable::from_variables_unsafe(&[Variable(self.api.is_equal(i1.0, zero).target)])
     }
 
     /// Fails if i1 != i2.

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::{BoolTarget, Target};
+use plonky2::iop::target::BoolTarget;
 use serde::{Deserialize, Serialize};
 
 use super::{CircuitVariable, Variable};
@@ -62,13 +62,6 @@ impl CircuitVariable for BoolVariable {
     fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
         assert_eq!(elements.len(), 1);
         elements[0] == F::ONE
-    }
-}
-
-impl From<Target> for BoolVariable {
-    // Warning:  This is an unsafe function, and it doesn't range check v.
-    fn from(v: Target) -> Self {
-        Self::from_variables_unsafe(&[Variable(v)])
     }
 }
 
