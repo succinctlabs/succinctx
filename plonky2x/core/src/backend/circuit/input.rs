@@ -81,8 +81,11 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     pub fn evm_write<V: EvmVariable>(&mut self, value: V::ValueType<L::Field>) {
         match self {
             PublicInput::Bytes(input) => {
+                println!("here1");
                 let bytes = V::encode_value(value);
+                println!("here2");
                 input.extend(bytes);
+                println!("here3");
             }
             _ => panic!("evm io is not enabled"),
         };

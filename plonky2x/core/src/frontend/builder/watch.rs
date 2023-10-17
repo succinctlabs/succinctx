@@ -174,12 +174,14 @@ impl<L: PlonkParameters<D>, V: CircuitVariable, const D: usize> SimpleGenerator<
     ) {
         let values: Vec<V::ValueType<L::Field>> =
             self.variables.iter().map(|x| x.get(witness)).collect();
-        let formatted_log = if values.len() == 1 {
+        let formatted_log: String = if values.len() == 1 {
             format!("[Watch] {}: {:?}", self.log, values[0])
         } else {
             format!("[Watch] {}: {:?}", self.log, values)
         };
         log!(self.log_level, "{}", formatted_log);
+        dbg!(formatted_log.clone());
+        println!("WATCH: {}", formatted_log);
     }
 }
 
