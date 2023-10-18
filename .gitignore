@@ -21,6 +21,7 @@ keystore
 
 **/__pycache__
 **/FunctionVerifier.sol
+**/broadcast
 
 .idea/
 proof.json
