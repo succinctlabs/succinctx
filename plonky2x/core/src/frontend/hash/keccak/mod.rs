@@ -12,6 +12,7 @@ pub mod keccak256;
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// WARNING: DO NOT USE IN PRODUCTION, this is unconstrained!
     pub fn keccak256(&mut self, bytes: &[ByteVariable]) -> Bytes32Variable {
+        // TODO: Need to constrain generator result
         let generator: Keccak256Generator<L, D> = Keccak256Generator {
             input: bytes.to_vec(),
             output: self.init(),
@@ -28,6 +29,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         bytes: &[ByteVariable],
         length: Variable,
     ) -> Bytes32Variable {
+        // TODO: Need to constrain generator result
         let generator = Keccak256Generator {
             input: bytes.to_vec(),
             output: self.init(),
