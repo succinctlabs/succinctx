@@ -33,6 +33,9 @@ export abstract class Circuit {
     noZkey: boolean
   ) {
     const circuit = this.circuitName();
+    console.log(
+      `Building ${circuit} with args (${snarkjsPath} ${circomPath} ${ptauPath} ${noZkey})`
+    );
 
     // Create build dir if not exists
     if (!fs.existsSync("build")) {
@@ -197,7 +200,7 @@ contract FunctionVerifier is IFunctionVerifier, Groth16Verifier {
               type: "string",
               default: "/root/powersOfTau.ptau",
             })
-            .option("no-zkey", {
+            .option("skip-zkey", {
               describe: "Don't generate zkey",
               type: "boolean",
               default: false,
@@ -207,7 +210,7 @@ contract FunctionVerifier is IFunctionVerifier, Groth16Verifier {
           const snarkjsPath = args.snarkjs as string;
           const circomPath = args.circom as string;
           const ptauPath = args.ptau as string;
-          const noZkey = args["no-zkey"] as boolean;
+          const noZkey = args["skip-zkey"] as boolean;
           this.build(snarkjsPath, circomPath, ptauPath, noZkey);
         }
       )
