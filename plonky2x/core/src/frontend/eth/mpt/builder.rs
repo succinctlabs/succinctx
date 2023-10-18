@@ -43,6 +43,7 @@ pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usi
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
+        // TODO: Need to constrain generator result
         let generator: ByteToVariableGenerator<L, D> = ByteToVariableGenerator {
             lhs,
             output: self.init::<Variable>(),
@@ -53,6 +54,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     pub fn sub_byte(&mut self, lhs: ByteVariable, rhs: ByteVariable) -> ByteVariable {
+        // TODO: Need to constrain generator result
         let generator: ByteSubGenerator<L, D> = ByteSubGenerator {
             lhs,
             rhs,

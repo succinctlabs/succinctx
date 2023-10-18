@@ -210,7 +210,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
     fn lte(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
-        // TODO: FIX
+        // TODO: Need to constrain generator result
         let generator: LteGenerator<L, D> = LteGenerator {
             lhs: self,
             rhs,

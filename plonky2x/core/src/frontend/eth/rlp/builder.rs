@@ -66,6 +66,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         ArrayVariable<Variable, LIST_LEN>,
         Variable,
     ) {
+<<<<<<< HEAD
         let mut input_stream = VariableStream::new();
         input_stream.write(&encoded);
         input_stream.write(&len);
@@ -79,6 +80,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let decoded_element_lens = output_stream.read::<ArrayVariable<Variable, LIST_LEN>>(self);
         let len_decoded_list = output_stream.read::<Variable>(self);
 
+=======
+        let generator = RLPDecodeListGenerator::new(self, encoded, len, finish);
+        // TODO: Need to constrain generator result
+        self.add_simple_generator(generator.clone());
+>>>>>>> 9d6c3b20 (added comments for generator results that need to be constrained)
         // TODO: here add verification logic constraints using `builder` to check that the decoded list is correct
 
         (decoded_list, decoded_element_lens, len_decoded_list)
