@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 
+use array_macro::array;
 use curta::chip::hash::sha::sha256::builder_gadget::{SHA256Builder, SHA256BuilderGadget};
 use curta::chip::hash::sha::sha256::generator::SHA256HintGenerator;
 use itertools::Itertools;
@@ -81,8 +82,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             &length_bits
                 .chunks(8)
                 .map(|chunk| {
-                    let variables = chunk.iter().map(|b| b.variable).collect_vec();
-                    ByteVariable::from_variables_unsafe(&variables)
+                    let bits = array![x => chunk[x]; 8];
+                    ByteVariable(bits)
                 })
                 .collect_vec(),
         );

@@ -67,6 +67,7 @@ impl CircuitVariable for BoolVariable {
 
 impl From<BoolTarget> for BoolVariable {
     fn from(v: BoolTarget) -> Self {
+        // BoolTarget's range is the same as BoolVariable's.
         Self::from_variables_unsafe(&[Variable(v.target)])
     }
 }
@@ -75,6 +76,8 @@ impl<L: PlonkParameters<D>, const D: usize> BitAnd<L, D> for BoolVariable {
     type Output = BoolVariable;
 
     fn bitand(self, rhs: BoolVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        // Both "self" and "rhs" have a range of [0-1] inclusive.  The result of the "AND" operation
+        // will also be in a range of [0-1] inclusive.
         Self::from_variables_unsafe(&[builder.mul(self.variable, rhs.variable)])
     }
 }
@@ -85,6 +88,9 @@ impl<L: PlonkParameters<D>, const D: usize> BitOr<L, D> for BoolVariable {
     fn bitor(self, rhs: BoolVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let self_plus_rhs = builder.add(self.variable, rhs.variable);
         let self_times_rhs = builder.mul(self.variable, rhs.variable);
+
+        // Both "self" and "rhs" have a range of [0-1] inclusive.  The result of the "OR" operation
+        // will also be in a range of [0-1] inclusive.
         Self::from_variables_unsafe(&[builder.sub(self_plus_rhs, self_times_rhs)])
     }
 }
@@ -96,6 +102,9 @@ impl<L: PlonkParameters<D>, const D: usize> BitXor<L, D> for BoolVariable {
         let a_plus_b = builder.add(self.variable, rhs.variable);
         let a_b = builder.mul(self.variable, rhs.variable);
         let two_a_b = builder.add(a_b, a_b);
+
+        // Both "self" and "rhs" have a range of [0-1] inclusive.  The result of the "XOR" operation
+        // will also be in a range of [0-1] inclusive.
         Self::from_variables_unsafe(&[builder.sub(a_plus_b, two_a_b)])
     }
 }
@@ -105,6 +114,9 @@ impl<L: PlonkParameters<D>, const D: usize> Not<L, D> for BoolVariable {
 
     fn not(self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let one = builder.one::<Variable>();
+
+        // "self" has a range of [0-1] inclusive.  The result of the "NOT" operation
+        // will also be in a range of [0-1] inclusive.
         Self::from_variables_unsafe(&[builder.sub(one, self.variable)])
     }
 }

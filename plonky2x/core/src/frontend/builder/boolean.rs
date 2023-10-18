@@ -6,11 +6,15 @@ use crate::prelude::CircuitVariable;
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn _false(&mut self) -> BoolVariable {
         let zero = self.zero::<Variable>();
+
+        // "zero" will be within boolean range.
         BoolVariable::from_variables_unsafe(&[zero])
     }
 
     pub fn _true(&mut self) -> BoolVariable {
         let one = self.one::<Variable>();
+
+        // "one" will be within boolean range.
         BoolVariable::from_variables_unsafe(&[one])
     }
 }

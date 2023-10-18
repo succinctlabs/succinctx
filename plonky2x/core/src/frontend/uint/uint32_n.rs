@@ -157,7 +157,7 @@ macro_rules! make_uint32_n {
 
                 let mut limbs: [U32Variable; $c] = Self::zero(builder).limbs;
                 for i in 0..$c {
-                    limbs[i] = U32Variable::from_variables_unsafe(&[Variable(sum_biguint.limbs[i].0)]);
+                    limbs[i] = sum_biguint.limbs[i].into();
                 }
 
                 Self {
@@ -191,7 +191,7 @@ macro_rules! make_uint32_n {
 
                 let mut limbs: [U32Variable; $c] = Self::zero(builder).limbs;
                 for i in 0..$c {
-                    limbs[i] = U32Variable::from_variables_unsafe(&[Variable(diff_biguint.limbs[i].0)]);
+                    limbs[i] = diff_biguint.limbs[i].into();
                 }
 
                 Self {
@@ -225,7 +225,7 @@ macro_rules! make_uint32_n {
 
                 let mut limbs: [U32Variable; $c] = Self::zero(builder).limbs;
                 for i in 0..$c {
-                    limbs[i] = U32Variable::from_variables_unsafe(&[Variable(product_biguint.limbs[i].0)]);
+                    limbs[i] = product_biguint.limbs[i].into();
                 }
 
                 Self {
@@ -259,7 +259,7 @@ macro_rules! make_uint32_n {
 
                 let mut limbs: [U32Variable; $c] = Self::zero(builder).limbs;
                 for i in 0..$c {
-                    limbs[i] = U32Variable::from_variables_unsafe(&[Variable(quotient_biguint.limbs[i].0)]);
+                    limbs[i] = quotient_biguint.limbs[i].into();
                 }
 
                 Self {
@@ -293,7 +293,7 @@ macro_rules! make_uint32_n {
 
                 let mut limbs: [U32Variable; $c] = Self::zero(builder).limbs;
                 for i in 0..$c {
-                    limbs[i] = U32Variable::from_variables_unsafe(&[Variable(rem_biguint.limbs[i].0)]);
+                    limbs[i] = rem_biguint.limbs[i].into();
                 }
 
                 Self {

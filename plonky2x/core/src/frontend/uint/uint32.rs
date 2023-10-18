@@ -91,12 +91,17 @@ impl EvmVariable for U32Variable {
     ) -> Self {
         assert_eq!(bytes.len(), 4);
 
+        // Convert into an array of BoolTargets.  The assert above will guarantee that this vector
+        // will have a size of 32.
         let mut bits = bytes.iter().flat_map(|byte| byte.targets()).collect_vec();
         bits.reverse();
 
+        // Sum up the BoolTargets into a single target.
         let target = builder
             .api
             .le_sum(bits.into_iter().map(BoolTarget::new_unsafe));
+
+        // Target is composed of 32 bool targets, so it will be within U32Variable's range.
         Self::from_variables_unsafe(&[Variable(target)])
     }
 
@@ -118,17 +123,24 @@ impl EvmVariable for U32Variable {
     }
 }
 
+impl From<U32Target> for U32Variable {
+    fn from(v: U32Target) -> Self {
+        // U32Target's range is the same as U32Variable's.
+        Self::from_variables_unsafe(&[Variable(v.0)])
+    }
+}
+
 impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for U32Variable {
     fn lte(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
-        BoolVariable::from_variables_unsafe(&[Variable(
-            list_lte_circuit(&mut builder.api, self.targets(), rhs.targets(), 32).target,
-        )])
+        list_lte_circuit(&mut builder.api, self.targets(), rhs.targets(), 32).into()
     }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for U32Variable {
     fn zero(builder: &mut CircuitBuilder<L, D>) -> Self {
         let zero = Variable::zero(builder);
+
+        // "zero" is within u32.
         Self::from_variables_unsafe(&[zero])
     }
 }
@@ -136,6 +148,8 @@ impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for U32Variable {
 impl<L: PlonkParameters<D>, const D: usize> One<L, D> for U32Variable {
     fn one(builder: &mut CircuitBuilder<L, D>) -> Self {
         let one = Variable::one(builder);
+
+        // "one" is within u32.
         Self::from_variables_unsafe(&[one])
     }
 }
@@ -155,9 +169,8 @@ impl<L: PlonkParameters<D>, const D: usize> Mul<L, D> for U32Variable {
 
         let product_biguint = builder.api.mul_biguint(&self_biguint, &rhs_biguint);
 
-        // Get the least significant limb
-        let product = product_biguint.limbs[0].0;
-        Self::from_variables_unsafe(&[Variable(product)])
+        // Get the least significant u32 limb.
+        product_biguint.limbs[0].into()
     }
 }
 
@@ -177,9 +190,7 @@ impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for U32Variable {
         let sum_biguint = builder.api.add_biguint(&self_biguint, &rhs_biguint);
 
         // Get the least significant limb
-        let sum = sum_biguint.limbs[0].0;
-
-        Self::from_variables_unsafe(&[Variable(sum)])
+        sum_biguint.limbs[0].into()
     }
 }
 
@@ -197,8 +208,7 @@ impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for U32Variable {
         };
 
         let diff_biguint = builder.api.sub_biguint(&self_biguint, &rhs_biguint);
-        let diff = diff_biguint.limbs[0].0;
-        Self::from_variables_unsafe(&[Variable(diff)])
+        diff_biguint.limbs[0].into()
     }
 }
 

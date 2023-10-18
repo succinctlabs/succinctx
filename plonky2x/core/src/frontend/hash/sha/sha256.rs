@@ -13,7 +13,6 @@ use crate::frontend::hash::bit_operations::{
 use crate::frontend::vars::{
     BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable,
 };
-use crate::prelude::Variable;
 pub struct Sha256Target {
     pub message: Vec<BoolTarget>,
     pub digest: Vec<BoolTarget>,
@@ -292,7 +291,10 @@ impl<L: PlonkParameters<D>, const D: usize> Plonky2xCircuitBuilder<L, D> {
         let hash_bool = sha256::<L::Field, D>(&mut self.api, &input_bool);
         let hash_bytes_vec = hash_bool
             .chunks(8)
-            .map(|chunk| ByteVariable(array![i => BoolVariable::from_variables_unsafe(&[Variable(chunk[i].target)]); 8]))
+            .map(|chunk| {
+                let bits: [BoolVariable; 8] = array![x => chunk[x].into(); 8];
+                ByteVariable(bits)
+            })
             .collect::<Vec<_>>();
         let mut hash_bytes_array = [ByteVariable::init_unsafe(self); 32];
         hash_bytes_array.copy_from_slice(&hash_bytes_vec);

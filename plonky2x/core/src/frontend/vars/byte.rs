@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use array_macro::array;
-use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use serde::{Deserialize, Serialize};
@@ -139,20 +138,17 @@ impl ByteVariable {
     ) -> Self {
         builder.api.range_check(byte_target, 8);
 
-        let le_bits: [Target; 8] = builder
+        let le_bool_targets: [BoolTarget; 8] = builder
             .api
             .low_bits(byte_target, 8, 8)
-            .iter()
-            .map(|x| x.target)
-            .collect_vec()
             .try_into()
             .expect("Expected 8 bits.  Should never happen");
-        let mut bool_variables: [BoolVariable; 8] =
-            le_bits.map(|x| BoolVariable::from_variables_unsafe(&[Variable(x)]));
+
+        let mut le_bool_variables: [BoolVariable; 8] = array![x => le_bool_targets[x].into(); 8];
 
         // Need to reverse it to big endian
-        bool_variables.reverse();
-        ByteVariable::from_be_bits(bool_variables)
+        le_bool_variables.reverse();
+        ByteVariable::from_be_bits(le_bool_variables)
     }
 
     /// Creates a Target from a ByteVariable.
