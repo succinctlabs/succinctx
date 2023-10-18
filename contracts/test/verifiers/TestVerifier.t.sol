@@ -40,6 +40,7 @@ contract VerifierTest is Test {
             proofConverted
         );
         startGas = gasleft();
+
         verifier.verifyCompressedProof(compressedProof, inputConverted);
         endGas = gasleft();
         console.log(
@@ -56,7 +57,7 @@ contract VerifierTest is Test {
         bytes memory proof = stdJson.readBytes(proofJson, "$.proof");
         uint256[] memory input = stdJson.readUintArray(proofJson, "$.inputs");
         uint256 startGas = gasleft();
-        verifier.Verify(proof, input);
+        require(verifier.Verify(proof, input));
         uint256 endGas = gasleft();
         console.log("gas used: %d", startGas - endGas);
     }
@@ -69,7 +70,7 @@ contract VerifierTest is Test {
         bytes memory proof = stdJson.readBytes(proofJson, "$.proof");
         uint256[] memory input = stdJson.readUintArray(proofJson, "$.inputs");
         uint256 startGas = gasleft();
-        verifier.Verify(proof, input);
+        require(verifier.Verify(proof, input));
         uint256 endGas = gasleft();
         console.log("gas used: %d", startGas - endGas);
     }
@@ -83,7 +84,7 @@ contract VerifierTest is Test {
         bytes32 inputHash = stdJson.readBytes32(proofJson, "$.input_hash");
         bytes32 outputHash = stdJson.readBytes32(proofJson, "$.output_hash");
         uint256 startGas = gasleft();
-        verifier.verify(inputHash, outputHash, proof);
+        require(verifier.verify(inputHash, outputHash, proof));
         uint256 endGas = gasleft();
         console.log("gas used: %d", startGas - endGas);
     }

@@ -33,7 +33,7 @@ type MyCircuit struct {
 
 func (circuit *MyCircuit) Define(api frontend.API) error {
 	api.AssertIsEqual(circuit.Z, api.Add(circuit.X, circuit.Y))
-	if circuit.DoRangeCheck {
+	if true || circuit.DoRangeCheck {
 		rangeChecker := rangecheck.New(api)
 		rangeChecker.Check(circuit.X, 8)
 	}
@@ -134,7 +134,7 @@ type PlonkProofData struct {
 
 func TestPlonk(t *testing.T) {
 
-	range_check := false
+	range_check := true
 
 	circuit := MyCircuit{DoRangeCheck: range_check}
 

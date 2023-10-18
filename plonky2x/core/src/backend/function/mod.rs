@@ -233,23 +233,6 @@ impl<C: Circuit> Plonky2xFunction for C {
                 panic!("verifier failed");
             }
 
-            // // Call go wrapper
-            // let verifier_output =
-            //     std::process::Command::new(path::Path::new(&args.wrapper_path).join("verifier"))
-            //         .arg("-prove")
-            //         .arg("-circuit")
-            //         .arg("wrapped")
-            //         .arg("-data")
-            //         .arg(path::Path::new(&args.wrapper_path))
-            //         .stdout(std::process::Stdio::inherit())
-            //         .stderr(std::process::Stdio::inherit())
-            //         .output()
-            //         .expect("failed to execute process");
-
-            // if !verifier_output.status.success() {
-            //     panic!("verifier failed");
-            // }
-
             // Read result from gnark verifier
             let file = std::fs::File::open("proof.json").unwrap();
             let rdr = std::io::BufReader::new(file);
