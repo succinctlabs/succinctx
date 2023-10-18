@@ -132,7 +132,7 @@ impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBu
             let eight_u32 = self.constant::<U32Variable>(8);
             let bit_length = self.mul(byte_length, eight_u32);
             self.api
-                .connect(eddsa_target.msgs_bit_lengths[i], bit_length.0 .0);
+                .connect(eddsa_target.msgs_bit_lengths[i], bit_length.variable.0);
 
             self.api
                 .connect_nonnative(&eddsa_target.sigs[i].s, &signatures[i].s);
@@ -202,7 +202,7 @@ impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBu
             let eight_u32 = self.constant::<U32Variable>(8);
             let bit_length = self.mul(byte_length, eight_u32);
             self.api
-                .connect(eddsa_target.msgs_bit_lengths[i], bit_length.0 .0);
+                .connect(eddsa_target.msgs_bit_lengths[i], bit_length.variable.0);
 
             self.api
                 .connect_nonnative(&eddsa_target.sigs[i].s, &eddsa_sig.s);
