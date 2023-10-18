@@ -49,7 +49,7 @@ pub trait Plonky2xFunction {
     fn entrypoint();
 
     /// Returns the verifier contract for the circuit.
-    fn verifier(circuit_digest: &str, wrapper_path: &String) -> String;
+    fn verifier(circuit_digest: &str, wrapper_path: &str) -> String;
 }
 
 impl<C: Circuit> Plonky2xFunction for C {
@@ -138,7 +138,7 @@ impl<C: Circuit> Plonky2xFunction for C {
             AlgebraicHasher<InnerParameters::Field>,
         OuterParameters::Config: Serialize,
     {
-        let gnark_wrapper_process = if args.wrapper_path != "" {
+        let gnark_wrapper_process = if !args.wrapper_path.is_empty() {
             // If the wrapper path is provided, then we know we will be wrapping the proof
             let child_process =
                 std::process::Command::new(path::Path::new(&args.wrapper_path).join("verifier"))
@@ -276,7 +276,7 @@ impl<C: Circuit> Plonky2xFunction for C {
         }
     }
 
-    fn verifier(circuit_digest: &str, wrapper_path: &String) -> String {
+    fn verifier(circuit_digest: &str, wrapper_path: &str) -> String {
         let wrapper_verifier_path = format!("{}/Verifier.sol", wrapper_path);
         let wrapper_verifier_contract = fs::read_to_string(wrapper_verifier_path)
             .expect("Failed to read wrapper_verifier_path");
