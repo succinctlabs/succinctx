@@ -16,6 +16,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         mapping_location: U256Variable,
         map_key: Bytes32Variable,
     ) -> Bytes32Variable {
+        // TODO: Need to constrain generator result?
         let generator = EthStorageKeyGenerator::new(self, mapping_location, map_key);
         let value = generator.value;
         self.add_simple_generator(generator);
@@ -42,6 +43,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     #[allow(non_snake_case)]
     pub fn eth_get_block_by_hash(&mut self, block_hash: Bytes32Variable) -> EthHeaderVariable {
+        // TODO: Need to constrain generator result
         let generator = EthBlockGenerator::new(self, block_hash);
         let value = generator.value;
         self.add_simple_generator(generator);
@@ -64,6 +66,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         block_hash: Bytes32Variable,
         log_index: u64,
     ) -> EthLogVariable {
+        // TODO: Need to constrain generator result?
         let generator = EthLogGenerator::new(self, transaction_hash, block_hash, log_index);
         let value = generator.clone().value;
         self.add_simple_generator(generator);

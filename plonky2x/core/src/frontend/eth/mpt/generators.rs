@@ -25,7 +25,7 @@ impl<L: PlonkParameters<D>, const D: usize> LteGenerator<L, D> {
     }
 }
 
-// TODO: add LeGenerator to macro
+// TODO: add LteGenerator to macro
 impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for LteGenerator<L, D> {
     fn id(&self) -> String {
         Self::id()

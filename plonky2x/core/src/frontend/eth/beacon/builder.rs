@@ -523,6 +523,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         block_root: Bytes32Variable,
         target_slot: U64Variable,
     ) -> Bytes32Variable {
+        // TODO: Need to constrain generator results?
         let generator = BeaconHistoricalBlockGenerator::new(
             self,
             self.beacon_client.clone().unwrap(),

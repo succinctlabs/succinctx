@@ -306,6 +306,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         Variable,
     ) {
         let generator = RLPDecodeListGenerator::new(self, encoded, len, finish);
+        // TODO: Need to constrain generator result
         self.add_simple_generator(generator.clone());
         // TODO: here add verification logic constraints using `builder` to check that the decoded list is correct
         (
