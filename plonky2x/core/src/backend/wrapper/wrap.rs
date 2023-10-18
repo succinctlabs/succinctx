@@ -1,10 +1,8 @@
-use core::iter::once;
 use std::fs::{self, File};
 use std::path::Path;
 
 use anyhow::Result;
 use log::{debug, info};
-use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{
     CommonCircuitData, VerifierCircuitTarget, VerifierOnlyCircuitData,
@@ -15,9 +13,7 @@ use serde::Serialize;
 
 use crate::backend::circuit::{CircuitBuild, PlonkParameters};
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::hash::sha::sha256::sha256;
-use crate::frontend::vars::{ByteVariable, Bytes32Variable, CircuitVariable, EvmVariable};
-
+use crate::frontend::vars::{ByteVariable, CircuitVariable, Variable};
 #[derive(Debug)]
 pub struct WrappedCircuit<
     InnerParameters: PlonkParameters<D>,
@@ -33,7 +29,7 @@ pub struct WrappedCircuit<
     recursive_circuit: CircuitBuild<InnerParameters, D>,
     hash_verifier_target: VerifierCircuitTarget,
     hash_proof_target: ProofWithPublicInputsTarget<D>,
-    wrapper_circuit: CircuitBuild<OuterParameters, D>,
+    pub wrapper_circuit: CircuitBuild<OuterParameters, D>,
     proof_target: ProofWithPublicInputsTarget<D>,
     verifier_target: VerifierCircuitTarget,
 }
@@ -47,7 +43,7 @@ where
     <InnerParameters::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<InnerParameters::Field>,
 {
     pub fn build(circuit: CircuitBuild<InnerParameters, D>) -> Self {
-        // Standartize the public inputs/outputs to their hash and verify the circuit recursively
+        // Standartize the public inputs/outputs to their hash and verify the circuit recursively.
         let mut hash_builder = CircuitBuilder::<InnerParameters, D>::new();
         let circuit_proof_target = hash_builder.add_virtual_proof_with_pis(&circuit.data.common);
         let circuit_verifier_target =
@@ -58,36 +54,7 @@ where
             &circuit.data.common,
         );
 
-        let circuit_digest_bits = circuit_verifier_target
-            .constants_sigmas_cap
-            .0
-            .iter()
-            .chain(once(&circuit_verifier_target.circuit_digest))
-            .flat_map(|x| x.elements)
-            .flat_map(|x| {
-                let mut bits = hash_builder.api.split_le(x, 64);
-                bits.reverse();
-                bits
-            })
-            .collect::<Vec<_>>();
-
-        let circuit_digest_hash: [Target; 256] =
-            sha256(&mut hash_builder.api, &circuit_digest_bits)
-                .into_iter()
-                .map(|x| x.target)
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
-
-        let circuit_digest_bytes = Bytes32Variable::from_targets(&circuit_digest_hash);
-        hash_builder.write(circuit_digest_bytes);
-
-        let num_input_targets = circuit
-            .io
-            .input()
-            .iter()
-            .map(|x| x.targets().len())
-            .sum::<usize>();
+        let num_input_targets = circuit.io.input().len();
         let (input_targets, output_targets) = circuit_proof_target
             .public_inputs
             .split_at(num_input_targets);
@@ -101,46 +68,52 @@ where
             .map(ByteVariable::from_targets)
             .collect::<Vec<_>>();
 
-        let input_bits = input_bytes
+        hash_builder.watch_slice(&input_bytes, "input_bytes");
+        hash_builder.watch_slice(&output_bytes, "output_bytes");
+
+        let input_hash = hash_builder.sha256(&input_bytes);
+        let output_hash = hash_builder.sha256(&output_bytes);
+
+        hash_builder.watch(&input_hash, "input_hash");
+        hash_builder.watch(&output_hash, "output_hash");
+
+        // We must truncate the top 3 bits because in the gnark-plonky2-verifier, the input_hash
+        // and output_hash are both represented as 1 field element in the BN254 field to reduce
+        // onchain verification costs.
+        let input_hash_zeroed = hash_builder.mask_be_bits(input_hash, 3);
+        let output_hash_zeroed = hash_builder.mask_be_bits(output_hash, 3);
+
+        hash_builder.watch(&input_hash_zeroed, "input_hash_truncated");
+        hash_builder.watch(&output_hash_zeroed, "output_hash_truncated");
+
+        let input_vars = input_hash_zeroed
+            .as_bytes()
             .iter()
-            .flat_map(|b| b.to_le_bits::<InnerParameters, D>(&mut hash_builder))
-            .map(|b| BoolTarget::new_unsafe(b.targets()[0]))
-            .collect::<Vec<_>>();
+            .map(|b| b.to_variable(&mut hash_builder))
+            .collect::<Vec<Variable>>();
 
-        let output_bits = output_bytes
+        let output_vars = output_hash_zeroed
+            .as_bytes()
             .iter()
-            .flat_map(|b| b.to_le_bits(&mut hash_builder))
-            .map(|b| BoolTarget::new_unsafe(b.targets()[0]))
-            .collect::<Vec<_>>();
+            .map(|b| b.to_variable(&mut hash_builder))
+            .collect::<Vec<Variable>>();
 
-        let mut input_hash = sha256(&mut hash_builder.api, &input_bits)
+        hash_builder.watch_slice(&input_vars, "input_hash_truncated as vars");
+        hash_builder.watch_slice(&output_vars, "output_hash_truncated as vars");
+
+        // Write input_hash, output_hash to public_inputs. In the gnark-plonky2-verifier, these
+        // 64 bytes get summed to 2 field elements that correspond to the input_hash and output_hash
+        // respectively as public inputs.
+        input_vars
+            .clone()
             .into_iter()
-            .map(|x| x.target)
-            .collect::<Vec<_>>();
-        // Remove the last bit to make the hash 255 bits and replace with zero
-        input_hash.pop();
-        input_hash.push(hash_builder.api.constant_bool(false).target);
-
-        let mut output_hash = sha256(&mut hash_builder.api, &output_bits)
-            .into_iter()
-            .map(|x| x.target)
-            .collect::<Vec<_>>();
-        // Remove the last bit to make the hash 255 bits and replace with zero
-        output_hash.pop();
-        output_hash.push(hash_builder.api.constant_bool(false).target);
-
-        let input_hash_truncated: [Target; 256] = input_hash.try_into().unwrap();
-        let output_hash_truncated: [Target; 256] = output_hash.try_into().unwrap();
-
-        let input_hash_bytes = Bytes32Variable::from_targets(&input_hash_truncated);
-        let output_hash_bytes = Bytes32Variable::from_targets(&output_hash_truncated);
-
-        hash_builder.write(input_hash_bytes);
-        hash_builder.write(output_hash_bytes);
-
+            .chain(output_vars)
+            .for_each(|v| {
+                hash_builder.write(v);
+            });
         let hash_circuit = hash_builder.build();
 
-        // An inner recursion to standartize the degree
+        // An inner recursion to standardize the degree.
         let mut recursive_builder = CircuitBuilder::<InnerParameters, D>::new();
         let hash_proof_target =
             recursive_builder.add_virtual_proof_with_pis(&hash_circuit.data.common);
@@ -151,6 +124,7 @@ where
             &hash_verifier_target,
             &hash_circuit.data.common,
         );
+        assert_eq!(hash_proof_target.public_inputs.len(), 32usize * 2);
 
         recursive_builder
             .api
@@ -162,7 +136,7 @@ where
             recursive_circuit.data.common.degree()
         );
 
-        // Finally, wrap this in the outer circuit
+        // Finally, wrap this in the outer circuit.
         let mut wrapper_builder = CircuitBuilder::<OuterParameters, D>::new();
         let proof_target =
             wrapper_builder.add_virtual_proof_with_pis(&recursive_circuit.data.common);
@@ -280,13 +254,11 @@ impl<L: PlonkParameters<D>, const D: usize> WrappedOutput<L, D> {
 #[cfg(test)]
 mod tests {
     use hex::decode;
-    use plonky2::field::types::Field;
 
     use super::*;
     use crate::backend::circuit::{DefaultParameters, Groth16WrapperParameters};
     use crate::frontend::builder::CircuitBuilder;
     use crate::frontend::hash::sha::sha256::sha256;
-    use crate::prelude::*;
     use crate::utils;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
@@ -307,32 +279,39 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_wrapper() {
-        type F = GoldilocksField;
         const D: usize = 2;
         type InnerParameters = DefaultParameters;
         type OuterParameters = Groth16WrapperParameters;
 
         utils::setup_logger();
 
-        let build_path = "../plonky2x-verifier/data".to_string();
+        let build_path = "../verifier/data".to_string();
         let path = format!("{}/test_circuit/", build_path);
         let dummy_path = format!("{}/dummy/", build_path);
 
+        // Create an inner circuit for verification.
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
-        let _ = builder.constant::<Variable>(F::ONE);
+        let a = builder.evm_read::<ByteVariable>();
+        let b = builder.evm_read::<ByteVariable>();
+        let c = builder.xor(a, b);
+        builder.evm_write(c);
 
-        // Set up the dummy circuit and wrapper
+        // Set up the dummy circuit and wrapper.
         let dummy_circuit = builder.build();
-        let dummy_input = dummy_circuit.input();
+        let mut dummy_input = dummy_circuit.input();
+        dummy_input.evm_write::<ByteVariable>(0u8);
+        dummy_input.evm_write::<ByteVariable>(1u8);
         let (dummy_inner_proof, dummy_output) = dummy_circuit.prove(&dummy_input);
         dummy_circuit.verify(&dummy_inner_proof, &dummy_input, &dummy_output);
+        println!("Verified dummy_circuit");
 
         let dummy_wrapper =
             WrappedCircuit::<InnerParameters, OuterParameters, D>::build(dummy_circuit);
         let dummy_wrapped_proof = dummy_wrapper.prove(&dummy_inner_proof).unwrap();
         dummy_wrapped_proof.save(dummy_path).unwrap();
+        println!("Saved dummy_circuit");
 
-        // Set up the circuit and wrapper
+        // Set up the circuit and wrapper.
         let msg = b"plonky2";
         let msg_bits = to_bits(msg.to_vec());
         let expected_digest = "8943a85083f16e93dc92d6af455841daacdae5081aa3125b614a626df15461eb";

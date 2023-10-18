@@ -1,0 +1,4 @@
+verifier-build/
+core/wrapped/
+*tar.gz
+verifier-build-groth16/

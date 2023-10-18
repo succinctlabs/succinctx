@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -10,23 +9,27 @@ import (
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/backend/plonk"
+	plonk_bn254 "github.com/consensys/gnark/backend/plonk/bn254"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/logger"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
+	gnark_verifier_types "github.com/succinctlabs/gnark-plonky2-verifier/types"
+	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
+
 	"github.com/succinctlabs/sdk/gnarkx/types"
 )
 
-func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKey, error) {
+func LoadProverData(path string) (constraint.ConstraintSystem, plonk.ProvingKey, error) {
 	log := logger.Logger()
 	r1csFile, err := os.Open(path + "/r1cs.bin")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open r1cs file: %w", err)
 	}
-	r1cs := groth16.NewCS(ecc.BN254)
+	r1cs := plonk.NewCS(ecc.BN254)
 	start := time.Now()
 	r1csReader := bufio.NewReader(r1csFile)
 	_, err = r1cs.ReadFrom(r1csReader)
@@ -41,7 +44,7 @@ func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKe
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open pk file: %w", err)
 	}
-	pk := groth16.NewProvingKey(ecc.BN254)
+	pk := plonk.NewProvingKey(ecc.BN254)
 	start = time.Now()
 	pkReader := bufio.NewReader(pkFile)
 	_, err = pk.ReadFrom(pkReader)
@@ -55,20 +58,44 @@ func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKe
 	return r1cs, pk, nil
 }
 
-func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey) (groth16.Proof, witness.Witness, error) {
+func GetInputHashOutputHash(proofWithPis gnark_verifier_types.ProofWithPublicInputsRaw) (*big.Int, *big.Int) {
+	publicInputs := proofWithPis.PublicInputs
+	if len(publicInputs) != 64 {
+		panic("publicInputs must be 64 bytes")
+	}
+	publicInputsBytes := make([]byte, 64)
+	for i, v := range publicInputs {
+		publicInputsBytes[i] = byte(v & 0xFF)
+	}
+	inputHash := new(big.Int).SetBytes(publicInputsBytes[0:32])
+	outputHash := new(big.Int).SetBytes(publicInputsBytes[32:64])
+	if inputHash.BitLen() > 253 {
+		panic("inputHash must be at most 253 bits")
+	}
+	if outputHash.BitLen() > 253 {
+		panic("outputHash must be at most 253 bits")
+	}
+	return inputHash, outputHash
+}
+
+func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk plonk.ProvingKey) (plonk.Proof, witness.Witness, error) {
 	log := logger.Logger()
 
-	verifierOnlyCircuitData := verifier.DeserializeVerifierOnlyCircuitData(circuitPath + "/verifier_only_circuit_data.json")
-	proofWithPis := verifier.DeserializeProofWithPublicInputs(circuitPath + "/proof_with_public_inputs.json")
+	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
+		gnark_verifier_types.ReadVerifierOnlyCircuitData(circuitPath + "/verifier_only_circuit_data.json"),
+	)
+	proofWithPis := gnark_verifier_types.ReadProofWithPublicInputs(circuitPath + "/proof_with_public_inputs.json")
+	proofWithPisVariable := variables.DeserializeProofWithPublicInputs(proofWithPis)
+
+	inputHash, outputHash := GetInputHashOutputHash(proofWithPis)
 
 	// Circuit assignment
 	assignment := &Plonky2xVerifierCircuit{
-		ProofWithPis:   proofWithPis,
+		ProofWithPis:   proofWithPisVariable,
 		VerifierData:   verifierOnlyCircuitData,
-		VerifierDigest: frontend.Variable(0),
-		InputHash:      frontend.Variable(0),
-		OutputHash:     frontend.Variable(0),
-		CircuitPath:    circuitPath,
+		VerifierDigest: verifierOnlyCircuitData.CircuitDigest,
+		InputHash:      frontend.Variable(inputHash),
+		OutputHash:     frontend.Variable(outputHash),
 	}
 
 	log.Debug().Msg("Generating witness")
@@ -82,51 +109,19 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 
 	log.Debug().Msg("Creating proof")
 	start = time.Now()
-	proof, err := groth16.Prove(r1cs, pk, witness)
+	proof, err := plonk.Prove(r1cs, pk, witness)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create proof: %w", err)
 	}
 	elapsed = time.Since(start)
 	log.Info().Msg("Successfully created proof, time: " + elapsed.String())
 
-	const fpSize = 4 * 8
-	var buf bytes.Buffer
-	proof.WriteRawTo(&buf)
-	proofBytes := buf.Bytes()
-	output := &types.Groth16Proof{}
-	output.A[0] = new(big.Int).SetBytes(proofBytes[fpSize*0 : fpSize*1])
-	output.A[1] = new(big.Int).SetBytes(proofBytes[fpSize*1 : fpSize*2])
-	output.B[0][0] = new(big.Int).SetBytes(proofBytes[fpSize*2 : fpSize*3])
-	output.B[0][1] = new(big.Int).SetBytes(proofBytes[fpSize*3 : fpSize*4])
-	output.B[1][0] = new(big.Int).SetBytes(proofBytes[fpSize*4 : fpSize*5])
-	output.B[1][1] = new(big.Int).SetBytes(proofBytes[fpSize*5 : fpSize*6])
-	output.C[0] = new(big.Int).SetBytes(proofBytes[fpSize*6 : fpSize*7])
-	output.C[1] = new(big.Int).SetBytes(proofBytes[fpSize*7 : fpSize*8])
-
-	// abi.encode(proof.A, proof.B, proof.C)
-	uint256Array, err := abi.NewType("uint256[2]", "", nil)
-	if err != nil {
-		log.Fatal().AnErr("Failed to create uint256[2] type", err)
-	}
-	uint256ArrayArray, err := abi.NewType("uint256[2][2]", "", nil)
-	if err != nil {
-		log.Fatal().AnErr("Failed to create uint256[2][2] type", err)
-	}
-	args := abi.Arguments{
-		{Type: uint256Array},
-		{Type: uint256ArrayArray},
-		{Type: uint256Array},
-	}
-	encodedProofBytes, err := args.Pack(output.A, output.B, output.C)
-	if err != nil {
-		log.Fatal().AnErr("Failed to encode proof", err)
-	}
-
+	_proof := proof.(*plonk_bn254.Proof)
 	log.Info().Msg("Saving proof to proof.json")
 	jsonProof, err := json.Marshal(types.ProofResult{
 		// Output will be filled in by plonky2x CLI
 		Output: []byte{},
-		Proof:  encodedProofBytes,
+		Proof:  _proof.MarshalSolidity(),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to marshal proof: %w", err)
@@ -141,6 +136,34 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.Prov
 	}
 	proofFile.Close()
 	log.Info().Msg("Successfully saved proof")
+
+	// Write proof with all the public inputs and save to disk.
+	jsonProofWithWitness, err := json.Marshal(struct {
+		InputHash      hexutil.Bytes `json:"input_hash"`
+		OutputHash     hexutil.Bytes `json:"output_hash"`
+		VerifierDigest hexutil.Bytes `json:"verifier_digest"`
+		Proof          hexutil.Bytes `json:"proof"`
+	}{
+		InputHash:      inputHash.Bytes(),
+		OutputHash:     outputHash.Bytes(),
+		VerifierDigest: (verifierOnlyCircuitData.CircuitDigest).(*big.Int).Bytes(),
+		Proof:          _proof.MarshalSolidity(),
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal proof with witness: %w", err)
+	}
+	proofFile, err = os.Create("proof_with_witness.json")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create proof_with_witness file: %w", err)
+	}
+	_, err = proofFile.Write(jsonProofWithWitness)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to write proof_with_witness file: %w", err)
+	}
+	proofFile.Close()
+	log.Info().Msg("Proof with witness")
+	log.Info().Msg(string(jsonProofWithWitness))
+	log.Info().Msg("Successfully saved proof_with_witness")
 
 	publicWitness, err := witness.Public()
 	if err != nil {
