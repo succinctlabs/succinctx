@@ -139,12 +139,12 @@ macro_rules! make_uint32_n {
                 let self_targets = self
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.variable.0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 let rhs_targets = rhs
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.variable.0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 assert_eq!(self_targets.len(), rhs_targets.len());
                 assert_eq!(self_targets.len(), $c);
@@ -173,12 +173,12 @@ macro_rules! make_uint32_n {
                 let self_targets = self
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.variable.0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 let rhs_targets = rhs
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.variable.0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 assert_eq!(self_targets.len(), rhs_targets.len());
                 assert_eq!(self_targets.len(), $c);
@@ -207,12 +207,12 @@ macro_rules! make_uint32_n {
                 let self_targets = self
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.variable.0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 let rhs_targets = rhs
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.variable.0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 assert_eq!(self_targets.len(), rhs_targets.len());
                 assert_eq!(self_targets.len(), $c);
@@ -241,12 +241,12 @@ macro_rules! make_uint32_n {
                 let self_targets = self
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.variable.0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 let rhs_targets = rhs
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.variable.0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 assert_eq!(self_targets.len(), rhs_targets.len());
                 assert_eq!(self_targets.len(), $c);
@@ -275,12 +275,12 @@ macro_rules! make_uint32_n {
                 let self_targets = self
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.variable.0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 let rhs_targets = rhs
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.variable.0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 assert_eq!(self_targets.len(), rhs_targets.len());
                 assert_eq!(self_targets.len(), $c);

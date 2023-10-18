@@ -17,9 +17,32 @@ use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGate;
 use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGate;
 use crate::frontend::num::u32::serialization::{ReadU32, WriteU32};
 use crate::frontend::num::u32::witness::GeneratedValuesU32;
+use crate::prelude::U32Variable;
 
 #[derive(Clone, Copy, Debug, Default)]
-pub struct U32Target(pub Target);
+#[allow(clippy::manual_non_exhaustive)]
+
+pub struct U32Target {
+    pub target: Target,
+    /// This private field is here to force all instantiations to go the methods below
+    _private: (),
+}
+
+impl U32Target {
+    pub fn from_target_unsafe(target: Target) -> Self {
+        Self {
+            target,
+            _private: (),
+        }
+    }
+}
+
+impl From<U32Variable> for U32Target {
+    fn from(v: U32Variable) -> Self {
+        // U32Variable's range is the same as U32Target's.
+        Self::from_target_unsafe(v.variable.0)
+    }
+}
 
 pub trait CircuitBuilderU32<F: RichField + Extendable<D>, const D: usize> {
     fn add_virtual_u32_target(&mut self) -> U32Target;
@@ -74,35 +97,35 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
     for CircuitBuilder<F, D>
 {
     fn add_virtual_u32_target(&mut self) -> U32Target {
-        U32Target(self.add_virtual_target())
+        U32Target::from_target_unsafe(self.add_virtual_target())
     }
 
     fn add_virtual_u32_targets(&mut self, n: usize) -> Vec<U32Target> {
         self.add_virtual_targets(n)
             .into_iter()
-            .map(U32Target)
+            .map(U32Target::from_target_unsafe)
             .collect()
     }
 
     /// Returns a U32Target for the value `c`, which is assumed to be at most 32 bits.
     fn constant_u32(&mut self, c: u32) -> U32Target {
-        U32Target(self.constant(F::from_canonical_u32(c)))
+        U32Target::from_target_unsafe(self.constant(F::from_canonical_u32(c)))
     }
 
     fn zero_u32(&mut self) -> U32Target {
-        U32Target(self.zero())
+        U32Target::from_target_unsafe(self.zero())
     }
 
     fn one_u32(&mut self) -> U32Target {
-        U32Target(self.one())
+        U32Target::from_target_unsafe(self.one())
     }
 
     fn connect_u32(&mut self, x: U32Target, y: U32Target) {
-        self.connect(x.0, y.0)
+        self.connect(x.target, y.target)
     }
 
     fn assert_zero_u32(&mut self, x: U32Target) {
-        self.assert_zero(x.0)
+        self.assert_zero(x.target)
     }
 
     /// Checks for special cases where the value of
@@ -114,9 +137,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         y: U32Target,
         z: U32Target,
     ) -> Option<(U32Target, U32Target)> {
-        let x_const = self.target_as_constant(x.0);
-        let y_const = self.target_as_constant(y.0);
-        let z_const = self.target_as_constant(z.0);
+        let x_const = self.target_as_constant(x.target);
+        let y_const = self.target_as_constant(y.target);
+        let z_const = self.target_as_constant(z.target);
 
         // If both terms are constant, return their (constant) sum.
         let first_term_const = if let (Some(xx), Some(yy)) = (x_const, y_const) {
@@ -143,12 +166,20 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         let gate = U32ArithmeticGate::<F, D>::new_from_config(&self.config);
         let (row, copy) = self.find_slot(gate, &[], &[]);
 
-        self.connect(Target::wire(row, gate.wire_ith_multiplicand_0(copy)), x.0);
-        self.connect(Target::wire(row, gate.wire_ith_multiplicand_1(copy)), y.0);
-        self.connect(Target::wire(row, gate.wire_ith_addend(copy)), z.0);
+        self.connect(
+            Target::wire(row, gate.wire_ith_multiplicand_0(copy)),
+            x.target,
+        );
+        self.connect(
+            Target::wire(row, gate.wire_ith_multiplicand_1(copy)),
+            y.target,
+        );
+        self.connect(Target::wire(row, gate.wire_ith_addend(copy)), z.target);
 
-        let output_low = U32Target(Target::wire(row, gate.wire_ith_output_low_half(copy)));
-        let output_high = U32Target(Target::wire(row, gate.wire_ith_output_high_half(copy)));
+        let output_low =
+            U32Target::from_target_unsafe(Target::wire(row, gate.wire_ith_output_low_half(copy)));
+        let output_high =
+            U32Target::from_target_unsafe(Target::wire(row, gate.wire_ith_output_high_half(copy)));
 
         (output_low, output_high)
     }
@@ -172,14 +203,20 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
                 for j in 0..num_addends {
                     self.connect(
                         Target::wire(row, gate.wire_ith_op_jth_addend(copy, j)),
-                        to_add[j].0,
+                        to_add[j].target,
                     );
                 }
                 let zero = self.zero();
                 self.connect(Target::wire(row, gate.wire_ith_carry(copy)), zero);
 
-                let output_low = U32Target(Target::wire(row, gate.wire_ith_output_result(copy)));
-                let output_high = U32Target(Target::wire(row, gate.wire_ith_output_carry(copy)));
+                let output_low = U32Target::from_target_unsafe(Target::wire(
+                    row,
+                    gate.wire_ith_output_result(copy),
+                ));
+                let output_high = U32Target::from_target_unsafe(Target::wire(
+                    row,
+                    gate.wire_ith_output_carry(copy),
+                ));
 
                 (output_low, output_high)
             }
@@ -203,13 +240,15 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         for j in 0..num_addends {
             self.connect(
                 Target::wire(row, gate.wire_ith_op_jth_addend(copy, j)),
-                to_add[j].0,
+                to_add[j].target,
             );
         }
-        self.connect(Target::wire(row, gate.wire_ith_carry(copy)), carry.0);
+        self.connect(Target::wire(row, gate.wire_ith_carry(copy)), carry.target);
 
-        let output = U32Target(Target::wire(row, gate.wire_ith_output_result(copy)));
-        let output_carry = U32Target(Target::wire(row, gate.wire_ith_output_carry(copy)));
+        let output =
+            U32Target::from_target_unsafe(Target::wire(row, gate.wire_ith_output_result(copy)));
+        let output_carry =
+            U32Target::from_target_unsafe(Target::wire(row, gate.wire_ith_output_carry(copy)));
 
         (output, output_carry)
     }
@@ -224,15 +263,17 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         let gate = U32SubtractionGate::<F, D>::new_from_config(&self.config);
         let (row, copy) = self.find_slot(gate, &[], &[]);
 
-        self.connect(Target::wire(row, gate.wire_ith_input_x(copy)), x.0);
-        self.connect(Target::wire(row, gate.wire_ith_input_y(copy)), y.0);
+        self.connect(Target::wire(row, gate.wire_ith_input_x(copy)), x.target);
+        self.connect(Target::wire(row, gate.wire_ith_input_y(copy)), y.target);
         self.connect(
             Target::wire(row, gate.wire_ith_input_borrow(copy)),
-            borrow.0,
+            borrow.target,
         );
 
-        let output_result = U32Target(Target::wire(row, gate.wire_ith_output_result(copy)));
-        let output_borrow = U32Target(Target::wire(row, gate.wire_ith_output_borrow(copy)));
+        let output_result =
+            U32Target::from_target_unsafe(Target::wire(row, gate.wire_ith_output_result(copy)));
+        let output_borrow =
+            U32Target::from_target_unsafe(Target::wire(row, gate.wire_ith_output_borrow(copy)));
 
         (output_result, output_borrow)
     }
@@ -241,13 +282,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         // Note: The gate being used under the hood here is probably unoptimized for this usecase.
         // In particular, we can "batch decompose" the bits to fill the entire width of the table.
         let mut res = [self._false(); 32];
-        let bits = self.split_le(byte.0, 32);
+        let bits = self.split_le(byte.target, 32);
         res[..32].copy_from_slice(&bits[..32]);
         res
     }
 
     fn is_equal_u32(&mut self, x: U32Target, y: U32Target) -> BoolTarget {
-        self.is_equal(x.0, y.0)
+        self.is_equal(x.target, y.target)
     }
 }
 

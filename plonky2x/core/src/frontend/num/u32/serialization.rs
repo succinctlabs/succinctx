@@ -11,7 +11,7 @@ pub trait WriteU32 {
 impl WriteU32 for Vec<u8> {
     #[inline]
     fn write_target_u32(&mut self, x: U32Target) -> IoResult<()> {
-        self.write_target(x.0)
+        self.write_target(x.target)
     }
 }
 
@@ -22,6 +22,6 @@ pub trait ReadU32 {
 impl ReadU32 for Buffer<'_> {
     #[inline]
     fn read_target_u32(&mut self) -> IoResult<U32Target> {
-        Ok(U32Target(self.read_target()?))
+        Ok(U32Target::from_target_unsafe(self.read_target()?))
     }
 }

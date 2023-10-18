@@ -235,11 +235,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
     fn mul_biguint_by_bool(&mut self, a: &BigUintTarget, b: BoolTarget) -> BigUintTarget {
         let t = b.target;
 
+        // Each limb will be multipled by 0 or 1, which will have a product that is within
+        // U32Target's range.
         BigUintTarget {
             limbs: a
                 .limbs
                 .iter()
-                .map(|&l| U32Target(self.mul(l.0, t)))
+                .map(|&l| U32Target::from_target_unsafe(self.mul(l.target, t)))
                 .collect(),
         }
     }
@@ -336,9 +338,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
 
         let limbs = (0..num_limbs)
             .map(|i| {
-                U32Target(self.random_access(
+                U32Target::from_target_unsafe(self.random_access(
                     access_index,
-                    v.iter().map(|biguint| biguint.limbs[i].0).collect(),
+                    v.iter().map(|biguint| biguint.limbs[i].target).collect(),
                 ))
             })
             .collect::<Vec<_>>();
@@ -382,7 +384,7 @@ impl<T: Witness<F>, F: PrimeField64> WitnessBigUint<F> for T {
             .into_iter()
             .rev()
             .fold(BigUint::zero(), |acc, limb| {
-                (acc << 32) + self.get_target(limb.0).to_canonical_biguint()
+                (acc << 32) + self.get_target(limb.target).to_canonical_biguint()
             })
     }
 
@@ -438,7 +440,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
             .limbs
             .iter()
             .chain(&self.b.limbs)
-            .map(|&l| l.0)
+            .map(|&l| l.target)
             .collect()
     }
 
@@ -452,10 +454,10 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn serialize(&self, dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
-        dst.write_target_vec(&self.a.limbs.iter().map(|x| x.0).collect_vec())?;
-        dst.write_target_vec(&self.b.limbs.iter().map(|x| x.0).collect_vec())?;
-        dst.write_target_vec(&self.div.limbs.iter().map(|x| x.0).collect_vec())?;
-        dst.write_target_vec(&self.rem.limbs.iter().map(|x| x.0).collect_vec())?;
+        dst.write_target_vec(&self.a.limbs.iter().map(|x| x.target).collect_vec())?;
+        dst.write_target_vec(&self.b.limbs.iter().map(|x| x.target).collect_vec())?;
+        dst.write_target_vec(&self.div.limbs.iter().map(|x| x.target).collect_vec())?;
+        dst.write_target_vec(&self.rem.limbs.iter().map(|x| x.target).collect_vec())?;
         Ok(())
     }
 
@@ -470,28 +472,28 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
             limbs: src
                 .read_target_vec()?
                 .into_iter()
-                .map(U32Target)
+                .map(U32Target::from_target_unsafe)
                 .collect_vec(),
         };
         let b = BigUintTarget {
             limbs: src
                 .read_target_vec()?
                 .into_iter()
-                .map(U32Target)
+                .map(U32Target::from_target_unsafe)
                 .collect_vec(),
         };
         let div = BigUintTarget {
             limbs: src
                 .read_target_vec()?
                 .into_iter()
-                .map(U32Target)
+                .map(U32Target::from_target_unsafe)
                 .collect_vec(),
         };
         let rem = BigUintTarget {
             limbs: src
                 .read_target_vec()?
                 .into_iter()
-                .map(U32Target)
+                .map(U32Target::from_target_unsafe)
                 .collect_vec(),
         };
         Ok(Self {

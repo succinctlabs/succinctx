@@ -55,7 +55,7 @@ impl<FF: PrimeField> CircuitVariable for NonNativeTarget<FF> {
         self.value
             .limbs
             .iter()
-            .map(|x| Variable(x.0))
+            .map(|x| Variable(x.target))
             .collect::<Vec<Variable>>()
     }
 
@@ -63,7 +63,7 @@ impl<FF: PrimeField> CircuitVariable for NonNativeTarget<FF> {
         let num_limbs = num_nonnative_limbs::<FF>();
         let u32s = variables
             .iter()
-            .map(|x| U32Target(x.0))
+            .map(|x| U32Target::from_target_unsafe(x.0))
             .collect::<Vec<U32Target>>();
         assert_eq!(u32s.len(), num_limbs);
         Self {
@@ -496,7 +496,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     }
 
     fn bool_to_nonnative<FF: PrimeField>(&mut self, b: &BoolTarget) -> NonNativeTarget<FF> {
-        let limbs = vec![U32Target(b.target)];
+        let limbs = vec![U32Target::from_target_unsafe(b.target)];
         let value = BigUintTarget { limbs };
 
         NonNativeTarget {
@@ -515,7 +515,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
 
         for i in 0..num_limbs {
             let limb = x.value.get_limb(i);
-            let bit_targets = self.split_le_base::<2>(limb.0, 32);
+            let bit_targets = self.split_le_base::<2>(limb.target, 32);
             let mut bits: Vec<_> = bit_targets
                 .iter()
                 .map(|&t| BoolTarget::new_unsafe(t))
@@ -607,7 +607,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
             .iter()
             .cloned()
             .chain(self.b.value.limbs.clone())
-            .map(|l| l.0)
+            .map(|l| l.target)
             .collect()
     }
 
@@ -683,7 +683,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
     fn dependencies(&self) -> Vec<Target> {
         self.summands
             .iter()
-            .flat_map(|summand| summand.value.limbs.iter().map(|limb| limb.0))
+            .flat_map(|summand| summand.value.limbs.iter().map(|limb| limb.target))
             .collect()
     }
 
@@ -769,7 +769,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
             .iter()
             .cloned()
             .chain(self.b.value.limbs.clone())
-            .map(|l| l.0)
+            .map(|l| l.target)
             .collect()
     }
 
@@ -847,7 +847,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
             .iter()
             .cloned()
             .chain(self.b.value.limbs.clone())
-            .map(|l| l.0)
+            .map(|l| l.target)
             .collect()
     }
 
@@ -909,7 +909,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
     }
 
     fn dependencies(&self) -> Vec<Target> {
-        self.x.value.limbs.iter().map(|&l| l.0).collect()
+        self.x.value.limbs.iter().map(|&l| l.target).collect()
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {

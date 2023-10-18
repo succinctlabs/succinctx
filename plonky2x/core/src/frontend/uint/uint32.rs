@@ -51,7 +51,7 @@ impl CircuitVariable for U32Variable {
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) {
-        let bits = builder.api.u32_to_bits_le(U32Target(self.targets()[0]));
+        let bits = builder.api.u32_to_bits_le(U32Target::from(*self));
         let reconstructed_val = builder.api.le_sum(bits.iter());
         builder.assert_is_equal(self.variable, Variable(reconstructed_val))
     }
@@ -126,7 +126,7 @@ impl EvmVariable for U32Variable {
 impl From<U32Target> for U32Variable {
     fn from(v: U32Target) -> Self {
         // U32Target's range is the same as U32Variable's.
-        Self::from_variables_unsafe(&[Variable(v.0)])
+        Self::from_variables_unsafe(&[Variable(v.target)])
     }
 }
 
@@ -158,13 +158,11 @@ impl<L: PlonkParameters<D>, const D: usize> Mul<L, D> for U32Variable {
     type Output = Self;
 
     fn mul(self, rhs: U32Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        let self_target = self.variable.0;
-        let rhs_target = rhs.variable.0;
         let self_biguint = BigUintTarget {
-            limbs: vec![U32Target(self_target)],
+            limbs: vec![self.into()],
         };
         let rhs_biguint = BigUintTarget {
-            limbs: vec![U32Target(rhs_target)],
+            limbs: vec![rhs.into()],
         };
 
         let product_biguint = builder.api.mul_biguint(&self_biguint, &rhs_biguint);
@@ -178,13 +176,11 @@ impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for U32Variable {
     type Output = Self;
 
     fn add(self, rhs: U32Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        let self_target = self.variable.0;
-        let rhs_target = rhs.variable.0;
         let self_biguint = BigUintTarget {
-            limbs: vec![U32Target(self_target)],
+            limbs: vec![self.into()],
         };
         let rhs_biguint = BigUintTarget {
-            limbs: vec![U32Target(rhs_target)],
+            limbs: vec![rhs.into()],
         };
 
         let sum_biguint = builder.api.add_biguint(&self_biguint, &rhs_biguint);
@@ -198,13 +194,11 @@ impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for U32Variable {
     type Output = Self;
 
     fn sub(self, rhs: U32Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        let self_target = self.variable.0;
-        let rhs_target = rhs.variable.0;
         let self_biguint = BigUintTarget {
-            limbs: vec![U32Target(self_target)],
+            limbs: vec![self.into()],
         };
         let rhs_biguint = BigUintTarget {
-            limbs: vec![U32Target(rhs_target)],
+            limbs: vec![rhs.into()],
         };
 
         let diff_biguint = builder.api.sub_biguint(&self_biguint, &rhs_biguint);
