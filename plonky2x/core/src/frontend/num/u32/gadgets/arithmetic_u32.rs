@@ -45,9 +45,9 @@ impl From<U32Variable> for U32Target {
 }
 
 pub trait CircuitBuilderU32<F: RichField + Extendable<D>, const D: usize> {
-    fn add_virtual_u32_target(&mut self) -> U32Target;
+    fn add_virtual_u32_target_unsafe(&mut self) -> U32Target;
 
-    fn add_virtual_u32_targets(&mut self, n: usize) -> Vec<U32Target>;
+    fn add_virtual_u32_targets_unsafe(&mut self, n: usize) -> Vec<U32Target>;
 
     /// Returns a U32Target for the value `c`, which is assumed to be at most 32 bits.
     fn constant_u32(&mut self, c: u32) -> U32Target;
@@ -96,11 +96,11 @@ pub trait CircuitBuilderU32<F: RichField + Extendable<D>, const D: usize> {
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
     for CircuitBuilder<F, D>
 {
-    fn add_virtual_u32_target(&mut self) -> U32Target {
+    fn add_virtual_u32_target_unsafe(&mut self) -> U32Target {
         U32Target::from_target_unsafe(self.add_virtual_target())
     }
 
-    fn add_virtual_u32_targets(&mut self, n: usize) -> Vec<U32Target> {
+    fn add_virtual_u32_targets_unsafe(&mut self, n: usize) -> Vec<U32Target> {
         self.add_virtual_targets(n)
             .into_iter()
             .map(U32Target::from_target_unsafe)
@@ -113,10 +113,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
     }
 
     fn zero_u32(&mut self) -> U32Target {
+        // Zero is within U32Target's range
         U32Target::from_target_unsafe(self.zero())
     }
 
     fn one_u32(&mut self) -> U32Target {
+        // One is within U32Target's range
         U32Target::from_target_unsafe(self.one())
     }
 
@@ -176,6 +178,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         );
         self.connect(Target::wire(row, gate.wire_ith_addend(copy)), z.target);
 
+        // U32ArithmeticGate's output wires are within U32Target's range.
         let output_low =
             U32Target::from_target_unsafe(Target::wire(row, gate.wire_ith_output_low_half(copy)));
         let output_high =
@@ -209,6 +212,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
                 let zero = self.zero();
                 self.connect(Target::wire(row, gate.wire_ith_carry(copy)), zero);
 
+                // U32AddManyGate's output wires are within U32Target's range.
                 let output_low = U32Target::from_target_unsafe(Target::wire(
                     row,
                     gate.wire_ith_output_result(copy),
@@ -245,6 +249,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         }
         self.connect(Target::wire(row, gate.wire_ith_carry(copy)), carry.target);
 
+        // U32AddManyGate's output wires are within U32Target's range.
         let output =
             U32Target::from_target_unsafe(Target::wire(row, gate.wire_ith_output_result(copy)));
         let output_carry =
@@ -270,6 +275,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
             borrow.target,
         );
 
+        // U32SubtractionGate's output wires are within U32Target's range.
         let output_result =
             U32Target::from_target_unsafe(Target::wire(row, gate.wire_ith_output_result(copy)));
         let output_borrow =

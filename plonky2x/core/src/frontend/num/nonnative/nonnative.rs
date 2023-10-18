@@ -252,7 +252,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
 
     fn add_virtual_nonnative_target<FF: PrimeField>(&mut self) -> NonNativeTarget<FF> {
         let num_limbs = Self::num_nonnative_limbs::<FF>();
-        let value = self.add_virtual_biguint_target(num_limbs);
+        let value = self.add_virtual_biguint_target_unsafe(num_limbs);
 
         NonNativeTarget {
             value,
@@ -264,7 +264,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         &mut self,
         num_limbs: usize,
     ) -> NonNativeTarget<FF> {
-        let value = self.add_virtual_biguint_target(num_limbs);
+        let value = self.add_virtual_biguint_target_unsafe(num_limbs);
 
         NonNativeTarget {
             value,
@@ -336,7 +336,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         }
 
         let sum = self.add_virtual_nonnative_target::<FF>();
-        let overflow = self.add_virtual_u32_target();
+        // Will be range checked below.
+        let overflow = self.add_virtual_u32_target_unsafe();
         let summands = to_add.to_vec();
 
         self.add_simple_generator(NonNativeMultipleAddsGenerator::<F, D, FF> {
@@ -406,7 +407,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     ) -> NonNativeTarget<FF> {
         let prod = self.add_virtual_nonnative_target::<FF>();
         let modulus = self.constant_biguint(&FF::order());
-        let overflow = self.add_virtual_biguint_target(
+        // Will be ranged checked below.
+        let overflow = self.add_virtual_biguint_target_unsafe(
             a.value.num_limbs() + b.value.num_limbs() - modulus.num_limbs(),
         );
 
@@ -454,8 +456,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
 
     fn inv_nonnative<FF: PrimeField>(&mut self, x: &NonNativeTarget<FF>) -> NonNativeTarget<FF> {
         let num_limbs = x.value.num_limbs();
-        let inv_biguint = self.add_virtual_biguint_target(num_limbs);
-        let div = self.add_virtual_biguint_target(num_limbs);
+        let inv_biguint = self.add_virtual_biguint_target_unsafe(num_limbs);
+        let div = self.add_virtual_biguint_target_unsafe(num_limbs);
 
         self.add_simple_generator(NonNativeInverseGenerator::<F, D, FF> {
             x: x.clone(),
@@ -496,6 +498,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     }
 
     fn bool_to_nonnative<FF: PrimeField>(&mut self, b: &BoolTarget) -> NonNativeTarget<FF> {
+        // BoolTarget's range is within U32Target's range.
         let limbs = vec![U32Target::from_target_unsafe(b.target)];
         let value = BigUintTarget { limbs };
 

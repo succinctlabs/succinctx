@@ -115,6 +115,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
             .map(|chunk| {
                 let mut combined_chunk = self.zero_u32();
                 for i in (0..8).rev() {
+                    // This function assumes each chunk element is a 4 bit limb.
                     let (low, _high) = self.mul_add_u32(
                         combined_chunk,
                         base,
@@ -143,6 +144,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
             .map(|chunk| {
                 let mut combined_chunk = self.zero_u32();
                 for i in (0..2).rev() {
+                    // This function assumes each chunk element is a 16 bit limb.
                     let (low, _high) = self.mul_add_u32(
                         combined_chunk,
                         base,

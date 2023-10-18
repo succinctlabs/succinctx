@@ -81,6 +81,8 @@ fn biguint_from_le_bytes<F: RichField + Extendable<D>, const D: usize>(
     let mut u32_targets = Vec::new();
     for u32_chunk in be_byte_ordered_bits.as_slice().chunks(32).rev() {
         // The chunk's bit ordering is in BE.  Need to reverse it for the le_sum function.
+        // Per the assert above, we are guaranteed that the chunks will be 32 bool targets,
+        // so will fit within a U32Target.
         u32_targets.push(U32Target::from_target_unsafe(
             builder.le_sum(u32_chunk.iter().rev()),
         ));

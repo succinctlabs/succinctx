@@ -47,7 +47,7 @@ pub trait CircuitBuilderBiguint<F: RichField + Extendable<D>, const D: usize> {
 
     fn cmp_biguint(&mut self, a: &BigUintTarget, b: &BigUintTarget) -> BoolTarget;
 
-    fn add_virtual_biguint_target(&mut self, num_limbs: usize) -> BigUintTarget;
+    fn add_virtual_biguint_target_unsafe(&mut self, num_limbs: usize) -> BigUintTarget;
 
     /// Add two `BigUintTarget`s.
     fn add_biguint(&mut self, a: &BigUintTarget, b: &BigUintTarget) -> BigUintTarget;
@@ -157,8 +157,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
         list_le_u32_circuit(self, a.limbs, b.limbs)
     }
 
-    fn add_virtual_biguint_target(&mut self, num_limbs: usize) -> BigUintTarget {
-        let limbs = self.add_virtual_u32_targets(num_limbs);
+    fn add_virtual_biguint_target_unsafe(&mut self, num_limbs: usize) -> BigUintTarget {
+        let limbs = self.add_virtual_u32_targets_unsafe(num_limbs);
 
         BigUintTarget { limbs }
     }
@@ -263,8 +263,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
         div_num_limbs: usize,
     ) -> (BigUintTarget, BigUintTarget) {
         let b_len = b.limbs.len();
-        let div = self.add_virtual_biguint_target(div_num_limbs);
-        let rem = self.add_virtual_biguint_target(b_len);
+        let div = self.add_virtual_biguint_target_unsafe(div_num_limbs);
+        let rem = self.add_virtual_biguint_target_unsafe(b_len);
 
         self.add_simple_generator(BigUintDivRemGenerator::<F, D> {
             a: a.clone(),
@@ -336,6 +336,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
             assert_eq!(v[i].num_limbs(), num_limbs);
         }
 
+        // The random_access will be done on BigUintTarget limbs, which are U32Target types.
         let limbs = (0..num_limbs)
             .map(|i| {
                 U32Target::from_target_unsafe(self.random_access(
@@ -468,6 +469,8 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     where
         Self: Sized,
     {
+        // The serialization function was saving U32Targets (for the BigUInt limbs), so
+        // we assume that here.
         let a = BigUintTarget {
             limbs: src
                 .read_target_vec()?
@@ -564,10 +567,11 @@ mod tests {
         let mut pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
-        let x = builder.add_virtual_biguint_target(x_value.to_u32_digits().len());
-        let y = builder.add_virtual_biguint_target(y_value.to_u32_digits().len());
+        let x = builder.add_virtual_biguint_target_unsafe(x_value.to_u32_digits().len());
+        let y = builder.add_virtual_biguint_target_unsafe(y_value.to_u32_digits().len());
         let z = builder.add_biguint(&x, &y);
-        let expected_z = builder.add_virtual_biguint_target(expected_z_value.to_u32_digits().len());
+        let expected_z =
+            builder.add_virtual_biguint_target_unsafe(expected_z_value.to_u32_digits().len());
         builder.connect_biguint(&z, &expected_z);
 
         pw.set_biguint_target(&x, &x_value);
@@ -624,10 +628,11 @@ mod tests {
         let mut pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
-        let x = builder.add_virtual_biguint_target(x_value.to_u32_digits().len());
-        let y = builder.add_virtual_biguint_target(y_value.to_u32_digits().len());
+        let x = builder.add_virtual_biguint_target_unsafe(x_value.to_u32_digits().len());
+        let y = builder.add_virtual_biguint_target_unsafe(y_value.to_u32_digits().len());
         let z = builder.mul_biguint(&x, &y);
-        let expected_z = builder.add_virtual_biguint_target(expected_z_value.to_u32_digits().len());
+        let expected_z =
+            builder.add_virtual_biguint_target_unsafe(expected_z_value.to_u32_digits().len());
         builder.connect_biguint(&z, &expected_z);
 
         pw.set_biguint_target(&x, &x_value);

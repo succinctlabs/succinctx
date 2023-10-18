@@ -22,6 +22,7 @@ pub trait ReadU32 {
 impl ReadU32 for Buffer<'_> {
     #[inline]
     fn read_target_u32(&mut self) -> IoResult<U32Target> {
+        // We assume that serialized value is within U32Target's range.
         Ok(U32Target::from_target_unsafe(self.read_target()?))
     }
 }
