@@ -31,9 +31,14 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
     bool public isCallback;
 
     /// @dev Initializes the contract.
+    /// @param _feeVault The address of the fee vault.
     /// @param _timelock The address of the timelock contract.
     /// @param _guardian The address of the guardian.
-    function initialize(address _timelock, address _guardian) external initializer {
+    function initialize(address _feeVault, address _timelock, address _guardian)
+        external
+        initializer
+    {
+        feeVault = _feeVault;
         isCallback = false;
         __TimelockedUpgradeable_init(_timelock, _guardian);
     }
@@ -66,9 +71,6 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
             _callbackGasLimit
         );
 
-        // Increment the nonce.
-        nonce++;
-
         // Store the callback hash.
         requests[nonce] = requestHash;
         emit RequestCallback(
@@ -78,8 +80,12 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
             _context,
             callbackAddress,
             _callbackSelector,
-            _callbackGasLimit
+            _callbackGasLimit,
+            msg.value
         );
+
+        // Increment the nonce.
+        nonce++;
 
         // Send the fee to the vault.
         IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
@@ -91,19 +97,29 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
     ///      through an API.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
-    /// @param _address The address of the callback contract.
-    /// @param _data The data for the callback function.
+    /// @param _entryAddress The address of the callback contract.
+    /// @param _entryCalldata The entry calldata for the call.
+    /// @param _entryGasLimit The gas limit for the call.
     function requestCall(
         bytes32 _functionId,
         bytes memory _input,
-        address _address,
-        bytes memory _data
+        address _entryAddress,
+        bytes memory _entryCalldata,
+        uint32 _entryGasLimit
     ) external payable {
         // Emit event.
-        emit RequestCall(_functionId, _input, _address, _data);
+        emit RequestCall(
+            _functionId,
+            _input,
+            _entryAddress,
+            _entryCalldata,
+            _entryGasLimit,
+            msg.sender,
+            msg.value
+        );
 
         // Send the fee to the vault.
-        IFeeVault(feeVault).depositNative{value: msg.value}(_address);
+        IFeeVault(feeVault).depositNative{value: msg.value}(msg.sender);
     }
 
     /// @dev If the call matches the currently verified function, returns the output. Otherwise,
