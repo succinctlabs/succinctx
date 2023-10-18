@@ -17,7 +17,7 @@ use crate::prelude::{Add, Mul, Sub};
 
 /// A variable in the circuit representing a fixed length array of variables.
 /// We use this to avoid stack overflow arrays associated with fixed-length arrays.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ArrayVariable<V: CircuitVariable, const N: usize> {
     pub data: Vec<V>,
 }

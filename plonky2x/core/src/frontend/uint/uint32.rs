@@ -40,7 +40,9 @@ impl CircuitVariable for U32Variable {
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) {
-        builder.api.u32_to_bits_le(U32Target(self.targets()[0]));
+        let bits = builder.api.u32_to_bits_le(U32Target(self.targets()[0]));
+        let reconstructed_val = builder.api.le_sum(bits.iter());
+        builder.assert_is_equal(self.0, Variable(reconstructed_val))
     }
 
     fn nb_elements() -> usize {
