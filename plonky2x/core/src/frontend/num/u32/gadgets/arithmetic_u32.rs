@@ -24,7 +24,7 @@ use crate::prelude::U32Variable;
 
 pub struct U32Target {
     pub target: Target,
-    /// This private field is here to force all instantiations to go the methods below
+    /// This private field is here to force all instantiations to go the methods below.
     _private: (),
 }
 

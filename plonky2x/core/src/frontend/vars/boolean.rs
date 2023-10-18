@@ -14,7 +14,7 @@ use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not};
 #[allow(clippy::manual_non_exhaustive)]
 pub struct BoolVariable {
     pub variable: Variable,
-    /// This private field is here to force all instantiations to go the methods below
+    /// This private field is here to force all instantiations to go the methods below.
     _private: (),
 }
 
