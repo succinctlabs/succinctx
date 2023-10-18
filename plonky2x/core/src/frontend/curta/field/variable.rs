@@ -39,21 +39,21 @@ impl<P: FieldParameters> CircuitVariable for FieldVariable<P> {
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) {
-        // Only support 16-bit limbs
+        // Only support 16-bit limbs.
         assert!(P::NB_BITS_PER_LIMB == 16);
 
-        // check that each limb is within u16
+        // Check that each limb is within u16.
         for limb in self.limbs.iter() {
             builder.api.range_check(limb.0, 16);
         }
 
-        // Check that the value is less than the modulus
+        // Check that the value is less than the modulus.
         let bytes = (P::modulus() - BigUint::one()).to_bytes_le();
 
-        // Initialize a vector to store the 16-bit limbs
+        // Initialize a vector to store the 16-bit limbs.
         let mut modulus_limbs = Vec::new();
 
-        // Iterate over the bytes in 2-byte (16-bit) chunks
+        // Iterate over the bytes in 2-byte (16-bit) chunks.
         for i in (0..bytes.len()).step_by(2) {
             // Combine two bytes into a 16-bit limb
             let limb = (bytes[i] as u16) | ((bytes[i + 1] as u16) << 8);
@@ -63,8 +63,8 @@ impl<P: FieldParameters> CircuitVariable for FieldVariable<P> {
             ));
         }
 
-        // list_lte_circuit expects that both the operands have the same number of limbs.
-        // Padd the value limbs and modulus limbs with zeros to make them the same length.
+        // "list_lte_circuit" expects that both the operands have the same number of limbs.
+        // Pad the value limbs and modulus limbs with zeros to make them the same length.
         let mut padded_value_limbs = self.limbs.clone();
         for _ in padded_value_limbs.len()..P::NB_LIMBS {
             padded_value_limbs.push(builder.zero());
