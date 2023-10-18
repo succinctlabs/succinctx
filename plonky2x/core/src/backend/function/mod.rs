@@ -147,6 +147,7 @@ impl<C: Circuit> Plonky2xFunction for C {
                     .arg(path::Path::new(&args.wrapper_path))
                     .stdout(std::process::Stdio::inherit())
                     .stderr(std::process::Stdio::inherit())
+                    .stdin(std::process::Stdio::piped())
                     .spawn()
                     .expect("Failed to start gnark wrapper process");
             Some(child_process)
@@ -189,11 +190,11 @@ impl<C: Circuit> Plonky2xFunction for C {
         );
 
         if let PublicInput::Bytes(input_bytes) = input {
-            info!("Input Bytes: {}", hex::encode(input_bytes));
+            info!("Input Bytes: 0x{}", hex::encode(input_bytes));
         }
 
         if let PublicOutput::Bytes(output_bytes) = output {
-            info!("Output Bytes: {:?}", hex::encode(output_bytes.clone()));
+            info!("Output Bytes: 0x{}", hex::encode(output_bytes.clone()));
             // It's quite fast (~5-10 seconds) to rebuild the wrapped circuit. Because of this we
             // choose to rebuild here instead of loading from disk.
             let wrapped_circuit =
@@ -206,10 +207,22 @@ impl<C: Circuit> Plonky2xFunction for C {
             // The gnark_wrapper_process should have been started
             let mut gnark_wrapper_process = gnark_wrapper_process.unwrap();
 
-            let stdin = gnark_wrapper_process
-                .stdin
-                .as_mut()
-                .expect("Failed to open stdin of gnark wrapper");
+            let mut stdin_opt = None;
+            while stdin_opt.is_none() {
+                stdin_opt = match gnark_wrapper_process.stdin.as_mut() {
+                    Some(stdin) => {
+                        info!("Got stdin of child process");
+                        Some(stdin)
+                    }
+                    None => {
+                        info!("Failed to open stdin of gnark wrapper. Retrying...");
+                        std::thread::sleep(std::time::Duration::from_secs(1));
+                        None
+                    }
+                };
+            }
+            let stdin = stdin_opt.unwrap();
+
             stdin
                 .write_all(b"wrapped\n")
                 .expect("Failed to write to stdin");
