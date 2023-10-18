@@ -1,0 +1,14 @@
+{
+    "extends": "./tsconfig.build.json",
+    "compilerOptions": {
+      "emitDeclarationOnly": false,
+      // Required to run benchmark command from root directory
+      "typeRoots": [
+        "node_modules/@types",
+        "./types"
+      ],
+      "noEmit": false,
+      // To be used in the test fixtures
+      "resolveJsonModule": true
+    }
+  }

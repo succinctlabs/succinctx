@@ -6,6 +6,8 @@ on:
   pull_request:
     branches:
       - "**"
+    paths:
+      - "plonky2x/**"
   workflow_dispatch:
     branches:
       - "**"

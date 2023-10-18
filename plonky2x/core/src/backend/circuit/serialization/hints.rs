@@ -49,15 +49,16 @@ use crate::frontend::curta::hash::sha::sha256::hint::Sha256ProofHint;
 use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
-    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconExecutionPayloadHint,
-    BeaconHeaderHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
+    BeaconExecutionPayloadHint, BeaconGraffitiHint, BeaconHeaderHint,
+    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
     BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
     BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
 };
 use crate::frontend::eth::beacon::vars::{
-    BeaconBalancesVariable, BeaconValidatorVariable, BeaconValidatorsVariable,
-    BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
+    BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
+    BeaconValidatorsVariable, BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
 use crate::frontend::eth::mpt::generators::LteGenerator;
 use crate::frontend::eth::storage::generators::{
@@ -84,7 +85,7 @@ use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
 use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
-use crate::prelude::{BoolVariable, U32Variable, Variable};
+use crate::prelude::{ArrayVariable, BoolVariable, U32Variable, Variable};
 
 pub trait HintSerializer<L: PlonkParameters<D>, const D: usize>:
     WitnessGeneratorSerializer<L::Field, D>
@@ -463,6 +464,12 @@ where
 
         r.register_hint::<SubArrayExtractorHint>();
 
+        r.register_hint::<BeaconBlockRootsHint>();
+
+        r.register_hint::<BeaconGraffitiHint>();
+
+        register_powers_of_two!(r, BeaconHeadersFromOffsetRangeHint);
+
         register_watch_generator!(
             r,
             L,
@@ -477,7 +484,9 @@ where
             BeaconBalancesVariable,
             BeaconWithdrawalsVariable,
             BeaconWithdrawalVariable,
-            BeaconValidatorVariable
+            BeaconValidatorVariable,
+            BeaconHeaderVariable,
+            ArrayVariable<Bytes32Variable, 8192>
         );
 
         r

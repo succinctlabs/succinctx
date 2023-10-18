@@ -76,7 +76,10 @@ abstract contract BaseScript is Script {
         return value;
     }
 
-    function envUint32s(string memory name, string memory delimiter) internal returns (uint32[] memory) {
+    function envUint32s(string memory name, string memory delimiter)
+        internal
+        returns (uint32[] memory)
+    {
         uint256[] memory values = new uint256[](0);
         values = vm.envOr(name, delimiter, values);
         if (values.length == 0) {
@@ -167,9 +170,12 @@ abstract contract BaseScript is Script {
         console.log(string.concat(string.concat(addrVar, "="), Strings.toHexString(value)));
     }
 
-    function writeEnvAddresses(string memory file, string memory name, address[] memory values, string memory delimiter)
-        internal
-    {
+    function writeEnvAddresses(
+        string memory file,
+        string memory name,
+        address[] memory values,
+        string memory delimiter
+    ) internal {
         string memory addrVar = string.concat(name, "_", Strings.toString(block.chainid));
         string memory line = string.concat(addrVar, "=");
         string memory addrs;
@@ -243,7 +249,11 @@ abstract contract BaseScript is Script {
         return _b;
     }
 
-    function buildSignaturesFromArray(bytes[] memory _signatures) internal pure returns (bytes memory) {
+    function buildSignaturesFromArray(bytes[] memory _signatures)
+        internal
+        pure
+        returns (bytes memory)
+    {
         bytes memory signatures;
         for (uint256 i = 0; i < _signatures.length; i++) {
             signatures = bytes.concat(signatures, bytes(_signatures[i]));

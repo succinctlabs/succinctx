@@ -331,7 +331,8 @@ impl<
                 ..V1::nb_elements() + V2::nb_elements() + V3::nb_elements()],
         );
         let v4 = V4::from_variables_unsafe(
-            &variables[V1::nb_elements() + V2::nb_elements() + V3::nb_elements()..],
+            &variables[V1::nb_elements() + V2::nb_elements() + V3::nb_elements()
+                ..V1::nb_elements() + V2::nb_elements() + V3::nb_elements() + V4::nb_elements()],
         );
         let v5 = V5::from_variables_unsafe(
             &variables

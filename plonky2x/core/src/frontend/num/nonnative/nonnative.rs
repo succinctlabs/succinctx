@@ -76,7 +76,9 @@ impl<FF: PrimeField> CircuitVariable for NonNativeTarget<FF> {
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) {
-        let modulus = builder.api.constant_biguint(&FF::order());
+        let modulus = builder
+            .api
+            .constant_biguint(&(FF::order() - BigUint::one()));
         let cmp = builder.api.cmp_biguint(&self.value, &modulus);
         let one = builder.api.one();
         builder.api.connect(cmp.target, one);

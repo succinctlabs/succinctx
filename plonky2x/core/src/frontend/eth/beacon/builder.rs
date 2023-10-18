@@ -3,8 +3,9 @@ use ethers::types::{H256, U256};
 
 use super::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
-    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconExecutionPayloadHint,
-    BeaconHeaderHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
+    BeaconExecutionPayloadHint, BeaconGraffitiHint, BeaconHeaderHint,
+    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
     BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsHint, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
     CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
@@ -61,20 +62,34 @@ const EXECUTION_PAYLOAD_BLOCK_NUMBER_GINDEX: u64 = 3222;
 /// The log2 of the validator registry limit.
 const VALIDATOR_REGISTRY_LIMIT_LOG2: usize = 40;
 
-/// The depth of the proof from the blockRoot -> balancesRoot;
+/// The depth of the proof from the blockRoot -> balancesRoot.
 const BALANCES_PROOF_DEPTH: usize = 8;
 
+/// The depth of the proof from the blockRoot -> blockRoots.
+const BLOCK_ROOTS_PROOF_DEPTH: usize = 8;
+
+/// The depth of the proof from blockRoot -> graffiti.
+const GRAFFITI_PROOF_DEPTH: usize = 7;
+
+/// The gindex for stateRoot -> validators;
 const VALIDATORS_GINDEX: usize = 43;
 
+/// The gindex for stateRoot -> balances;
 const BALANCES_GINDEX: usize = 44;
+
+/// The gindex for blockRoot -> blockRoots.
+const BLOCK_ROOTS_GINDEX: usize = 357;
+
+/// The gindex for blockRoot -> graffiti.
+const GRAFFITI_GINDEX: usize = 194;
 
 /// Beacon chain constant SLOTS_PER_EPOCH.
 const SLOTS_PER_EPOCH: u64 = 32;
 
 /// Beacon chain constant SLOTS_PER_HISTORICAL_ROOT.
-const SLOTS_PER_HISTORICAL_ROOT: u64 = 8192;
+const SLOTS_PER_HISTORICAL_ROOT: usize = 8192;
 
-/// Beacon chain constant CAPELLA_FORK_EPOCH. (mainnet specific)
+/// Beacon chain constant CAPELLA_FORK_EPOCH (mainnet specific).
 const CAPELLA_FORK_EPOCH: u64 = 194048;
 
 /// Beacon chain constant MAX_WITHDRAWALS_PER_PAYLOAD.
@@ -519,7 +534,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         // Use close slot logic if (source - target) < 8192
         let source_slot = self.beacon_get_block_header(block_root).slot;
         let source_sub_target = self.sub(source_slot, target_slot);
-        let slots_per_historical = self.constant::<U64Variable>(SLOTS_PER_HISTORICAL_ROOT);
+        let slots_per_historical = self.constant::<U64Variable>(SLOTS_PER_HISTORICAL_ROOT as u64);
         let one_u64 = self.constant::<U64Variable>(1);
         let slots_per_historical_sub_one = self.sub(slots_per_historical, one_u64);
         let is_close_slot = self.lte(source_sub_target, slots_per_historical_sub_one);
@@ -573,6 +588,57 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.assert_is_equal(valid, true_bool);
 
         generator.target_block_root
+    }
+
+    pub fn beacon_get_block_roots(
+        &mut self,
+        block_root: Bytes32Variable,
+    ) -> ArrayVariable<Bytes32Variable, SLOTS_PER_HISTORICAL_ROOT> {
+        let mut input = VariableStream::new();
+        input.write(&block_root);
+        let output = self.hint(input, BeaconBlockRootsHint {});
+        let block_roots_root = output.read::<Bytes32Variable>(self);
+        let proof = output.read::<ArrayVariable<Bytes32Variable, BLOCK_ROOTS_PROOF_DEPTH>>(self);
+        let block_roots =
+            output.read::<ArrayVariable<Bytes32Variable, SLOTS_PER_HISTORICAL_ROOT>>(self);
+        self.ssz_verify_proof_const(
+            block_root,
+            block_roots_root,
+            proof.as_slice(),
+            BLOCK_ROOTS_GINDEX as u64,
+        );
+        let root = self.ssz_hash_leafs(block_roots.as_slice());
+        self.assert_is_equal(root, block_roots_root);
+        block_roots
+    }
+
+    pub fn beacon_get_graffiti(&mut self, block_root: Bytes32Variable) -> Bytes32Variable {
+        let mut input = VariableStream::new();
+        input.write(&block_root);
+        let output = self.hint(input, BeaconGraffitiHint {});
+        let graffiti = output.read::<Bytes32Variable>(self);
+        let proof = output.read::<ArrayVariable<Bytes32Variable, GRAFFITI_PROOF_DEPTH>>(self);
+        self.ssz_verify_proof_const(
+            block_root,
+            graffiti,
+            proof.as_slice(),
+            GRAFFITI_GINDEX as u64,
+        );
+        graffiti
+    }
+
+    pub fn beacon_witness_headers_from_offset_range<const B: usize>(
+        &mut self,
+        end_block_root: Bytes32Variable,
+        start_offset: U64Variable,
+        end_offset: U64Variable,
+    ) -> ArrayVariable<Bytes32Variable, B> {
+        let mut input = VariableStream::new();
+        input.write(&end_block_root);
+        input.write(&start_offset);
+        input.write(&end_offset);
+        let output = self.hint(input, BeaconHeadersFromOffsetRangeHint::<B> {});
+        output.read::<ArrayVariable<Bytes32Variable, B>>(self)
     }
 
     /// Verify a simple serialize (ssz) merkle proof with a dynamic index.
@@ -987,6 +1053,86 @@ pub(crate) mod tests {
         let idx = builder.constant::<U64Variable>(slot - 100);
         let historical_block = builder.beacon_get_historical_block(block_root, idx);
         builder.watch(&historical_block, "historical_block");
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_beacon_get_block_roots() {
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root().unwrap();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let block_roots = builder.beacon_get_block_roots(block_root);
+        builder.watch(&block_roots, "block_roots");
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_beacon_get_graffiti() {
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root().unwrap();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let graffiti = builder.beacon_get_graffiti(block_root);
+        builder.watch(&graffiti, "graffiti");
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_beacon_witness_headers_from_offset_range() {
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let client = BeaconClient::new(consensus_rpc);
+        let latest_block_root = client.get_finalized_block_root().unwrap();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+        builder.set_beacon_client(client);
+
+        let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
+        let start_offset = builder.constant::<U64Variable>(0);
+        let end_offset = builder.constant::<U64Variable>(15);
+        let block_roots = builder.beacon_witness_headers_from_offset_range::<16>(
+            block_root,
+            start_offset,
+            end_offset,
+        );
+        for i in 0..block_roots.len() {
+            builder.watch(&block_roots[i], "block_roots");
+        }
 
         let circuit = builder.build();
         let input = circuit.input();

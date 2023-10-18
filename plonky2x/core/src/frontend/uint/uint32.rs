@@ -4,6 +4,7 @@ use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 
+use super::uint64::U64Variable;
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
@@ -39,7 +40,9 @@ impl CircuitVariable for U32Variable {
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) {
-        builder.api.u32_to_bits_le(U32Target(self.targets()[0]));
+        let bits = builder.api.u32_to_bits_le(U32Target(self.targets()[0]));
+        let reconstructed_val = builder.api.le_sum(bits.iter());
+        builder.assert_is_equal(self.0, Variable(reconstructed_val))
     }
 
     fn nb_elements() -> usize {
@@ -185,6 +188,24 @@ impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for U32Variable {
         let diff_biguint = builder.api.sub_biguint(&self_biguint, &rhs_biguint);
         let diff = diff_biguint.limbs[0].0;
         Self(Variable(diff))
+    }
+}
+
+impl U32Variable {
+    pub fn to_u64<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> U64Variable {
+        let zero = builder.zero::<U32Variable>();
+        let result = builder.init::<U64Variable>();
+        for i in 0..result.limbs.len() {
+            if i == 0 {
+                builder.connect(*self, result.limbs[i]);
+            } else {
+                builder.connect(zero, result.limbs[i]);
+            }
+        }
+        result
     }
 }
 

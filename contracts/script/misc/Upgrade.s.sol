@@ -15,7 +15,10 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 // 		);
 //
 contract UpgradeSignSchedule is BaseScript {
-    function run(address PROXY, address IMPL) external returns (address signer, bytes memory signature) {
+    function run(address PROXY, address IMPL)
+        external
+        returns (address signer, bytes memory signature)
+    {
         // Check inputs
         address TIMELOCK = envAddress("TIMELOCK", block.chainid);
         address GUARDIAN = envAddress("GUARDIAN", block.chainid);
@@ -36,9 +39,12 @@ contract UpgradeSignSchedule is BaseScript {
             bytes[] memory payloads = new bytes[](1);
             payloads[0] = abi.encodeWithSelector(IProxy.upgradeTo.selector, IMPL);
 
-            bytes32 id = ITimelock(TIMELOCK).hashOperationBatch(targets, values, payloads, 0, CREATE2_SALT);
+            bytes32 id =
+                ITimelock(TIMELOCK).hashOperationBatch(targets, values, payloads, 0, CREATE2_SALT);
             if (ITimelock(TIMELOCK).isOperation(id)) {
-                revert("operation already exists in Timelock, change CREATE2_SALT to schedule a new one");
+                revert(
+                    "operation already exists in Timelock, change CREATE2_SALT to schedule a new one"
+                );
             }
 
             scheduleBatchData = abi.encodeWithSelector(
@@ -82,7 +88,11 @@ contract UpgradeSignSchedule is BaseScript {
 // After enough signatures have been collected, a call to Safe.execTransaction(..., signatures) is
 // made which schedules the call on the Timelock.
 contract UpgradeSendSchedule is BaseScript {
-    function run(address PROXY, address IMPL, bytes memory _signatures) external broadcaster returns (bool success) {
+    function run(address PROXY, address IMPL, bytes memory _signatures)
+        external
+        broadcaster
+        returns (bool success)
+    {
         // Check inputs
         address TIMELOCK = envAddress("TIMELOCK", block.chainid);
         address GUARDIAN = envAddress("GUARDIAN", block.chainid);
@@ -103,9 +113,12 @@ contract UpgradeSendSchedule is BaseScript {
             bytes[] memory payloads = new bytes[](1);
             payloads[0] = abi.encodeWithSelector(IProxy.upgradeTo.selector, IMPL);
 
-            bytes32 id = ITimelock(TIMELOCK).hashOperationBatch(targets, values, payloads, 0, CREATE2_SALT);
+            bytes32 id =
+                ITimelock(TIMELOCK).hashOperationBatch(targets, values, payloads, 0, CREATE2_SALT);
             if (ITimelock(TIMELOCK).isOperation(id)) {
-                revert("operation already exists in Timelock, change CREATE2_SALT to schedule a new one");
+                revert(
+                    "operation already exists in Timelock, change CREATE2_SALT to schedule a new one"
+                );
             }
 
             scheduleBatchData = abi.encodeWithSelector(
@@ -122,7 +135,9 @@ contract UpgradeSendSchedule is BaseScript {
         {
             if (ISafe(GUARDIAN).getThreshold() * 65 > _signatures.length) {
                 console.log(
-                    "not enough signatures, need %d have %d", ISafe(GUARDIAN).getThreshold(), _signatures.length / 65
+                    "not enough signatures, need %d have %d",
+                    ISafe(GUARDIAN).getThreshold(),
+                    _signatures.length / 65
                 );
                 return false;
             }
@@ -147,7 +162,10 @@ contract UpgradeSendSchedule is BaseScript {
 
 // After MINIMUM_DELAY has passed, the call to Timelock.execute() can be made.
 contract UpgradeSignExecute is BaseScript {
-    function run(address PROXY, address IMPL) external returns (address signer, bytes memory signature) {
+    function run(address PROXY, address IMPL)
+        external
+        returns (address signer, bytes memory signature)
+    {
         // Check inputs
         address TIMELOCK = envAddress("TIMELOCK", block.chainid);
         address GUARDIAN = envAddress("GUARDIAN", block.chainid);
@@ -168,7 +186,8 @@ contract UpgradeSignExecute is BaseScript {
             bytes[] memory payloads = new bytes[](1);
             payloads[0] = abi.encodeWithSelector(IProxy.upgradeTo.selector, IMPL);
 
-            bytes32 id = ITimelock(TIMELOCK).hashOperationBatch(targets, values, payloads, 0, CREATE2_SALT);
+            bytes32 id =
+                ITimelock(TIMELOCK).hashOperationBatch(targets, values, payloads, 0, CREATE2_SALT);
             if (ITimelock(TIMELOCK).isOperationDone(id)) {
                 console.log("operation already executed in Timelock");
                 return (address(0), "");
@@ -212,7 +231,11 @@ contract UpgradeSignExecute is BaseScript {
 }
 
 contract UpgradeSendExecute is BaseScript {
-    function run(address PROXY, address IMPL, bytes memory _signatures) external broadcaster returns (bool success) {
+    function run(address PROXY, address IMPL, bytes memory _signatures)
+        external
+        broadcaster
+        returns (bool success)
+    {
         // Check inputs
         address TIMELOCK = envAddress("TIMELOCK", block.chainid);
         address GUARDIAN = envAddress("GUARDIAN", block.chainid);
@@ -233,7 +256,8 @@ contract UpgradeSendExecute is BaseScript {
             bytes[] memory payloads = new bytes[](1);
             payloads[0] = abi.encodeWithSelector(IProxy.upgradeTo.selector, IMPL);
 
-            bytes32 id = ITimelock(TIMELOCK).hashOperationBatch(targets, values, payloads, 0, CREATE2_SALT);
+            bytes32 id =
+                ITimelock(TIMELOCK).hashOperationBatch(targets, values, payloads, 0, CREATE2_SALT);
             if (ITimelock(TIMELOCK).isOperationDone(id)) {
                 console.log("operation already executed in Timelock");
                 return true;
@@ -253,7 +277,9 @@ contract UpgradeSendExecute is BaseScript {
         {
             if (ISafe(GUARDIAN).getThreshold() * 65 > _signatures.length) {
                 console.log(
-                    "not enough signatures, need %d have %d", ISafe(GUARDIAN).getThreshold(), _signatures.length / 65
+                    "not enough signatures, need %d have %d",
+                    ISafe(GUARDIAN).getThreshold(),
+                    _signatures.length / 65
                 );
                 return false;
             }
@@ -338,7 +364,11 @@ interface ISafe {
     event RemovedOwner(address owner);
     event SafeReceived(address indexed sender, uint256 value);
     event SafeSetup(
-        address indexed initiator, address[] owners, uint256 threshold, address initializer, address fallbackHandler
+        address indexed initiator,
+        address[] owners,
+        uint256 threshold,
+        address initializer,
+        address fallbackHandler
     );
     event SignMsg(bytes32 indexed msgHash);
 
@@ -347,10 +377,15 @@ interface ISafe {
     function approveHash(bytes32 hashToApprove) external;
     function approvedHashes(address, bytes32) external view returns (uint256);
     function changeThreshold(uint256 _threshold) external;
-    function checkNSignatures(bytes32 dataHash, bytes memory data, bytes memory signatures, uint256 requiredSignatures)
+    function checkNSignatures(
+        bytes32 dataHash,
+        bytes memory data,
+        bytes memory signatures,
+        uint256 requiredSignatures
+    ) external view;
+    function checkSignatures(bytes32 dataHash, bytes memory data, bytes memory signatures)
         external
         view;
-    function checkSignatures(bytes32 dataHash, bytes memory data, bytes memory signatures) external view;
     function disableModule(address prevModule, address module) external;
     function domainSeparator() external view returns (bytes32);
     function enableModule(address module) external;
@@ -378,12 +413,18 @@ interface ISafe {
         address refundReceiver,
         bytes memory signatures
     ) external payable returns (bool success);
-    function execTransactionFromModule(address to, uint256 value, bytes memory data, Enum.Operation operation)
-        external
-        returns (bool success);
-    function execTransactionFromModuleReturnData(address to, uint256 value, bytes memory data, Enum.Operation operation)
-        external
-        returns (bool success, bytes memory returnData);
+    function execTransactionFromModule(
+        address to,
+        uint256 value,
+        bytes memory data,
+        Enum.Operation operation
+    ) external returns (bool success);
+    function execTransactionFromModuleReturnData(
+        address to,
+        uint256 value,
+        bytes memory data,
+        Enum.Operation operation
+    ) external returns (bool success, bytes memory returnData);
     function getChainId() external view returns (uint256);
     function getModulesPaginated(address start, uint256 pageSize)
         external
