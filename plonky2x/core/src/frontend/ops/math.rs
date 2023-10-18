@@ -183,18 +183,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn gt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
         Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
-        Rhs: LessThanOrEqual<L, D, Lhs>,
+        Rhs: LessThanOrEqual<L, D, Rhs>,
     {
-        self.lte(rhs, lhs)
+        self.lt(rhs, lhs)
     }
 
     /// The greater than or equal to operation (>=).
     pub fn gte<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
         Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
-        Rhs: LessThanOrEqual<L, D, Rhs>,
+        Rhs: LessThanOrEqual<L, D, Lhs>,
     {
-        self.lt(rhs, lhs)
+        self.lte(rhs, lhs)
     }
 
     /// The within range operation (lhs <= variable < rhs).
@@ -219,5 +219,68 @@ impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
         };
         builder.add_simple_generator(generator.clone());
         generator.output
+    }
+}
+
+mod tests {
+    #[allow(unused_imports)]
+    use crate::prelude::{BoolVariable, DefaultBuilder, U32Variable};
+
+    #[test]
+    fn test_math_gt() {
+        let mut builder = DefaultBuilder::new();
+
+        let v0 = builder.read::<U32Variable>();
+        let v1 = builder.read::<U32Variable>();
+        let result = builder.read::<BoolVariable>();
+        let computed_result = builder.gt(v0, v1);
+        builder.assert_is_equal(result, computed_result);
+
+        let circuit = builder.build();
+
+        let test_cases = [
+            (10u32, 20u32, false),
+            (10u32, 10u32, false),
+            (10u32, 5u32, true),
+        ];
+
+        for test_case in test_cases.iter() {
+            let mut input = circuit.input();
+            input.write::<U32Variable>(test_case.0);
+            input.write::<U32Variable>(test_case.1);
+            input.write::<BoolVariable>(test_case.2);
+
+            let (proof, output) = circuit.prove(&input);
+            circuit.verify(&proof, &input, &output);
+        }
+    }
+
+    #[test]
+    fn test_math_gte() {
+        let mut builder = DefaultBuilder::new();
+
+        let v0 = builder.read::<U32Variable>();
+        let v1 = builder.read::<U32Variable>();
+        let result = builder.read::<BoolVariable>();
+        let computed_result = builder.gte(v0, v1);
+        builder.assert_is_equal(result, computed_result);
+
+        let circuit = builder.build();
+
+        let test_cases = [
+            (10u32, 20u32, false),
+            (10u32, 10u32, true),
+            (10u32, 5u32, true),
+        ];
+
+        for test_case in test_cases.iter() {
+            let mut input = circuit.input();
+            input.write::<U32Variable>(test_case.0);
+            input.write::<U32Variable>(test_case.1);
+            input.write::<BoolVariable>(test_case.2);
+
+            let (proof, output) = circuit.prove(&input);
+            circuit.verify(&proof, &input, &output);
+        }
     }
 }
