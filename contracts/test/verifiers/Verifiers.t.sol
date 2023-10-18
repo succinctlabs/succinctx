@@ -54,7 +54,8 @@ contract VerifierTest is Test {
 
     function testVerifierPlonkRangeCheck() public {
         PlonkRangeCheckVerifier verifier = new PlonkRangeCheckVerifier();
-        string memory proofJson = vm.readFile("test/verifiers/fixtures/plonk_proof_data_range_check.json");
+        string memory proofJson =
+            vm.readFile("test/verifiers/fixtures/plonk_proof_data_range_check.json");
         bytes memory proof = stdJson.readBytes(proofJson, "$.proof");
         uint256[] memory input = stdJson.readUintArray(proofJson, "$.inputs");
         uint256 startGas = gasleft();
