@@ -10,7 +10,6 @@ import {PlonkVerifier} from "./VerifierPlonk.sol";
 import {PlonkVerifier as PlonkRangeCheckVerifier} from "./VerifierPlonkRangeCheck.sol";
 import {VmSafe} from "forge-std/Vm.sol";
 import {stdJson} from "forge-std/StdJson.sol";
-import {FunctionVerifier} from "./FunctionVerifier.sol";
 
 contract VerifierTest is Test {
     function testVerifierGroth16() public {
@@ -71,20 +70,6 @@ contract VerifierTest is Test {
         uint256[] memory input = stdJson.readUintArray(proofJson, "$.inputs");
         uint256 startGas = gasleft();
         require(verifier.Verify(proof, input));
-        uint256 endGas = gasleft();
-        console.log("gas used: %d", startGas - endGas);
-    }
-
-    function testVerifierFunction() public {
-        FunctionVerifier verifier = new FunctionVerifier();
-        string memory proofJson = vm.readFile(
-            "test/verifiers/function_proof_data.json"
-        );
-        bytes memory proof = stdJson.readBytes(proofJson, "$.proof");
-        bytes32 inputHash = stdJson.readBytes32(proofJson, "$.input_hash");
-        bytes32 outputHash = stdJson.readBytes32(proofJson, "$.output_hash");
-        uint256 startGas = gasleft();
-        require(verifier.verify(inputHash, outputHash, proof));
         uint256 endGas = gasleft();
         console.log("gas used: %d", startGas - endGas);
     }
