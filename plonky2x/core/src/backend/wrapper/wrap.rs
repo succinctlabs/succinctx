@@ -43,7 +43,7 @@ where
     <InnerParameters::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<InnerParameters::Field>,
 {
     pub fn build(circuit: CircuitBuild<InnerParameters, D>) -> Self {
-        // Standartize the public inputs/outputs to their hash and verify the circuit recursively
+        // Standartize the public inputs/outputs to their hash and verify the circuit recursively.
         let mut hash_builder = CircuitBuilder::<InnerParameters, D>::new();
         let circuit_proof_target = hash_builder.add_virtual_proof_with_pis(&circuit.data.common);
         let circuit_verifier_target =
@@ -78,8 +78,8 @@ where
         hash_builder.watch(&output_hash, "output_hash");
 
         // We must truncate the top 3 bits because in the gnark-plonky2-verifier, the input_hash
-        // and output_hash are both represented as 1 field element in the BN254 field
-        // to reduce on-chain verification costs.
+        // and output_hash are both represented as 1 field element in the BN254 field to reduce
+        // onchain verification costs.
         let input_hash_zeroed = hash_builder.mask_be_bits(input_hash, 3);
         let output_hash_zeroed = hash_builder.mask_be_bits(output_hash, 3);
 
@@ -101,9 +101,9 @@ where
         hash_builder.watch_slice(&input_vars, "input_hash_truncated as vars");
         hash_builder.watch_slice(&output_vars, "output_hash_truncated as vars");
 
-        // Write input_hash, output_hash to public_inputs
-        // In the gnark-plonky2-verifier, these 64 bytes get summed to 2 field elements that
-        // correspond to the input_hash and output_hash respectively as public inputs.
+        // Write input_hash, output_hash to public_inputs. In the gnark-plonky2-verifier, these
+        // 64 bytes get summed to 2 field elements that correspond to the input_hash and output_hash
+        // respectively as public inputs.
         input_vars
             .clone()
             .into_iter()
@@ -113,7 +113,7 @@ where
             });
         let hash_circuit = hash_builder.build();
 
-        // An inner recursion to standardize the degree
+        // An inner recursion to standardize the degree.
         let mut recursive_builder = CircuitBuilder::<InnerParameters, D>::new();
         let hash_proof_target =
             recursive_builder.add_virtual_proof_with_pis(&hash_circuit.data.common);
@@ -124,7 +124,6 @@ where
             &hash_verifier_target,
             &hash_circuit.data.common,
         );
-
         assert_eq!(hash_proof_target.public_inputs.len(), 32usize * 2);
 
         recursive_builder
@@ -137,7 +136,7 @@ where
             recursive_circuit.data.common.degree()
         );
 
-        // Finally, wrap this in the outer circuit
+        // Finally, wrap this in the outer circuit.
         let mut wrapper_builder = CircuitBuilder::<OuterParameters, D>::new();
         let proof_target =
             wrapper_builder.add_virtual_proof_with_pis(&recursive_circuit.data.common);
@@ -290,14 +289,14 @@ mod tests {
         let path = format!("{}/test_circuit/", build_path);
         let dummy_path = format!("{}/dummy/", build_path);
 
-        // Create an inner circuit for verification
+        // Create an inner circuit for verification.
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
         let a = builder.evm_read::<ByteVariable>();
         let b = builder.evm_read::<ByteVariable>();
         let c = builder.xor(a, b);
         builder.evm_write(c);
 
-        // Set up the dummy circuit and wrapper
+        // Set up the dummy circuit and wrapper.
         let dummy_circuit = builder.build();
         let mut dummy_input = dummy_circuit.input();
         dummy_input.evm_write::<ByteVariable>(0u8);
@@ -312,7 +311,7 @@ mod tests {
         dummy_wrapped_proof.save(dummy_path).unwrap();
         println!("Saved dummy_circuit");
 
-        // Set up the circuit and wrapper
+        // Set up the circuit and wrapper.
         let msg = b"plonky2";
         let msg_bits = to_bits(msg.to_vec());
         let expected_digest = "8943a85083f16e93dc92d6af455841daacdae5081aa3125b614a626df15461eb";

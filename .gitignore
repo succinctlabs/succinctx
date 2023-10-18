@@ -25,3 +25,8 @@ keystore
 .idea/
 proof.json
 output.json
+
+**/verifier-build
+**/verifier-build-groth16
+plonky2x/core/wrapped
+*.tar.gz

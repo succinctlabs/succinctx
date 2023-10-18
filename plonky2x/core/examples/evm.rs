@@ -21,7 +21,6 @@ use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::Plonky2xFunction;
 use plonky2x::frontend::vars::ByteVariable;
 use plonky2x::prelude::CircuitBuilder;
-use plonky2x::utils;
 
 #[derive(Debug, Clone)]
 struct SimpleAdditionCircuit;
@@ -36,7 +35,6 @@ impl Circuit for SimpleAdditionCircuit {
 }
 
 fn main() {
-    utils::setup_logger(); // So that we can see `builder.watch` during proof generation time
     SimpleAdditionCircuit::entrypoint();
 }
 
@@ -46,7 +44,7 @@ mod tests {
 
     use plonky2x::backend::circuit::config::{DefaultParameters, Groth16WrapperParameters};
     use plonky2x::backend::wrapper::wrap::WrappedCircuit;
-    use plonky2x::prelude::{GoldilocksField, PoseidonGoldilocksConfig};
+    use plonky2x::prelude::PoseidonGoldilocksConfig;
 
     use super::*;
 
@@ -68,16 +66,8 @@ mod tests {
     }
 
     #[test]
-    fn test_circuit_function_evm_input_json() {
-        // let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        // let path = format!("{}/examples/evm.json", root.display());
-        // Function::test::<F, C, D>(path);
-    }
-
-    #[test]
     fn test_evm_wrap() {
         utils::setup_logger();
-
         let mut builder = CircuitBuilder::<L, D>::new();
         SimpleAdditionCircuit::define(&mut builder);
         let circuit = builder.build();
@@ -91,7 +81,5 @@ mod tests {
         let wrapper: WrappedCircuit<_, _, 2> =
             WrappedCircuit::<L, Groth16WrapperParameters, D>::build(circuit);
         let wrapped_proof = wrapper.prove(&proof).unwrap();
-        // dummy_wrapped_proof.save(dummy_path).unwrap();
-        println!("Saved dummy_circuit");
     }
 }

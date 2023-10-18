@@ -87,29 +87,31 @@ impl<C: Circuit> Plonky2xFunction for C {
             let contract_path = format!("{}/FunctionVerifier.sol", args.build_dir);
             let mut contract_file = File::create(&contract_path).unwrap();
 
+            // The wrapper circuit digest will get saved in the Solidity smart contract, which will
+            // use this value as a public input `VerifierDigest` in the gnark plonky2 verifier.
             info!("First building wrapper circuit to get the wrapper circuit digest...");
-            // The wrapper circuit digest will get saved in the Solidity smart contract,
-            // which will use this value as a public input `VerifierDigest` in the gnark plonky2 verifier
             let wrapped_circuit = WrappedCircuit::<L, WrapperParameters, D>::build(circuit);
 
+            // to_bytes() returns the representation as LE, but we want to save it on-chain as BE
+            // because that is the format of the public input to the gnark plonky2 verifier.
             let mut circuit_digest_bytes = wrapped_circuit
                 .wrapper_circuit
                 .data
                 .verifier_only
                 .circuit_digest
                 .to_bytes();
-            // to_bytes() returns the representation as LE, but we want to save it on-chain
-            // as BE because that is the format of the public input to the gnark plonky2 verifier.
             circuit_digest_bytes.reverse();
 
-            // The VerifierDigest is stored on-chain as a bytes32, so we need to pad it with 0s
-            // to store it in the Solidity smart contract.
-            // Note that we don't need to do any sort of truncation of the top bits because the
-            // circuit digest already lives in the bn254 field because the WrappedCircuit config
-            // is the Poseidon bn254 hasher.
-            // In fact in the Solidity smart contract we should *not* truncate the top 3 bits
-            // like we do with input_hash and output_hash, as the circuit digest has a
-            // small probability of being greater than 2^253, as the field modulus is 254 bits.
+            // The VerifierDigest is stored onchain as a bytes32, so we need to pad it with 0s
+            // to store it in the solidity smart contract.
+            //
+            // Note that we don't need to do any sort of truncation of the most significant bits
+            // because the circuit digest already lives in the bn254 field because the prover config
+            // uses the Poseidon bn254 hasher.
+            //
+            // In the solidity smart contract we should not truncate the 3 most significant bits
+            // like we do with input_hash and output_hash as the circuit digest has a small
+            // probability of being greater than 2^253 given that the field modulus is 254 bits.
             let mut padded = vec![0u8; 32];
             let digest_len = circuit_digest_bytes.len();
             padded[(32 - digest_len)..].copy_from_slice(&circuit_digest_bytes);
@@ -194,9 +196,9 @@ impl<C: Circuit> Plonky2xFunction for C {
         }
 
         if let PublicOutput::Bytes(output_bytes) = output {
-            info!("Output Bytes: 0x{}", hex::encode(output_bytes.clone()));
             // It's quite fast (~5-10 seconds) to rebuild the wrapped circuit. Because of this we
             // choose to rebuild here instead of loading from disk.
+            info!("Output Bytes: 0x{}", hex::encode(output_bytes.clone()));
             let wrapped_circuit =
                 WrappedCircuit::<InnerParameters, OuterParameters, D>::build(circuit);
             let wrapped_proof = wrapped_circuit.prove(&proof).expect("failed to wrap proof");
@@ -204,9 +206,8 @@ impl<C: Circuit> Plonky2xFunction for C {
                 .save("wrapped")
                 .expect("failed to save wrapped proof");
 
-            // The gnark_wrapper_process should have been started
+            // The gnark_wrapper_process should have been started.
             let mut gnark_wrapper_process = gnark_wrapper_process.unwrap();
-
             let mut stdin_opt = None;
             while stdin_opt.is_none() {
                 stdin_opt = match gnark_wrapper_process.stdin.as_mut() {
@@ -221,25 +222,26 @@ impl<C: Circuit> Plonky2xFunction for C {
                     }
                 };
             }
-            let stdin = stdin_opt.unwrap();
 
+            let stdin = stdin_opt.unwrap();
             stdin
                 .write_all(b"wrapped\n")
                 .expect("Failed to write to stdin");
             let verifier_output = gnark_wrapper_process
                 .wait_with_output()
                 .expect("failed to execute process");
+
             if !verifier_output.status.success() {
                 panic!("verifier failed");
             }
 
-            // Read result from gnark verifier
+            // Read result from gnark verifier.
             let file = std::fs::File::open("proof.json").unwrap();
             let rdr = std::io::BufReader::new(file);
             let result_data =
                 serde_json::from_reader::<BufReader<File>, BytesResultData>(rdr).unwrap();
 
-            // Write full result with output bytes to output.json
+            // Write full result with output bytes to output.json.
             let result: ProofResult<OuterParameters, D> =
                 ProofResult::from_bytes(result_data.proof, output_bytes);
             let json = serde_json::to_string_pretty(&result).unwrap();

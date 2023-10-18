@@ -15,7 +15,7 @@ contract VerifierTest is Test {
     function testVerifierGroth16() public {
         Groth16Verifier verifier = new Groth16Verifier();
 
-        string memory groth16Json = vm.readFile("test/verifiers/groth16_proof_data.json");
+        string memory groth16Json = vm.readFile("test/verifiers/fixtures/groth16_proof_data.json");
         uint256[] memory proof = stdJson.readUintArray(groth16Json, "$.proof");
         uint256[] memory input = stdJson.readUintArray(groth16Json, "$.inputs");
 
@@ -43,7 +43,7 @@ contract VerifierTest is Test {
 
     function testVerifierPlonk() public {
         PlonkVerifier verifier = new PlonkVerifier();
-        string memory proofJson = vm.readFile("test/verifiers/plonk_proof_data.json");
+        string memory proofJson = vm.readFile("test/verifiers/fixtures/plonk_proof_data.json");
         bytes memory proof = stdJson.readBytes(proofJson, "$.proof");
         uint256[] memory input = stdJson.readUintArray(proofJson, "$.inputs");
         uint256 startGas = gasleft();
@@ -54,7 +54,7 @@ contract VerifierTest is Test {
 
     function testVerifierPlonkRangeCheck() public {
         PlonkRangeCheckVerifier verifier = new PlonkRangeCheckVerifier();
-        string memory proofJson = vm.readFile("test/verifiers/plonk_proof_data_range_check.json");
+        string memory proofJson = vm.readFile("test/verifiers/fixtures/plonk_proof_data_range_check.json");
         bytes memory proof = stdJson.readBytes(proofJson, "$.proof");
         uint256[] memory input = stdJson.readUintArray(proofJson, "$.inputs");
         uint256 startGas = gasleft();
