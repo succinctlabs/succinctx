@@ -35,6 +35,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input_stream.write(&address);
         input_stream.write(&storage_key);
 
+        // TODO: Need to constrain generator result?
         let hint = EthStorageProofHint::new(self);
         let output_stream = self.async_hint(input_stream, hint);
 
