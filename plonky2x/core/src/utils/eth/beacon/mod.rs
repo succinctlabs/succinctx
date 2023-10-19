@@ -687,12 +687,16 @@ impl BeaconClient {
         Ok(response.result)
     }
 
-    pub fn get_graffiti(&self, beacon_id: String) -> Result<GetBeaconGraffiti> {
+    pub async fn get_graffiti(&self, beacon_id: String) -> Result<GetBeaconGraffiti> {
         let endpoint = format!("{}/api/beacon/proof/graffiti/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(60, 0)).send()?;
-        let response: CustomResponse<GetBeaconGraffiti> = response.json()?;
+        let client = reqwest::Client::new();
+        let response = client
+            .get(endpoint)
+            .timeout(Duration::new(60, 0))
+            .send()
+            .await?;
+        let response: CustomResponse<GetBeaconGraffiti> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
