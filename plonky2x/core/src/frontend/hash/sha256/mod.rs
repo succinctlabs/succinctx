@@ -1,5 +1,3 @@
-use ::curta::maybe_rayon::rayon::str::Bytes;
-use ethers::types::H256;
 /// Implementation of sha256
 /// reference: https://github.com/thomdixon/pysha2/blob/master/sha2/sha256.py
 use itertools::Itertools;

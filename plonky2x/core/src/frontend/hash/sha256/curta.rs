@@ -35,8 +35,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     fn pad_message_sha256_variable<const MAX_NB_CHUNKS: usize>(
         &mut self,
         input: &[ByteVariable],
-        input_byte_length: U32Variable,
         last_chunk: U32Variable,
+        input_byte_length: U32Variable,
     ) -> Vec<ByteVariable> {
         assert_eq!(input.len(), MAX_NB_CHUNKS * 64);
         // Compute the length bytes (big-endian representation of the length in bits).

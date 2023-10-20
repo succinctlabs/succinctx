@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use curta::chip::bool;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;

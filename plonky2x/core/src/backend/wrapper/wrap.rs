@@ -253,28 +253,10 @@ impl<L: PlonkParameters<D>, const D: usize> WrappedOutput<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use hex::decode;
-
     use super::*;
     use crate::backend::circuit::{DefaultParameters, Groth16WrapperParameters};
     use crate::frontend::builder::CircuitBuilder;
-    use crate::frontend::hash::sha256;
     use crate::utils;
-
-    fn to_bits(msg: Vec<u8>) -> Vec<bool> {
-        let mut res = Vec::new();
-        for bit in msg {
-            let char = bit;
-            for j in 0..8 {
-                if (char & (1 << (7 - j))) != 0 {
-                    res.push(true);
-                } else {
-                    res.push(false);
-                }
-            }
-        }
-        res
-    }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -311,12 +293,7 @@ mod tests {
         dummy_wrapped_proof.save(dummy_path).unwrap();
         println!("Saved dummy_circuit");
 
-        // Set up the circuit and wrapper.
-        let msg = b"plonky2";
-        let msg_bits = to_bits(msg.to_vec());
-        let expected_digest = "8943a85083f16e93dc92d6af455841daacdae5081aa3125b614a626df15461eb";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
-
+        // Set up a inner circuit and wrapper.
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
         let a = builder.evm_read::<ByteVariable>();
         let _ = builder.evm_read::<ByteVariable>();
