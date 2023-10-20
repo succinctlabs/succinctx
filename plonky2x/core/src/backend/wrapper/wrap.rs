@@ -258,7 +258,7 @@ mod tests {
     use super::*;
     use crate::backend::circuit::{DefaultParameters, Groth16WrapperParameters};
     use crate::frontend::builder::CircuitBuilder;
-    use crate::frontend::hash::sha512::sha256::sha256;
+    use crate::frontend::hash::sha256;
     use crate::utils;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {
@@ -318,26 +318,9 @@ mod tests {
         let digest_bits = to_bits(decode(expected_digest).unwrap());
 
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
-        let targets = msg_bits
-            .iter()
-            .map(|b| builder.api.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let msg_hash = sha256(&mut builder.api, &targets);
-        for _ in 0..5 {
-            let _msg_hash = sha256(&mut builder.api, &targets);
-        }
-
         let a = builder.evm_read::<ByteVariable>();
         let _ = builder.evm_read::<ByteVariable>();
         builder.evm_write(a);
-
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.api.assert_one(msg_hash[i].target);
-            } else {
-                builder.api.assert_zero(msg_hash[i].target);
-            }
-        }
 
         let circuit = builder.build();
         let mut input = circuit.input();

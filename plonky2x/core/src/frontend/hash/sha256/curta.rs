@@ -182,94 +182,65 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.curta_sha256(&input)
     }
 
-    // TODO: needs to be cleaned up and significantly rewritten
     /// Takes the accelerator with all requests and constraints it
     fn curta_constrain_sha256(&mut self, accelerator: &mut Sha256Accelerator<L, D>) {
-        todo!();
-        // let mut nb_chunks = 0;
-        // let mut curr_rq = 0;
-        // let mut num_rqs = accelerator.sha256_requests.len();
+        let mut current_gadget = self.api.init_sha256();
+        let mut current_gadget_chunks = 0;
+        // Iterate through all requests to the accelerator. As we iterate, we allocate gadgets for
+        // groups of requests, keeping in mind that gadgets can only accomodate 1024 chunks.
+        for (i, req) in accelerator.sha256_requests.iter().enumerate() {
+            let request_chunks = req.len() / 64;
 
-        // let zero = self.constant::<ByteVariable>(0u8);
-        // let zero_chunk = [zero; 1];
+            // If this request would overflow the current_gadget, pad the gadget and constrain it.
+            if current_gadget_chunks + request_chunks > 1024 {
+                debug!("allocated curta sha256 gadget");
 
-        // // If a request crosses over the 1024-chunk boundary from Curta, insert dummy chunks.
-        // // This is because Curta does not support requests split over multiple gadgets.
+                // We now have to pad the gadget with dummy requests until it has 1024 chunks total.
+                for _ in current_gadget_chunks..1024 {
+                    let padded_input = self.pad_message_sha256(&[self.zero(); 1]);
+                    let dummy_request = padded_input
+                        .iter()
+                        .map(|x| x.to_variable(self).0)
+                        .collect::<Vec<_>>();
+                    let dummy_response = self.api.add_virtual_target_arr::<32>();
 
-        // // Loop over all requests (including dummy requests).
-        // while curr_rq < num_rqs {
-        //     let curr_rq_nb_chunks = accelerator.sha256_requests[curr_rq].len() / 64;
+                    // TODO: can we just do current_gadget.padded_messages.resize(builder.zero(), 1024)?
+                    current_gadget
+                        .padded_messages
+                        .extend_from_slice(&dummy_request);
 
-        //     let temp_nb_chunks = nb_chunks + curr_rq_nb_chunks;
+                    let hint = SHA256HintGenerator::new(&dummy_request, dummy_response);
+                    self.add_simple_generator(hint);
+                    current_gadget.digests.extend_from_slice(&dummy_response);
+                    // The dummy request/response has exactly 1 chunk by design
+                    current_gadget.chunk_sizes.push(1);
+                }
 
-        //     // If curr_rq crosses over the 1024-chunk boundary, insert dummy chunks.
-        //     if (temp_nb_chunks / 1024 != nb_chunks / 1024) && temp_nb_chunks % 1024 != 0 {
-        //         while nb_chunks % 1024 != 0 {
-        //             let padded_input = self.pad_message_sha256(&zero_chunk);
-        //             let bytes = padded_input
-        //                 .iter()
-        //                 .map(|x| x.to_variable(self).0)
-        //                 .collect::<Vec<_>>();
+                // Finally, the gadget should have 1024 chunks
+                assert_eq!(current_gadget.chunk_sizes.iter().sum::<usize>(), 1024);
+                // Constrain the gadget
+                self.constrain_sha256_gadget(current_gadget);
 
-        //             // Insert a dummy request and response.
-        //             accelerator.sha256_requests.insert(curr_rq, bytes);
-        //             let digest = self.api.add_virtual_target_arr::<32>();
-        //             accelerator.sha256_responses.insert(curr_rq, digest);
+                // Then reset current_gadget and current_gadget_chunks
+                current_gadget = self.api.init_sha256();
+                current_gadget_chunks = 0;
+            }
 
-        //             // Increment the number of requests and chunks accordingly.
-        //             curr_rq += 1;
-        //             num_rqs += 1;
-
-        //             nb_chunks += 1;
-        //         }
-        //     }
-        //     nb_chunks += curr_rq_nb_chunks;
-        //     curr_rq += 1;
-        // }
-
-        // // If the number of chunks is not a multiple of 1024, pad the gadget with dummy chunks.
-        // while nb_chunks % 1024 != 0 {
-        //     // self.curta_sha256_with_accelerator(&zero_chunk, accelerator);
-        //     self.curta_sha256(&zero_chunk);
-        //     nb_chunks += 1;
-        // }
-
-        // // Allocate Curta SHA-256 gadgets according to the number of chunks across all requests.
-        // let gadgets: Vec<SHA256BuilderGadget<<L as PlonkParameters<D>>::Field, L::CubicParams, D>> =
-        //     (0..nb_chunks / 1024)
-        //         .map(|_| self.api.init_sha256())
-        //         .collect_vec();
-        // debug!("allocated {} curta sha256 gadgets", gadgets.len());
-
-        // let mut rq_idx = 0;
-        // for i in 0..gadgets.len() {
-        //     let mut gadget = gadgets[i].to_owned();
-
-        //     // Fill the gadget with 1024 padded chunks.
-        //     let mut num_chunks_so_far = 0;
-        //     while num_chunks_so_far < 1024 {
-        //         gadget
-        //             .padded_messages
-        //             .extend_from_slice(&accelerator.sha256_requests[rq_idx]);
-        //         let hint = SHA256HintGenerator::new(
-        //             &accelerator.sha256_requests[rq_idx],
-        //             accelerator.sha256_responses[rq_idx],
-        //         );
-
-        //         self.add_simple_generator(hint);
-        //         gadget
-        //             .digests
-        //             .extend_from_slice(&accelerator.sha256_responses[rq_idx]);
-        //         gadget
-        //             .chunk_sizes
-        //             .push(accelerator.sha256_requests[rq_idx].len() / 64);
-
-        //         num_chunks_so_far += accelerator.sha256_requests[rq_idx].len() / 64;
-        //         rq_idx += 1;
-        //     }
-
-        //     self.constrain_sha256_gadget(gadget);
-        // }
+            // We add the current request to the current gadget and update current_gadget_chunks appropriately.
+            current_gadget_chunks += request_chunks;
+            current_gadget
+                .padded_messages
+                .extend_from_slice(&accelerator.sha256_requests[i]);
+            let hint = SHA256HintGenerator::new(
+                &accelerator.sha256_requests[i],
+                accelerator.sha256_responses[i],
+            );
+            self.add_simple_generator(hint);
+            current_gadget
+                .digests
+                .extend_from_slice(&accelerator.sha256_responses[i]);
+            current_gadget.chunk_sizes.push(request_chunks);
+        }
     }
 }
 

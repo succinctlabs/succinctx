@@ -379,7 +379,7 @@ mod tests {
     use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
     use crate::frontend::ecc::ed25519::gadgets::curve::CircuitBuilderCurve;
-    use crate::frontend::hash::bit_operations::util::biguint_to_bits_target;
+    use crate::frontend::hash::deprecated::bit_operations::util::biguint_to_bits_target;
     use crate::frontend::num::biguint::CircuitBuilderBiguint;
 
     #[test]

@@ -69,7 +69,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         if S == 32 {
             let a_u32 = U32Variable::from_be_bits(&a, self);
             let b_u32 = U32Variable::from_be_bits(&b, self);
-            let c_u32 = self.add(a_u32, b_u32);
+
+            let a_u64 = a_u32.to_u64(self);
+            let b_u64 = b_u32.to_u64(self);
+            let c_u64 = self.add(a_u64, b_u64);
+            let c_u32 = c_u64.limbs[0];
+
             c_u32.to_be_bits(self).to_vec().try_into().unwrap()
         } else {
             todo!();
@@ -98,7 +103,9 @@ pub fn xor3_arr<const S: usize, L: PlonkParameters<D>, const D: usize>(
 ) -> [BoolVariable; S] {
     let mut res = Vec::new();
     for i in 0..S {
-        res.push(builder.xor3(a[i].0, b[i].0, c[i].0));
+        let o = builder.xor3(a[i].0, b[i].0, c[i].0);
+        // builder.watch_slice(&[a[i], b[i], c[i], o], "xor3_arr");
+        res.push(o);
     }
     res.try_into().unwrap()
 }

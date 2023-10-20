@@ -292,7 +292,7 @@ mod tests {
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::frontend::hash::blake2::blake2b::{blake2b, CHUNK_128_BYTES};
+    use super::*;
     use crate::utils;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {

@@ -218,6 +218,7 @@ impl U32Variable {
         let var = builder.api.le_sum(
             bools
                 .iter()
+                .rev()
                 .map(|b| (*b).into())
                 .collect::<Vec<BoolTarget>>()
                 .into_iter(),
