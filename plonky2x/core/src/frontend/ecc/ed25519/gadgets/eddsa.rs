@@ -388,10 +388,9 @@ pub fn curta_batch_eddsa_verify<
 
 #[cfg(test)]
 mod tests {
-    use std::time::SystemTime;
-
     use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
     use curta::plonky2::stark::config::CurtaPoseidonGoldilocksConfig;
+    use ed25519_dalek::{Signature, VerifyingKey};
     use log::debug;
     use num::BigUint;
     use plonky2::field::goldilocks_field::GoldilocksField;
@@ -401,12 +400,8 @@ mod tests {
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::PoseidonGoldilocksConfig;
 
-    use crate::frontend::ecc::ed25519::curve::curve_types::{AffinePoint, Curve, CurveScalar};
+    use crate::frontend::ecc::ed25519::curve::curve_types::AffinePoint;
     use crate::frontend::ecc::ed25519::curve::ed25519::Ed25519;
-    use crate::frontend::ecc::ed25519::curve::eddsa::{
-        verify_message, EDDSAPublicKey, EDDSASignature,
-    };
-    use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
     use crate::frontend::ecc::ed25519::gadgets::eddsa::{
         curta_batch_eddsa_verify, curta_batch_eddsa_verify_variable,
@@ -427,114 +422,6 @@ mod tests {
             }
         }
         res
-    }
-
-    fn test_eddsa_circuit_with_config(config: CircuitConfig) {
-        utils::setup_logger();
-        type F = GoldilocksField;
-        type E = GoldilocksCubicParameters;
-        type SC = CurtaPoseidonGoldilocksConfig;
-        type C = PoseidonGoldilocksConfig;
-        type Curve = Ed25519;
-        const D: usize = 2;
-
-        let mut pw = PartialWitness::new();
-        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
-
-        let msg = b"plonky2";
-        let msg_bits = to_bits(msg.to_vec());
-
-        let priv_key_big_uint = BigUint::parse_bytes(
-            b"37459004492869955828084841511595085533954592893308545697612417456352227510728",
-            10,
-        )
-        .unwrap()
-            % Ed25519Scalar::order();
-        let priv_key = Ed25519Scalar::from_noncanonical_biguint(priv_key_big_uint);
-        let pub_key = (CurveScalar(priv_key) * Curve::GENERATOR_PROJECTIVE).to_affine();
-        assert!(pub_key.is_valid());
-
-        let sig_r_x_biguint = BigUint::parse_bytes(
-            b"34429777554096177233623231228348362084988839912431844356123812156003444176586",
-            10,
-        )
-        .unwrap()
-            % Ed25519Base::order();
-        let sig_r_x = Ed25519Base::from_noncanonical_biguint(sig_r_x_biguint);
-        let sig_r_y_biguint = BigUint::parse_bytes(
-            b"22119998304038584770835958502800813263484475345060077692632207186036243708011",
-            10,
-        )
-        .unwrap()
-            % Ed25519Base::order();
-        let sig_r_y = Ed25519Base::from_noncanonical_biguint(sig_r_y_biguint);
-        let sig_r = AffinePoint {
-            x: sig_r_x,
-            y: sig_r_y,
-            zero: false,
-        };
-        assert!(sig_r.is_valid());
-
-        let sig_s_biguint = BigUint::parse_bytes(
-            b"357993861880021552933445860478192139704202248883620882393404009688746217794",
-            10,
-        )
-        .unwrap()
-            % Ed25519Scalar::order();
-        let sig_s = Ed25519Scalar::from_noncanonical_biguint(sig_s_biguint);
-        let sig = EDDSASignature { r: sig_r, s: sig_s };
-
-        assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
-
-        let eddsa_target = curta_batch_eddsa_verify::<F, Curve, E, SC, D>(
-            &mut builder,
-            1,
-            msg.len().try_into().unwrap(),
-        );
-        for i in 0..msg_bits.len() {
-            pw.set_bool_target(eddsa_target.msgs[0][i], msg_bits[i]);
-        }
-
-        pw.set_biguint_target(
-            &eddsa_target.pub_keys[0].0.x.value,
-            &pub_key.x.to_canonical_biguint(),
-        );
-        pw.set_biguint_target(
-            &eddsa_target.pub_keys[0].0.y.value,
-            &pub_key.y.to_canonical_biguint(),
-        );
-
-        pw.set_biguint_target(
-            &eddsa_target.sigs[0].r.x.value,
-            &sig_r.x.to_canonical_biguint(),
-        );
-        pw.set_biguint_target(
-            &eddsa_target.sigs[0].r.y.value,
-            &sig_r.y.to_canonical_biguint(),
-        );
-
-        pw.set_biguint_target(&eddsa_target.sigs[0].s.value, &sig_s.to_canonical_biguint());
-
-        dbg!(builder.num_gates());
-
-        let circuit_builder_start_time = SystemTime::now();
-        let data = builder.build::<C>();
-        let circuit_builder_time = circuit_builder_start_time.elapsed().unwrap();
-
-        let proof_start_time = SystemTime::now();
-        let proof = data.prove(pw).unwrap();
-        let proof_time = proof_start_time.elapsed().unwrap();
-
-        let verify_start_time = SystemTime::now();
-        data.verify(proof).unwrap();
-        let verify_time = verify_start_time.elapsed().unwrap();
-
-        debug!(
-            "circuit_builder_time: {}\nproof_time: {}\nverify_time: {}",
-            circuit_builder_time.as_secs(),
-            proof_time.as_secs(),
-            verify_time.as_secs()
-        );
     }
 
     fn test_eddsa_circuit_with_test_case(
@@ -569,17 +456,21 @@ mod tests {
         for i in 0..msgs.len() {
             let msg_bits = to_bits(msgs[i].to_vec());
 
-            let pub_key = AffinePoint::new_from_compressed_point(&pub_keys[i]);
+            let pub_key: AffinePoint<Curve> = AffinePoint::new_from_compressed_point(&pub_keys[i]);
             assert!(pub_key.is_valid());
 
-            let sig_r = AffinePoint::new_from_compressed_point(&sigs[i][0..32]);
+            let sig_r: AffinePoint<Curve> = AffinePoint::new_from_compressed_point(&sigs[i][0..32]);
             assert!(sig_r.is_valid());
 
             let sig_s_biguint = BigUint::from_bytes_le(&sigs[i][32..64]);
             let sig_s = Ed25519Scalar::from_noncanonical_biguint(sig_s_biguint);
-            let sig = EDDSASignature { r: sig_r, s: sig_s };
 
-            assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
+            let pub_key_dalek = VerifyingKey::try_from(pub_keys[i].as_slice()).unwrap();
+            let sig_dalek = Signature::from_slice(&sigs[i]).unwrap();
+            pub_key_dalek
+                .verify_strict(&msgs[i], &sig_dalek)
+                .expect("signature verification failed");
+            println!("verified signature");
 
             for j in 0..msg_bits.len() {
                 pw.set_bool_target(eddsa_target.msgs[i][j], msg_bits[j]);
@@ -665,17 +556,21 @@ mod tests {
         for i in 0..msgs.len() {
             let msg_bits = to_bits(msgs[i].to_vec());
 
-            let pub_key = AffinePoint::new_from_compressed_point(&pub_keys[i]);
+            let pub_key: AffinePoint<Curve> = AffinePoint::new_from_compressed_point(&pub_keys[i]);
             assert!(pub_key.is_valid());
 
-            let sig_r = AffinePoint::new_from_compressed_point(&sigs[i][0..32]);
+            let sig_r: AffinePoint<Curve> = AffinePoint::new_from_compressed_point(&sigs[i][0..32]);
             assert!(sig_r.is_valid());
 
             let sig_s_biguint = BigUint::from_bytes_le(&sigs[i][32..64]);
             let sig_s = Ed25519Scalar::from_noncanonical_biguint(sig_s_biguint);
-            let sig = EDDSASignature { r: sig_r, s: sig_s };
 
-            assert!(verify_message(&msg_bits, &sig, &EDDSAPublicKey(pub_key)));
+            let pub_key_dalek = VerifyingKey::try_from(pub_keys[i].as_slice()).unwrap();
+            let sig_dalek = Signature::from_slice(&sigs[i]).unwrap();
+            pub_key_dalek
+                .verify_strict(&msgs[i], &sig_dalek)
+                .expect("signature verification failed");
+            println!("verified signature");
 
             for j in 0..msg_bits.len() {
                 pw.set_bool_target(eddsa_target.msgs[i][j], msg_bits[j]);
@@ -743,18 +638,6 @@ mod tests {
         let outer_proof = outer_data.prove(outer_pw).unwrap();
 
         outer_data.verify(outer_proof).unwrap();
-    }
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_eddsa_circuit_narrow() {
-        test_eddsa_circuit_with_config(CircuitConfig::standard_ecc_config());
-    }
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_eddsa_circuit_wide() {
-        test_eddsa_circuit_with_config(CircuitConfig::wide_ecc_config());
     }
 
     #[test]

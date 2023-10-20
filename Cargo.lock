@@ -903,12 +903,40 @@ source = "git+https://github.com/succinctlabs/curve25519-dalek.git?branch=featur
 dependencies = [
  "cfg-if",
  "cpufeatures",
- "curve25519-dalek-derive",
- "fiat-crypto",
+ "curve25519-dalek-derive 0.1.0 (git+https://github.com/succinctlabs/curve25519-dalek.git?branch=feature/edwards-point-getters)",
+ "fiat-crypto 0.1.20",
  "platforms",
  "rustc_version 0.4.0",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "curve25519-dalek"
+version = "4.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e89b8c6a2e4b1f45971ad09761aafb85514a84744b67a95e32c3cc1352d1f65c"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "curve25519-dalek-derive 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "digest 0.10.7",
+ "fiat-crypto 0.2.1",
+ "platforms",
+ "rustc_version 0.4.0",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "curve25519-dalek-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83fdaf97f4804dcebfa5862639bc9ce4121e82140bec2a987ac5140294865b5b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.37",
 ]
 
 [[package]]
@@ -1114,6 +1142,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ed25519"
+version = "2.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "115531babc129696a58c64a4fef0a8bf9e9698629fb97e9e40767d235cfbcd53"
+dependencies = [
+ "pkcs8",
+ "signature",
+]
+
+[[package]]
 name = "ed25519-consensus"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1125,6 +1163,19 @@ dependencies = [
  "serde",
  "sha2 0.9.9",
  "thiserror",
+ "zeroize",
+]
+
+[[package]]
+name = "ed25519-dalek"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7277392b266383ef8396db7fdeb1e77b6c52fed775f5df15bb24f35b72156980"
+dependencies = [
+ "curve25519-dalek 4.1.1",
+ "ed25519",
+ "serde",
+ "sha2 0.10.8",
  "zeroize",
 ]
 
@@ -1607,6 +1658,12 @@ name = "fiat-crypto"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e825f6987101665dea6ec934c09ec6d721de7bc1bf92248e1d5810c8cd636b77"
+
+[[package]]
+name = "fiat-crypto"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0870c84016d4b481be5c9f323c24f65e31e901ae618f0e80f4308fb00de1d2d"
 
 [[package]]
 name = "fixed-hash"
@@ -2953,10 +3010,11 @@ dependencies = [
  "bincode",
  "clap",
  "curta",
- "curve25519-dalek",
+ "curve25519-dalek 4.0.0",
  "digest 0.10.7",
  "dotenv",
  "ed25519-consensus",
+ "ed25519-dalek",
  "env_logger",
  "ethers",
  "ff",

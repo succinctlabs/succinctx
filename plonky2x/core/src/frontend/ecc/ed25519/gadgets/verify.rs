@@ -213,18 +213,15 @@ impl<L: PlonkParameters<D>, const D: usize> EDDSABatchVerify<L, D> for CircuitBu
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use ed25519_dalek::{Signature, VerifyingKey};
     use num::BigUint;
     use plonky2::field::types::Field;
 
     use super::*;
     use crate::frontend::ecc::ed25519::curve::curve_types::AffinePoint;
-    use crate::frontend::ecc::ed25519::curve::eddsa::{
-        verify_message, EDDSAPublicKey, EDDSASignature,
-    };
     use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
     use crate::frontend::ecc::ed25519::gadgets::eddsa::EDDSASignatureTargetValue;
     use crate::prelude::{ArrayVariable, DefaultBuilder};
-    use crate::utils::to_be_bits;
 
     #[test]
     fn test_generate_signature() {
@@ -250,6 +247,13 @@ pub(crate) mod tests {
         pub_key_bytes: Vec<u8>,
         sig_bytes: Vec<u8>,
     ) {
+        let pub_key = VerifyingKey::try_from(pub_key_bytes.as_slice()).unwrap();
+        let sig = Signature::from_slice(&sig_bytes).unwrap();
+        pub_key
+            .verify_strict(&msg_bytes, &sig)
+            .expect("signature verification failed");
+        println!("verified signature");
+
         type Curve = Ed25519;
 
         let mut builder = DefaultBuilder::new();
@@ -270,14 +274,6 @@ pub(crate) mod tests {
 
         let sig_s_biguint = BigUint::from_bytes_le(&sig_bytes[32..64]);
         let sig_s = Ed25519Scalar::from_noncanonical_biguint(sig_s_biguint);
-        let sig = EDDSASignature { r: sig_r, s: sig_s };
-
-        assert!(verify_message(
-            &to_be_bits(&msg_bytes),
-            &sig,
-            &EDDSAPublicKey(pub_key_uncompressed)
-        ));
-        println!("verified signature");
 
         let mut input = circuit.input();
         input.write::<ArrayVariable<BytesVariable<MSG_BYTES_LENGTH>, 1>>(vec![msg_bytes
@@ -297,6 +293,13 @@ pub(crate) mod tests {
         sig_bytes: Vec<u8>,
         active: bool,
     ) {
+        let pub_key = VerifyingKey::try_from(pub_key_bytes.as_slice()).unwrap();
+        let sig = Signature::from_slice(&sig_bytes).unwrap();
+        pub_key
+            .verify_strict(&msg_bytes, &sig)
+            .expect("signature verification failed");
+        println!("verified signature");
+
         type Curve = Ed25519;
 
         let mut builder = DefaultBuilder::new();
@@ -332,14 +335,6 @@ pub(crate) mod tests {
 
         let sig_s_biguint = BigUint::from_bytes_le(&sig_bytes[32..64]);
         let sig_s = Ed25519Scalar::from_noncanonical_biguint(sig_s_biguint);
-        let sig = EDDSASignature { r: sig_r, s: sig_s };
-
-        assert!(verify_message(
-            &to_be_bits(&msg_bytes),
-            &sig,
-            &EDDSAPublicKey(pub_key_uncompressed)
-        ));
-        println!("verified signature");
 
         let mut input = circuit.input();
         input.write::<ArrayVariable<BoolVariable, 1>>(vec![active]);
