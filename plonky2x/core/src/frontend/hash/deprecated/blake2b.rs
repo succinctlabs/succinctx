@@ -3,8 +3,8 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::frontend::hash::bit_operations::util::{_right_rotate, u64_to_bits};
-use crate::frontend::hash::bit_operations::{add_arr, not_arr, xor2_arr_slow, xor3_arr_slow};
+use super::bit_operations::util::{_right_rotate, u64_to_bits};
+use super::bit_operations::{add_arr, not_arr, xor2_arr_slow, xor3_arr_slow};
 
 const SIGMA_LEN: usize = 10;
 const SIGMA: [[usize; 16]; SIGMA_LEN] = [

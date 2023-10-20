@@ -3,10 +3,8 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::frontend::hash::bit_operations::util::{_right_rotate, _shr, u64_to_bits};
-use crate::frontend::hash::bit_operations::{
-    add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add,
-};
+use super::bit_operations::util::{_right_rotate, _shr, u64_to_bits};
+use super::bit_operations::{add_arr, and_arr, not_arr, xor2_arr, xor3_arr, zip_add};
 
 pub struct Sha512VariableTarget {
     pub message: Vec<BoolTarget>,

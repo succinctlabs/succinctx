@@ -8,7 +8,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
 use plonky2::util::serialization::{Buffer, IoResult};
 
 use crate::frontend::ecc::ed25519::curve::curve_types::{AffinePoint, Curve};
-use crate::frontend::hash::bit_operations::util::biguint_to_bits_target;
+use crate::frontend::hash::deprecated::bit_operations::util::biguint_to_bits_target;
 use crate::frontend::num::biguint::{CircuitBuilderBiguint, WitnessBigUint};
 use crate::frontend::num::nonnative::nonnative::{
     CircuitBuilderNonNative, NonNativeTarget, ReadNonNativeTarget, WriteNonNativeTarget,

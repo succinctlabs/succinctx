@@ -258,7 +258,7 @@ mod tests {
     use super::*;
     use crate::backend::circuit::{DefaultParameters, Groth16WrapperParameters};
     use crate::frontend::builder::CircuitBuilder;
-    use crate::frontend::hash::sha::sha256::sha256;
+    use crate::frontend::hash::sha512::sha256::sha256;
     use crate::utils;
 
     fn to_bits(msg: Vec<u8>) -> Vec<bool> {

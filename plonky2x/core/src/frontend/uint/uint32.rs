@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use curta::chip::bool;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
@@ -206,6 +207,35 @@ impl U32Variable {
             }
         }
         result
+    }
+
+    pub fn from_be_bits<L: PlonkParameters<D>, const D: usize>(
+        bools: &[BoolVariable],
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        assert!(bools.len() <= 32);
+        // We simply sum the bits and don't need to do a range-check, as we know that the sum of 32 bits is always less than 2^32
+        let var = builder.api.le_sum(
+            bools
+                .iter()
+                .map(|b| (*b).into())
+                .collect::<Vec<BoolTarget>>()
+                .into_iter(),
+        );
+        Self(Variable(var))
+    }
+
+    pub fn to_be_bits<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> [BoolVariable; 32] {
+        let mut bits = builder.api.split_le(self.0 .0, 32);
+        bits.reverse();
+        bits.iter()
+            .map(|b| BoolVariable(Variable(b.target)))
+            .collect_vec()
+            .try_into()
+            .unwrap()
     }
 }
 

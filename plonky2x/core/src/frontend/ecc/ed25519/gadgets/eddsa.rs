@@ -13,7 +13,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
 use crate::frontend::ecc::ed25519::curve::curve_types::Curve;
 use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
 use crate::frontend::ecc::ed25519::gadgets::curve::{AffinePointTarget, CircuitBuilderCurve};
-use crate::frontend::hash::sha::sha512::{
+use crate::frontend::hash::deprecated::sha512::{
     sha512, sha512_variable, CHUNK_BITS_1024, LENGTH_BITS_128,
 };
 use crate::frontend::num::biguint::BigUintTarget;

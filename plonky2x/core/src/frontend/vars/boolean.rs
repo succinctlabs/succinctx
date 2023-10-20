@@ -72,6 +72,12 @@ impl From<Variable> for BoolVariable {
     }
 }
 
+impl Into<BoolTarget> for BoolVariable {
+    fn into(self) -> BoolTarget {
+        BoolTarget::new_unsafe(self.0 .0)
+    }
+}
+
 impl<L: PlonkParameters<D>, const D: usize> BitAnd<L, D> for BoolVariable {
     type Output = BoolVariable;
 
