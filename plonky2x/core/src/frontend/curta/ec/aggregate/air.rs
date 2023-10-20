@@ -120,7 +120,7 @@ impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveAir<PKAirParameters
         builder.set_to_expression_first_row(&accumulator.x, generator.x.expr());
         builder.set_to_expression_first_row(&accumulator.y, generator.y.expr());
 
-        // Flag constraints. The bus guarnatees correct values at cycle starts. for all other
+        // Flag constraints. The bus guarantees correct values at cycle starts. for all other
         // points, we constrain the selector to zero.
         builder.assert_expression_zero(flag.expr() * cycle.start_bit.not_expr());
 

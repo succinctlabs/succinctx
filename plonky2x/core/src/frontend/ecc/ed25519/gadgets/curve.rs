@@ -231,7 +231,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         AffinePointTarget { x: x3, y: y3 }
     }
 
-    // This funciton will accept an affine point target and return
+    // This function will accept an affine point target and return
     // the point in compressed form (bit vector).
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointTarget {
         let mut bits = biguint_to_bits_target::<F, D>(self, &p.y.value);

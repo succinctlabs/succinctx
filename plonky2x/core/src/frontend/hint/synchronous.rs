@@ -96,7 +96,7 @@ mod tests {
         let b = output_stream.read::<ByteVariable>(&mut builder);
         builder.write(b);
 
-        // runing a few in parallel to make sure the tests takes roughly the duratio of one sleep.
+        // running a few in parallel to make sure the tests takes roughly the duratio of one sleep.
         let output_stream = builder.async_hint(input_stream.clone(), Async(hint.clone()));
         let _ = output_stream.read::<ByteVariable>(&mut builder);
         let output_stream = builder.async_hint(input_stream.clone(), Async(hint.clone()));

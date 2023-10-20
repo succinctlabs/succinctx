@@ -199,7 +199,7 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> AsyncHintRunner<
             HintPoll::Pending => {
                 // Check the hint channel for the output. If not ready, return `HintPoll::Pending`.
                 if let Ok(mut output_stream) = self.channel.rx_out.try_recv() {
-                    trace!("Async Hint {:?} : recieved output from hint", H::id());
+                    trace!("Async Hint {:?} : received output from hint", H::id());
                     let output_values = output_stream.read_all();
                     let output_vars = self.output_stream.real_all();
                     assert_eq!(output_values.len(), output_vars.len());

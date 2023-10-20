@@ -121,7 +121,7 @@ mod tests {
         let back_time = output_stream.read::<ByteVariable>(&mut builder);
         builder.write(back_time);
 
-        // runing a few in parallel to make sure the tests takes roughly the duratio of one sleep.
+        // running a few in parallel to make sure the tests takes roughly the duratio of one sleep.
         let mut fail_input_stream = VariableStream::new();
         let fail_time = builder.constant::<ByteVariable>(10u8);
         fail_input_stream.write(&fail_time);
