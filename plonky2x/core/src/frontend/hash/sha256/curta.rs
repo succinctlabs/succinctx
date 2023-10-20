@@ -197,7 +197,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 // We now have to pad the gadget with dummy requests until it has 1024 chunks total.
                 for _ in current_gadget_chunks..1024 {
-                    let padded_input = self.pad_message_sha256(&[self.zero(); 1]);
+                    let zero = self.zero();
+                    let padded_input = self.pad_message_sha256(&[zero; 1]);
                     let dummy_request = padded_input
                         .iter()
                         .map(|x| x.to_variable(self).0)
