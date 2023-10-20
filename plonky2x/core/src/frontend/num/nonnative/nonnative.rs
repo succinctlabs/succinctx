@@ -464,6 +464,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
             _phantom: PhantomData,
         });
 
+        range_check_u32_circuit(self, inv_biguint.limbs.clone());
+        range_check_u32_circuit(self, div.limbs.clone());
+
         let product = self.mul_biguint(&x.value, &inv_biguint);
 
         let modulus = self.constant_biguint(&FF::order());
