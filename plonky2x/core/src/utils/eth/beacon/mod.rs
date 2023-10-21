@@ -687,16 +687,12 @@ impl BeaconClient {
         Ok(response.result)
     }
 
-    pub async fn get_graffiti(&self, beacon_id: String) -> Result<GetBeaconGraffiti> {
+    pub fn get_graffiti(&self, beacon_id: String) -> Result<GetBeaconGraffiti> {
         let endpoint = format!("{}/api/beacon/proof/graffiti/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
-        let client = reqwest::Client::new();
-        let response = client
-            .get(endpoint)
-            .timeout(Duration::new(60, 0))
-            .send()
-            .await?;
-        let response: CustomResponse<GetBeaconGraffiti> = response.json().await?;
+        let client = Client::new();
+        let response = client.get(endpoint).timeout(Duration::new(60, 0)).send()?;
+        let response: CustomResponse<GetBeaconGraffiti> = response.json()?;
         assert!(response.success);
         Ok(response.result)
     }
@@ -813,7 +809,6 @@ mod tests {
     }
 
     #[cfg_attr(feature = "ci", ignore)]
-    #[test]
     fn test_get_graffiti() -> Result<()> {
         utils::setup_logger();
         let rpc = env::var("CONSENSUS_RPC_1").unwrap();

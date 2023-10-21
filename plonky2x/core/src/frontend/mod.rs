@@ -2,6 +2,7 @@ pub mod builder;
 pub mod curta;
 pub mod ecc;
 pub mod eth;
+pub mod extension;
 pub mod hash;
 pub mod hint;
 pub mod mapreduce;
