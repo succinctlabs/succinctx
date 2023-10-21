@@ -10,7 +10,7 @@ use crate::prelude::{ArrayVariable, PlonkParameters};
 use crate::utils::hash::sha256;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct RandomPermutationHint<const B: usize>;
+pub struct RandomPermutationHint<const B: usize>;
 
 impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
     for RandomPermutationHint<B>
