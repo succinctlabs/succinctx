@@ -63,7 +63,7 @@ impl ReqwestClient {
         loop {
             let response = client
                 .get(endpoint)
-                .timeout(core::time::Duration::from_secs(60))
+                .timeout(core::time::Duration::from_secs(90))
                 .send();
 
             match response {

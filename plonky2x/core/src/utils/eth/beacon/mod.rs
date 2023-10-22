@@ -635,8 +635,7 @@ impl BeaconClient {
             self.rpc_url, beacon_id, offset
         );
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(240, 0)).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconHistoricalBlock> = response.json()?;
         assert!(response.success);
         Ok(response.result)
