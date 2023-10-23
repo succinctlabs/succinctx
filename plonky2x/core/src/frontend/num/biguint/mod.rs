@@ -12,6 +12,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
+use super::u32::gadgets::range_check::range_check_u32_circuit;
 use super::u32::serialization::{ReadU32, WriteU32};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use crate::frontend::num::u32::gadgets::multiple_comparison::list_le_u32_circuit;
@@ -271,6 +272,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
             rem: rem.clone(),
             _phantom: PhantomData,
         });
+
+        range_check_u32_circuit(self, div.limbs.clone());
+        range_check_u32_circuit(self, rem.limbs.clone());
 
         let div_b = self.mul_biguint(&div, b);
         let div_b_plus_rem = self.add_biguint(&div_b, &rem);
