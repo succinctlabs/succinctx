@@ -207,7 +207,7 @@ mod tests {
             ],
         ];
         for message in messages.iter() {
-            let expected_result = sha256(&message);
+            let expected_result = sha256(message);
 
             let mut builder = CircuitBuilder::<L, D>::new();
             let mut message_variables = Vec::new();

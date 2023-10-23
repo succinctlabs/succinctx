@@ -232,7 +232,7 @@ impl U32Variable {
         let mut bits = builder.api.split_le(self.0 .0, 32);
         bits.reverse();
         bits.iter()
-            .map(|b| BoolVariable(Variable(b.target)))
+            .map(|b| BoolVariable::from(b))
             .collect_vec()
             .try_into()
             .unwrap()

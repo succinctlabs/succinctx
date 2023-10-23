@@ -222,6 +222,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         // Iterate through all requests to the accelerator. As we iterate, we allocate gadgets for
         // groups of requests, keeping in mind that gadgets can only accomodate 1024 chunks.
         for (i, req) in accelerator.sha256_requests.iter().enumerate() {
+            // All the requests are chunk-aligned because of the padding we do.
             let request_chunks = req.len() / 64;
 
             // If this request would overflow the current_gadget, pad the gadget and constrain it.

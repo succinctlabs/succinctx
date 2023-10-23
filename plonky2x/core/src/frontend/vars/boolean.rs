@@ -72,6 +72,7 @@ impl From<Variable> for BoolVariable {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<BoolTarget> for BoolVariable {
     fn into(self) -> BoolTarget {
         BoolTarget::new_unsafe(self.0 .0)
