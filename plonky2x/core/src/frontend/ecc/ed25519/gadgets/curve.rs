@@ -326,12 +326,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilderCurveGadget<L, D>
             .iter()
             .map(|b| BoolVariable::from(*b))
             .collect::<Vec<_>>();
-        self.watch_slice(&bool_variables, "compressed point");
         let mut byte_variables = bool_variables
             .chunks(8)
             .map(|chunk| ByteVariable(chunk.try_into().unwrap()))
             .collect::<Vec<_>>();
-        self.watch_slice(&byte_variables, "compressed point");
+        // Flip from little endian to big endian.
         byte_variables.reverse();
         CompressedPointVariable(Bytes32Variable::from(byte_variables.as_slice()))
     }
