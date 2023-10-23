@@ -268,7 +268,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 // Multiply the current r by the current array element.
                 let temp_accum = self.mul(r, array[j]);
                 // If outside of the subarray, don't add to the accumulator.
-                let temp_accum = self.mul(within_sub_array.0, temp_accum);
+                let temp_accum = self.mul(within_sub_array.variable, temp_accum);
 
                 accumulator1 = self.add(accumulator1, temp_accum);
             }
