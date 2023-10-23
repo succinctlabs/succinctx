@@ -53,7 +53,7 @@ impl ReqwestClient {
     }
 
     pub fn fetch(&self, endpoint: &str) -> Result<Response> {
-        const MAX_RETRIES: u32 = 5;
+        const MAX_RETRIES: u32 = 7;
         const INITIAL_RETRY_DELAY: u64 = 5;
 
         let client = reqwest::blocking::Client::new();
