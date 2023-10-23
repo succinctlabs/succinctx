@@ -207,13 +207,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         challenger.observe_elements(seed_targets.as_slice());
 
+        const NUM_LOOPS: usize = 3;
+
         let challenges = challenger
-            .get_n_challenges(&mut self.api, 3)
+            .get_n_challenges(&mut self.api, NUM_LOOPS)
             .iter()
             .map(|x| Variable::from(*x))
             .collect_vec();
 
-        for i in 0..3 {
+        // TODO: Fill in n
+        // Loop 3 times to increase the security of the proof.
+        // Each loop has a different challenge, and has N bits of security.
+        for i in 0..NUM_LOOPS {
             let sub_array_size = self.constant(L::Field::from_canonical_usize(SUB_ARRAY_SIZE));
             let end_idx = self.add(start_idx, sub_array_size);
 
@@ -224,9 +229,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             let mut accumulator1 = self.zero::<Variable>();
 
-            // r is the source of randomness from the challenger
+            // r is the source of randomness from the challenger for this loop.
             let mut r = one;
-            // let mut j_target = self.zero();
             for j in 0..ARRAY_SIZE {
                 let idx = self.constant::<Variable>(L::Field::from_canonical_usize(j));
 
@@ -242,7 +246,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let temp_r = self.mul(r, challenges[i]);
                 r = self.select(within_sub_array, temp_r, one);
 
+                // Multiply the current r by the current array element.
                 let temp_accum = self.mul(r, array[j]);
+                // If outside of the subarray, don't add to the accumulator.
                 let temp_accum = self.mul(within_sub_array.0, temp_accum);
                 accumulator1 = self.add(accumulator1, temp_accum);
             }
