@@ -13,7 +13,6 @@ use super::{BoolVariable, ByteVariable, CircuitVariable, ValueStream, Variable, 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::hint::simple::hint::Hint;
-use crate::prelude::{Add, Mul, Sub};
 
 /// A variable in the circuit representing a fixed length array of variables.
 /// We use this to avoid stack overflow arrays associated with fixed-length arrays.
@@ -208,39 +207,51 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         challenger.observe_elements(seed_targets.as_slice());
 
-        for _i in 0..2 {
-            let challenges = challenger
-                .get_n_challenges(&mut self.api, SUB_ARRAY_SIZE)
-                .iter()
-                .map(|x| Variable::from(*x))
-                .collect_vec();
+        let challenges = challenger
+            .get_n_challenges(&mut self.api, 3)
+            .iter()
+            .map(|x| Variable::from(*x))
+            .collect_vec();
+
+        for i in 0..3 {
             let sub_array_size = self.constant(L::Field::from_canonical_usize(SUB_ARRAY_SIZE));
             let end_idx = self.add(start_idx, sub_array_size);
-            let mut within_sub_array = self.zero::<Variable>();
-            let one = self.one();
+
+            let false_v = self._false();
+            let true_v = self._true();
+            let mut within_sub_array = false_v;
+            let one: Variable = self.one();
 
             let mut accumulator1 = self.zero::<Variable>();
-            let mut j_target = self.zero();
+
+            // r is the source of randomness from the challenger
+            let mut r = one;
+            // let mut j_target = self.zero();
             for j in 0..ARRAY_SIZE {
-                let at_start_idx = self.is_equal(j_target, start_idx);
-                within_sub_array = within_sub_array.add(at_start_idx.variables()[0], self);
-                let at_end_idx = self.is_equal(j_target, end_idx);
-                within_sub_array = within_sub_array.sub(at_end_idx.variables()[0], self);
+                let idx = self.constant::<Variable>(L::Field::from_canonical_usize(j));
 
-                let mut subarray_idx = j_target.sub(start_idx, self);
-                subarray_idx = subarray_idx.mul(within_sub_array, self);
+                // If at the start_idx, then set within_sub_array to true.
+                let at_start_idx = self.is_equal(idx, start_idx);
+                within_sub_array = self.select(at_start_idx, true_v, within_sub_array);
 
-                let challenge = self.select_array_random_gate(&challenges, subarray_idx);
-                let mut product = self.mul(array[j], challenge);
-                product = within_sub_array.mul(product, self);
-                accumulator1 = accumulator1.add(product, self);
+                // If at the end_idx, then set within_sub_array to false.
+                let at_end_idx = self.is_equal(idx, end_idx);
+                within_sub_array = self.select(at_end_idx, false_v, within_sub_array);
 
-                j_target = j_target.add(one, self);
+                // If within the subarray, multiply the current r by the challenge.
+                let temp_r = self.mul(r, challenges[i]);
+                r = self.select(within_sub_array, temp_r, one);
+
+                let temp_accum = self.mul(r, array[j]);
+                let temp_accum = self.mul(within_sub_array.0, temp_accum);
+                accumulator1 = self.add(accumulator1, temp_accum);
             }
 
             let mut accumulator2 = self.zero();
+            let mut r = one;
             for j in 0..SUB_ARRAY_SIZE {
-                let product = self.mul(sub_array[j], challenges[j]);
+                r = self.mul(r, challenges[i]);
+                let product = self.mul(r, sub_array[j]);
                 accumulator2 = self.add(accumulator2, product);
             }
 
@@ -422,9 +433,9 @@ mod tests {
     fn test_get_fixed_subarray() {
         utils::setup_logger();
         type F = GoldilocksField;
-        const ARRAY_SIZE: usize = 100;
-        const SUB_ARRAY_SIZE: usize = 10;
-        const START_IDX: usize = 15;
+        const ARRAY_SIZE: usize = 12800;
+        const SUB_ARRAY_SIZE: usize = 3200;
+        const START_IDX: usize = 400;
 
         let mut builder = DefaultBuilder::new();
 
