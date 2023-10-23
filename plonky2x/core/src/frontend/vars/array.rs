@@ -169,6 +169,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::from_variables_unsafe(&selected_vars)
     }
 
+    /// Given an `array` of variables, and a dynamic `index` start_idx, returns `array[start_idx..start_idx+sub_array_size]` as an `array`.
+    /// The `seed` is used to generate randomness for the proof.
+    /// The security of each challenge is log2(field_size) - log2(array_size), so the total security is log2(field_size) - log2(array_size) * num_loops.
+    ///
+    /// This function does the following to extract the subarray:
+    ///     1) Generate a random challenge for each loop, which is referred to as r.
+    ///     2) If within the subarray, multiply subarray[i] by r^i and add to the accumulator.
+    ///         a) i is the index within the subarray.
+    ///         b) r^i is the challenge raised to the power of i.
+    ///     3) If outside of the subarray, don't add to the accumulator.
+    ///     4) Assert that the accumulator is equal to the accumulator from the hinted subarray.
     pub fn get_fixed_subarray<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
         array: &ArrayVariable<Variable, ARRAY_SIZE>,
@@ -215,9 +226,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .map(|x| Variable::from(*x))
             .collect_vec();
 
-        // TODO: Fill in n
         // Loop 3 times to increase the security of the proof.
-        // Each loop has a different challenge, and has N bits of security.
+        // The security of each loop is log2(field_size) - log2(array_size).
+        // Ex. For an array of size 2^14, and a field size of 2^64, each loop provides
+        //     50 bits of security.
         for i in 0..NUM_LOOPS {
             let sub_array_size = self.constant(L::Field::from_canonical_usize(SUB_ARRAY_SIZE));
             let end_idx = self.add(start_idx, sub_array_size);
@@ -243,13 +255,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 within_sub_array = self.select(at_end_idx, false_v, within_sub_array);
 
                 // If within the subarray, multiply the current r by the challenge.
-                let temp_r = self.mul(r, challenges[i]);
-                r = self.select(within_sub_array, temp_r, one);
+                let multiplier = self.select(within_sub_array, challenges[i], one);
+                // For subarray[i], the multiplier should be r^i. i is the index within the subarray.
+                // The value of r outside of the subarray is not used.
+                r = self.mul(r, multiplier);
 
                 // Multiply the current r by the current array element.
                 let temp_accum = self.mul(r, array[j]);
                 // If outside of the subarray, don't add to the accumulator.
                 let temp_accum = self.mul(within_sub_array.0, temp_accum);
+
                 accumulator1 = self.add(accumulator1, temp_accum);
             }
 
