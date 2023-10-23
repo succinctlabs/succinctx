@@ -217,9 +217,23 @@ mod tests {
     use crate::backend::circuit::DefaultParameters;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
+    use crate::utils::setup_logger;
 
     type L = DefaultParameters;
     const D: usize = 2;
+
+    #[test]
+    fn test_to_u64() {
+        setup_logger();
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let var = U32Variable::constant(&mut builder, 0x12345678);
+        let var_u64 = var.to_u64(&mut builder);
+        builder.watch(&var_u64, "var_u64");
+        let circuit = builder.build();
+        let pw = PartialWitness::new();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
 
     #[test]
     fn test_u32_evm() {
