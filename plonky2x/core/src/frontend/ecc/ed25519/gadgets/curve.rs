@@ -311,7 +311,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
     }
 }
 
-pub struct CompressedPointVariable(Bytes32Variable);
+pub struct CompressedPointVariable(pub Bytes32Variable);
 
 pub trait CircuitBuilderCurveGadget<L: PlonkParameters<D>, const D: usize> {
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointVariable;
