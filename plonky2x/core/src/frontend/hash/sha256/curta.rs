@@ -217,7 +217,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Takes the accelerator with all requests and constraints it
-    fn curta_constrain_sha256(&mut self, accelerator: &mut Sha256Accelerator<L, D>) {
+    fn curta_constrain_sha256(&mut self, accelerator: &Sha256Accelerator<L, D>) {
         let mut current_gadget = self.api.init_sha256();
         let mut current_gadget_chunks = 0;
         // Iterate through all requests to the accelerator. As we iterate, we allocate gadgets for
