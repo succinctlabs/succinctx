@@ -395,9 +395,6 @@ impl ReadAffinePoint for Buffer<'_> {
 
 #[cfg(test)]
 mod tests {
-
-    use std::env;
-
     use plonky2::field::types::{Field, Sample};
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
@@ -580,8 +577,6 @@ mod tests {
 
     #[test]
     fn test_compress_point_variable() {
-        env::set_var("RUST_LOG", "debug");
-
         type Curve = Ed25519;
 
         let mut builder = DefaultBuilder::new();
