@@ -39,6 +39,7 @@ impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    // @no-audit-okay
     pub fn permute_with_dummy<const B: usize>(
         &mut self,
         inputs: ArrayVariable<U32Variable, B>,

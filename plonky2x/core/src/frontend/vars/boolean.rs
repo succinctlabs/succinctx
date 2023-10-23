@@ -72,6 +72,13 @@ impl From<BoolTarget> for BoolVariable {
     }
 }
 
+#[allow(clippy::from_over_into)]
+impl Into<BoolTarget> for BoolVariable {
+    fn into(self) -> BoolTarget {
+        BoolTarget::new_unsafe(self.variable.0)
+    }
+}
+
 impl<L: PlonkParameters<D>, const D: usize> BitAnd<L, D> for BoolVariable {
     type Output = BoolVariable;
 

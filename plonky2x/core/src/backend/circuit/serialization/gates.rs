@@ -28,7 +28,7 @@ use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, Read, Write
 
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;
-use crate::frontend::hash::bit_operations::XOR3Gate;
+use crate::frontend::hash::deprecated::bit_operations::XOR3Gate;
 use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGate;
 use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGate;
 use crate::frontend::num::u32::gates::comparison::ComparisonGate;

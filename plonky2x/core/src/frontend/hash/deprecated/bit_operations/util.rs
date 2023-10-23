@@ -93,15 +93,3 @@ pub fn bits_to_biguint_target<F: RichField + Extendable<D>, const D: usize>(
     u32_targets.reverse();
     BigUintTarget { limbs: u32_targets }
 }
-
-pub fn byte_to_u32_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    bits_target: Vec<BoolTarget>,
-) -> U32Target {
-    let bit_len = bits_target.len();
-    assert_eq!(bit_len, 8);
-
-    // Per the assert above, we are guaranteed that the chunks will be 8 bool targets,
-    // so will fit within a U32Target.
-    U32Target::from_target_unsafe(builder.le_sum(bits_target.iter().rev()))
-}

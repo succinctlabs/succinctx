@@ -19,8 +19,8 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
-use super::hash::blake2::blake2b_curta::Blake2bAccelerator;
-use super::hash::sha::sha256_curta::Sha256Accelerator;
+use super::hash::blake2::curta::Blake2bAccelerator;
+use super::hash::sha256::curta::Sha256Accelerator;
 use super::hint::HintGenerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
@@ -311,6 +311,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.api.inverse(i1.0).into()
     }
 
+    // @audit
     /// If selector is true, yields i1 else yields i2.
     pub fn select<V: CircuitVariable>(&mut self, selector: BoolVariable, i1: V, i2: V) -> V {
         assert_eq!(i1.targets().len(), i2.targets().len());
@@ -347,6 +348,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
         result
     }
+    // @end-audit
 
     /// Connects two variables.
     pub fn connect<V: CircuitVariable>(&mut self, i1: V, i2: V) {

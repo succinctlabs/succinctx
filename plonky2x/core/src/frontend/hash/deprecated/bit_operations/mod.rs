@@ -13,7 +13,6 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::vars::{EvaluationTargets, EvaluationVars, EvaluationVarsBase};
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
-pub mod u8;
 pub mod util;
 
 use util::{biguint_to_bits_target, bits_to_biguint_target};
