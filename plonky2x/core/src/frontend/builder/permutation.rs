@@ -55,7 +55,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut filtered_acc = self.one::<Variable>();
         for i in 0..inputs.len() {
             let is_dummy = self.is_equal(inputs[i], dummy);
-            let term = self.sub(gamma, inputs[i].0);
+            let term = self.sub(gamma, inputs[i].variable);
             let acc = self.mul(filtered_acc, term);
             filtered_acc = self.select(is_dummy, filtered_acc, acc);
         }
@@ -72,7 +72,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut permuted_filtered_acc = self.one::<Variable>();
         for i in 0..inputs.len() {
             let is_dummy = self.is_equal(permuted_inputs[i], dummy);
-            let term = self.sub(gamma, permuted_inputs[i].0);
+            let term = self.sub(gamma, permuted_inputs[i].variable);
             let acc = self.mul(permuted_filtered_acc, term);
             permuted_filtered_acc = self.select(is_dummy, permuted_filtered_acc, acc);
         }

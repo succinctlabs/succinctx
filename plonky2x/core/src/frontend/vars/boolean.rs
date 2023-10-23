@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::{BoolTarget, Target};
+use plonky2::iop::target::BoolTarget;
 use serde::{Deserialize, Serialize};
 
 use super::{CircuitVariable, Variable};
@@ -11,7 +11,12 @@ use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not};
 
 /// A variable in the circuit representing a boolean value.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct BoolVariable(pub Variable);
+#[allow(clippy::manual_non_exhaustive)]
+pub struct BoolVariable {
+    pub variable: Variable,
+    /// This private field is here to force all instantiations to go the methods below.
+    _private: (),
+}
 
 impl CircuitVariable for BoolVariable {
     type ValueType<F: RichField> = bool;
@@ -19,16 +24,22 @@ impl CircuitVariable for BoolVariable {
     fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
         builder: &mut CircuitBuilder<L, D>,
     ) -> Self {
-        Self(Variable::init_unsafe(builder))
+        Self {
+            variable: Variable::init_unsafe(builder),
+            _private: (),
+        }
     }
 
     fn variables(&self) -> Vec<Variable> {
-        vec![self.0]
+        vec![self.variable]
     }
 
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), 1);
-        Self(variables[0])
+        Self {
+            variable: variables[0],
+            _private: (),
+        }
     }
 
     fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
@@ -54,28 +65,17 @@ impl CircuitVariable for BoolVariable {
     }
 }
 
-impl From<Target> for BoolVariable {
-    fn from(v: Target) -> Self {
-        Self(Variable(v))
-    }
-}
-
 impl From<BoolTarget> for BoolVariable {
     fn from(v: BoolTarget) -> Self {
-        Self(Variable(v.target))
-    }
-}
-
-impl From<Variable> for BoolVariable {
-    fn from(v: Variable) -> Self {
-        Self(v)
+        // BoolTarget's range is the same as BoolVariable's.
+        Self::from_variables_unsafe(&[Variable(v.target)])
     }
 }
 
 #[allow(clippy::from_over_into)]
 impl Into<BoolTarget> for BoolVariable {
     fn into(self) -> BoolTarget {
-        BoolTarget::new_unsafe(self.0 .0)
+        BoolTarget::new_unsafe(self.variable.0)
     }
 }
 
@@ -83,7 +83,9 @@ impl<L: PlonkParameters<D>, const D: usize> BitAnd<L, D> for BoolVariable {
     type Output = BoolVariable;
 
     fn bitand(self, rhs: BoolVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        builder.mul(self.0, rhs.0).into()
+        // Both "self" and "rhs" have a range of [0-1] inclusive.  The result of the "AND" operation
+        // will also be in a range of [0-1] inclusive.
+        Self::from_variables_unsafe(&[builder.mul(self.variable, rhs.variable)])
     }
 }
 
@@ -91,9 +93,12 @@ impl<L: PlonkParameters<D>, const D: usize> BitOr<L, D> for BoolVariable {
     type Output = BoolVariable;
 
     fn bitor(self, rhs: BoolVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        let self_plus_rhs = builder.add(self.0, rhs.0);
-        let self_times_rhs = builder.mul(self.0, rhs.0);
-        builder.sub(self_plus_rhs, self_times_rhs).into()
+        let self_plus_rhs = builder.add(self.variable, rhs.variable);
+        let self_times_rhs = builder.mul(self.variable, rhs.variable);
+
+        // Both "self" and "rhs" have a range of [0-1] inclusive.  The result of the "OR" operation
+        // will also be in a range of [0-1] inclusive.
+        Self::from_variables_unsafe(&[builder.sub(self_plus_rhs, self_times_rhs)])
     }
 }
 
@@ -101,10 +106,13 @@ impl<L: PlonkParameters<D>, const D: usize> BitXor<L, D> for BoolVariable {
     type Output = BoolVariable;
 
     fn bitxor(self, rhs: BoolVariable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        let a_plus_b = builder.add(self.0, rhs.0);
-        let a_b = builder.mul(self.0, rhs.0);
+        let a_plus_b = builder.add(self.variable, rhs.variable);
+        let a_b = builder.mul(self.variable, rhs.variable);
         let two_a_b = builder.add(a_b, a_b);
-        builder.sub(a_plus_b, two_a_b).into()
+
+        // Both "self" and "rhs" have a range of [0-1] inclusive.  The result of the "XOR" operation
+        // will also be in a range of [0-1] inclusive.
+        Self::from_variables_unsafe(&[builder.sub(a_plus_b, two_a_b)])
     }
 }
 
@@ -113,7 +121,10 @@ impl<L: PlonkParameters<D>, const D: usize> Not<L, D> for BoolVariable {
 
     fn not(self, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
         let one = builder.one::<Variable>();
-        builder.sub(one, self.0).into()
+
+        // "self" has a range of [0-1] inclusive.  The result of the "NOT" operation
+        // will also be in a range of [0-1] inclusive.
+        Self::from_variables_unsafe(&[builder.sub(one, self.variable)])
     }
 }
 

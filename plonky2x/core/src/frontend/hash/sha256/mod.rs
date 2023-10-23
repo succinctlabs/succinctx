@@ -166,7 +166,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let bool_digest: Vec<BoolVariable> = self.process_padded_message(&padded);
         assert_eq!(bool_digest.len(), 256);
         // Ok to use `from_variables_unsafe` as we know `process_padded_message` returns 256 bits
-        Bytes32Variable::from_variables_unsafe(&bool_digest.iter().map(|b| b.0).collect_vec())
+        Bytes32Variable::from_variables_unsafe(
+            &bool_digest.iter().map(|b| b.variable).collect_vec(),
+        )
     }
 
     pub fn sha256_pair(

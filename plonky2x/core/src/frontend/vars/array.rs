@@ -167,6 +167,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             selected_vars.push(Variable(self.api.random_access(selector.0, pos_i_targets)));
         }
 
+        // "selected_vars" will effectively contain the "variables()" representation of the
+        // selected element within "array", and that representation is safe (as long as all the
+        // elements in "array" are safe).
+        // So we can simply reconstruct the selected element from "selected_vars" without needing
+        // any checks.
         V::from_variables_unsafe(&selected_vars)
     }
 
@@ -256,7 +261,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         for i in 0..array.len() {
             let element_equal = self.is_equal(array[i].clone(), element.clone());
-            accumulator = self.add(accumulator, element_equal.0);
+            accumulator = self.add(accumulator, element_equal.variable);
         }
 
         let one = self.constant::<Variable>(L::Field::from_canonical_usize(1));

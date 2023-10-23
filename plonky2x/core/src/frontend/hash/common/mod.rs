@@ -103,8 +103,7 @@ pub fn xor3_arr<const S: usize, L: PlonkParameters<D>, const D: usize>(
 ) -> [BoolVariable; S] {
     let mut res = Vec::new();
     for i in 0..S {
-        let o = builder.xor3(a[i].0, b[i].0, c[i].0);
-        // builder.watch_slice(&[a[i], b[i], c[i], o], "xor3_arr");
+        let o = builder.xor3(a[i].variable, b[i].variable, c[i].variable);
         res.push(o);
     }
     res.try_into().unwrap()
