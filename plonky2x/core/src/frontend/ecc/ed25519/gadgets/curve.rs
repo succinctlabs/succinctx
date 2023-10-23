@@ -602,9 +602,9 @@ mod tests {
 
         let (proof, mut output) = circuit.prove(&input);
 
-        let computed_pubkey = output.read::<Bytes32Variable>();
-
         circuit.verify(&proof, &input, &output);
+
+        let computed_pubkey = output.read::<Bytes32Variable>();
 
         assert_eq!(computed_pubkey.0.to_vec(), pubkey_bytes);
     }
