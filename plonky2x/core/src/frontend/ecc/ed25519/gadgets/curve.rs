@@ -14,7 +14,10 @@ use crate::frontend::num::nonnative::nonnative::{
     CircuitBuilderNonNative, NonNativeTarget, ReadNonNativeTarget, WriteNonNativeTarget,
 };
 use crate::frontend::num::nonnative::split_nonnative::CircuitBuilderSplit;
-use crate::prelude::{CircuitBuilder, CircuitVariable, PlonkParameters, Variable};
+use crate::prelude::{
+    BoolVariable, ByteVariable, Bytes32Variable, CircuitBuilder, CircuitVariable, PlonkParameters,
+    Variable,
+};
 /// A Target representing an affine point on the curve `C`. We use incomplete arithmetic for efficiency,
 /// so we assume these points are not zero.
 #[derive(Clone, Debug, Default)]
@@ -231,7 +234,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
         AffinePointTarget { x: x3, y: y3 }
     }
 
-    // This funciton will accept an affine point target and return
+    // This function will accept an affine point target and return
     // the point in compressed form (bit vector).
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointTarget {
         let mut bits = biguint_to_bits_target::<F, D>(self, &p.y.value);
@@ -308,6 +311,31 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
     }
 }
 
+pub struct CompressedPointVariable(pub Bytes32Variable);
+
+pub trait CircuitBuilderCurveGadget<L: PlonkParameters<D>, const D: usize> {
+    fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointVariable;
+}
+
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilderCurveGadget<L, D>
+    for CircuitBuilder<L, D>
+{
+    fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointVariable {
+        let bool_targets = self.api.compress_point(p).bit_targets;
+        let bool_variables = bool_targets
+            .iter()
+            .map(|b| BoolVariable::from(*b))
+            .collect::<Vec<_>>();
+        let mut byte_variables = bool_variables
+            .chunks(8)
+            .map(|chunk| ByteVariable(chunk.try_into().unwrap()))
+            .collect::<Vec<_>>();
+        // Flip from little endian to big endian.
+        byte_variables.reverse();
+        CompressedPointVariable(Bytes32Variable::from(byte_variables.as_slice()))
+    }
+}
+
 pub trait WitnessAffinePoint<F: PrimeField64>: Witness<F> {
     fn get_affine_point_target<C: Curve>(&self, target: AffinePointTarget<C>) -> AffinePoint<C>;
     fn set_affine_point_target<C: Curve>(
@@ -367,7 +395,6 @@ impl ReadAffinePoint for Buffer<'_> {
 
 #[cfg(test)]
 mod tests {
-
     use plonky2::field::types::{Field, Sample};
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
@@ -378,9 +405,12 @@ mod tests {
     use crate::frontend::ecc::ed25519::curve::ed25519::Ed25519;
     use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
-    use crate::frontend::ecc::ed25519::gadgets::curve::CircuitBuilderCurve;
+    use crate::frontend::ecc::ed25519::gadgets::curve::{
+        AffinePointTarget, CircuitBuilderCurve, CircuitBuilderCurveGadget,
+    };
     use crate::frontend::hash::bit_operations::util::biguint_to_bits_target;
     use crate::frontend::num::biguint::CircuitBuilderBiguint;
+    use crate::prelude::{Bytes32Variable, DefaultBuilder};
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -543,5 +573,37 @@ mod tests {
         let proof = data.prove(pw).unwrap();
 
         data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_compress_point_variable() {
+        type Curve = Ed25519;
+
+        let mut builder = DefaultBuilder::new();
+
+        let pubkey_point = builder.read::<AffinePointTarget<Curve>>();
+
+        let compressed_bytes = builder.compress_point(&pubkey_point);
+
+        builder.write(compressed_bytes.0);
+
+        let circuit = builder.build();
+        let mut input = circuit.input();
+
+        let pubkey = "de25aec935b10f657b43fa97e5a8d4e523bdb0f9972605f0b064eff7b17048ba";
+        let pubkey_bytes = hex::decode(pubkey).unwrap();
+
+        let pub_key_uncompressed: AffinePoint<Curve> =
+            AffinePoint::new_from_compressed_point(&pubkey_bytes);
+
+        input.write::<AffinePointTarget<Curve>>(pub_key_uncompressed);
+
+        let (proof, mut output) = circuit.prove(&input);
+
+        circuit.verify(&proof, &input, &output);
+
+        let computed_pubkey = output.read::<Bytes32Variable>();
+
+        assert_eq!(computed_pubkey.0.to_vec(), pubkey_bytes);
     }
 }
