@@ -72,8 +72,8 @@ pub fn list_le_u32_circuit<F: RichField + Extendable<D>, const D: usize>(
     a: Vec<U32Target>,
     b: Vec<U32Target>,
 ) -> BoolTarget {
-    let a_targets: Vec<Target> = a.iter().map(|&t| t.0).collect();
-    let b_targets: Vec<Target> = b.iter().map(|&t| t.0).collect();
+    let a_targets: Vec<Target> = a.iter().map(|&t| t.target).collect();
+    let b_targets: Vec<Target> = b.iter().map(|&t| t.target).collect();
 
     list_lte_circuit(builder, a_targets, b_targets, 32)
 }

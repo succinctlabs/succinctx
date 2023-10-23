@@ -66,7 +66,7 @@ pub fn biguint_to_bits_target<F: RichField + Extendable<D>, const D: usize>(
 ) -> Vec<BoolTarget> {
     let mut res = Vec::new();
     for i in (0..a.num_limbs()).rev() {
-        let bit_targets = builder.split_le_base::<2>(a.get_limb(i).0, 32);
+        let bit_targets = builder.split_le_base::<2>(a.get_limb(i).target, 32);
         for j in (0..32).rev() {
             res.push(BoolTarget::new_unsafe(bit_targets[j]));
         }
@@ -84,7 +84,9 @@ pub fn bits_to_biguint_target<F: RichField + Extendable<D>, const D: usize>(
 
     let mut u32_targets = Vec::new();
     for i in 0..bit_len / 32 {
-        u32_targets.push(U32Target(
+        // Per the assert above, we are guaranteed that the chunks will be 32 bool targets,
+        // so will fit within a U32Target.
+        u32_targets.push(U32Target::from_target_unsafe(
             builder.le_sum(bits_target[i * 32..(i + 1) * 32].iter().rev()),
         ));
     }
@@ -99,5 +101,7 @@ pub fn byte_to_u32_target<F: RichField + Extendable<D>, const D: usize>(
     let bit_len = bits_target.len();
     assert_eq!(bit_len, 8);
 
-    U32Target(builder.le_sum(bits_target.iter().rev()))
+    // Per the assert above, we are guaranteed that the chunks will be 8 bool targets,
+    // so will fit within a U32Target.
+    U32Target::from_target_unsafe(builder.le_sum(bits_target.iter().rev()))
 }

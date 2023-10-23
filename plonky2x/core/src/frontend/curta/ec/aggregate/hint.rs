@@ -183,8 +183,9 @@ mod tests {
         let hint = Bn254PKHint { num_keys_degree };
         let outputs = builder.hint(input_stream, hint);
 
+        // Read the stark proof and stark public inputs from the output stream.
         let proof = outputs.read_stark_proof(&mut builder, &stark, &config);
-        let public_inputs = outputs.read_exact(&mut builder, stark.air.num_public_inputs());
+        let public_inputs = outputs.read_exact_unsafe(&mut builder, stark.air.num_public_inputs());
         builder.verify_stark_proof(&config, &stark, &proof, &public_inputs);
 
         let aggregated_pk = AffinePointVariable::<Bn254> {

@@ -17,7 +17,12 @@ use crate::prelude::*;
 ///
 /// Under the hood, it is represented as a single field element.
 #[derive(Debug, Clone, Copy)]
-pub struct U32Variable(pub Variable);
+#[allow(clippy::manual_non_exhaustive)]
+pub struct U32Variable {
+    pub variable: Variable,
+    /// This private field is here to force all instantiations to go the methods below.
+    _private: (),
+}
 
 impl CircuitVariable for U32Variable {
     type ValueType<F: RichField> = u32;
@@ -25,24 +30,30 @@ impl CircuitVariable for U32Variable {
     fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
         builder: &mut CircuitBuilder<L, D>,
     ) -> Self {
-        Self(Variable::init_unsafe(builder))
+        Self {
+            variable: Variable::init_unsafe(builder),
+            _private: (),
+        }
     }
 
     fn variables(&self) -> Vec<Variable> {
-        vec![self.0]
+        vec![self.variable]
     }
 
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
-        Self(variables[0])
+        Self {
+            variable: variables[0],
+            _private: (),
+        }
     }
 
     fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) {
-        let bits = builder.api.u32_to_bits_le(U32Target(self.targets()[0]));
+        let bits = builder.api.u32_to_bits_le(U32Target::from(*self));
         let reconstructed_val = builder.api.le_sum(bits.iter());
-        builder.assert_is_equal(self.0, Variable(reconstructed_val))
+        builder.assert_is_equal(self.variable, Variable(reconstructed_val))
     }
 
     fn nb_elements() -> usize {
@@ -64,7 +75,7 @@ impl EvmVariable for U32Variable {
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) -> Vec<ByteVariable> {
-        let mut bits = builder.api.split_le(self.0 .0, 32);
+        let mut bits = builder.api.split_le(self.variable.0, 32);
         bits.reverse();
         bits.chunks(8)
             .map(|chunk| {
@@ -80,13 +91,18 @@ impl EvmVariable for U32Variable {
     ) -> Self {
         assert_eq!(bytes.len(), 4);
 
+        // Convert into an array of BoolTargets.  The assert above will guarantee that this vector
+        // will have a size of 32.
         let mut bits = bytes.iter().flat_map(|byte| byte.targets()).collect_vec();
         bits.reverse();
 
+        // Sum up the BoolTargets into a single target.
         let target = builder
             .api
             .le_sum(bits.into_iter().map(BoolTarget::new_unsafe));
-        Self(Variable(target))
+
+        // Target is composed of 32 bool targets, so it will be within U32Variable's range.
+        Self::from_variables_unsafe(&[Variable(target)])
     }
 
     fn encode_value<F: RichField>(value: Self::ValueType<F>) -> Vec<u8> {
@@ -107,25 +123,34 @@ impl EvmVariable for U32Variable {
     }
 }
 
+impl From<U32Target> for U32Variable {
+    fn from(v: U32Target) -> Self {
+        // U32Target's range is the same as U32Variable's.
+        Self::from_variables_unsafe(&[Variable(v.target)])
+    }
+}
+
 impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for U32Variable {
     fn lte(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
-        BoolVariable(Variable(
-            list_lte_circuit(&mut builder.api, self.targets(), rhs.targets(), 32).target,
-        ))
+        list_lte_circuit(&mut builder.api, self.targets(), rhs.targets(), 32).into()
     }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for U32Variable {
     fn zero(builder: &mut CircuitBuilder<L, D>) -> Self {
         let zero = Variable::zero(builder);
-        Self(zero)
+
+        // "zero" is within u32.
+        Self::from_variables_unsafe(&[zero])
     }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> One<L, D> for U32Variable {
     fn one(builder: &mut CircuitBuilder<L, D>) -> Self {
         let one = Variable::one(builder);
-        Self(one)
+
+        // "one" is within u32.
+        Self::from_variables_unsafe(&[one])
     }
 }
 
@@ -133,20 +158,17 @@ impl<L: PlonkParameters<D>, const D: usize> Mul<L, D> for U32Variable {
     type Output = Self;
 
     fn mul(self, rhs: U32Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        let self_target = self.0 .0;
-        let rhs_target = rhs.0 .0;
         let self_biguint = BigUintTarget {
-            limbs: vec![U32Target(self_target)],
+            limbs: vec![self.into()],
         };
         let rhs_biguint = BigUintTarget {
-            limbs: vec![U32Target(rhs_target)],
+            limbs: vec![rhs.into()],
         };
 
         let product_biguint = builder.api.mul_biguint(&self_biguint, &rhs_biguint);
 
-        // Get the least significant limb
-        let product = product_biguint.limbs[0].0;
-        Self(Variable(product))
+        // Get the least significant u32 limb.
+        product_biguint.limbs[0].into()
     }
 }
 
@@ -154,21 +176,17 @@ impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for U32Variable {
     type Output = Self;
 
     fn add(self, rhs: U32Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        let self_target = self.0 .0;
-        let rhs_target = rhs.0 .0;
         let self_biguint = BigUintTarget {
-            limbs: vec![U32Target(self_target)],
+            limbs: vec![self.into()],
         };
         let rhs_biguint = BigUintTarget {
-            limbs: vec![U32Target(rhs_target)],
+            limbs: vec![rhs.into()],
         };
 
         let sum_biguint = builder.api.add_biguint(&self_biguint, &rhs_biguint);
 
         // Get the least significant limb
-        let sum = sum_biguint.limbs[0].0;
-
-        Self(Variable(sum))
+        sum_biguint.limbs[0].into()
     }
 }
 
@@ -176,18 +194,15 @@ impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for U32Variable {
     type Output = Self;
 
     fn sub(self, rhs: U32Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
-        let self_target = self.0 .0;
-        let rhs_target = rhs.0 .0;
         let self_biguint = BigUintTarget {
-            limbs: vec![U32Target(self_target)],
+            limbs: vec![self.into()],
         };
         let rhs_biguint = BigUintTarget {
-            limbs: vec![U32Target(rhs_target)],
+            limbs: vec![rhs.into()],
         };
 
         let diff_biguint = builder.api.sub_biguint(&self_biguint, &rhs_biguint);
-        let diff = diff_biguint.limbs[0].0;
-        Self(Variable(diff))
+        diff_biguint.limbs[0].into()
     }
 }
 
@@ -234,12 +249,12 @@ mod tests {
         for (i, byte) in encoded.iter().enumerate() {
             let expected = ByteVariable::constant(&mut builder, bytes[i]).0;
             byte.0.iter().enumerate().for_each(|(j, &bit)| {
-                builder.assert_is_equal(bit.0, expected[j].0);
+                builder.assert_is_equal(bit.variable, expected[j].variable);
             });
         }
 
         let decoded = U32Variable::decode(&mut builder, &encoded[0..4]);
-        builder.assert_is_equal(decoded.0, var.0);
+        builder.assert_is_equal(decoded.variable, var.variable);
 
         let circuit = builder.build();
         let pw = PartialWitness::new();
@@ -274,7 +289,7 @@ mod tests {
         let result = builder.add(a, b);
         let expected_result_var = U32Variable::constant(&mut builder, expected_result);
 
-        builder.assert_is_equal(result.0, expected_result_var.0);
+        builder.assert_is_equal(result.variable, expected_result_var.variable);
 
         let circuit = builder.build();
         let pw = PartialWitness::new();
@@ -297,7 +312,7 @@ mod tests {
         let result = builder.sub(a, b);
         let expected_result_var = U32Variable::constant(&mut builder, expected_result);
 
-        builder.assert_is_equal(result.0, expected_result_var.0);
+        builder.assert_is_equal(result.variable, expected_result_var.variable);
 
         let circuit = builder.build();
         let pw = PartialWitness::new();
@@ -320,7 +335,7 @@ mod tests {
         let result = builder.mul(a, b);
         let expected_result_var = U32Variable::constant(&mut builder, expected_result);
 
-        builder.assert_is_equal(result.0, expected_result_var.0);
+        builder.assert_is_equal(result.variable, expected_result_var.variable);
 
         let circuit = builder.build();
         let pw = PartialWitness::new();
