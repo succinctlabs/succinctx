@@ -291,7 +291,10 @@ impl<L: PlonkParameters<D>, const D: usize> Plonky2xCircuitBuilder<L, D> {
         let hash_bool = sha256::<L::Field, D>(&mut self.api, &input_bool);
         let hash_bytes_vec = hash_bool
             .chunks(8)
-            .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8]))
+            .map(|chunk| {
+                let bits: [BoolVariable; 8] = array![x => chunk[x].into(); 8];
+                ByteVariable(bits)
+            })
             .collect::<Vec<_>>();
         let mut hash_bytes_array = [ByteVariable::init_unsafe(self); 32];
         hash_bytes_array.copy_from_slice(&hash_bytes_vec);

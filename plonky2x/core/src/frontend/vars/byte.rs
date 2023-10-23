@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use array_macro::array;
-use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use serde::{Deserialize, Serialize};
@@ -26,12 +25,12 @@ impl CircuitVariable for ByteVariable {
     }
 
     fn variables(&self) -> Vec<Variable> {
-        self.0.iter().map(|x| x.0).collect()
+        self.0.iter().map(|x| x.variable).collect()
     }
 
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), 8);
-        Self(array![i => BoolVariable(variables[i]); 8])
+        Self(array![i => BoolVariable::from_variables_unsafe(&[variables[i]]); 8])
     }
 
     fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
@@ -107,7 +106,7 @@ impl ByteVariable {
     pub fn as_bool_targets(&self) -> [BoolTarget; 8] {
         self.0
             .iter()
-            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.0 .0))
+            .map(|bool_variable| BoolTarget::new_unsafe(bool_variable.variable.0))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap()
@@ -139,19 +138,17 @@ impl ByteVariable {
     ) -> Self {
         builder.api.range_check(byte_target, 8);
 
-        let le_bits: [Target; 8] = builder
+        let le_bool_targets: [BoolTarget; 8] = builder
             .api
             .low_bits(byte_target, 8, 8)
-            .iter()
-            .map(|x| x.target)
-            .collect_vec()
             .try_into()
             .expect("Expected 8 bits.  Should never happen");
-        let mut bool_variables: [BoolVariable; 8] = le_bits.map(|x| x.into());
+
+        let mut le_bool_variables: [BoolVariable; 8] = array![x => le_bool_targets[x].into(); 8];
 
         // Need to reverse it to big endian
-        bool_variables.reverse();
-        ByteVariable::from_be_bits(bool_variables)
+        le_bool_variables.reverse();
+        ByteVariable::from_be_bits(le_bool_variables)
     }
 
     /// Creates a Target from a ByteVariable.

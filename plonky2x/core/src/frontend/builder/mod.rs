@@ -327,7 +327,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Returns 1 if i1 is zero, 0 otherwise as a boolean.
     pub fn is_zero(&mut self, i1: Variable) -> BoolVariable {
         let zero = self.api.zero();
-        self.api.is_equal(i1.0, zero).target.into()
+
+        self.api.is_equal(i1.0, zero).into()
     }
 
     /// Fails if i1 != i2.
@@ -341,7 +342,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) -> BoolVariable {
         let mut result = self._true();
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
-            let target_eq = BoolVariable(Variable(self.api.is_equal(*t1, *t2).target));
+            let target_eq: BoolVariable = self.api.is_equal(*t1, *t2).into();
             result = self.and(target_eq, result);
         }
         result

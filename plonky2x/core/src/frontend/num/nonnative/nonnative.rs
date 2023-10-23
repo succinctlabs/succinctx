@@ -55,7 +55,7 @@ impl<FF: PrimeField> CircuitVariable for NonNativeTarget<FF> {
         self.value
             .limbs
             .iter()
-            .map(|x| Variable(x.0))
+            .map(|x| Variable(x.target))
             .collect::<Vec<Variable>>()
     }
 
@@ -63,7 +63,7 @@ impl<FF: PrimeField> CircuitVariable for NonNativeTarget<FF> {
         let num_limbs = num_nonnative_limbs::<FF>();
         let u32s = variables
             .iter()
-            .map(|x| U32Target(x.0))
+            .map(|x| U32Target::from_target_unsafe(x.0))
             .collect::<Vec<U32Target>>();
         assert_eq!(u32s.len(), num_limbs);
         Self {
@@ -252,7 +252,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
 
     fn add_virtual_nonnative_target<FF: PrimeField>(&mut self) -> NonNativeTarget<FF> {
         let num_limbs = Self::num_nonnative_limbs::<FF>();
-        let value = self.add_virtual_biguint_target(num_limbs);
+        let value = self.add_virtual_biguint_target_unsafe(num_limbs);
 
         NonNativeTarget {
             value,
@@ -264,7 +264,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         &mut self,
         num_limbs: usize,
     ) -> NonNativeTarget<FF> {
-        let value = self.add_virtual_biguint_target(num_limbs);
+        let value = self.add_virtual_biguint_target_unsafe(num_limbs);
 
         NonNativeTarget {
             value,
@@ -336,7 +336,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         }
 
         let sum = self.add_virtual_nonnative_target::<FF>();
-        let overflow = self.add_virtual_u32_target();
+        // Will be range checked below.
+        let overflow = self.add_virtual_u32_target_unsafe();
         let summands = to_add.to_vec();
 
         self.add_simple_generator(NonNativeMultipleAddsGenerator::<F, D, FF> {
@@ -406,7 +407,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     ) -> NonNativeTarget<FF> {
         let prod = self.add_virtual_nonnative_target::<FF>();
         let modulus = self.constant_biguint(&FF::order());
-        let overflow = self.add_virtual_biguint_target(
+        // Will be ranged checked below.
+        let overflow = self.add_virtual_biguint_target_unsafe(
             a.value.num_limbs() + b.value.num_limbs() - modulus.num_limbs(),
         );
 
@@ -454,8 +456,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
 
     fn inv_nonnative<FF: PrimeField>(&mut self, x: &NonNativeTarget<FF>) -> NonNativeTarget<FF> {
         let num_limbs = x.value.num_limbs();
-        let inv_biguint = self.add_virtual_biguint_target(num_limbs);
-        let div = self.add_virtual_biguint_target(num_limbs);
+        let inv_biguint = self.add_virtual_biguint_target_unsafe(num_limbs);
+        let div = self.add_virtual_biguint_target_unsafe(num_limbs);
 
         self.add_simple_generator(NonNativeInverseGenerator::<F, D, FF> {
             x: x.clone(),
@@ -499,7 +501,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     }
 
     fn bool_to_nonnative<FF: PrimeField>(&mut self, b: &BoolTarget) -> NonNativeTarget<FF> {
-        let limbs = vec![U32Target(b.target)];
+        // BoolTarget's range is within U32Target's range.
+        let limbs = vec![U32Target::from_target_unsafe(b.target)];
         let value = BigUintTarget { limbs };
 
         NonNativeTarget {
@@ -518,7 +521,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
 
         for i in 0..num_limbs {
             let limb = x.value.get_limb(i);
-            let bit_targets = self.split_le_base::<2>(limb.0, 32);
+            let bit_targets = self.split_le_base::<2>(limb.target, 32);
             let mut bits: Vec<_> = bit_targets
                 .iter()
                 .map(|&t| BoolTarget::new_unsafe(t))
@@ -610,7 +613,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
             .iter()
             .cloned()
             .chain(self.b.value.limbs.clone())
-            .map(|l| l.0)
+            .map(|l| l.target)
             .collect()
     }
 
@@ -686,7 +689,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
     fn dependencies(&self) -> Vec<Target> {
         self.summands
             .iter()
-            .flat_map(|summand| summand.value.limbs.iter().map(|limb| limb.0))
+            .flat_map(|summand| summand.value.limbs.iter().map(|limb| limb.target))
             .collect()
     }
 
@@ -772,7 +775,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
             .iter()
             .cloned()
             .chain(self.b.value.limbs.clone())
-            .map(|l| l.0)
+            .map(|l| l.target)
             .collect()
     }
 
@@ -850,7 +853,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
             .iter()
             .cloned()
             .chain(self.b.value.limbs.clone())
-            .map(|l| l.0)
+            .map(|l| l.target)
             .collect()
     }
 
@@ -912,7 +915,7 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: PrimeField> SimpleGenerat
     }
 
     fn dependencies(&self) -> Vec<Target> {
-        self.x.value.limbs.iter().map(|&l| l.0).collect()
+        self.x.value.limbs.iter().map(|&l| l.target).collect()
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {

@@ -235,7 +235,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderCurve<F, D>
     // the point in compressed form (bit vector).
     fn compress_point<C: Curve>(&mut self, p: &AffinePointTarget<C>) -> CompressedPointTarget {
         let mut bits = biguint_to_bits_target::<F, D>(self, &p.y.value);
-        let x_bits_low_32 = self.split_le_base::<2>(p.x.value.get_limb(0).0, 32);
+        let x_bits_low_32 = self.split_le_base::<2>(p.x.value.get_limb(0).target, 32);
 
         let a = bits[0].target;
         let b = x_bits_low_32[0];

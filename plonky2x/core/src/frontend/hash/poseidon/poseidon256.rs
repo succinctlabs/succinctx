@@ -115,7 +115,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 let hash_byte_vec = bit_list
                     .chunks(8)
-                    .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i].target); 8]))
+                    .map(|chunk| ByteVariable(array![i => BoolVariable::from(chunk[i]); 8]))
                     .collect::<Vec<_>>();
 
                 hash_byte_vec
