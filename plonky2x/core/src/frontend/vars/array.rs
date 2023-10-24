@@ -126,7 +126,7 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    /// Given an `array` of variables, and a dynamic `selector`, returns `array[selector]` as a variable.
+    /// Given `array` of variables and dynamic `selector`, returns `array[selector]` as a variable.
     pub fn select_array<V: CircuitVariable>(&mut self, array: &[V], selector: Variable) -> V {
         // The accumulator holds the variable of the selected result
         let mut accumulator = array[0].clone();
@@ -143,8 +143,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         accumulator
     }
 
-    /// Given an `array` of variables, and a dynamic `selector`, returns `array[selector]` as a variable using the random access gate.
-    /// This should only be used in cases where the CircuitVariable has a very small number of variables, otherwise the `random_access` gate will blow up
+    /// Given an `array` of variables, and a dynamic `selector`, returns `array[selector]` as a
+    /// variable using the random access gate. This should only be used in cases where the
+    /// CircuitVariable has a very small number of variables, otherwise the `random_access` gate
+    /// will blow up.
     pub fn select_array_random_gate<V: CircuitVariable>(
         &mut self,
         array: &[V],
@@ -159,7 +161,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let mut pos_i_targets: Vec<Target> = (0..array.len())
                 .map(|j| array[j].variables()[i].0)
                 .collect();
-            // Pad the length of pos_vars to the nearest power of 2, random_access constrain len of selected vec to be power of 2
+            // Pad the length of pos_vars to the nearest power of 2, random_access constrains the
+            // length of the selected vec to be power of 2
             let padded_len = pos_i_targets.len().next_power_of_two();
             pos_i_targets.resize_with(padded_len, Default::default);
 
@@ -174,9 +177,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::from_variables_unsafe(&selected_vars)
     }
 
-    /// Given an `array` of variables, and a dynamic `index` start_idx, returns `array[start_idx..start_idx+sub_array_size]` as an `array`.
-    /// The `seed` is used to generate randomness for the proof.
-    /// The security of each challenge is log2(field_size) - log2(array_size), so the total security is log2(field_size) - log2(array_size) * num_loops.
+    /// Given an `array` of variables, and a dynamic `index` start_idx, returns
+    /// `array[start_idx..start_idx+sub_array_size]` as an `array`.
+    ///
+    /// `seed` is used to generate randomness for the proof.
+    ///
+    /// The security of each challenge is log2(field_size) - log2(array_size), so the total security
+    /// is (log2(field_size) - log2(array_size)) * num_loops.
     ///
     /// This function does the following to extract the subarray:
     ///     1) Generate a random challenge for each loop, which is referred to as r.
@@ -191,7 +198,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         start_idx: Variable,
         seed: &[ByteVariable],
     ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
-        const MIN_SEED_BITS: usize = 120; // TODO: Seed it with 120 bits.  Need to figure out if this is enough bits of security.
+        // TODO: Seed with 120 bits. Check if this is enough bits of security.
+        const MIN_SEED_BITS: usize = 120;
 
         let mut input_stream = VariableStream::new();
         input_stream.write(array);
@@ -233,8 +241,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // Loop 3 times to increase the security of the proof.
         // The security of each loop is log2(field_size) - log2(array_size).
-        // Ex. For an array of size 2^14, and a field size of 2^64, each loop provides
-        //     50 bits of security.
+        // Ex. For array size 2^14, and field size 2^64, each loop provides 50 bits of security.
         for i in 0..NUM_LOOPS {
             let sub_array_size = self.constant(L::Field::from_canonical_usize(SUB_ARRAY_SIZE));
             let end_idx = self.add(start_idx, sub_array_size);
