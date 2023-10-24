@@ -3,7 +3,7 @@ pragma solidity ^0.8.16;
 
 import {StorageOracle} from "src/examples/StorageOracle.sol";
 
-/// @notice Fetch Noun ownership from L1 and
+/// @notice Fetch Noun ownership from L1 and project on the chain this contract is deployed on.
 contract NounsOwnership {
     /// @dev L1 Nouns NFT contract: https://etherscan.io/address/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03
     address internal constant NOUNS_ADDRESS = 0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03;

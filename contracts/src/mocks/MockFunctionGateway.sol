@@ -5,6 +5,11 @@ import {VmSafe} from "forge-std/Vm.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 import {IFunctionGateway} from "../interfaces/IFunctionGateway.sol";
 
+/// @title MockFunctionGateway
+/// @notice A Mock version of FunctionGateway for testing.
+/// @dev This contract is only meant to be used in tests. To use it, create a json fixture with keys "input"
+///      and "output". Call loadFixture() with the path, then this contract will automatically fulfill
+///      requests with the output.
 contract MockFunctionGateway is IFunctionGateway {
     VmSafe private constant vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
     uint32 public nonce;
