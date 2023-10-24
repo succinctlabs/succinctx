@@ -8,8 +8,8 @@ import {IFunctionGateway} from "../interfaces/IFunctionGateway.sol";
 /// @title MockFunctionGateway
 /// @notice A Mock version of FunctionGateway for testing.
 /// @dev This contract is only meant to be used in tests. To use it, either (1) create a json fixture with keys "input"
-///      and "output" and call loadFixture() with the path or (2) loadInputOutput desired "input" and "output".
-///      then this contract will automatically fulfill requests with input with the output.
+///      and "output" and call loadFixture() with the path or (2) call loadInputOutput with desired "input" and
+///      "output", then this contract will automatically fulfill requests with input with the output.
 contract MockFunctionGateway is IFunctionGateway {
     VmSafe private constant vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
     uint32 public nonce;
