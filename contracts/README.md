@@ -36,7 +36,7 @@ Note: `CREATE2_SALT` **MUST** stay the same between the entire deployment.
 
 ### Upgrades via EOA
 
-When the `TIMELOCK` is set to an EOA, you can directly upgrade the proxy proxy contract by setting `UPGRADE_VIA_EOA=TRUE`, changing the `CREATE2_SALT` (or bytecode) of your previous implementation contract, and then running `script/deploy.sh` again.
+When the `TIMELOCK` is set to an EOA, you can directly upgrade the proxy contract by setting `UPGRADE_VIA_EOA=TRUE`, changing the `CREATE2_SALT` (or bytecode) of your previous implementation contract, and then running `script/deploy.sh` again.
 
 ### Upgrades via Timelock & Guardian
 
