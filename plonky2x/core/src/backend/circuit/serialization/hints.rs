@@ -60,7 +60,6 @@ use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
     BeaconValidatorsVariable, BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
-use crate::frontend::eth::mpt::generators::LteGenerator;
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
@@ -369,9 +368,6 @@ where
         r.register_simple::<SHA256Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(
             sha256_generator_id,
         );
-
-        let le_generator_id = LteGenerator::<L, D>::id();
-        r.register_simple::<LteGenerator<L, D>>(le_generator_id);
 
         let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
             ScalarMulEd25519<L::Field, L::CubicParams>,
