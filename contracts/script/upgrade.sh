@@ -1,4 +1,4 @@
-USAGE="Usage: ./upgrade.sh <schedule_or_execute> <signatures> <chain_ids>\n  Example: ./upgrade.sh \"schedule\" \"TelepathyRouter\" \"5 100\""
+USAGE="Usage: ./upgrade.sh <schedule_or_execute> <contracts> <chain_ids>\n  Example: ./upgrade.sh \"schedule\" \"TelepathyRouter\" \"5 100\""
 
 if [ -z "$1" ]; then
 	echo $USAGE

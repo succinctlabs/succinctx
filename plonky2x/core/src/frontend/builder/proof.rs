@@ -25,6 +25,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .verify_proof::<P::Config>(proof_with_pis, inner_verifier_data, inner_common_data);
     }
 
+    // @ audit
     pub fn constant_verifier_data<P: PlonkParameters<D, Field = L::Field>>(
         &mut self,
         data: &CircuitData<P::Field, P::Config, D>,

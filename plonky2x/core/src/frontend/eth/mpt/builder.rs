@@ -154,19 +154,22 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let prefix_extension_even = self.is_equal(prefix, prefix_extension_even);
             let prefix_extension_odd = self.is_equal(prefix, prefix_extension_odd);
 
-            let offset_even = self.mul(prefix_extension_even.0, two);
-            let offset_odd = self.mul(prefix_extension_odd.0, one);
+            let offset_even = self.mul(prefix_extension_even.variable, two);
+            let offset_odd = self.mul(prefix_extension_odd.variable, one);
             let offset = self.add(offset_even, offset_odd);
             let branch_key = self.select_array(key_path.clone().as_slice(), current_key_idx);
             let branch_key_variable: Variable = self.byte_to_variable(branch_key); // can be unsafe since nibbles are checked
 
             // Case 1
             let is_branch_and_key_terminated = self.and(is_branch, key_terminated);
-            let case_1_value = self.mul(is_branch_and_key_terminated.0, tree_radix);
+            let case_1_value = self.mul(is_branch_and_key_terminated.variable, tree_radix);
             let b = self.not(key_terminated);
             let is_branch_and_key_not_terminated = self.and(is_branch, b);
-            let case_2_value = self.mul(is_branch_and_key_not_terminated.0, branch_key_variable);
-            let case_3_value = self.mul(is_leaf.0, one);
+            let case_2_value = self.mul(
+                is_branch_and_key_not_terminated.variable,
+                branch_key_variable,
+            );
+            let case_3_value = self.mul(is_leaf.variable, one);
 
             let c = self.add(case_1_value, case_2_value);
             let updated_current_node_id_idx = self.add(c, case_3_value); // TODO: make this more concise
@@ -174,8 +177,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let updated_current_node_id =
                 self.select_array(decoded_list.as_slice(), updated_current_node_id_idx);
             // If finished == 1, then we should not update the current_node_id
-            current_node_id =
-                self.select_array(&[updated_current_node_id, current_node_id], finished.0);
+            current_node_id = self.select_array(
+                &[updated_current_node_id, current_node_id],
+                finished.variable,
+            );
 
             let mut do_path_remainder_check = self.not(finished);
             do_path_remainder_check = self.and(do_path_remainder_check, is_leaf);
@@ -183,9 +188,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             do_path_remainder_check = self.and(do_path_remainder_check, d);
 
             let e = self.mul(decoded_element_lens[0], two);
-            let f = self.mul(offset, do_path_remainder_check.0);
+            let f = self.mul(offset, do_path_remainder_check.variable);
             let mut check_length = self.sub(e, f);
-            check_length = self.mul(check_length, do_path_remainder_check.0);
+            check_length = self.mul(check_length, do_path_remainder_check.variable);
 
             self.assert_subarray_equal(
                 &path,
@@ -195,8 +200,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 check_length,
             );
 
-            current_key_idx = self.add(current_key_idx, is_branch_and_key_not_terminated.0);
-            let j = self.mul(is_leaf.0, check_length);
+            current_key_idx = self.add(current_key_idx, is_branch_and_key_not_terminated.variable);
+            let j = self.mul(is_leaf.variable, check_length);
             current_key_idx = self.add(current_key_idx, j);
 
             let prefix_leaf_even_and_leaf = self.and(prefix_leaf_even, is_leaf);

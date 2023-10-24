@@ -32,7 +32,7 @@ impl<L: PlonkParameters<D>, const D: usize> Blake2bAccelerator<L, D> {
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Pads a BLAKE2B input
-    pub fn curta_blake2b_pad<const MAX_NUM_CHUNKS: usize>(
+    fn pad_message_blake2b<const MAX_NUM_CHUNKS: usize>(
         &mut self,
         message: &[ByteVariable],
     ) -> Vec<ByteVariable> {
@@ -59,7 +59,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         message: &[ByteVariable],
         message_len: Variable,
     ) -> Bytes32Variable {
-        let padded_message = self.curta_blake2b_pad::<MAX_NUM_CHUNKS>(message);
+        let padded_message = self.pad_message_blake2b::<MAX_NUM_CHUNKS>(message);
 
         let message_target_bytes = padded_message
             .iter()
@@ -95,7 +95,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Verifies a blake2b curta instance
-    pub fn curta_constrain_blake2b(&mut self, accelerator: &Blake2bAccelerator<L, D>) {
+    fn curta_constrain_blake2b(&mut self, accelerator: &Blake2bAccelerator<L, D>) {
         let mut padded_messages = Vec::new();
         let mut msg_lengths = Vec::new();
         let mut digests = Vec::new();

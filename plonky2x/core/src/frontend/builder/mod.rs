@@ -19,8 +19,8 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
-use super::hash::blake2::blake2b_curta::Blake2bAccelerator;
-use super::hash::sha::sha256_curta::Sha256Accelerator;
+use super::hash::blake2::curta::Blake2bAccelerator;
+use super::hash::sha256::curta::Sha256Accelerator;
 use super::hint::HintGenerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
@@ -311,6 +311,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.api.inverse(i1.0).into()
     }
 
+    // @audit
     /// If selector is true, yields i1 else yields i2.
     pub fn select<V: CircuitVariable>(&mut self, selector: BoolVariable, i1: V, i2: V) -> V {
         assert_eq!(i1.targets().len(), i2.targets().len());
@@ -327,7 +328,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Returns 1 if i1 is zero, 0 otherwise as a boolean.
     pub fn is_zero(&mut self, i1: Variable) -> BoolVariable {
         let zero = self.api.zero();
-        self.api.is_equal(i1.0, zero).target.into()
+
+        self.api.is_equal(i1.0, zero).into()
     }
 
     /// Fails if i1 != i2.
@@ -341,11 +343,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn is_equal<V: CircuitVariable>(&mut self, i1: V, i2: V) -> BoolVariable {
         let mut result = self._true();
         for (t1, t2) in i1.targets().iter().zip(i2.targets().iter()) {
-            let target_eq = BoolVariable(Variable(self.api.is_equal(*t1, *t2).target));
+            let target_eq: BoolVariable = self.api.is_equal(*t1, *t2).into();
             result = self.and(target_eq, result);
         }
         result
     }
+    // @end-audit
 
     /// Connects two variables.
     pub fn connect<V: CircuitVariable>(&mut self, i1: V, i2: V) {

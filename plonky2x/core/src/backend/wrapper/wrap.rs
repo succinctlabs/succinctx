@@ -253,28 +253,10 @@ impl<L: PlonkParameters<D>, const D: usize> WrappedOutput<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use hex::decode;
-
     use super::*;
     use crate::backend::circuit::{DefaultParameters, Groth16WrapperParameters};
     use crate::frontend::builder::CircuitBuilder;
-    use crate::frontend::hash::sha::sha256::sha256;
     use crate::utils;
-
-    fn to_bits(msg: Vec<u8>) -> Vec<bool> {
-        let mut res = Vec::new();
-        for bit in msg {
-            let char = bit;
-            for j in 0..8 {
-                if (char & (1 << (7 - j))) != 0 {
-                    res.push(true);
-                } else {
-                    res.push(false);
-                }
-            }
-        }
-        res
-    }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -311,33 +293,11 @@ mod tests {
         dummy_wrapped_proof.save(dummy_path).unwrap();
         println!("Saved dummy_circuit");
 
-        // Set up the circuit and wrapper.
-        let msg = b"plonky2";
-        let msg_bits = to_bits(msg.to_vec());
-        let expected_digest = "8943a85083f16e93dc92d6af455841daacdae5081aa3125b614a626df15461eb";
-        let digest_bits = to_bits(decode(expected_digest).unwrap());
-
+        // Set up a inner circuit and wrapper.
         let mut builder = CircuitBuilder::<DefaultParameters, 2>::new();
-        let targets = msg_bits
-            .iter()
-            .map(|b| builder.api.constant_bool(*b))
-            .collect::<Vec<_>>();
-        let msg_hash = sha256(&mut builder.api, &targets);
-        for _ in 0..5 {
-            let _msg_hash = sha256(&mut builder.api, &targets);
-        }
-
         let a = builder.evm_read::<ByteVariable>();
         let _ = builder.evm_read::<ByteVariable>();
         builder.evm_write(a);
-
-        for i in 0..digest_bits.len() {
-            if digest_bits[i] {
-                builder.api.assert_one(msg_hash[i].target);
-            } else {
-                builder.api.assert_zero(msg_hash[i].target);
-            }
-        }
 
         let circuit = builder.build();
         let mut input = circuit.input();

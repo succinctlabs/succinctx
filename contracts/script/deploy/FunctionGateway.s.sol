@@ -13,7 +13,7 @@ contract DeployFunctionGateway is BaseScript {
             "Deploying FunctionGateway contract on chain %s", Strings.toString(block.chainid)
         );
 
-        address FEE_VAULT = envAddress("FEE_VAULT", block.chainid);
+        address SUCCINCT_FEE_VAULT = envAddress("SUCCINCT_FEE_VAULT", block.chainid);
         address TIMELOCK = envAddress("TIMELOCK", block.chainid);
         address GUARDIAN = envAddress("GUARDIAN", block.chainid);
         bytes32 CREATE2_SALT = envBytes32("CREATE2_SALT");
@@ -25,7 +25,7 @@ contract DeployFunctionGateway is BaseScript {
         if (!UPGRADE) {
             gateway =
                 FunctionGateway(address(new Proxy{salt: CREATE2_SALT}(address(gatewayImpl), "")));
-            gateway.initialize(FEE_VAULT, TIMELOCK, GUARDIAN);
+            gateway.initialize(SUCCINCT_FEE_VAULT, TIMELOCK, GUARDIAN);
         } else {
             gateway = FunctionGateway(envAddress("FUNCTION_GATEWAY", block.chainid));
             gateway.upgradeTo(address(gatewayImpl));
