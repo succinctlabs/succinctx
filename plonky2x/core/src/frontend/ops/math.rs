@@ -1,11 +1,8 @@
 //! Arithmetic operations.
 
-use std::marker::PhantomData;
-
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::mpt::generators::LteGenerator;
-use crate::prelude::{BoolVariable, Variable};
+use crate::prelude::BoolVariable;
 
 /// The addition operation.
 ///
@@ -205,20 +202,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let lower_bound_satisfied = self.lte(lhs, variable.clone());
         let upper_bound_satisfied = self.lt(variable, rhs);
         self.and(lower_bound_satisfied, upper_bound_satisfied)
-    }
-}
-
-impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
-    fn lte(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
-        // TODO: Need to constrain generator result
-        let generator: LteGenerator<L, D> = LteGenerator {
-            lhs: self,
-            rhs,
-            output: builder.init::<BoolVariable>(),
-            _phantom: PhantomData,
-        };
-        builder.add_simple_generator(generator.clone());
-        generator.output
     }
 }
 
