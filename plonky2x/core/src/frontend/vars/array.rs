@@ -13,7 +13,6 @@ use super::{BoolVariable, ByteVariable, CircuitVariable, ValueStream, Variable, 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::hint::simple::hint::Hint;
-use crate::prelude::{Add, Mul, Sub};
 
 /// A variable in the circuit representing a fixed length array of variables.
 /// We use this to avoid stack overflow arrays associated with fixed-length arrays.
@@ -127,7 +126,7 @@ impl<V: CircuitVariable, const N: usize> CircuitVariable for ArrayVariable<V, N>
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    /// Given an `array` of variables, and a dynamic `selector`, returns `array[selector]` as a variable.
+    /// Given `array` of variables and dynamic `selector`, returns `array[selector]` as a variable.
     pub fn select_array<V: CircuitVariable>(&mut self, array: &[V], selector: Variable) -> V {
         // The accumulator holds the variable of the selected result
         let mut accumulator = array[0].clone();
@@ -144,8 +143,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         accumulator
     }
 
-    /// Given an `array` of variables, and a dynamic `selector`, returns `array[selector]` as a variable using the random access gate.
-    /// This should only be used in cases where the CircuitVariable has a very small number of variables, otherwise the `random_access` gate will blow up
+    /// Given an `array` of variables, and a dynamic `selector`, returns `array[selector]` as a
+    /// variable using the random access gate. This should only be used in cases where the
+    /// CircuitVariable has a very small number of variables, otherwise the `random_access` gate
+    /// will blow up.
     pub fn select_array_random_gate<V: CircuitVariable>(
         &mut self,
         array: &[V],
@@ -160,7 +161,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let mut pos_i_targets: Vec<Target> = (0..array.len())
                 .map(|j| array[j].variables()[i].0)
                 .collect();
-            // Pad the length of pos_vars to the nearest power of 2, random_access constrain len of selected vec to be power of 2
+            // Pad the length of pos_vars to the nearest power of 2, random_access constrains the
+            // length of the selected vec to be power of 2
             let padded_len = pos_i_targets.len().next_power_of_two();
             pos_i_targets.resize_with(padded_len, Default::default);
 
@@ -175,13 +177,29 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::from_variables_unsafe(&selected_vars)
     }
 
+    /// Given an `array` of variables, and a dynamic `index` start_idx, returns
+    /// `array[start_idx..start_idx+sub_array_size]` as an `array`.
+    ///
+    /// `seed` is used to generate randomness for the proof.
+    ///
+    /// The security of each challenge is log2(field_size) - log2(array_size), so the total security
+    /// is (log2(field_size) - log2(array_size)) * num_loops.
+    ///
+    /// This function does the following to extract the subarray:
+    ///     1) Generate a random challenge for each loop, which is referred to as r.
+    ///     2) If within the subarray, multiply subarray[i] by r^i and add to the accumulator.
+    ///         a) i is the index within the subarray.
+    ///         b) r^i is the challenge raised to the power of i.
+    ///     3) If outside of the subarray, don't add to the accumulator.
+    ///     4) Assert that the accumulator is equal to the accumulator from the hinted subarray.
     pub fn get_fixed_subarray<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
         array: &ArrayVariable<Variable, ARRAY_SIZE>,
         start_idx: Variable,
         seed: &[ByteVariable],
     ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
-        const MIN_SEED_BITS: usize = 120; // TODO: Seed it with 120 bits.  Need to figure out if this is enough bits of security.
+        // TODO: Seed with 120 bits. Check if this is enough bits of security.
+        const MIN_SEED_BITS: usize = 120;
 
         let mut input_stream = VariableStream::new();
         input_stream.write(array);
@@ -213,39 +231,60 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         challenger.observe_elements(seed_targets.as_slice());
 
-        for _i in 0..2 {
-            let challenges = challenger
-                .get_n_challenges(&mut self.api, SUB_ARRAY_SIZE)
-                .iter()
-                .map(|x| Variable::from(*x))
-                .collect_vec();
+        const NUM_LOOPS: usize = 3;
+
+        let challenges = challenger
+            .get_n_challenges(&mut self.api, NUM_LOOPS)
+            .iter()
+            .map(|x| Variable::from(*x))
+            .collect_vec();
+
+        // Loop 3 times to increase the security of the proof.
+        // The security of each loop is log2(field_size) - log2(array_size).
+        // Ex. For array size 2^14, and field size 2^64, each loop provides 50 bits of security.
+        for i in 0..NUM_LOOPS {
             let sub_array_size = self.constant(L::Field::from_canonical_usize(SUB_ARRAY_SIZE));
             let end_idx = self.add(start_idx, sub_array_size);
-            let mut within_sub_array = self.zero::<Variable>();
-            let one = self.one();
+
+            let false_v = self._false();
+            let true_v = self._true();
+            let mut within_sub_array = false_v;
+            let one: Variable = self.one();
 
             let mut accumulator1 = self.zero::<Variable>();
-            let mut j_target = self.zero();
+
+            // r is the source of randomness from the challenger for this loop.
+            let mut r = one;
             for j in 0..ARRAY_SIZE {
-                let at_start_idx = self.is_equal(j_target, start_idx);
-                within_sub_array = within_sub_array.add(at_start_idx.variables()[0], self);
-                let at_end_idx = self.is_equal(j_target, end_idx);
-                within_sub_array = within_sub_array.sub(at_end_idx.variables()[0], self);
+                let idx = self.constant::<Variable>(L::Field::from_canonical_usize(j));
 
-                let mut subarray_idx = j_target.sub(start_idx, self);
-                subarray_idx = subarray_idx.mul(within_sub_array, self);
+                // If at the start_idx, then set within_sub_array to true.
+                let at_start_idx = self.is_equal(idx, start_idx);
+                within_sub_array = self.select(at_start_idx, true_v, within_sub_array);
 
-                let challenge = self.select_array_random_gate(&challenges, subarray_idx);
-                let mut product = self.mul(array[j], challenge);
-                product = within_sub_array.mul(product, self);
-                accumulator1 = accumulator1.add(product, self);
+                // If at the end_idx, then set within_sub_array to false.
+                let at_end_idx = self.is_equal(idx, end_idx);
+                within_sub_array = self.select(at_end_idx, false_v, within_sub_array);
 
-                j_target = j_target.add(one, self);
+                // If within the subarray, multiply the current r by the challenge.
+                let multiplier = self.select(within_sub_array, challenges[i], one);
+                // For subarray[i], the multiplier should be r^i. i is the index within the subarray.
+                // The value of r outside of the subarray is not used.
+                r = self.mul(r, multiplier);
+
+                // Multiply the current r by the current array element.
+                let temp_accum = self.mul(r, array[j]);
+                // If outside of the subarray, don't add to the accumulator.
+                let temp_accum = self.mul(within_sub_array.variable, temp_accum);
+
+                accumulator1 = self.add(accumulator1, temp_accum);
             }
 
             let mut accumulator2 = self.zero();
+            let mut r = one;
             for j in 0..SUB_ARRAY_SIZE {
-                let product = self.mul(sub_array[j], challenges[j]);
+                r = self.mul(r, challenges[i]);
+                let product = self.mul(r, sub_array[j]);
                 accumulator2 = self.add(accumulator2, product);
             }
 
@@ -427,9 +466,9 @@ mod tests {
     fn test_get_fixed_subarray() {
         utils::setup_logger();
         type F = GoldilocksField;
-        const ARRAY_SIZE: usize = 100;
-        const SUB_ARRAY_SIZE: usize = 10;
-        const START_IDX: usize = 15;
+        const ARRAY_SIZE: usize = 12800;
+        const SUB_ARRAY_SIZE: usize = 3200;
+        const START_IDX: usize = 400;
 
         let mut builder = DefaultBuilder::new();
 
