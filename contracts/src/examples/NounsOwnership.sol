@@ -22,9 +22,9 @@ contract NounsOwnership {
     /// @dev This can be called for an existing noun to update the owner.
     /// @param _tokenId The token Id of the noun to claim. For example, to claim noun #100, this should be
     /// 		100.
-    function claimOwner(uint256 _tokenId) external returns (bytes32 requestId) {
+    function claimOwner(uint256 _tokenId) external returns (bytes32 requestHash) {
         uint256 slot = uint256(keccak256(abi.encode(_tokenId, OWNERS_SLOT)));
-        requestId = StorageOracle(STORAGE_ORACLE).requestStorageSlot(NOUNS_ADDRESS, slot);
+        requestHash = StorageOracle(STORAGE_ORACLE).requestStorageSlot(NOUNS_ADDRESS, slot);
     }
 
     /// @param _tokenId The token Id of the noun to check ownership of.

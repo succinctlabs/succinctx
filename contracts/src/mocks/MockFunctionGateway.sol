@@ -7,9 +7,9 @@ import {IFunctionGateway} from "../interfaces/IFunctionGateway.sol";
 
 /// @title MockFunctionGateway
 /// @notice A Mock version of FunctionGateway for testing.
-/// @dev This contract is only meant to be used in tests. To use it, create a json fixture with keys "input"
-///      and "output". Call loadFixture() with the path, then this contract will automatically fulfill
-///      requests with the output.
+/// @dev This contract is only meant to be used in tests. To use it, either (1) create a json fixture with keys "input"
+///      and "output" and call loadFixture() with the path or (2) loadInputOutput desired "input" and "output".
+///      then this contract will automatically fulfill requests with input with the output.
 contract MockFunctionGateway is IFunctionGateway {
     VmSafe private constant vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
     uint32 public nonce;
@@ -33,6 +33,11 @@ contract MockFunctionGateway is IFunctionGateway {
         bytes memory output = stdJson.readBytes(json, "$.output");
         bytes32 inputHash = sha256(input);
         outputs[inputHash] = output;
+    }
+
+    function loadInputOutput(bytes memory _input, bytes memory _output) external {
+        bytes32 inputHash = sha256(_input);
+        outputs[inputHash] = _output;
     }
 
     function requestCallback(
@@ -68,21 +73,19 @@ contract MockFunctionGateway is IFunctionGateway {
         );
         nonce++;
 
-        // If fixture has been pre-loaded, automatically fulfill and callback.
+        // Assume outputs have been pre-loaded, and automatically fulfill and callback.
         bytes memory output = outputs[inputHash];
-        if (output.length > 0) {
-            bytes32 outputHash = sha256(output);
+        bytes32 outputHash = sha256(output);
 
-            isCallback = true;
-            (bool status,) =
-                msg.sender.call(abi.encodeWithSelector(_callbackSelector, output, _context));
-            isCallback = false;
-            if (!status) {
-                revert CallbackFailed(_callbackSelector, output, _context);
-            }
-
-            emit RequestFulfilled(nonce, _functionId, inputHash, outputHash);
+        isCallback = true;
+        (bool status,) =
+            msg.sender.call(abi.encodeWithSelector(_callbackSelector, output, _context));
+        isCallback = false;
+        if (!status) {
+            revert CallbackFailed(_callbackSelector, output, _context);
         }
+
+        emit RequestFulfilled(nonce, _functionId, inputHash, outputHash);
 
         return requestHash;
     }
@@ -126,25 +129,23 @@ contract MockFunctionGateway is IFunctionGateway {
             msg.value
         );
 
-        // If fixture has been pre-loaded, automatically fulfill and callback.
+        // Assume outputs have been pre-loaded, and automatically fulfill and callback.
         bytes32 inputHash = sha256(_input);
         bytes memory output = outputs[inputHash];
-        if (output.length > 0) {
-            bytes32 outputHash = sha256(output);
+        bytes32 outputHash = sha256(output);
 
-            verifiedFunctionId = _functionId;
-            verifiedInputHash = inputHash;
-            verifiedOutput = output;
-            (bool status,) = _callbackAddress.call(_callbackData);
-            if (!status) {
-                revert CallFailed(_callbackAddress, _callbackData);
-            }
-            delete verifiedFunctionId;
-            delete verifiedInputHash;
-            delete verifiedOutput;
-
-            emit Call(_functionId, inputHash, outputHash);
+        verifiedFunctionId = _functionId;
+        verifiedInputHash = inputHash;
+        verifiedOutput = output;
+        (bool status,) = _callbackAddress.call(_callbackData);
+        if (!status) {
+            revert CallFailed(_callbackAddress, _callbackData);
         }
+        delete verifiedFunctionId;
+        delete verifiedInputHash;
+        delete verifiedOutput;
+
+        emit Call(_functionId, inputHash, outputHash);
     }
 
     function verifiedCall(bytes32 _functionId, bytes memory _input)

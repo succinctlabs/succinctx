@@ -25,8 +25,12 @@ contract StorageOracle is TimelockedUpgradeable {
         L1BlockPrecompile(0x4200000000000000000000000000000000000015);
     uint32 public constant DEFAULT_GAS_LIMIT = 1000000;
 
-    address public gateway;
-    bytes32 public functionId;
+    /// @notice The FunctionGateway contract address.
+    address public GATEWAY;
+
+    /// @notice The identifier for the storage verifier.
+    bytes32 public FUNCTION_ID;
+
     /// @notice Mapping for L1 account -> storage slot number -> storage slot value.
     mapping(address => mapping(uint256 => StorageSlot)) public slots;
 
@@ -51,8 +55,8 @@ contract StorageOracle is TimelockedUpgradeable {
         external
         initializer
     {
-        gateway = _gateway;
-        functionId = _functionId;
+        GATEWAY = _gateway;
+        FUNCTION_ID = _functionId;
         __TimelockedUpgradeable_init(_timelock, _guardian);
     }
 
@@ -60,7 +64,7 @@ contract StorageOracle is TimelockedUpgradeable {
     function requestStorageSlot(address _account, uint256 _slot)
         external
         payable
-        returns (bytes32 requestId)
+        returns (bytes32 requestHash)
     {
         bytes32 blockHash = L1_BLOCK.hash();
         if (blockHash == bytes32(0)) {
@@ -73,8 +77,8 @@ contract StorageOracle is TimelockedUpgradeable {
 
         bytes memory input = abi.encode(blockHash, _account, _slot);
         bytes memory context = abi.encode(blockNumber, _account, _slot);
-        requestId = IFunctionGateway(gateway).requestCallback{value: msg.value}(
-            functionId, input, context, StorageOracle.handleStorageSlot.selector, DEFAULT_GAS_LIMIT
+        requestHash = IFunctionGateway(GATEWAY).requestCallback{value: msg.value}(
+            FUNCTION_ID, input, context, StorageOracle.handleStorageSlot.selector, DEFAULT_GAS_LIMIT
         );
 
         emit SlotRequested(blockNumber, blockHash, _account, _slot);
@@ -83,7 +87,7 @@ contract StorageOracle is TimelockedUpgradeable {
     /// @dev Callback function to recieve the storage slot value from the FunctionGateway. If for existing slot, MUST update
     ///      for a more recent blockNumber.
     function handleStorageSlot(bytes memory _output, bytes memory _context) external {
-        if (msg.sender != gateway) {
+        if (msg.sender != GATEWAY || !IFunctionGateway(GATEWAY).isCallback()) {
             revert NotFromFunctionGateway(msg.sender);
         }
 
