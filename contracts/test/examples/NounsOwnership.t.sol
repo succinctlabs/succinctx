@@ -80,11 +80,25 @@ contract NounsOwnershipTest is Test, TestErrors, TestEvents {
         nounsOwnership = address(new NounsOwnership(storageOracle));
     }
 
-    function test_OwnerOf_WithMock() public onlyWithFork {
-        // Use input and output from fixture
+    function test_OwnerOf_WithLoadFixture() public onlyWithFork {
+        // Set input and output from fixture
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/test/fixtures/nouns-fixture.json");
         MockFunctionGateway(gateway).loadFixture(path);
+
+        // Request slot
+        NounsOwnership(nounsOwnership).claimOwner(NOUN_NUMBER);
+
+        address owner = NounsOwnership(nounsOwnership).ownerOf(NOUN_NUMBER);
+        assertEq(NOUN_OWNER, owner);
+    }
+
+    function test_OwnerOf_WithLoadInputOutput() public onlyWithFork {
+        // Set input and output from inline
+        MockFunctionGateway(gateway).loadInputOutput(
+            hex"b99c7a251e3880d3560ff23412f4b880c196c252a791a4667694447892c051a70000000000000000000000009c8ff314c9bc7f6e59a9d9225fb22946427edc03f787d5ff306ee7ea1d7b35b5cacd5a837646921c113945dbc3a3b6329ce40033",
+            hex"000000000000000000000000a555d1Ee16780B2d414eD97f4f169c0740099615"
+        );
 
         // Request slot
         NounsOwnership(nounsOwnership).claimOwner(NOUN_NUMBER);
