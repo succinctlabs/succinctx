@@ -24,10 +24,10 @@ forge test
 
 Each contract has it's own deployment file in the form of `script/deploy/{Contract}.s.sol`. Inside each, there is a `Deploy{Contract}` script that will deploy the contract. This allows for programmatic cross-chain deployment of contracts using `script/deploy.sh`.
 
-For example, to deploy SuccinctFeeVault and then FunctionGateway on Chains 5, 420, 84531, and 421613, you would ensure that your `.env` is correctly filled out. Then run `./scripts/deploy.sh <contracts> <chain_ids>` to deploy the contracts:
+For example, to deploy SuccinctFeeVault and then SuccinctGateway on Chains 5, 420, 84531, and 421613, you would ensure that your `.env` is correctly filled out. Then run `./scripts/deploy.sh <contracts> <chain_ids>` to deploy the contracts:
 
 ```sh
-./script/deploy.sh "SuccinctFeeVault FunctionGateway" "5 420 84531 421613"
+./script/deploy.sh "SuccinctFeeVault SuccinctGateway" "5 420 84531 421613"
 ```
 
 Note: `CREATE2_SALT` **MUST** stay the same between the entire deployment.
@@ -56,10 +56,10 @@ Run the upgrade script with the "execute" command (`script/upgrade.sh execute <c
 
 #### Example
 
-To generate and sign a scheduled upgrade for FunctionGateway on Chains 5 and 420, you would ensure that your .env is correctly filled out. Then run `script/upgrade.sh` with "schedule":
+To generate and sign a scheduled upgrade for SuccinctGateway on Chains 5 and 420, you would ensure that your .env is correctly filled out. Then run `script/upgrade.sh` with "schedule":
 
 ```sh
-./script/upgrade.sh "schedule" "FunctionGateway" "5 420"
+./script/upgrade.sh "schedule" "SuccinctGateway" "5 420"
 ```
 
 Note: Make sure that your AWS CLI is configured correctly and that you have the necessary permissions to create, access, and delete S3 buckets.
@@ -69,5 +69,5 @@ Note: If you are using a ledger to sign the transaction, set `WALLET_TYPE=LEDGER
 After the Timelocks's `MINIMUM_DELAY` has passed, you can execute the scheduled upgrade by running the script again with "execute":
 
 ```sh
-./script/upgrade.sh "execute" "FunctionGateway" "5 420"
+./script/upgrade.sh "execute" "SuccinctGateway" "5 420"
 ```

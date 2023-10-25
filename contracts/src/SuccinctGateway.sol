@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.16;
 
-import {IFunctionGateway} from "./interfaces/IFunctionGateway.sol";
+import {ISuccinctGateway} from "./interfaces/ISuccinctGateway.sol";
 import {IFunctionVerifier} from "./interfaces/IFunctionVerifier.sol";
 import {FunctionRegistry} from "./FunctionRegistry.sol";
 import {TimelockedUpgradeable} from "./upgrades/TimelockedUpgradeable.sol";
 import {IFeeVault} from "./payments/interfaces/IFeeVault.sol";
 
-contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgradeable {
+contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgradeable {
     /// @dev The address of the fee vault.
     address public feeVault;
 

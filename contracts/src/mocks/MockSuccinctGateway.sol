@@ -3,14 +3,14 @@ pragma solidity ^0.8.16;
 
 import {VmSafe} from "forge-std/Vm.sol";
 import {stdJson} from "forge-std/StdJson.sol";
-import {IFunctionGateway} from "../interfaces/IFunctionGateway.sol";
+import {ISuccinctGateway} from "../interfaces/ISuccinctGateway.sol";
 
-/// @title MockFunctionGateway
-/// @notice A Mock version of FunctionGateway for testing.
+/// @title MockSuccinctGateway
+/// @notice A Mock version of SuccinctGateway for testing.
 /// @dev This contract is only meant to be used in tests. To use it, either (1) create a json fixture with keys "input"
 ///      and "output" and call loadFixture() with the path or (2) call loadInputOutput with desired "input" and
 ///      "output", then this contract will automatically fulfill requests with input with the output.
-contract MockFunctionGateway is IFunctionGateway {
+contract MockSuccinctGateway is ISuccinctGateway {
     VmSafe private constant vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
     uint32 public nonce;
     bytes32 public verifiedFunctionId;
@@ -26,7 +26,7 @@ contract MockFunctionGateway is IFunctionGateway {
         try vm.readFile(_path) returns (string memory data) {
             json = data;
         } catch {
-            revert("MockFunctionGateway: fixture not found");
+            revert("MockSuccinctGateway: fixture not found");
         }
 
         bytes memory input = stdJson.readBytes(json, "$.input");

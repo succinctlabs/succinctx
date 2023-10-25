@@ -3,14 +3,14 @@ pragma solidity ^0.8.16;
 
 import "forge-std/console.sol";
 import {BaseScript} from "../misc/Base.s.sol";
-import {FunctionGateway} from "../../src/FunctionGateway.sol";
+import {SuccinctGateway} from "../../src/SuccinctGateway.sol";
 import {Proxy} from "../../src/upgrades/Proxy.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-contract DeployFunctionGateway is BaseScript {
+contract DeploySuccinctGateway is BaseScript {
     function run() external broadcaster {
         console.log(
-            "Deploying FunctionGateway contract on chain %s", Strings.toString(block.chainid)
+            "Deploying SuccinctGateway contract on chain %s", Strings.toString(block.chainid)
         );
 
         address SUCCINCT_FEE_VAULT = envAddress("SUCCINCT_FEE_VAULT", block.chainid);
@@ -20,19 +20,19 @@ contract DeployFunctionGateway is BaseScript {
         bool UPGRADE = envBool("UPGRADE_VIA_EOA", false);
 
         // Deploy contract
-        FunctionGateway gatewayImpl = new FunctionGateway{salt: CREATE2_SALT}();
-        FunctionGateway gateway;
+        SuccinctGateway gatewayImpl = new SuccinctGateway{salt: CREATE2_SALT}();
+        SuccinctGateway gateway;
         if (!UPGRADE) {
             gateway =
-                FunctionGateway(address(new Proxy{salt: CREATE2_SALT}(address(gatewayImpl), "")));
+                SuccinctGateway(address(new Proxy{salt: CREATE2_SALT}(address(gatewayImpl), "")));
             gateway.initialize(SUCCINCT_FEE_VAULT, TIMELOCK, GUARDIAN);
         } else {
-            gateway = FunctionGateway(envAddress("FUNCTION_GATEWAY", block.chainid));
+            gateway = SuccinctGateway(envAddress("SUCCINCT_GATEWAY", block.chainid));
             gateway.upgradeTo(address(gatewayImpl));
         }
 
         // Write address
-        writeEnvAddress(DEPLOYMENT_FILE, "FUNCTION_GATEWAY", address(gateway));
-        writeEnvAddress(DEPLOYMENT_FILE, "FUNCTION_GATEWAY_IMPL", address(gatewayImpl));
+        writeEnvAddress(DEPLOYMENT_FILE, "SUCCINCT_GATEWAY", address(gateway));
+        writeEnvAddress(DEPLOYMENT_FILE, "SUCCINCT_GATEWAY_IMPL", address(gatewayImpl));
     }
 }

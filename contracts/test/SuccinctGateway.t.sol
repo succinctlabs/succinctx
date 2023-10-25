@@ -5,18 +5,18 @@ import "forge-std/Vm.sol";
 import "forge-std/console.sol";
 import "forge-std/Test.sol";
 
-import {FunctionGateway} from "src/FunctionGateway.sol";
+import {SuccinctGateway} from "src/SuccinctGateway.sol";
 import {
-    IFunctionGateway,
-    IFunctionGatewayEvents,
-    IFunctionGatewayErrors
-} from "src/interfaces/IFunctionGateway.sol";
+    ISuccinctGateway,
+    ISuccinctGatewayEvents,
+    ISuccinctGatewayErrors
+} from "src/interfaces/ISuccinctGateway.sol";
 import {IFunctionRegistry} from "src/interfaces/IFunctionRegistry.sol";
 import {TestConsumer, TestFunctionVerifier} from "test/TestUtils.sol";
 import {Proxy} from "src/upgrades/Proxy.sol";
 import {SuccinctFeeVault} from "src/payments/SuccinctFeeVault.sol";
 
-contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayErrors {
+contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayErrors {
     // Example Function Request and expected values.
     bytes internal constant INPUT = bytes("function-input");
     bytes32 internal constant INPUT_HASH = sha256(INPUT);
@@ -41,10 +41,10 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         feeVault = address(new SuccinctFeeVault(guardian));
         sender = payable(makeAddr("sender"));
 
-        // Deploy FunctionGateway
-        address gatewayImpl = address(new FunctionGateway());
+        // Deploy SuccinctGateway
+        address gatewayImpl = address(new SuccinctGateway());
         gateway = address(new Proxy(gatewayImpl, ""));
-        FunctionGateway(gateway).initialize(feeVault, timelock, guardian);
+        SuccinctGateway(gateway).initialize(feeVault, timelock, guardian);
 
         bytes32 functionId;
         vm.prank(sender);
@@ -60,7 +60,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
     }
 
     function test_Callback() public {
-        uint32 prevNonce = FunctionGateway(gateway).nonce();
+        uint32 prevNonce = SuccinctGateway(gateway).nonce();
         assertEq(prevNonce, 0);
 
         uint32 nonce = prevNonce;
@@ -88,14 +88,14 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         vm.prank(sender);
         TestConsumer(consumer).requestCallback{value: DEFAULT_FEE}(INPUT);
 
-        bytes32 requestHash = FunctionGateway(gateway).requests(prevNonce);
-        assertEq(prevNonce + 1, FunctionGateway(gateway).nonce());
+        bytes32 requestHash = SuccinctGateway(gateway).requests(prevNonce);
+        assertEq(prevNonce + 1, SuccinctGateway(gateway).nonce());
         assertEq(TestConsumer(consumer).handledRequests(0), false);
 
         // Fulfill
         vm.expectEmit(true, true, true, true, gateway);
         emit RequestFulfilled(nonce, functionId, inputHash, OUTPUT_HASH);
-        FunctionGateway(gateway).fulfillCallback(
+        SuccinctGateway(gateway).fulfillCallback(
             nonce,
             functionId,
             inputHash,
@@ -111,7 +111,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
     }
 
     function test_Callback_WhenNoFee() public {
-        uint32 nonce = FunctionGateway(gateway).nonce();
+        uint32 nonce = SuccinctGateway(gateway).nonce();
         bytes32 inputHash = INPUT_HASH;
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
         address callbackAddress = consumer;
@@ -136,14 +136,14 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         vm.prank(sender);
         TestConsumer(consumer).requestCallback{value: DEFAULT_FEE}(INPUT);
 
-        bytes32 requestHash = FunctionGateway(gateway).requests(nonce);
-        assertEq(nonce + 1, FunctionGateway(gateway).nonce());
+        bytes32 requestHash = SuccinctGateway(gateway).requests(nonce);
+        assertEq(nonce + 1, SuccinctGateway(gateway).nonce());
         assertEq(TestConsumer(consumer).handledRequests(0), false);
 
         // Fulfill
         vm.expectEmit(true, true, true, true, gateway);
         emit RequestFulfilled(nonce, functionId, inputHash, OUTPUT_HASH);
-        FunctionGateway(gateway).fulfillCallback(
+        SuccinctGateway(gateway).fulfillCallback(
             nonce,
             functionId,
             inputHash,
@@ -179,7 +179,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         // Fulfill
         vm.expectEmit(true, true, true, true, gateway);
         emit Call(functionId, INPUT_HASH, OUTPUT_HASH);
-        FunctionGateway(gateway).fulfillCall(
+        SuccinctGateway(gateway).fulfillCall(
             functionId, input, output, proof, callAddress, callData
         );
 
@@ -207,7 +207,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         // Fulfill
         vm.expectEmit(true, true, true, true, gateway);
         emit Call(functionId, INPUT_HASH, OUTPUT_HASH);
-        FunctionGateway(gateway).fulfillCall(
+        SuccinctGateway(gateway).fulfillCall(
             functionId, input, output, proof, callAddress, callData
         );
 
@@ -220,7 +220,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
         bytes32 inputHash = INPUT_HASH;
         bytes memory output = OUTPUT;
 
-        // Set the FunctionGateway's storage slots to avoid revert:
+        // Set the SuccinctGateway's storage slots to avoid revert:
         // | verifiedFunctionId | bytes32 | 255
         // | verifiedInputHash  | bytes32 | 256
         // | verifiedOutput     | bytes   | 257
@@ -232,7 +232,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
     }
 
     function test_RevertCallback() public {
-        uint32 nonce = FunctionGateway(gateway).nonce();
+        uint32 nonce = SuccinctGateway(gateway).nonce();
         bytes32 inputHash = INPUT_HASH;
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
         address callbackAddress = consumer;
@@ -244,7 +244,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
 
         // Fulfill
         vm.expectRevert();
-        FunctionGateway(gateway).fulfillCallback(
+        SuccinctGateway(gateway).fulfillCallback(
             nonce,
             functionId,
             inputHash,
@@ -268,7 +268,7 @@ contract FunctionGatewayTest is Test, IFunctionGatewayEvents, IFunctionGatewayEr
 
         // Fulfill
         vm.expectRevert();
-        FunctionGateway(gateway).fulfillCall(
+        SuccinctGateway(gateway).fulfillCall(
             functionId, input, output, proof, callAddress, callData
         );
     }

@@ -2,10 +2,10 @@
 pragma solidity ^0.8.16;
 
 import {IFunctionVerifier} from "src/interfaces/IFunctionVerifier.sol";
-import {IFunctionGateway} from "src/interfaces/IFunctionGateway.sol";
+import {ISuccinctGateway} from "src/interfaces/ISuccinctGateway.sol";
 
 contract TestConsumer {
-    address public immutable FUNCTION_GATEWAY;
+    address public immutable SUCCINCT_GATEWAY;
     bytes32 public immutable FUNCTION_ID;
     uint32 public constant CALLBACK_GAS_LIMIT = 2000000;
 
@@ -17,12 +17,12 @@ contract TestConsumer {
     error ResultNotTrue();
 
     constructor(address _gateway, bytes32 _functionId) payable {
-        FUNCTION_GATEWAY = _gateway;
+        SUCCINCT_GATEWAY = _gateway;
         FUNCTION_ID = _functionId;
     }
 
     function requestCallback(bytes memory _input) external payable {
-        IFunctionGateway(FUNCTION_GATEWAY).requestCallback{value: msg.value}(
+        ISuccinctGateway(SUCCINCT_GATEWAY).requestCallback{value: msg.value}(
             FUNCTION_ID, _input, abi.encode(nonce), this.handleCallback.selector, CALLBACK_GAS_LIMIT
         );
 
@@ -30,7 +30,7 @@ contract TestConsumer {
     }
 
     function handleCallback(bytes memory _output, bytes memory _context) external {
-        if (msg.sender != FUNCTION_GATEWAY || !IFunctionGateway(FUNCTION_GATEWAY).isCallback()) {
+        if (msg.sender != SUCCINCT_GATEWAY || !ISuccinctGateway(SUCCINCT_GATEWAY).isCallback()) {
             revert NotValid();
         }
         if (abi.decode(_context, (uint32)) != nonce - 1) {
@@ -46,7 +46,7 @@ contract TestConsumer {
     }
 
     function requestCall(bytes memory _input, bytes memory callData) external payable {
-        IFunctionGateway(FUNCTION_GATEWAY).requestCall{value: msg.value}(
+        ISuccinctGateway(SUCCINCT_GATEWAY).requestCall{value: msg.value}(
             FUNCTION_ID, _input, address(this), callData, CALLBACK_GAS_LIMIT
         );
 
@@ -54,7 +54,7 @@ contract TestConsumer {
     }
 
     function handleCall(bytes memory _output, bytes memory _context) external {
-        if (msg.sender != FUNCTION_GATEWAY) {
+        if (msg.sender != SUCCINCT_GATEWAY) {
             revert NotValid();
         }
 
@@ -67,7 +67,7 @@ contract TestConsumer {
     }
 
     function verifiedCall(bytes memory _input) public {
-        IFunctionGateway(FUNCTION_GATEWAY).verifiedCall(FUNCTION_ID, _input);
+        ISuccinctGateway(SUCCINCT_GATEWAY).verifiedCall(FUNCTION_ID, _input);
     }
 }
 

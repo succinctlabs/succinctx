@@ -7,20 +7,20 @@ import "forge-std/Test.sol";
 
 import {StorageOracle} from "src/examples/StorageOracle.sol";
 import {NounsOwnership} from "src/examples/NounsOwnership.sol";
-import {FunctionGateway} from "src/FunctionGateway.sol";
+import {SuccinctGateway} from "src/SuccinctGateway.sol";
 
-import {IFunctionGatewayEvents, IFunctionGatewayErrors} from "src/interfaces/IFunctionGateway.sol";
-import {MockFunctionGateway} from "src/mocks/MockFunctionGateway.sol";
+import {ISuccinctGatewayEvents, ISuccinctGatewayErrors} from "src/interfaces/ISuccinctGateway.sol";
+import {MockSuccinctGateway} from "src/mocks/MockSuccinctGateway.sol";
 import {Proxy} from "src/upgrades/Proxy.sol";
 
-contract TestErrors is IFunctionGatewayErrors {
+contract TestErrors is ISuccinctGatewayErrors {
     error InvalidL1BlockHash();
     error InvalidL1BlockNumber();
-    error NotFromFunctionGateway(address sender);
+    error NotFromSuccinctGateway(address sender);
     error OutdatedBlockNumber(uint256 blockNumber, uint256 storedBlockNumber);
 }
 
-contract TestEvents is IFunctionGatewayEvents {
+contract TestEvents is ISuccinctGatewayEvents {
     event SlotRequested(
         uint256 indexed blockNumber,
         bytes32 indexed blockHash,
@@ -69,7 +69,7 @@ contract NounsOwnershipTest is Test, TestErrors, TestEvents {
 
         timelock = makeAddr("timelock");
         guardian = makeAddr("guardian");
-        gateway = address(new MockFunctionGateway());
+        gateway = address(new MockSuccinctGateway());
 
         // Deploy StorageOracle
         address storageOracleImpl = address(new StorageOracle());
@@ -84,7 +84,7 @@ contract NounsOwnershipTest is Test, TestErrors, TestEvents {
         // Set input and output from fixture
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/test/fixtures/nouns-fixture.json");
-        MockFunctionGateway(gateway).loadFixture(path);
+        MockSuccinctGateway(gateway).loadFixture(path);
 
         // Request slot
         NounsOwnership(nounsOwnership).claimOwner(NOUN_NUMBER);
@@ -95,7 +95,7 @@ contract NounsOwnershipTest is Test, TestErrors, TestEvents {
 
     function test_OwnerOf_WithLoadInputOutput() public onlyWithFork {
         // Set input and output from inline
-        MockFunctionGateway(gateway).loadInputOutput(
+        MockSuccinctGateway(gateway).loadInputOutput(
             hex"b99c7a251e3880d3560ff23412f4b880c196c252a791a4667694447892c051a70000000000000000000000009c8ff314c9bc7f6e59a9d9225fb22946427edc03f787d5ff306ee7ea1d7b35b5cacd5a837646921c113945dbc3a3b6329ce40033",
             hex"000000000000000000000000a555d1Ee16780B2d414eD97f4f169c0740099615"
         );
