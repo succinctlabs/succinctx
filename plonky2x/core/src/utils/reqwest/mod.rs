@@ -1,6 +1,7 @@
 use core::time::Duration;
 
 use anyhow::{anyhow, Result};
+use log::debug;
 use reqwest::blocking::Response;
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,7 @@ impl ReqwestClient {
     }
 
     pub async fn fetch_async(&self, endpoint: &str) -> Result<reqwest::Response> {
-        const MAX_RETRIES: u32 = 7;
+        const MAX_RETRIES: u32 = 4;
         const INITIAL_RETRY_DELAY: u64 = 5;
 
         let client = reqwest::Client::new();
@@ -32,6 +33,7 @@ impl ReqwestClient {
                     if res.status().is_success() {
                         return Ok(res);
                     } else if res.status().is_server_error() {
+                        debug!("Server error: {:?}", res.status());
                         if retries >= MAX_RETRIES {
                             return Err(anyhow!("Maximum retries exceeded"));
                         }
@@ -40,6 +42,7 @@ impl ReqwestClient {
                     }
                 }
                 Err(_) => {
+                    debug!("Connection error");
                     if retries >= MAX_RETRIES {
                         return Err(anyhow!("Maximum retries exceeded"));
                     }
