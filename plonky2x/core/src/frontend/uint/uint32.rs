@@ -206,6 +206,22 @@ impl<L: PlonkParameters<D>, const D: usize> Sub<L, D> for U32Variable {
     }
 }
 
+impl<L: PlonkParameters<D>, const D: usize> Div<L, D> for U32Variable {
+    type Output = Self;
+
+    fn div(self, rhs: U32Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        let self_biguint = BigUintTarget {
+            limbs: vec![self.into()],
+        };
+        let rhs_biguint = BigUintTarget {
+            limbs: vec![rhs.into()],
+        };
+
+        let quotient_biguint = builder.api.div_biguint(&self_biguint, &rhs_biguint);
+        quotient_biguint.limbs[0].into()
+    }
+}
+
 impl U32Variable {
     pub fn to_u64<L: PlonkParameters<D>, const D: usize>(
         &self,
