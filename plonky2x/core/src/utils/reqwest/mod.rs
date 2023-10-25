@@ -14,7 +14,7 @@ impl ReqwestClient {
     }
 
     pub async fn fetch_async(&self, endpoint: &str) -> Result<reqwest::Response> {
-        const MAX_RETRIES: u32 = 3;
+        const MAX_RETRIES: u32 = 2;
         const INITIAL_RETRY_DELAY: u64 = 5;
 
         let client = reqwest::Client::new();
