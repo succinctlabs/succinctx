@@ -22,6 +22,7 @@ impl ReqwestClient {
         let mut retry_delay = INITIAL_RETRY_DELAY;
 
         loop {
+            debug!("fetching {}: retries={}", endpoint, retries);
             let response = client
                 .get(endpoint)
                 .timeout(core::time::Duration::from_secs(60))
@@ -41,8 +42,8 @@ impl ReqwestClient {
                         return Ok(res);
                     }
                 }
-                Err(_) => {
-                    debug!("Connection error");
+                Err(err) => {
+                    debug!("Connection error {:?}", err);
                     if retries >= MAX_RETRIES {
                         return Err(anyhow!("Maximum retries exceeded"));
                     }
