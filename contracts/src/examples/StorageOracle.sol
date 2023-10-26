@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import {IFunctionGateway} from "src/interfaces/IFunctionGateway.sol";
+import {ISuccinctGateway} from "src/interfaces/ISuccinctGateway.sol";
 import {TimelockedUpgradeable} from "src/upgrades/TimelockedUpgradeable.sol";
 
 /// @dev https://community.optimism.io/docs/protocol/protocol-2.0/#l1block
@@ -25,7 +25,7 @@ contract StorageOracle is TimelockedUpgradeable {
         L1BlockPrecompile(0x4200000000000000000000000000000000000015);
     uint32 public constant DEFAULT_GAS_LIMIT = 1000000;
 
-    /// @notice The FunctionGateway contract address.
+    /// @notice The SuccinctGateway contract address.
     address public GATEWAY;
 
     /// @notice The identifier for the storage verifier.
@@ -46,10 +46,10 @@ contract StorageOracle is TimelockedUpgradeable {
 
     error InvalidL1BlockHash();
     error InvalidL1BlockNumber();
-    error NotFromFunctionGateway(address sender);
+    error NotFromSuccinctGateway(address sender);
     error OutdatedBlockNumber(uint256 blockNumber, uint256 storedBlockNumber);
 
-    /// @param _gateway The FunctionGateway address.
+    /// @param _gateway The SuccinctGateway address.
     /// @param _functionId The functionId for the storage verifier.
     function initialize(address _gateway, bytes32 _functionId, address _timelock, address _guardian)
         external
@@ -77,18 +77,18 @@ contract StorageOracle is TimelockedUpgradeable {
 
         bytes memory input = abi.encode(blockHash, _account, _slot);
         bytes memory context = abi.encode(blockNumber, _account, _slot);
-        requestHash = IFunctionGateway(GATEWAY).requestCallback{value: msg.value}(
+        requestHash = ISuccinctGateway(GATEWAY).requestCallback{value: msg.value}(
             FUNCTION_ID, input, context, StorageOracle.handleStorageSlot.selector, DEFAULT_GAS_LIMIT
         );
 
         emit SlotRequested(blockNumber, blockHash, _account, _slot);
     }
 
-    /// @dev Callback function to recieve the storage slot value from the FunctionGateway. If for existing slot, MUST update
+    /// @dev Callback function to recieve the storage slot value from the SuccinctGateway. If for existing slot, MUST update
     ///      for a more recent blockNumber.
     function handleStorageSlot(bytes memory _output, bytes memory _context) external {
-        if (msg.sender != GATEWAY || !IFunctionGateway(GATEWAY).isCallback()) {
-            revert NotFromFunctionGateway(msg.sender);
+        if (msg.sender != GATEWAY || !ISuccinctGateway(GATEWAY).isCallback()) {
+            revert NotFromSuccinctGateway(msg.sender);
         }
 
         bytes32 slotValue = abi.decode(_output, (bytes32));
