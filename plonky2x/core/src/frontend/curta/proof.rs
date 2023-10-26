@@ -2,7 +2,7 @@ use core::iter::once;
 
 use curta::plonky2::stark::config::{CurtaConfig, StarkyConfig};
 use curta::plonky2::stark::proof::{
-    StarkOpeningSet, StarkOpeningSetTarget, StarkProof, StarkProofTarget,
+    AirProof, AirProofTarget, StarkOpeningSet, StarkOpeningSetTarget, StarkProof, StarkProofTarget,
 };
 use curta::plonky2::stark::Starky;
 use curta::plonky2::Plonky2Air;
@@ -13,12 +13,17 @@ use crate::frontend::recursion::hash::MerkleCapVariable;
 use crate::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StarkProofVariable<const D: usize> {
+pub struct AirProofVariable<const D: usize> {
     pub trace_caps: Vec<MerkleCapVariable>,
     pub quotient_polys_cap: MerkleCapVariable,
-    pub global_values: Vec<Variable>,
     pub openings: StarkOpeningSetVariable<D>,
     pub opening_proof: FriProofVariable<D>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StarkProofVariable<const D: usize> {
+    pub air_proof: AirProofVariable<D>,
+    pub global_values: Vec<Variable>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,11 +34,11 @@ pub struct StarkOpeningSetVariable<const D: usize> {
 }
 
 impl VariableStream {
-    pub fn read_stark_proof<F, A, C, const D: usize>(
+    pub fn read_air_proof<F, A, C, const D: usize>(
         &mut self,
         stark: &Starky<A>,
         config: &StarkyConfig<C, D>,
-    ) -> StarkProofVariable<D>
+    ) -> AirProofVariable<D>
     where
         F: RichField + Extendable<D>,
         A: Plonky2Air<F, D>,
@@ -60,18 +65,34 @@ impl VariableStream {
 
         let quotient_polys_cap = self.read_merkle_cap(cap_height);
 
-        let num_global_values = stark.air().num_global_values();
-        let global_values = self.read_exact(num_global_values).to_vec();
-
         let openings = self.read_stark_opening_set(stark, config);
         let opening_proof = self.read_fri_proof(&num_leaves_per_oracle, &fri_params);
 
-        StarkProofVariable {
+        AirProofVariable {
             trace_caps,
             quotient_polys_cap,
-            global_values,
             openings,
             opening_proof,
+        }
+    }
+
+    pub fn read_stark_proof<F, A, C, const D: usize>(
+        &mut self,
+        stark: &Starky<A>,
+        config: &StarkyConfig<C, D>,
+    ) -> StarkProofVariable<D>
+    where
+        F: RichField + Extendable<D>,
+        A: Plonky2Air<F, D>,
+        C: CurtaConfig<D, F = F, FE = F::Extension>,
+    {
+        let air_proof = self.read_air_proof(stark, config);
+        let num_global_values = stark.air().num_global_values();
+        let global_values = self.read_exact(num_global_values).to_vec();
+
+        StarkProofVariable {
+            air_proof,
+            global_values,
         }
     }
 
@@ -95,11 +116,10 @@ impl VariableStream {
         }
     }
 
-    pub fn write_stark_proof<const D: usize>(&mut self, proof: &StarkProofVariable<D>) {
-        let StarkProofVariable {
+    pub fn write_air_proof<const D: usize>(&mut self, proof: &AirProofVariable<D>) {
+        let AirProofVariable {
             trace_caps,
             quotient_polys_cap,
-            global_values,
             openings,
             opening_proof,
         } = proof;
@@ -108,9 +128,18 @@ impl VariableStream {
             self.write_merkle_cap(cap);
         });
         self.write_merkle_cap(quotient_polys_cap);
-        self.write_slice(global_values);
         self.write_stark_opening_set(openings);
         self.write_fri_proof(opening_proof);
+    }
+
+    pub fn write_stark_proof<const D: usize>(&mut self, proof: &StarkProofVariable<D>) {
+        let StarkProofVariable {
+            air_proof,
+            global_values,
+        } = proof;
+
+        self.write_air_proof(air_proof);
+        self.write_slice(global_values);
     }
 
     pub fn write_stark_opening_set<const D: usize>(&mut self, proof: &StarkOpeningSetVariable<D>) {
@@ -127,12 +156,12 @@ impl VariableStream {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
-    pub fn read_stark_proof<A, C>(
+    pub fn read_air_proof<A, C>(
         &self,
         builder: &mut CircuitBuilder<L, D>,
         stark: &Starky<A>,
         config: &StarkyConfig<C, D>,
-    ) -> StarkProofVariable<D>
+    ) -> AirProofVariable<D>
     where
         A: Plonky2Air<L::Field, D>,
         C: CurtaConfig<D, F = L::Field, FE = <L::Field as Extendable<D>>::Extension>,
@@ -158,18 +187,35 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
 
         let quotient_polys_cap = self.read_merkle_cap(builder, cap_height);
 
-        let num_global_values = stark.air().num_global_values();
-        let global_values = self.read_exact(builder, num_global_values).to_vec();
-
         let openings = self.read_stark_opening_set(builder, stark, config);
         let opening_proof = self.read_fri_proof(builder, &num_leaves_per_oracle, &fri_params);
 
-        StarkProofVariable {
+        AirProofVariable {
             trace_caps,
             quotient_polys_cap,
             openings,
-            global_values,
             opening_proof,
+        }
+    }
+
+    pub fn read_stark_proof<A, C>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+        stark: &Starky<A>,
+        config: &StarkyConfig<C, D>,
+    ) -> StarkProofVariable<D>
+    where
+        A: Plonky2Air<L::Field, D>,
+        C: CurtaConfig<D, F = L::Field, FE = <L::Field as Extendable<D>>::Extension>,
+    {
+        let air_proof = self.read_air_proof(builder, stark, config);
+
+        let num_global_values = stark.air().num_global_values();
+        let global_values = self.read_exact(builder, num_global_values).to_vec();
+
+        StarkProofVariable {
+            air_proof,
+            global_values,
         }
     }
 
@@ -192,11 +238,11 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
-    pub fn read_stark_proof<A, C>(
+    pub fn read_air_proof<A, C>(
         &mut self,
         stark: &Starky<A>,
         config: &StarkyConfig<C, D>,
-    ) -> StarkProof<L::Field, C, D>
+    ) -> AirProof<L::Field, C, D>
     where
         A: Plonky2Air<L::Field, D>,
         C: CurtaConfig<D, F = L::Field, FE = <L::Field as Extendable<D>>::Extension>,
@@ -221,18 +267,34 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
             .collect::<Vec<_>>();
         let quotient_polys_cap = self.read_merkle_cap(cap_height);
 
-        let num_global_values = stark.air().num_global_values();
-        let global_values = self.read_exact(num_global_values).to_vec();
-
         let openings = self.read_stark_opening_set(stark, config);
         let opening_proof = self.read_fri_proof(&num_leaves_per_oracle, &fri_params);
 
-        StarkProof {
+        AirProof {
             trace_caps,
             quotient_polys_cap,
-            global_values,
             openings,
             opening_proof,
+        }
+    }
+
+    pub fn read_stark_proof<A, C>(
+        &mut self,
+        stark: &Starky<A>,
+        config: &StarkyConfig<C, D>,
+    ) -> StarkProof<L::Field, C, D>
+    where
+        A: Plonky2Air<L::Field, D>,
+        C: CurtaConfig<D, F = L::Field, FE = <L::Field as Extendable<D>>::Extension>,
+    {
+        let air_proof = self.read_air_proof(stark, config);
+
+        let num_global_values = stark.air().num_global_values();
+        let global_values = self.read_exact(num_global_values).to_vec();
+
+        StarkProof {
+            air_proof,
+            global_values,
         }
     }
 
@@ -254,14 +316,13 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         }
     }
 
-    pub fn write_stark_proof<C: CurtaConfig<D, F = L::Field>>(
+    pub fn write_air_proof<C: CurtaConfig<D, F = L::Field>>(
         &mut self,
-        proof: StarkProof<L::Field, C, D>,
+        proof: AirProof<L::Field, C, D>,
     ) {
-        let StarkProof {
+        let AirProof {
             trace_caps,
             quotient_polys_cap,
-            global_values,
             openings,
             opening_proof,
         } = proof;
@@ -270,9 +331,21 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
             self.write_merkle_cap(cap);
         });
         self.write_merkle_cap(quotient_polys_cap);
-        self.write_slice(&global_values);
         self.write_stark_opening_set(openings);
         self.write_fri_proof(opening_proof);
+    }
+
+    pub fn write_stark_proof<C: CurtaConfig<D, F = L::Field>>(
+        &mut self,
+        proof: StarkProof<L::Field, C, D>,
+    ) {
+        let StarkProof {
+            air_proof,
+            global_values,
+        } = proof;
+
+        self.write_air_proof(air_proof);
+        self.write_slice(&global_values);
     }
 
     pub fn write_stark_opening_set(&mut self, openning_set: StarkOpeningSet<L::Field, D>) {
@@ -314,36 +387,54 @@ impl<const D: usize> From<StarkOpeningSetTarget<D>> for StarkOpeningSetVariable<
     }
 }
 
-impl<const D: usize> From<StarkProofVariable<D>> for StarkProofTarget<D> {
-    fn from(value: StarkProofVariable<D>) -> Self {
+impl<const D: usize> From<AirProofVariable<D>> for AirProofTarget<D> {
+    fn from(value: AirProofVariable<D>) -> Self {
         let trace_caps = value.trace_caps.into_iter().map(|v| v.into()).collect();
         let quotient_polys_cap = value.quotient_polys_cap.into();
-        let global_values = value.global_values.into_iter().map(|v| v.0).collect();
         let openings = value.openings.into();
         let opening_proof = value.opening_proof.into();
         Self {
             trace_caps,
             quotient_polys_cap,
-            global_values,
             openings,
             opening_proof,
         }
     }
 }
 
-impl<const D: usize> From<StarkProofTarget<D>> for StarkProofVariable<D> {
-    fn from(value: StarkProofTarget<D>) -> Self {
+impl<const D: usize> From<AirProofTarget<D>> for AirProofVariable<D> {
+    fn from(value: AirProofTarget<D>) -> Self {
         let trace_caps = value.trace_caps.into_iter().map(|v| v.into()).collect();
         let quotient_polys_cap = value.quotient_polys_cap.into();
-        let global_values = value.global_values.into_iter().map(|v| v.into()).collect();
         let openings = value.openings.into();
         let opening_proof = value.opening_proof.into();
         Self {
             trace_caps,
             quotient_polys_cap,
-            global_values,
             openings,
             opening_proof,
+        }
+    }
+}
+
+impl<const D: usize> From<StarkProofVariable<D>> for StarkProofTarget<D> {
+    fn from(value: StarkProofVariable<D>) -> Self {
+        let air_proof = value.air_proof.into();
+        let global_values = value.global_values.into_iter().map(|v| v.0).collect();
+        Self {
+            air_proof,
+            global_values,
+        }
+    }
+}
+
+impl<const D: usize> From<StarkProofTarget<D>> for StarkProofVariable<D> {
+    fn from(value: StarkProofTarget<D>) -> Self {
+        let air_proof = value.air_proof.into();
+        let global_values = value.global_values.into_iter().map(|v| v.into()).collect();
+        Self {
+            air_proof,
+            global_values,
         }
     }
 }

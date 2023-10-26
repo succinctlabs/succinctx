@@ -8,9 +8,6 @@ use curta::chip::ec::edwards::scalar_mul::generator::{
 use curta::chip::hash::blake::blake2b::generator::{
     BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
 };
-use curta::chip::hash::sha::sha256::generator::{
-    SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
-};
 use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
 use curta::plonky2::cubic::mul_gate::MulCubicGenerator;
 use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
@@ -45,7 +42,6 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSeria
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
-use crate::frontend::curta::hash::sha::sha256::hint::Sha256ProofHint;
 use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
@@ -72,7 +68,6 @@ use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
-use crate::frontend::hint::synchronous::Async;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::nonnative::nonnative::{
     NonNativeAdditionGenerator, NonNativeInverseGenerator, NonNativeMultipleAddsGenerator,
@@ -361,15 +356,6 @@ where
         let xor3_generator_id = XOR3Generator::<L::Field, D>::id();
         r.register_simple::<XOR3Generator<L::Field, D>>(xor3_generator_id);
 
-        let sha256_hint_generator_id = SHA256HintGenerator::id();
-        r.register_simple::<SHA256HintGenerator>(sha256_hint_generator_id);
-
-        let sha256_generator_id =
-            SHA256Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
-        r.register_simple::<SHA256Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(
-            sha256_generator_id,
-        );
-
         let le_generator_id = LteGenerator::<L, D>::id();
         r.register_simple::<LteGenerator<L, D>>(le_generator_id);
 
@@ -384,27 +370,14 @@ where
             D,
         >>(simple_stark_witness_generator_id);
 
-        let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
-            SHA256AirParameters<L::Field, L::CubicParams>,
-            L::CurtaConfig,
-            D,
-        >::id();
-        r.register_simple::<SimpleStarkWitnessGenerator<
-            SHA256AirParameters<L::Field, L::CubicParams>,
-            L::CurtaConfig,
-            D,
-        >>(simple_stark_witness_generator_id);
-
         r.register_hint::<BeaconBalanceWitnessHint>();
         r.register_hint::<Eth1BlockToSlotHint>();
         r.register_hint::<BeaconExecutionPayloadHint>();
         r.register_hint::<BeaconHeaderHint>();
         r.register_hint::<BeaconAllWithdrawalsHint>();
-        r.register_hint::<Sha256ProofHint<L, D>>();
 
         r.register_async_hint::<EthStorageProofHint<L, D>>();
         r.register_async_hint::<BeaconValidatorsHint>();
-        r.register_async_hint::<Async<Sha256ProofHint<L, D>>>();
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
         register_powers_of_two!(r, BeaconPartialBalancesHint);
