@@ -1,5 +1,8 @@
 use core::iter::once;
 
+use curta::chip::{AirParameters, Chip};
+use curta::machine::bytes::proof::{ByteStarkProof, ByteStarkProofTarget};
+use curta::machine::bytes::stark::ByteStark;
 use curta::plonky2::stark::config::{CurtaConfig, StarkyConfig};
 use curta::plonky2::stark::proof::{
     AirProof, AirProofTarget, StarkOpeningSet, StarkOpeningSetTarget, StarkProof, StarkProofTarget,
@@ -24,6 +27,13 @@ pub struct AirProofVariable<const D: usize> {
 pub struct StarkProofVariable<const D: usize> {
     pub air_proof: AirProofVariable<D>,
     pub global_values: Vec<Variable>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ByteStarkProofVariable<const D: usize> {
+    pub(crate) main_proof: AirProofVariable<D>,
+    pub(crate) lookup_proof: AirProofVariable<D>,
+    pub(crate) global_values: Vec<Variable>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,6 +106,30 @@ impl VariableStream {
         }
     }
 
+    pub fn read_byte_stark_proof<F, P, C, const D: usize>(
+        &mut self,
+        byte_stark: &ByteStark<P, C, D>,
+    ) -> ByteStarkProofVariable<D>
+    where
+        F: RichField + Extendable<D>,
+        P: AirParameters<Field = F>,
+        C: CurtaConfig<D, F = F, FE = F::Extension>,
+        Chip<P>: Plonky2Air<F, D>,
+    {
+        let main_proof = self.read_air_proof(byte_stark.stark(), byte_stark.config());
+        let lookup_proof =
+            self.read_air_proof(byte_stark.lookup_stark(), byte_stark.lookup_config());
+
+        let num_global_values = byte_stark.stark().air().num_global_values;
+        let global_values = self.read_exact(num_global_values).to_vec();
+
+        ByteStarkProofVariable {
+            main_proof,
+            lookup_proof,
+            global_values,
+        }
+    }
+
     pub fn read_stark_opening_set<
         F: RichField + Extendable<D>,
         A: Plonky2Air<F, D>,
@@ -139,6 +173,18 @@ impl VariableStream {
         } = proof;
 
         self.write_air_proof(air_proof);
+        self.write_slice(global_values);
+    }
+
+    pub fn write_byte_stark_proof<const D: usize>(&mut self, proof: &ByteStarkProofVariable<D>) {
+        let ByteStarkProofVariable {
+            main_proof,
+            lookup_proof,
+            global_values,
+        } = proof;
+
+        self.write_air_proof(main_proof);
+        self.write_air_proof(lookup_proof);
         self.write_slice(global_values);
     }
 
@@ -219,6 +265,33 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
         }
     }
 
+    pub fn read_byte_stark_proof<P, C>(
+        &mut self,
+        builder: &mut CircuitBuilder<L, D>,
+        byte_stark: &ByteStark<P, C, D>,
+    ) -> ByteStarkProofVariable<D>
+    where
+        P: AirParameters<Field = L::Field, CubicParams = L::CubicParams>,
+        C: CurtaConfig<D, F = L::Field, FE = <L::Field as Extendable<D>>::Extension>,
+        Chip<P>: Plonky2Air<L::Field, D>,
+    {
+        let main_proof = self.read_air_proof(builder, byte_stark.stark(), byte_stark.config());
+        let lookup_proof = self.read_air_proof(
+            builder,
+            byte_stark.lookup_stark(),
+            byte_stark.lookup_config(),
+        );
+
+        let num_global_values = byte_stark.stark().air().num_global_values;
+        let global_values = self.read_exact(builder, num_global_values).to_vec();
+
+        ByteStarkProofVariable {
+            main_proof,
+            lookup_proof,
+            global_values,
+        }
+    }
+
     pub fn read_stark_opening_set<A: Plonky2Air<L::Field, D>, C: CurtaConfig<D, F = L::Field>>(
         &self,
         builder: &mut CircuitBuilder<L, D>,
@@ -294,6 +367,29 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
 
         StarkProof {
             air_proof,
+            global_values,
+        }
+    }
+
+    pub fn read_byte_stark_proof<P, C>(
+        &mut self,
+        byte_stark: &ByteStark<P, C, D>,
+    ) -> ByteStarkProof<L::Field, C, D>
+    where
+        P: AirParameters<Field = L::Field, CubicParams = L::CubicParams>,
+        C: CurtaConfig<D, F = L::Field, FE = <L::Field as Extendable<D>>::Extension>,
+        Chip<P>: Plonky2Air<L::Field, D>,
+    {
+        let main_proof = self.read_air_proof(byte_stark.stark(), byte_stark.config());
+        let lookup_proof =
+            self.read_air_proof(byte_stark.lookup_stark(), byte_stark.lookup_config());
+
+        let num_global_values = byte_stark.stark().air().num_global_values;
+        let global_values = self.read_exact(num_global_values).to_vec();
+
+        ByteStarkProof {
+            main_proof,
+            lookup_proof,
             global_values,
         }
     }
@@ -434,6 +530,32 @@ impl<const D: usize> From<StarkProofTarget<D>> for StarkProofVariable<D> {
         let global_values = value.global_values.into_iter().map(|v| v.into()).collect();
         Self {
             air_proof,
+            global_values,
+        }
+    }
+}
+
+impl<const D: usize> From<ByteStarkProofVariable<D>> for ByteStarkProofTarget<D> {
+    fn from(value: ByteStarkProofVariable<D>) -> Self {
+        let main_proof = value.main_proof.into();
+        let lookup_proof = value.lookup_proof.into();
+        let global_values = value.global_values.into_iter().map(|v| v.0).collect();
+        Self {
+            main_proof,
+            lookup_proof,
+            global_values,
+        }
+    }
+}
+
+impl<const D: usize> From<ByteStarkProofTarget<D>> for ByteStarkProofVariable<D> {
+    fn from(value: ByteStarkProofTarget<D>) -> Self {
+        let main_proof = value.main_proof.into();
+        let lookup_proof = value.lookup_proof.into();
+        let global_values = value.global_values.into_iter().map(|v| v.into()).collect();
+        Self {
+            main_proof,
+            lookup_proof,
             global_values,
         }
     }
@@ -650,7 +772,12 @@ mod tests {
         let proof_variable = output_stream.read_stark_proof(&mut builder, &stark, &config);
         let public_input_variable = output_stream.read_exact_unsafe(&mut builder, 3);
 
-        builder.verify_stark_proof(&config, &stark, &proof_variable, &public_input_variable);
+        builder.verify_stark_proof(
+            &config,
+            &stark,
+            proof_variable.clone(),
+            &public_input_variable,
+        );
 
         let circuit = builder.build();
 
