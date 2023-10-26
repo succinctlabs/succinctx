@@ -444,6 +444,21 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         self.write_slice(&global_values);
     }
 
+    pub fn write_byte_stark_proof<C: CurtaConfig<D, F = L::Field>>(
+        &mut self,
+        proof: ByteStarkProof<L::Field, C, D>,
+    ) {
+        let ByteStarkProof {
+            main_proof,
+            lookup_proof,
+            global_values,
+        } = proof;
+
+        self.write_air_proof(main_proof);
+        self.write_air_proof(lookup_proof);
+        self.write_slice(&global_values);
+    }
+
     pub fn write_stark_opening_set(&mut self, openning_set: StarkOpeningSet<L::Field, D>) {
         let StarkOpeningSet {
             local_values,
