@@ -33,6 +33,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
     address internal verifier;
     address payable internal consumer;
     address payable internal sender;
+    address internal owner;
 
     function setUp() public {
         // Init variables
@@ -40,6 +41,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         guardian = makeAddr("guardian");
         feeVault = address(new SuccinctFeeVault(guardian));
         sender = payable(makeAddr("sender"));
+        owner = makeAddr("owner");
 
         // Deploy SuccinctGateway
         address gatewayImpl = address(new SuccinctGateway());
@@ -49,7 +51,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         bytes32 functionId;
         vm.prank(sender);
         (functionId, verifier) = IFunctionRegistry(gateway).deployAndRegisterFunction(
-            type(TestFunctionVerifier).creationCode, "test-verifier"
+            owner, type(TestFunctionVerifier).creationCode, "test-verifier"
         );
 
         // Deploy TestConsumer
