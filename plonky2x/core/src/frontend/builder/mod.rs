@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::env;
 
 use backtrace::Backtrace;
+use curta::machine::hash::sha::sha256::SHA256;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
 use itertools::Itertools;
@@ -20,7 +21,7 @@ use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
 use super::hash::blake2::curta::Blake2bAccelerator;
-use super::hash::sha256::curta::Sha256Accelerator;
+use super::hash::sha::sha256::curta::SHA256Accelerator;
 use super::hint::HintGenerator;
 use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
@@ -47,7 +48,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     // We currently have only two accelerators, so we just have individual fields for each one.
     // If we start adding more, then we should have a hashmap of accelerators.
     pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
-    pub sha256_accelerator: Option<Sha256Accelerator<L, D>>,
+    pub sha256_accelerator: Option<SHA256Accelerator>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
@@ -147,7 +148,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let sha256_accelerator = self.sha256_accelerator.clone();
         if let Some(mut accelerator) = sha256_accelerator {
-            accelerator.build(self);
+            self.curta_constrain_sha::<SHA256, 64>(accelerator);
         }
 
         for (index, gen_ref) in self
@@ -293,6 +294,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ) -> ArrayVariable<V, N> {
         assert_eq!(value.len(), N);
         ArrayVariable::constant(self, value.to_vec())
+    }
+
+    /// Initializes a vector of variables constant values in the circuit without validity checks.
+    pub fn constant_vec<V: CircuitVariable>(&mut self, value: &[V::ValueType<L::Field>]) -> Vec<V>
+    where
+        V::ValueType<L::Field>: Copy,
+    {
+        value.iter().map(|v| V::constant(self, *v)).collect()
     }
 
     /// Asserts that the given variable is valid.

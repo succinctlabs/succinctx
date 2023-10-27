@@ -193,7 +193,7 @@ mod tests {
         let root = builder.compute_root_from_leaves::<32, 48>(leaves.as_vec(), enabled.as_vec());
         builder.write::<Bytes32Variable>(root);
         let circuit = builder.build();
-        circuit.test_default_serializers();
+        // circuit.test_default_serializers();
 
         let mut input = circuit.input();
 

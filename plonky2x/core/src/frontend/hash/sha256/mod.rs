@@ -14,7 +14,7 @@ pub mod curta;
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Pad the given input according to the SHA-256 spec.
     /// The last chunk (each chunk is 64 bytes = 512 bits) gets padded.
-    fn pad_message_sha256(&mut self, input: &[ByteVariable]) -> Vec<ByteVariable> {
+    pub(crate) fn pad_message_sha256(&mut self, input: &[ByteVariable]) -> Vec<ByteVariable> {
         let mut bits = input
             .iter()
             .flat_map(|b| b.as_bool_targets().to_vec())

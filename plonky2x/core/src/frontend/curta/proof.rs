@@ -266,7 +266,7 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
     }
 
     pub fn read_byte_stark_proof<P, C>(
-        &mut self,
+        &self,
         builder: &mut CircuitBuilder<L, D>,
         byte_stark: &ByteStark<P, C, D>,
     ) -> ByteStarkProofVariable<D>

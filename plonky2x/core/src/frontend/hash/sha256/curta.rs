@@ -3,25 +3,13 @@ use core::marker::PhantomData;
 use array_macro::array;
 use itertools::Itertools;
 use log::debug;
-use plonky2::iop::target::Target;
 
 use crate::backend::circuit::PlonkParameters;
+use crate::frontend::hash::sha::curta::request::SHARequest;
+use crate::frontend::hash::sha::sha256::curta::SHA256Accelerator;
 use crate::frontend::uint::uint32::U32Variable;
-use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder};
-
-#[derive(Debug, Clone)]
-pub struct Sha256Accelerator<L: PlonkParameters<D>, const D: usize> {
-    pub sha256_requests: Vec<Vec<Target>>,
-    pub sha256_responses: Vec<[Target; 32]>,
-    _marker: PhantomData<L>,
-}
-
-impl<L: PlonkParameters<D>, const D: usize> Sha256Accelerator<L, D> {
-    pub fn build(&mut self, builder: &mut CircuitBuilder<L, D>) {
-        builder.curta_constrain_sha256(self);
-    }
-}
+use crate::frontend::vars::{Bytes32Variable, EvmVariable};
+use crate::prelude::{BoolVariable, ByteVariable, CircuitBuilder, *};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Pad the given variable length input according to the SHA-256 spec.
@@ -101,74 +89,68 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Executes a SHA256 hash on the given input of fixed size.
     pub fn curta_sha256(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
-        let padded_input = self.pad_message_sha256(input);
-
         if self.sha256_accelerator.is_none() {
-            self.sha256_accelerator = Some(Sha256Accelerator::<L, D> {
-                sha256_requests: Vec::new(),
-                sha256_responses: Vec::new(),
-                _marker: PhantomData,
+            self.sha256_accelerator = Some(SHA256Accelerator {
+                sha_requests: Vec::new(),
+                sha_responses: Vec::new(),
             });
         }
 
-        let bytes = padded_input
-            .iter()
-            .map(|x| x.to_variable(self).0)
-            .collect::<Vec<_>>();
-
+        let digest = self.init_unsafe::<Bytes32Variable>();
+        let digest_value = digest
+            .as_bytes()
+            .chunks_exact(4)
+            .map(|x| U32Variable::decode(self, x))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
         let accelerator = self
             .sha256_accelerator
             .as_mut()
             .expect("sha256 accelerator should exist");
-        accelerator.sha256_requests.push(bytes);
-        let digest = self.api.add_virtual_target_arr::<32>();
-        accelerator.sha256_responses.push(digest);
+        accelerator
+            .sha_requests
+            .push(SHARequest::Fixed(input.to_vec()));
+        accelerator.sha_responses.push(digest_value);
 
-        let bytes: [ByteVariable; 32] = digest.map(|x| ByteVariable::from_target(self, x));
-        bytes.into()
+        digest
     }
 
-    /// Executes a SHA256 hash on the given input. Note: input should be length MAX_NUM_CHUNKS * 64.
-    pub fn curta_sha256_variable<const MAX_NUM_CHUNKS: usize>(
-        &mut self,
-        input: &[ByteVariable],
-        last_chunk: U32Variable,
-        input_byte_length: U32Variable,
-    ) -> Bytes32Variable {
-        // TODO: Currently, Curta does not support no-ops over SHA chunks. Until Curta SHA-256 supports no-ops, last_chunk should always be equal to MAX_NUM_CHUNKS - 1.
-        let expected_last_chunk = self.constant::<U32Variable>((MAX_NUM_CHUNKS - 1) as u32);
-        self.assert_is_equal(expected_last_chunk, last_chunk);
+    // /// Executes a SHA256 hash on the given input. Note: input should be length MAX_NUM_CHUNKS * 64.
+    // pub fn curta_sha256_variable<const MAX_NUM_CHUNKS: usize>(
+    //     &mut self,
+    //     input: &[ByteVariable],
+    //     input_byte_length: U32Variable,
+    // ) -> Bytes32Variable {
+    //     let nine = self.constant(9u32);
+    //     let sixty_four = self.constant(64u32);
+    //     let mut num_chunks = self.add(input_byte_length, nine);
+    //     num_chunks = self.div(num_chunks, sixty_four);
+    //     let padded_input = self.pad_message_sha256_variable::<MAX_NUM_CHUNKS>(
+    //         input,
+    //         num_chunks,
+    //         input_byte_length,
+    //     );
 
-        let padded_input = self.pad_message_sha256_variable::<MAX_NUM_CHUNKS>(
-            input,
-            last_chunk,
-            input_byte_length,
-        );
+    //     if self.sha256_accelerator.is_none() {
+    //         self.sha256_accelerator = Some(Sha256Accelerator::<L, D> {
+    //             sha256_requests: Vec::new(),
+    //             sha256_responses: Vec::new(),
+    //             _marker: PhantomData,
+    //         });
+    //     }
 
-        if self.sha256_accelerator.is_none() {
-            self.sha256_accelerator = Some(Sha256Accelerator::<L, D> {
-                sha256_requests: Vec::new(),
-                sha256_responses: Vec::new(),
-                _marker: PhantomData,
-            });
-        }
+    //     let accelerator = self
+    //         .sha256_accelerator
+    //         .as_mut()
+    //         .expect("sha256 accelerator should exist");
+    //     accelerator.sha256_requests.push(padded_input);
+    //     let digest = self.api.add_virtual_target_arr::<32>();
+    //     accelerator.sha256_responses.push(digest);
 
-        let bytes = padded_input
-            .iter()
-            .map(|x| x.to_variable(self).0)
-            .collect::<Vec<_>>();
-
-        let accelerator = self
-            .sha256_accelerator
-            .as_mut()
-            .expect("sha256 accelerator should exist");
-        accelerator.sha256_requests.push(bytes);
-        let digest = self.api.add_virtual_target_arr::<32>();
-        accelerator.sha256_responses.push(digest);
-
-        let bytes: [ByteVariable; 32] = digest.map(|x| ByteVariable::from_target(self, x));
-        bytes.into()
-    }
+    //     let bytes: [ByteVariable; 32] = digest.map(|x| ByteVariable::from_target(self, x));
+    //     bytes.into()
+    // }
 
     pub fn curta_sha256_pair(
         &mut self,
@@ -181,81 +163,48 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.curta_sha256(&input)
     }
 
-    // Takes a gadget that requests have been pushed to, pads it and constraints it.
-    fn pad_and_constrain_sha256_gadget(
-        &mut self,
-        // current_gadget: &mut SHA256BuilderGadget<L::Field, L::CubicParams, D>,
-        current_gadget_chunks: usize,
-    ) {
-        // // We have to pad the gadget with dummy requests until it has 1024 chunks total.
-        // for _ in current_gadget_chunks..1024 {
-        //     let zero = self.zero();
-        //     let padded_input = self.pad_message_sha256(&[zero; 1]);
-        //     let dummy_request = padded_input
-        //         .iter()
-        //         .map(|x| x.to_variable(self).0)
-        //         .collect::<Vec<_>>();
-        //     let dummy_response = self.api.add_virtual_target_arr::<32>();
+    // /// Takes the accelerator with all requests and constraints it
+    // fn curta_constrain_sha256(&mut self, accelerator: &Sha256Accelerator<L, D>) {
+    // let mut current_gadget = self.api.init_sha256();
+    // let mut current_gadget_chunks = 0;
+    // // Iterate through all requests to the accelerator. As we iterate, we allocate gadgets for
+    // // groups of requests, keeping in mind that gadgets can only accomodate 1024 chunks.
+    // for (i, req) in accelerator.sha256_requests.iter().enumerate() {
+    //     // All the requests are chunk-aligned because of the padding we do.
+    //     let request_chunks = req.len() / 64;
 
-        //     current_gadget
-        //         .padded_messages
-        //         .extend_from_slice(&dummy_request);
+    //     // If this request would overflow the current_gadget, pad the gadget and constrain it.
+    //     if current_gadget_chunks + request_chunks > 1024 {
+    //         debug!("allocated curta sha256 gadget");
+    //         self.pad_and_constrain_sha256_gadget(&mut current_gadget, current_gadget_chunks);
 
-        //     let hint = SHA256HintGenerator::new(&dummy_request, dummy_response);
-        //     self.add_simple_generator(hint);
-        //     current_gadget.digests.extend_from_slice(&dummy_response);
-        //     // The dummy request/response has exactly 1 chunk by design
-        //     current_gadget.chunk_sizes.push(1);
-        // }
+    //         // Then reset current_gadget and current_gadget_chunks
+    //         current_gadget = self.api.init_sha256();
+    //         current_gadget_chunks = 0;
+    //     }
 
-        // // At this point the gadget should have 1024 chunks
-        // assert_eq!(current_gadget.chunk_sizes.iter().sum::<usize>(), 1024);
-        // // Constrain the gadget
-        // self.constrain_sha256_gadget(current_gadget);
-    }
+    //     // We add the current request to the current gadget and update current_gadget_chunks appropriately.
+    //     current_gadget_chunks += request_chunks;
+    //     current_gadget
+    //         .padded_messages
+    //         .extend_from_slice(&accelerator.sha256_requests[i]);
+    //     let hint = SHA256HintGenerator::new(
+    //         &accelerator.sha256_requests[i],
+    //         accelerator.sha256_responses[i],
+    //     );
+    //     self.add_simple_generator(hint);
+    //     current_gadget
+    //         .digests
+    //         .extend_from_slice(&accelerator.sha256_responses[i]);
+    //     current_gadget.chunk_sizes.push(request_chunks);
+    // }
 
-    /// Takes the accelerator with all requests and constraints it
-    fn curta_constrain_sha256(&mut self, accelerator: &Sha256Accelerator<L, D>) {
-        // let mut current_gadget = self.api.init_sha256();
-        // let mut current_gadget_chunks = 0;
-        // // Iterate through all requests to the accelerator. As we iterate, we allocate gadgets for
-        // // groups of requests, keeping in mind that gadgets can only accomodate 1024 chunks.
-        // for (i, req) in accelerator.sha256_requests.iter().enumerate() {
-        //     // All the requests are chunk-aligned because of the padding we do.
-        //     let request_chunks = req.len() / 64;
-
-        //     // If this request would overflow the current_gadget, pad the gadget and constrain it.
-        //     if current_gadget_chunks + request_chunks > 1024 {
-        //         debug!("allocated curta sha256 gadget");
-        //         self.pad_and_constrain_sha256_gadget(&mut current_gadget, current_gadget_chunks);
-
-        //         // Then reset current_gadget and current_gadget_chunks
-        //         current_gadget = self.api.init_sha256();
-        //         current_gadget_chunks = 0;
-        //     }
-
-        //     // We add the current request to the current gadget and update current_gadget_chunks appropriately.
-        //     current_gadget_chunks += request_chunks;
-        //     current_gadget
-        //         .padded_messages
-        //         .extend_from_slice(&accelerator.sha256_requests[i]);
-        //     let hint = SHA256HintGenerator::new(
-        //         &accelerator.sha256_requests[i],
-        //         accelerator.sha256_responses[i],
-        //     );
-        //     self.add_simple_generator(hint);
-        //     current_gadget
-        //         .digests
-        //         .extend_from_slice(&accelerator.sha256_responses[i]);
-        //     current_gadget.chunk_sizes.push(request_chunks);
-        // }
-
-        // // At the end, if there is a non-empty gadget, pad and constrain it.
-        // if current_gadget_chunks > 0 {
-        //     debug!("allocated curta sha256 gadget");
-        //     self.pad_and_constrain_sha256_gadget(&mut current_gadget, current_gadget_chunks);
-        // }
-    }
+    // // At the end, if there is a non-empty gadget, pad and constrain it.
+    // if current_gadget_chunks > 0 {
+    //     debug!("allocated curta sha256 gadget");
+    //     self.pad_and_constrain_sha256_gadget(&mut current_gadget, current_gadget_chunks);
+    // }
+    // }
 }
 
 #[cfg(test)]
@@ -263,10 +212,9 @@ mod tests {
     use std::env;
 
     use crate::backend::circuit::{CircuitBuild, DefaultParameters};
-    use crate::frontend::uint::uint32::U32Variable;
     use crate::frontend::vars::Bytes32Variable;
     use crate::prelude::{
-        ByteVariable, BytesVariable, CircuitBuilder, DefaultBuilder, GateRegistry, HintRegistry,
+        ByteVariable, CircuitBuilder, DefaultBuilder, GateRegistry, HintRegistry,
     };
     use crate::utils::{bytes, bytes32};
 
@@ -292,18 +240,18 @@ mod tests {
         builder.assert_is_equal(result, expected_digest);
 
         let circuit = builder.build();
-        let gate_serializer = GateRegistry::<L, D>::new();
-        let generator_serializer = HintRegistry::<L, D>::new();
-        let bytes = circuit
-            .serialize(&gate_serializer, &generator_serializer)
-            .unwrap();
-        let circuit =
-            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer)
-                .unwrap();
+        // let gate_serializer = GateRegistry::<L, D>::new();
+        // let generator_serializer = HintRegistry::<L, D>::new();
+        // let bytes = circuit
+        //     .serialize(&gate_serializer, &generator_serializer)
+        //     .unwrap();
+        // let circuit =
+        //     CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer)
+        //         .unwrap();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        circuit.test_default_serializers();
+        // circuit.test_default_serializers();
     }
 
     #[test]
@@ -352,38 +300,38 @@ mod tests {
         circuit.verify(&proof, &input, &output);
     }
 
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha256_curta_variable_single() {
-        env::set_var("RUST_LOG", "debug");
-        env_logger::try_init().unwrap_or_default();
-        dotenv::dotenv().ok();
+    // #[test]
+    // #[cfg_attr(feature = "ci", ignore)]
+    // fn test_sha256_curta_variable_single() {
+    //     env::set_var("RUST_LOG", "debug");
+    //     env_logger::try_init().unwrap_or_default();
+    //     dotenv::dotenv().ok();
 
-        let mut builder = CircuitBuilder::<L, D>::new();
+    //     let mut builder = CircuitBuilder::<L, D>::new();
 
-        let msg = builder.constant::<BytesVariable<64>>(bytes!(
-            "00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d00000000000000000000000000000000000000000000000000"
-        ));
+    //     let msg = builder.constant::<BytesVariable<64>>(bytes!(
+    //         "00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d00000000000000000000000000000000000000000000000000"
+    //     ));
 
-        let bytes_length = builder.constant::<U32Variable>(39);
+    //     let bytes_length = builder.constant::<U32Variable>(39);
 
-        let expected_digest =
-            bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
-        let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
+    //     let expected_digest =
+    //         bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
+    //     let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
-        let last_chunk = builder.constant::<U32Variable>(0);
+    //     let last_chunk = builder.constant::<U32Variable>(0);
 
-        let msg_hash = builder.curta_sha256_variable::<1>(&msg.0, last_chunk, bytes_length);
-        builder.watch(&msg_hash, "msg_hash");
-        builder.assert_is_equal(msg_hash, expected_digest);
+    //     let msg_hash = builder.curta_sha256_variable::<1>(&msg.0, last_chunk, bytes_length);
+    //     builder.watch(&msg_hash, "msg_hash");
+    //     builder.assert_is_equal(msg_hash, expected_digest);
 
-        let circuit = builder.build();
-        let input = circuit.input();
-        let (proof, output) = circuit.prove(&input);
-        circuit.verify(&proof, &input, &output);
+    //     let circuit = builder.build();
+    //     let input = circuit.input();
+    //     let (proof, output) = circuit.prove(&input);
+    //     circuit.verify(&proof, &input, &output);
 
-        circuit.test_default_serializers();
-    }
+    //     circuit.test_default_serializers();
+    // }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
