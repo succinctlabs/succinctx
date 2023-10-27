@@ -10,7 +10,7 @@ contract FunctionRegistry is IFunctionRegistry {
     /// @dev Maps function identifiers to their corresponding owners.
     mapping(bytes32 => address) public verifierOwners;
 
-    /// @notice Registers a function, using a pre-deployed verifier.'
+    /// @notice Registers a function, using a pre-deployed verifier.
     /// @param _owner The owner of the function.
     /// @param _verifier The address of the verifier.
     /// @param _name The name of the function to be registered.
@@ -25,10 +25,10 @@ contract FunctionRegistry is IFunctionRegistry {
         if (_verifier == address(0)) {
             revert VerifierCannotBeZero();
         }
-        verifiers[functionId] = _verifier;
         verifierOwners[functionId] = _owner;
+        verifiers[functionId] = _verifier;
 
-        emit FunctionRegistered(functionId, _verifier, _name, msg.sender);
+        emit FunctionRegistered(functionId, _verifier, _name, _owner);
     }
 
     /// @notice Registers a function, using CREATE2 to deploy the verifier.
@@ -48,7 +48,7 @@ contract FunctionRegistry is IFunctionRegistry {
         verifier = _deploy(_bytecode, functionId);
         verifiers[functionId] = verifier;
 
-        emit FunctionRegistered(functionId, verifier, _name, msg.sender);
+        emit FunctionRegistered(functionId, verifier, _name, _owner);
     }
 
     /// @notice Updates the function, using a pre-deployed verifier.
