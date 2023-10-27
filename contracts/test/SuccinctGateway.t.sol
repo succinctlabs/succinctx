@@ -39,9 +39,13 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         // Init variables
         timelock = makeAddr("timelock");
         guardian = makeAddr("guardian");
-        feeVault = address(new SuccinctFeeVault(guardian));
         sender = payable(makeAddr("sender"));
         owner = makeAddr("owner");
+
+        // Deploy FeeVault
+        address feeVaultImpl = address(new SuccinctFeeVault());
+        feeVault = address(new Proxy(feeVaultImpl, ""));
+        SuccinctFeeVault(feeVault).initialize(timelock, guardian);
 
         // Deploy SuccinctGateway
         address gatewayImpl = address(new SuccinctGateway());
@@ -371,7 +375,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector, OUTPUT, 0);
         uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
         uint256 fee = DEFAULT_FEE;
-        address newFeeVault = address(new SuccinctFeeVault(guardian));
+        address newFeeVault = address(new SuccinctFeeVault());
 
         // Set FeeVault
         vm.expectEmit(true, true, true, true, gateway);
@@ -388,7 +392,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
     }
 
     function test_RevertSetFeeVault_WhenNotGuardian() public {
-        address newFeeVault = address(new SuccinctFeeVault(guardian));
+        address newFeeVault = address(new SuccinctFeeVault());
 
         // Set FeeVault
         vm.expectRevert();
