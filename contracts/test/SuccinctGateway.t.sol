@@ -158,6 +158,60 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         assertEq(TestConsumer(consumer).handledRequests(0), true);
     }
 
+    function test_Callback_WhenNoFeeVault() public {
+        // Set feeVault (first 20 bytes of slot 253) to 0x0
+        vm.store(gateway, bytes32(uint256(253)), bytes20(address(0)));
+
+        uint32 prevNonce = SuccinctGateway(gateway).nonce();
+        assertEq(prevNonce, 0);
+
+        uint32 nonce = prevNonce;
+        bytes32 inputHash = INPUT_HASH;
+        bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
+        address callbackAddress = consumer;
+        bytes4 callbackSelector = TestConsumer.handleCallback.selector;
+        uint32 callbackGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
+        bytes memory context = abi.encode(nonce);
+        bytes memory output = OUTPUT;
+        bytes memory proof = PROOF;
+
+        // Request
+        vm.expectEmit(true, true, true, true, gateway);
+        emit RequestCallback(
+            nonce,
+            functionId,
+            INPUT,
+            context,
+            callbackAddress,
+            callbackSelector,
+            callbackGasLimit,
+            DEFAULT_FEE
+        );
+        vm.prank(sender);
+        TestConsumer(consumer).requestCallback{value: DEFAULT_FEE}(INPUT);
+
+        bytes32 requestHash = SuccinctGateway(gateway).requests(prevNonce);
+        assertEq(prevNonce + 1, SuccinctGateway(gateway).nonce());
+        assertEq(TestConsumer(consumer).handledRequests(0), false);
+
+        // Fulfill
+        vm.expectEmit(true, true, true, true, gateway);
+        emit RequestFulfilled(nonce, functionId, inputHash, OUTPUT_HASH);
+        SuccinctGateway(gateway).fulfillCallback(
+            nonce,
+            functionId,
+            inputHash,
+            callbackAddress,
+            callbackSelector,
+            callbackGasLimit,
+            context,
+            output,
+            proof
+        );
+
+        assertEq(TestConsumer(consumer).handledRequests(0), true);
+    }
+
     function test_Call() public {
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
         bytes memory input = INPUT;
@@ -187,6 +241,37 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
     }
 
     function test_Call_WhenNoFee() public {
+        bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
+        bytes memory input = INPUT;
+        bytes memory output = OUTPUT;
+        bytes memory proof = PROOF;
+        address callAddress = consumer;
+        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector, OUTPUT, 0);
+        uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
+
+        // Request
+        vm.expectEmit(true, true, true, true, gateway);
+        emit RequestCall(
+            functionId, input, callAddress, callData, callGasLimit, consumer, DEFAULT_FEE
+        );
+        TestConsumer(consumer).requestCall{value: DEFAULT_FEE}(input, callData);
+
+        assertEq(TestConsumer(consumer).handledRequests(0), false);
+
+        // Fulfill
+        vm.expectEmit(true, true, true, true, gateway);
+        emit Call(functionId, INPUT_HASH, OUTPUT_HASH);
+        SuccinctGateway(gateway).fulfillCall(
+            functionId, input, output, proof, callAddress, callData
+        );
+
+        assertEq(TestConsumer(consumer).handledRequests(0), true);
+    }
+
+    function test_Call_WhenNoFeeVault() public {
+        // Set feeVault (first 20 bytes of slot 253) to 0x0
+        vm.store(gateway, bytes32(uint256(253)), bytes20(address(0)));
+
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
         bytes memory input = INPUT;
         bytes memory output = OUTPUT;
