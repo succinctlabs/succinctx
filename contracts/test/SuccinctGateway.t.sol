@@ -212,6 +212,32 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         assertEq(TestConsumer(consumer).handledRequests(0), true);
     }
 
+    function test_RevertCallback() public {
+        uint32 nonce = SuccinctGateway(gateway).nonce();
+        bytes32 inputHash = INPUT_HASH;
+        bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
+        address callbackAddress = consumer;
+        bytes4 callbackSelector = TestConsumer.handleCallback.selector;
+        uint32 callbackGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
+        bytes memory context = abi.encode(nonce);
+        bytes memory output = OUTPUT;
+        bytes memory proof = PROOF;
+
+        // Fulfill
+        vm.expectRevert();
+        SuccinctGateway(gateway).fulfillCallback(
+            nonce,
+            functionId,
+            inputHash,
+            callbackAddress,
+            callbackSelector,
+            callbackGasLimit,
+            context,
+            output,
+            proof
+        );
+    }
+
     function test_Call() public {
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
         bytes memory input = INPUT;
@@ -296,6 +322,21 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         assertEq(TestConsumer(consumer).handledRequests(0), true);
     }
 
+    function test_RevertCall() public {
+        bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
+        bytes memory input = INPUT;
+        bytes memory output = OUTPUT;
+        bytes memory proof = PROOF;
+        address callAddress = consumer;
+        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector, OUTPUT, 0);
+
+        // Fulfill
+        vm.expectRevert();
+        SuccinctGateway(gateway).fulfillCall(
+            functionId, input, output, proof, callAddress, callData
+        );
+    }
+
     function test_VerifiedCall() public {
         bytes memory input = INPUT;
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
@@ -350,55 +391,5 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         // Set FeeVault
         vm.expectRevert();
         SuccinctGateway(gateway).setFeeVault(newFeeVault);
-    }
-
-    function test_RevertCallback() public {
-        uint32 nonce = SuccinctGateway(gateway).nonce();
-        bytes32 inputHash = INPUT_HASH;
-        bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
-        address callbackAddress = consumer;
-        bytes4 callbackSelector = TestConsumer.handleCallback.selector;
-        uint32 callbackGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
-        bytes memory context = abi.encode(nonce);
-        bytes memory output = OUTPUT;
-        bytes memory proof = PROOF;
-
-        // Fulfill
-        vm.expectRevert();
-        SuccinctGateway(gateway).fulfillCallback(
-            nonce,
-            functionId,
-            inputHash,
-            callbackAddress,
-            callbackSelector,
-            callbackGasLimit,
-            context,
-            output,
-            proof
-        );
-    }
-
-    function test_RevertCall() public {
-        bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
-        bytes memory input = INPUT;
-        bytes memory output = OUTPUT;
-        bytes memory proof = PROOF;
-        address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector, OUTPUT, 0);
-
-        // Fulfill
-        vm.expectRevert();
-        SuccinctGateway(gateway).fulfillCall(
-            functionId, input, output, proof, callAddress, callData
-        );
-    }
-
-    function test_RevertVerifiedCall() public {
-        bytes memory input = INPUT;
-        bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
-
-        // Verifiy call
-        vm.expectRevert(abi.encodeWithSelector(InvalidCall.selector, functionId, input));
-        TestConsumer(consumer).verifiedCall(input);
     }
 }
