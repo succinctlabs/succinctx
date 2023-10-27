@@ -10,7 +10,8 @@ contract FunctionRegistry is IFunctionRegistry {
     /// @dev Maps function identifiers to their corresponding owners.
     mapping(bytes32 => address) public verifierOwners;
 
-    /// @notice Registers a function, using a pre-deployed verifier.
+    /// @notice Registers a function, using a pre-deployed verifier.'
+    /// @param _owner The owner of the function.
     /// @param _verifier The address of the verifier.
     /// @param _name The name of the function to be registered.
     function registerFunction(address _owner, address _verifier, string memory _name)
@@ -31,6 +32,7 @@ contract FunctionRegistry is IFunctionRegistry {
     }
 
     /// @notice Registers a function, using CREATE2 to deploy the verifier.
+    /// @param _owner The owner of the function.
     /// @param _bytecode The bytecode of the verifier.
     /// @param _name The name of the function to be registered.
     function deployAndRegisterFunction(address _owner, bytes memory _bytecode, string memory _name)
@@ -50,6 +52,7 @@ contract FunctionRegistry is IFunctionRegistry {
     }
 
     /// @notice Updates the function, using a pre-deployed verifier.
+    /// @dev Only the owner of the function can update it.
     /// @param _verifier The address of the verifier.
     /// @param _name The name of the function to be updated.
     function updateFunction(address _verifier, string memory _name)
@@ -69,6 +72,7 @@ contract FunctionRegistry is IFunctionRegistry {
     }
 
     /// @notice Updates the function, using CREATE2 to deploy the new verifier.
+    /// @dev Only the owner of the function can update it.
     /// @param _bytecode The bytecode of the verifier.
     /// @param _name The name of the function to be updated.
     function deployAndUpdateFunction(bytes memory _bytecode, string memory _name)
