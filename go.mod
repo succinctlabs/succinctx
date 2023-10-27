@@ -1,4 +1,4 @@
-module github.com/succinctlabs/sdk
+module github.com/succinctlabs/succinctx
 
 go 1.20
 
