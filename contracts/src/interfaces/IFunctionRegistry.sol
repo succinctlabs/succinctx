@@ -6,7 +6,6 @@ interface IFunctionRegistryEvents {
         bytes32 indexed functionId, address verifier, string name, address owner
     );
     event FunctionVerifierUpdated(bytes32 indexed functionId, address verifier);
-    event FunctionOwnerUpdated(bytes32 indexed functionId, address owner);
     event Deployed(
         bytes32 indexed bytecodeHash, bytes32 indexed salt, address indexed deployedAddress
     );
