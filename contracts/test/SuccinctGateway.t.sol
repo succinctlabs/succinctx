@@ -88,7 +88,6 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         vm.prank(sender);
         TestConsumer(consumer).requestCallback{value: DEFAULT_FEE}(INPUT);
 
-        bytes32 requestHash = SuccinctGateway(gateway).requests(prevNonce);
         assertEq(prevNonce + 1, SuccinctGateway(gateway).nonce());
         assertEq(TestConsumer(consumer).handledRequests(0), false);
 
@@ -131,12 +130,11 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
             callbackAddress,
             callbackSelector,
             callbackGasLimit,
-            DEFAULT_FEE
+            0
         );
         vm.prank(sender);
-        TestConsumer(consumer).requestCallback{value: DEFAULT_FEE}(INPUT);
+        TestConsumer(consumer).requestCallback{value: 0}(INPUT);
 
-        bytes32 requestHash = SuccinctGateway(gateway).requests(nonce);
         assertEq(nonce + 1, SuccinctGateway(gateway).nonce());
         assertEq(TestConsumer(consumer).handledRequests(0), false);
 
@@ -190,7 +188,6 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         vm.prank(sender);
         TestConsumer(consumer).requestCallback{value: DEFAULT_FEE}(INPUT);
 
-        bytes32 requestHash = SuccinctGateway(gateway).requests(prevNonce);
         assertEq(prevNonce + 1, SuccinctGateway(gateway).nonce());
         assertEq(TestConsumer(consumer).handledRequests(0), false);
 
@@ -251,10 +248,8 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
-        emit RequestCall(
-            functionId, input, callAddress, callData, callGasLimit, consumer, DEFAULT_FEE
-        );
-        TestConsumer(consumer).requestCall{value: DEFAULT_FEE}(input, callData);
+        emit RequestCall(functionId, input, callAddress, callData, callGasLimit, consumer, 0);
+        TestConsumer(consumer).requestCall{value: 0}(input, callData);
 
         assertEq(TestConsumer(consumer).handledRequests(0), false);
 
@@ -303,7 +298,6 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         bytes memory input = INPUT;
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
         bytes32 inputHash = INPUT_HASH;
-        bytes memory output = OUTPUT;
 
         // Set the SuccinctGateway's storage slots to avoid revert:
         // | verifiedFunctionId | bytes32 | 255
@@ -349,7 +343,6 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         bytes memory proof = PROOF;
         address callAddress = consumer;
         bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector, OUTPUT, 0);
-        uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
 
         // Fulfill
         vm.expectRevert();
@@ -361,8 +354,6 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
     function test_RevertVerifiedCall() public {
         bytes memory input = INPUT;
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
-        bytes32 inputHash = INPUT_HASH;
-        bytes memory output = OUTPUT;
 
         // Verifiy call
         vm.expectRevert(abi.encodeWithSelector(InvalidCall.selector, functionId, input));
