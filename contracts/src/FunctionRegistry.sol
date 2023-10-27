@@ -13,7 +13,7 @@ contract FunctionRegistry is IFunctionRegistry {
     /// @notice Registers a function, using a pre-deployed verifier.
     /// @param _verifier The address of the verifier.
     /// @param _name The name of the function to be registered.
-    function registerFunction(address _verifier, string memory _name)
+    function registerFunction(address _owner, address _verifier, string memory _name)
         external
         returns (bytes32 functionId)
     {
@@ -25,7 +25,7 @@ contract FunctionRegistry is IFunctionRegistry {
             revert VerifierCannotBeZero();
         }
         verifiers[functionId] = _verifier;
-        verifierOwners[functionId] = msg.sender;
+        verifierOwners[functionId] = _owner;
 
         emit FunctionRegistered(functionId, _verifier, _name, msg.sender);
     }
@@ -33,7 +33,7 @@ contract FunctionRegistry is IFunctionRegistry {
     /// @notice Registers a function, using CREATE2 to deploy the verifier.
     /// @param _bytecode The bytecode of the verifier.
     /// @param _name The name of the function to be registered.
-    function deployAndRegisterFunction(bytes memory _bytecode, string memory _name)
+    function deployAndRegisterFunction(address _owner, bytes memory _bytecode, string memory _name)
         external
         returns (bytes32 functionId, address verifier)
     {
@@ -42,7 +42,7 @@ contract FunctionRegistry is IFunctionRegistry {
             revert FunctionAlreadyRegistered(functionId); // should call update instead
         }
 
-        verifierOwners[functionId] = msg.sender;
+        verifierOwners[functionId] = _owner;
         verifier = _deploy(_bytecode, functionId);
         verifiers[functionId] = verifier;
 

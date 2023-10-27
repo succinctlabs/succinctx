@@ -23,10 +23,10 @@ interface IFunctionRegistryErrors {
 interface IFunctionRegistry is IFunctionRegistryEvents, IFunctionRegistryErrors {
     function verifiers(bytes32 functionId) external view returns (address verifier);
     function verifierOwners(bytes32 functionId) external view returns (address owner);
-    function registerFunction(address verifier, string memory name)
+    function registerFunction(address owner, address verifier, string memory name)
         external
         returns (bytes32 functionId);
-    function deployAndRegisterFunction(bytes memory bytecode, string memory name)
+    function deployAndRegisterFunction(address owner, bytes memory bytecode, string memory name)
         external
         returns (bytes32 functionId, address verifier);
     function updateFunction(address verifier, string memory name)
