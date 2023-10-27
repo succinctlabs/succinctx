@@ -88,7 +88,9 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         nonce++;
 
         // Send the fee to the vault.
-        IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
+        if (feeVault != address(0)) {
+            IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
+        }
 
         return requestHash;
     }
@@ -119,7 +121,9 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         );
 
         // Send the fee to the vault.
-        IFeeVault(feeVault).depositNative{value: msg.value}(msg.sender);
+        if (feeVault != address(0)) {
+            IFeeVault(feeVault).depositNative{value: msg.value}(msg.sender);
+        }
     }
 
     /// @dev If the call matches the currently verified function, returns the output. Otherwise,
