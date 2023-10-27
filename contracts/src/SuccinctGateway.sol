@@ -247,6 +247,13 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         emit Call(_functionId, inputHash, outputHash);
     }
 
+    /// @dev Sets the fee vault to a new address. Can be set to address(0) to disable fees.
+    /// @param _feeVault The address of the fee vault.
+    function setFeeVault(address _feeVault) external onlyGuardian {
+        emit SetFeeVault(feeVault, _feeVault);
+        feeVault = _feeVault;
+    }
+
     /// @dev Computes a unique identifier for a request.
     /// @param _functionId The function identifier.
     /// @param _inputHash The hash of the function input.

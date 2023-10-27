@@ -25,6 +25,7 @@ interface ISuccinctGatewayEvents {
         uint32 indexed nonce, bytes32 indexed functionId, bytes32 inputHash, bytes32 outputHash
     );
     event Call(bytes32 indexed functionId, bytes32 inputHash, bytes32 outputHash);
+    event SetFeeVault(address indexed oldFeeVault, address indexed newFeeVault);
 }
 
 interface ISuccinctGatewayErrors {
