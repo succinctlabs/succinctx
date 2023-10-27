@@ -52,18 +52,15 @@ where
             writer.write(&digest_index_reg, digest_index, 0);
         }
 
-        for (
-            i,
-            (((((chunk, chunk_register), end_bit), end_bit_value), digest_bit), digest_bit_value),
-        ) in input
-            .padded_chunks
-            .chunks_exact(16)
-            .zip_eq(self.padded_chunks.iter())
-            .zip_eq(self.end_bits.iter())
-            .zip_eq(input.end_bits)
-            .zip_eq(self.digest_bits)
-            .zip_eq(input.digest_bits)
-            .enumerate()
+        for (((((chunk, chunk_register), end_bit), end_bit_value), digest_bit), digest_bit_value) in
+            input
+                .padded_chunks
+                .chunks_exact(16)
+                .zip_eq(self.padded_chunks.iter())
+                .zip_eq(self.end_bits.iter())
+                .zip_eq(input.end_bits)
+                .zip_eq(self.digest_bits)
+                .zip_eq(input.digest_bits)
         {
             writer.write_array(
                 chunk_register,

@@ -175,7 +175,7 @@ mod tests {
         let mut input_stream = VariableStream::new();
         input_stream.write(&a_init);
 
-        let mut output_stream = builder.hint(input_stream, hint);
+        let output_stream = builder.hint(input_stream, hint);
 
         let proof = output_stream.read_byte_stark_proof(&mut builder, &stark);
         let num_public_inputs = stark.air_data.num_public_inputs;

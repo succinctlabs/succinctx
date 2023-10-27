@@ -26,6 +26,8 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
     SHAir<BytesBuilder<Self::AirParameters>, CYCLE_LEN>
 {
     type IntVariable: CircuitVariable<ValueType<L::Field> = Self::Integer> + Copy;
+    type DigestVariable: CircuitVariable;
+
     type AirParameters: AirParameters<
         Field = L::Field,
         CubicParams = L::CubicParams,
@@ -48,6 +50,11 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
         builder: &mut CircuitBuilder<L, D>,
         value: <Self::IntRegister as Register>::Value<Variable>,
     ) -> Self::IntVariable;
+
+    fn digest_to_array(
+        builder: &mut CircuitBuilder<L, D>,
+        digest: Self::DigestVariable,
+    ) -> [Self::IntVariable; 8];
 
     fn get_sha_data(
         builder: &mut CircuitBuilder<L, D>,

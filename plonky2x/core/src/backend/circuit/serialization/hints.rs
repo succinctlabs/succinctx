@@ -8,6 +8,7 @@ use curta::chip::ec::edwards::scalar_mul::generator::{
 use curta::chip::hash::blake::blake2b::generator::{
     BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
 };
+use curta::machine::hash::sha::sha256::SHA256;
 use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
 use curta::plonky2::cubic::mul_gate::MulCubicGenerator;
 use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
@@ -63,11 +64,14 @@ use crate::frontend::eth::storage::generators::{
 use crate::frontend::hash::blake2::curta::MAX_NUM_CURTA_CHUNKS;
 use crate::frontend::hash::deprecated::bit_operations::XOR3Generator;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
+use crate::frontend::hash::sha::curta::digest_hint::SHADigestHint;
+use crate::frontend::hash::sha::curta::proof_hint::SHAProofHint;
 use crate::frontend::hint::asynchronous::generator::{AsyncHintDataRef, AsyncHintRef};
 use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
+use crate::frontend::hint::synchronous::Async;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::nonnative::nonnative::{
     NonNativeAdditionGenerator, NonNativeInverseGenerator, NonNativeMultipleAddsGenerator,
@@ -440,6 +444,12 @@ where
         r.register_hint::<BeaconBlockRootsHint>();
 
         r.register_hint::<BeaconGraffitiHint>();
+
+        r.register_hint::<SHADigestHint<SHA256, 64>>();
+        r.register_async_hint::<Async<SHADigestHint<SHA256, 64>>>();
+
+        r.register_hint::<SHAProofHint<SHA256, 64>>();
+        r.register_async_hint::<Async<SHAProofHint<SHA256, 64>>>();
 
         register_powers_of_two!(r, BeaconHeadersFromOffsetRangeHint);
 

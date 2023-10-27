@@ -22,7 +22,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .zip(accelerator.sha_responses.iter())
         {
             let digest_hint =
-                SHADigestHint::<L, S, D, CYCLE_LEN>::new(request.input_len(), request.req_type());
+                SHADigestHint::<S, CYCLE_LEN>::new(request.input_len(), request.req_type());
             let mut input_stream = VariableStream::new();
 
             match &request {

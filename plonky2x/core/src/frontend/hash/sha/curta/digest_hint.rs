@@ -9,14 +9,14 @@ use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SHADigestHint<L, S, const D: usize, const CYCLE_LEN: usize> {
+pub struct SHADigestHint<S, const CYCLE_LEN: usize> {
     pub input_length: usize,
     pub request_type: SHARequestType,
-    _marker: PhantomData<(L, S)>,
+    _marker: PhantomData<S>,
 }
 
 impl<L: PlonkParameters<D>, S: SHA<L, D, CYCLE_LEN>, const D: usize, const CYCLE_LEN: usize>
-    Hint<L, D> for SHADigestHint<L, S, D, CYCLE_LEN>
+    Hint<L, D> for SHADigestHint<S, CYCLE_LEN>
 {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         // Read the padded chunks from the input stream.
@@ -41,9 +41,7 @@ impl<L: PlonkParameters<D>, S: SHA<L, D, CYCLE_LEN>, const D: usize, const CYCLE
     }
 }
 
-impl<L: PlonkParameters<D>, S: SHA<L, D, CYCLE_LEN>, const D: usize, const CYCLE_LEN: usize>
-    SHADigestHint<L, S, D, CYCLE_LEN>
-{
+impl<S, const CYCLE_LEN: usize> SHADigestHint<S, CYCLE_LEN> {
     pub fn new(input_length: usize, request_type: SHARequestType) -> Self {
         Self {
             input_length,
