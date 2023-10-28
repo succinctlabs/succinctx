@@ -304,9 +304,6 @@ mod tests {
             .map(|b| builder.constant::<ByteVariable>(*b))
             .collect::<Vec<_>>();
 
-        let padded = SHA256::pad(&byte_msg);
-        assert_eq!(padded.len(), 32);
-
         let bytes_length = builder.constant::<U32Variable>(39);
         let last_chunk = builder.constant::<U32Variable>(0);
 

@@ -85,8 +85,6 @@ where
                 &L::Field::from_canonical_u8(end_bit_value as u8),
                 0,
             );
-            debug!("end_bit: {}", end_bit_value);
-            debug!("digest_bit: {}", digest_bit_value);
             writer.write(
                 &digest_bit,
                 &L::Field::from_canonical_u8(digest_bit_value as u8),

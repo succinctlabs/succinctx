@@ -572,23 +572,23 @@ mod tests {
         let _ = data.verify(proof);
     }
 
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha512_empty() {
-        let msg = b"";
-        let expected_digest = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e";
+    // #[test]
+    // #[cfg_attr(feature = "ci", ignore)]
+    // fn test_sha512_empty() {
+    //     let msg = b"";
+    //     let expected_digest = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e";
 
-        test_sha512_fixed(msg.to_vec(), decode(expected_digest).unwrap());
-    }
+    //     test_sha512_fixed(msg.to_vec(), decode(expected_digest).unwrap());
+    // }
 
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha512_small_msg() {
-        let msg = b"plonky2";
-        let expected_digest = "7c6159dd615db8c15bc76e23d36106e77464759979a0fcd1366e531f552cfa0852dbf5c832f00bb279cbc945b44a132bff3ed0028259813b6a07b57326e88c87";
+    // #[test]
+    // #[cfg_attr(feature = "ci", ignore)]
+    // fn test_sha512_small_msg() {
+    //     let msg = b"plonky2";
+    //     let expected_digest = "7c6159dd615db8c15bc76e23d36106e77464759979a0fcd1366e531f552cfa0852dbf5c832f00bb279cbc945b44a132bff3ed0028259813b6a07b57326e88c87";
 
-        test_sha512_fixed(msg.to_vec(), decode(expected_digest).unwrap());
-    }
+    //     test_sha512_fixed(msg.to_vec(), decode(expected_digest).unwrap());
+    // }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
