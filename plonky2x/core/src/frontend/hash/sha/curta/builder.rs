@@ -6,7 +6,7 @@ use super::digest_hint::SHADigestHint;
 use super::proof_hint::SHAProofHint;
 use super::request::SHARequest;
 use super::SHA;
-use crate::prelude::{CircuitBuilder, PlonkParameters, VariableStream};
+use crate::prelude::*;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub(crate) fn curta_constrain_sha<S: SHA<L, D, CYCLE_LEN>, const CYCLE_LEN: usize>(
@@ -21,17 +21,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .iter()
             .zip(accelerator.sha_responses.iter())
         {
-            let digest_hint =
-                SHADigestHint::<S, CYCLE_LEN>::new(request.input_len(), request.req_type());
+            let digest_hint = SHADigestHint::<S, CYCLE_LEN>::new();
             let mut input_stream = VariableStream::new();
 
             match &request {
                 SHARequest::Fixed(msg) => {
+                    let len = self.constant::<Variable>(L::Field::from_canonical_usize(msg.len()));
+                    input_stream.write(&len);
                     input_stream.write_slice(msg);
                 }
-                SHARequest::Variable(msg, len) => {
-                    input_stream.write_slice(msg);
+                SHARequest::Variable(msg, len, _) => {
                     input_stream.write(len);
+                    input_stream.write_slice(msg);
                 }
             }
 

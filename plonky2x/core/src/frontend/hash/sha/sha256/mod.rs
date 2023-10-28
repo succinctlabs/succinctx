@@ -9,7 +9,7 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::hash::common::{and_arr, not_arr, xor2_arr, xor3_arr};
 use crate::frontend::vars::{BoolVariable, ByteVariable, Bytes32Variable, CircuitVariable};
-use crate::prelude::U32Variable;
+use crate::prelude::{U32Variable, Variable};
 
 pub mod curta;
 
@@ -50,16 +50,21 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ///
     /// It is assumed that `input` has length MAX_NUM_CHUNKS * 64.
     /// The true number of non-zero bytes in `input` is given by input_byte_length.
-    /// Input byte length should be at most MAX_NUM_CHUNKS * 64 - 9.
-    /// last_chunk = (input_byte_length + 9) / 64, where 9 represents the 8 length bytes and 1 padding byte.
-    /// It is assumed that the caller of this function has computed last_chunk correctly.
+    ///
+    /// 'last_chunk' is the index of the last chunk in `input`. Its value should be given by
+    /// (input_byte_length + 9)/64 It is assumed that the last chunk is calculated correctly.
     fn pad_message_sha256_variable(
         &mut self,
         input: &[ByteVariable],
-        last_chunk: U32Variable,
         input_byte_length: U32Variable,
-    ) -> Vec<ByteVariable> {
+        last_chunk: U32Variable,
+    ) -> (Vec<ByteVariable>, Variable) {
         let max_number_of_chunks = input.len() / 64;
+        assert_eq!(
+            max_number_of_chunks * 64,
+            input.len(),
+            "input length must be a multiple of 64 bytes"
+        );
         // Compute the length bytes (big-endian representation of the length in bits).
         let zero_byte = self.constant::<ByteVariable>(0x00);
         let mut length_bytes = vec![zero_byte; 4];
@@ -118,7 +123,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         assert_eq!(padded_bytes.len(), max_number_of_chunks * 64);
-        padded_bytes
+        (padded_bytes, last_chunk.variable)
     }
 
     fn const_be_bits(&mut self, u: u32) -> [BoolVariable; 32] {

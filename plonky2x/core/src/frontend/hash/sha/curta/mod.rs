@@ -7,6 +7,7 @@ use curta::machine::builder::Builder;
 use curta::machine::bytes::builder::BytesBuilder;
 use curta::machine::hash::sha::algorithm::SHAir;
 use curta::machine::hash::sha::builder::SHABuilder;
+use plonky2::util::log2_ceil;
 
 use self::accelerator::SHAAccelerator;
 use self::data::{SHAInputData, SHAInputParameters};
@@ -43,8 +44,9 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
     fn pad_circuit_variable_length(
         builder: &mut CircuitBuilder<L, D>,
         input: &[ByteVariable],
-        length: Variable,
-    ) -> Vec<Self::IntVariable>;
+        length: U32Variable,
+        last_chunk: U32Variable,
+    ) -> (Vec<Self::IntVariable>, Variable);
 
     fn value_to_variable(
         builder: &mut CircuitBuilder<L, D>,
@@ -67,16 +69,24 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
             .sha_requests
             .iter()
             .flat_map(|req| {
-                let padded_chunks = match req {
-                    SHARequest::Fixed(input) => Self::pad_circuit(builder, input),
-                    SHARequest::Variable(_, _) => unimplemented!("TODO"),
+                let (padded_chunks, chunk_index) = match req {
+                    SHARequest::Fixed(input) => {
+                        let padded_chunks = Self::pad_circuit(builder, input);
+                        let num_chunks = builder
+                            .constant(L::Field::from_canonical_usize(padded_chunks.len() / 16 - 1));
+                        (padded_chunks, num_chunks)
+                    }
+                    SHARequest::Variable(input, length, last_chunk) => {
+                        Self::pad_circuit_variable_length(builder, input, *length, *last_chunk)
+                    }
                 };
-                let num_chunks = padded_chunks.len() / 16;
-                digest_indices.push(builder.constant(L::Field::from_canonical_usize(
-                    current_chunk_index + num_chunks - 1,
-                )));
-                current_chunk_index += num_chunks;
-                end_bit_values.extend_from_slice(&vec![false; num_chunks - 1]);
+                let total_number_of_chunks = padded_chunks.len() / 16;
+                let current_chunk_index_variable = builder
+                    .constant::<Variable>(L::Field::from_canonical_usize(current_chunk_index));
+                let digest_index = builder.add(current_chunk_index_variable, chunk_index);
+                digest_indices.push(digest_index);
+                current_chunk_index += total_number_of_chunks;
+                end_bit_values.extend_from_slice(&vec![false; total_number_of_chunks - 1]);
                 end_bit_values.push(true);
                 padded_chunks
             })
@@ -108,7 +118,7 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
         let digests =
             builder.sha::<Self, CYCLE_LEN>(&padded_chunks, &end_bits, &digest_bits, digest_indices);
 
-        let num_rows_degree = (CYCLE_LEN * num_chunks).ilog2() as usize + 1;
+        let num_rows_degree = log2_ceil(CYCLE_LEN * num_chunks);
         let num_rows = 1 << num_rows_degree;
         let stark = builder.build::<L::CurtaConfig, D>(num_rows);
 

@@ -71,15 +71,12 @@ where
             let pre_processed = S::pre_process(chunk);
             current_state = S::process(current_state, &pre_processed);
             let state = current_state.map(S::int_to_field_value);
-            if end_bit_value {
-                // writer.write(
-                //     &digest_indices_iter.next().unwrap(),
-                //     &L::Field::from_canonical_usize(i),
-                //     0,
-                // );
+            if digest_bit_value {
                 let h: S::StateVariable = *hash_iter.next().unwrap();
                 let array: ArrayRegister<_> = h.into();
                 writer.write_array(&array, &state, 0);
+            }
+            if end_bit_value {
                 current_state = S::INITIAL_HASH;
             }
 
@@ -88,6 +85,8 @@ where
                 &L::Field::from_canonical_u8(end_bit_value as u8),
                 0,
             );
+            debug!("end_bit: {}", end_bit_value);
+            debug!("digest_bit: {}", digest_bit_value);
             writer.write(
                 &digest_bit,
                 &L::Field::from_canonical_u8(digest_bit_value as u8),

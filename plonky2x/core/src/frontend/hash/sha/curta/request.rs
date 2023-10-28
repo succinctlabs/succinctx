@@ -14,21 +14,14 @@ pub enum SHARequest {
     /// A message of fixed length.
     Fixed(Vec<ByteVariable>),
     /// A message of variable length, with the actual legnth given by the Variable.
-    Variable(Vec<ByteVariable>, Variable),
+    Variable(Vec<ByteVariable>, U32Variable, U32Variable),
 }
 
 impl SHARequest {
     pub const fn req_type(&self) -> SHARequestType {
         match self {
             SHARequest::Fixed(_) => SHARequestType::Fixed,
-            SHARequest::Variable(_, _) => SHARequestType::Variable,
-        }
-    }
-
-    pub fn input_len(&self) -> usize {
-        match self {
-            SHARequest::Fixed(msg) => msg.len(),
-            SHARequest::Variable(msg, _) => msg.len(),
+            SHARequest::Variable(_, _, _) => SHARequestType::Variable,
         }
     }
 }
