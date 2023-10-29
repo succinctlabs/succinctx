@@ -43,48 +43,38 @@ where
         writer: &TraceWriter<L::Field>,
         input: SHAInputDataValues<L, S, D, CYCLE_LEN>,
     ) {
-        let mut current_state = S::INITIAL_HASH;
-        let mut hash_iter = self.digests.iter();
-
         for (digest_index_reg, digest_index) in
             self.digest_indices.iter().zip(input.digest_indices.iter())
         {
             writer.write(&digest_index_reg, digest_index, 0);
         }
 
-        for (((((chunk, chunk_register), end_bit), end_bit_value), digest_bit), digest_bit_value) in
-            input
-                .padded_chunks
-                .chunks_exact(16)
-                .zip_eq(self.padded_chunks.iter())
-                .zip_eq(self.end_bits.iter())
-                .zip_eq(input.end_bits)
-                .zip_eq(self.digest_bits)
-                .zip_eq(input.digest_bits)
+        for (digest_reg, digest_value) in self.digests.iter().zip(input.digests.iter()) {
+            let array: ArrayRegister<_> = (*digest_reg).into();
+            writer.write_array(&array, digest_value.map(S::int_to_field_value), 0);
+        }
+
+        for (chunk, chunk_value) in self
+            .padded_chunks
+            .iter()
+            .zip(input.padded_chunks.chunks_exact(16))
         {
             writer.write_array(
-                chunk_register,
-                chunk.iter().map(|x| S::int_to_field_value(*x)),
+                chunk,
+                chunk_value.iter().map(|x| S::int_to_field_value(*x)),
                 0,
             );
+        }
 
-            let pre_processed = S::pre_process(chunk);
-            current_state = S::process(current_state, &pre_processed);
-            let state = current_state.map(S::int_to_field_value);
-            if digest_bit_value {
-                let h: S::StateVariable = *hash_iter.next().unwrap();
-                let array: ArrayRegister<_> = h.into();
-                writer.write_array(&array, &state, 0);
-            }
-            if end_bit_value {
-                current_state = S::INITIAL_HASH;
-            }
-
+        for (end_bit, end_bit_value) in self.end_bits.iter().zip(input.end_bits) {
             writer.write(
                 &end_bit,
                 &L::Field::from_canonical_u8(end_bit_value as u8),
                 0,
             );
+        }
+
+        for (digest_bit, digest_bit_value) in self.digest_bits.iter().zip(input.digest_bits) {
             writer.write(
                 &digest_bit,
                 &L::Field::from_canonical_u8(digest_bit_value as u8),

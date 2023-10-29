@@ -155,6 +155,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
+    use log::debug;
+
     use crate::prelude::*;
     use crate::utils::setup_logger;
 
@@ -166,6 +168,7 @@ mod tests {
             .map(|b| builder.constant::<ByteVariable>(*b))
             .collect::<Vec<_>>();
         let digest = builder.curta_sha512(&message);
+
         let expected_digest = builder.constant::<BytesVariable<64>>(expected_digest);
         builder.assert_is_equal(digest, expected_digest);
 
