@@ -52,17 +52,16 @@ impl<L: PlonkParameters<D>, const D: usize> SHA<L, D, 80> for SHA512 {
         length: U32Variable,
         last_chunk: U32Variable,
     ) -> (Vec<Self::IntVariable>, Variable) {
-        todo!()
-        // let (padded_bytes, last_chunk) =
-        //     builder.pad_message_sha512_variable(input, length, last_chunk);
+        let (padded_bytes, last_chunk) =
+            builder.pad_sha512_variable_length(input, length, last_chunk);
 
-        // (
-        //     padded_bytes
-        //         .chunks_exact(4)
-        //         .map(|bytes| U64Variable::decode(builder, bytes))
-        //         .collect(),
-        //     last_chunk,
-        // )
+        (
+            padded_bytes
+                .chunks_exact(8)
+                .map(|bytes| U64Variable::decode(builder, bytes))
+                .collect(),
+            last_chunk,
+        )
     }
 
     fn value_to_variable(
@@ -155,14 +154,32 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use log::debug;
-
     use crate::prelude::*;
     use crate::utils::setup_logger;
 
     fn test_sha512_fixed(msg: &[u8], expected_digest: [u8; 64]) {
         setup_logger();
         let mut builder = DefaultBuilder::new();
+        let message = msg
+            .iter()
+            .map(|b| builder.constant::<ByteVariable>(*b))
+            .collect::<Vec<_>>();
+        let digest = builder.curta_sha512(&message);
+
+        let expected_digest = builder.constant::<BytesVariable<64>>(expected_digest);
+        builder.assert_is_equal(digest, expected_digest);
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    fn test_sha512_variable_length(msg: &[u8], expected_digest: [u8; 64]) {
+        todo!();
+        setup_logger();
+        let mut builder = DefaultBuilder::new();
+
         let message = msg
             .iter()
             .map(|b| builder.constant::<ByteVariable>(*b))
