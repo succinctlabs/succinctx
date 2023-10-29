@@ -270,7 +270,7 @@ mod tests {
     fn test_sha512_curta_variable_short_message_different_slice() {
         let mut msg: Vec<u8> = b"plonky2".to_vec();
         let len = msg.len() as u32;
-        msg.resize(256, 1);
+        msg.resize(512, 1);
         let expected_digest = bytes!("7c6159dd615db8c15bc76e23d36106e77464759979a0fcd1366e531f552cfa0852dbf5c832f00bb279cbc945b44a132bff3ed0028259813b6a07b57326e88c87");
 
         test_sha512_variable_length(&msg, len, 0, expected_digest);

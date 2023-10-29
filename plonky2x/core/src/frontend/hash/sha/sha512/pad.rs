@@ -45,8 +45,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub(crate) fn pad_sha512_variable_length(
         &mut self,
         input: &[ByteVariable],
-        last_chunk: U32Variable,
         input_byte_length: U32Variable,
+        last_chunk: U32Variable,
     ) -> Vec<ByteVariable> {
         let max_num_chunks = input.len() / LENGTH_BITS_128;
         assert_eq!(input.len() % LENGTH_BITS_128, 0);
