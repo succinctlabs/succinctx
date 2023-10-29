@@ -13,7 +13,6 @@ use self::accelerator::SHAAccelerator;
 use self::data::{SHAInputData, SHAInputParameters};
 use self::request::SHARequest;
 use self::stark::SHAStark;
-use crate::frontend::vars::EvmVariable;
 use crate::prelude::*;
 
 pub mod accelerator;
@@ -88,10 +87,15 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
                     .constant::<Variable>(L::Field::from_canonical_usize(current_chunk_index));
                 let digest_index = builder.add(current_chunk_index_variable, chunk_index.variable);
                 digest_indices.push(digest_index);
-                let one = builder.constant::<U32Variable>(1u32);
-                let chunk_index_plus_one = builder.add(chunk_index, one);
-                let chunk_index_bits = chunk_index_plus_one.to_le_bits(builder);
-                digest_bits.extend_from_slice(&chunk_index_bits[0..total_number_of_chunks]);
+                let mut flag = builder.constant::<BoolVariable>(true);
+                for j in 0..total_number_of_chunks {
+                    let j_var = builder.constant::<U32Variable>(j as u32);
+                    let lte = builder.lte(chunk_index, j_var);
+                    let lte_times_flag = builder.and(lte, flag);
+                    digest_bits.push(lte_times_flag);
+                    let not_lte = builder.not(lte);
+                    flag = builder.and(flag, not_lte);
+                }
                 current_chunk_index += total_number_of_chunks;
                 end_bit_values.extend_from_slice(&vec![false; total_number_of_chunks - 1]);
                 end_bit_values.push(true);

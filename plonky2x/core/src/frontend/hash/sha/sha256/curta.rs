@@ -248,7 +248,7 @@ mod tests {
             .map(|b| builder.constant::<ByteVariable>(*b))
             .collect::<Vec<_>>();
 
-        let mut msgs = (0..12).map(|_| short_msg_bytes.clone()).collect::<Vec<_>>();
+        let mut msgs = (0..10).map(|_| short_msg_bytes.clone()).collect::<Vec<_>>();
 
         // Requires 3 chunks each.
         let long_msg = [1u8; 128];
@@ -257,7 +257,7 @@ mod tests {
             .map(|b| builder.constant::<ByteVariable>(*b))
             .collect::<Vec<_>>();
 
-        msgs.extend((0..10).map(|_| long_msg_bytes.clone()).collect::<Vec<_>>());
+        msgs.extend((0..15).map(|_| long_msg_bytes.clone()).collect::<Vec<_>>());
 
         let _ = msgs
             .iter()
