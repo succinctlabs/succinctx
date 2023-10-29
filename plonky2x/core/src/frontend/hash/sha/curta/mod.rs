@@ -13,6 +13,7 @@ use self::accelerator::SHAAccelerator;
 use self::data::{SHAInputData, SHAInputParameters};
 use self::request::SHARequest;
 use self::stark::SHAStark;
+use crate::frontend::vars::EvmVariable;
 use crate::prelude::*;
 
 pub mod accelerator;
@@ -46,7 +47,7 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
         input: &[ByteVariable],
         length: U32Variable,
         last_chunk: U32Variable,
-    ) -> (Vec<Self::IntVariable>, Variable);
+    ) -> Vec<Self::IntVariable>;
 
     fn value_to_variable(
         builder: &mut CircuitBuilder<L, D>,
@@ -63,6 +64,7 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
         accelerator: SHAAccelerator<Self::IntVariable>,
     ) -> SHAInputData<Self::IntVariable> {
         let mut end_bit_values = Vec::new();
+        let mut digest_bits = Vec::new();
         let mut current_chunk_index = 0;
         let mut digest_indices = Vec::<Variable>::new();
         let padded_chunks = accelerator
@@ -72,19 +74,24 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
                 let (padded_chunks, chunk_index) = match req {
                     SHARequest::Fixed(input) => {
                         let padded_chunks = Self::pad_circuit(builder, input);
-                        let num_chunks = builder
-                            .constant(L::Field::from_canonical_usize(padded_chunks.len() / 16 - 1));
+                        let num_chunks =
+                            builder.constant((padded_chunks.len() / 16 - 1).try_into().unwrap());
                         (padded_chunks, num_chunks)
                     }
-                    SHARequest::Variable(input, length, last_chunk) => {
-                        Self::pad_circuit_variable_length(builder, input, *length, *last_chunk)
-                    }
+                    SHARequest::Variable(input, length, last_chunk) => (
+                        Self::pad_circuit_variable_length(builder, input, *length, *last_chunk),
+                        *last_chunk,
+                    ),
                 };
                 let total_number_of_chunks = padded_chunks.len() / 16;
                 let current_chunk_index_variable = builder
                     .constant::<Variable>(L::Field::from_canonical_usize(current_chunk_index));
-                let digest_index = builder.add(current_chunk_index_variable, chunk_index);
+                let digest_index = builder.add(current_chunk_index_variable, chunk_index.variable);
                 digest_indices.push(digest_index);
+                let one = builder.constant::<U32Variable>(1u32);
+                let chunk_index_plus_one = builder.add(chunk_index, one);
+                let chunk_index_bits = chunk_index_plus_one.to_le_bits(builder);
+                digest_bits.extend_from_slice(&chunk_index_bits[0..total_number_of_chunks]);
                 current_chunk_index += total_number_of_chunks;
                 end_bit_values.extend_from_slice(&vec![false; total_number_of_chunks - 1]);
                 end_bit_values.push(true);
@@ -96,7 +103,7 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
 
         SHAInputData {
             padded_chunks,
-            digest_bits: end_bits.clone(),
+            digest_bits,
             end_bits,
             digest_indices,
             digests: accelerator.sha_responses,

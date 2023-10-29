@@ -47,7 +47,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         last_chunk: U32Variable,
         input_byte_length: U32Variable,
-    ) -> (Vec<ByteVariable>, Variable) {
+    ) -> Vec<ByteVariable> {
         let max_num_chunks = input.len() / LENGTH_BITS_128;
         assert_eq!(input.len() % LENGTH_BITS_128, 0);
 
@@ -128,11 +128,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // Combine the bits into ByteVariable
         let output_bits = msg_input.iter().map(|b| b.target).collect::<Vec<_>>();
-        (
-            (0..output_bits.len() / 8)
-                .map(|i| ByteVariable::from_targets(&output_bits[i * 8..(i + 1) * 8]))
-                .collect::<Vec<_>>(),
-            Variable::from(last_chunk),
-        )
+        (0..output_bits.len() / 8)
+            .map(|i| ByteVariable::from_targets(&output_bits[i * 8..(i + 1) * 8]))
+            .collect::<Vec<_>>()
     }
 }

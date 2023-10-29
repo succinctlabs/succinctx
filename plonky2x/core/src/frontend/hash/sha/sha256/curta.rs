@@ -50,17 +50,13 @@ impl<L: PlonkParameters<D>, const D: usize> SHA<L, D, 64> for SHA256 {
         input: &[ByteVariable],
         length: U32Variable,
         last_chunk: U32Variable,
-    ) -> (Vec<Self::IntVariable>, Variable) {
-        let (padded_bytes, last_chunk) =
-            builder.pad_message_sha256_variable(input, length, last_chunk);
+    ) -> Vec<Self::IntVariable> {
+        let padded_bytes = builder.pad_message_sha256_variable(input, length, last_chunk);
 
-        (
-            padded_bytes
-                .chunks_exact(4)
-                .map(|bytes| U32Variable::decode(builder, bytes))
-                .collect(),
-            last_chunk,
-        )
+        padded_bytes
+            .chunks_exact(4)
+            .map(|bytes| U32Variable::decode(builder, bytes))
+            .collect()
     }
 
     fn value_to_variable(
@@ -167,7 +163,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha256_curta_fixed_single() {
+    fn test_sha256_curta_fixed_short_single() {
         env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();

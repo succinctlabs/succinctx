@@ -9,7 +9,7 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::hash::common::{and_arr, not_arr, xor2_arr, xor3_arr};
 use crate::frontend::vars::{BoolVariable, ByteVariable, Bytes32Variable, CircuitVariable};
-use crate::prelude::{U32Variable, Variable};
+use crate::prelude::U32Variable;
 
 pub mod curta;
 
@@ -58,7 +58,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         input_byte_length: U32Variable,
         last_chunk: U32Variable,
-    ) -> (Vec<ByteVariable>, Variable) {
+    ) -> Vec<ByteVariable> {
         let max_number_of_chunks = input.len() / 64;
         assert_eq!(
             max_number_of_chunks * 64,
@@ -123,7 +123,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         assert_eq!(padded_bytes.len(), max_number_of_chunks * 64);
-        (padded_bytes, last_chunk.variable)
+        padded_bytes
     }
 
     fn const_be_bits(&mut self, u: u32) -> [BoolVariable; 32] {

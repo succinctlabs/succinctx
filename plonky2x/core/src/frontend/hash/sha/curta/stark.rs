@@ -67,6 +67,7 @@ where
         }
 
         for (end_bit, end_bit_value) in self.end_bits.iter().zip(input.end_bits) {
+            debug!("end_bit: {:?}", end_bit_value);
             writer.write(
                 &end_bit,
                 &L::Field::from_canonical_u8(end_bit_value as u8),
@@ -75,6 +76,7 @@ where
         }
 
         for (digest_bit, digest_bit_value) in self.digest_bits.iter().zip(input.digest_bits) {
+            debug!("digest_bit: {:?}", digest_bit_value);
             writer.write(
                 &digest_bit,
                 &L::Field::from_canonical_u8(digest_bit_value as u8),
