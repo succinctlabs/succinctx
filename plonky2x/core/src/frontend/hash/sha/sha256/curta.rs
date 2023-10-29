@@ -279,12 +279,7 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        // let byte_msg: [_ ; 64] = bytes!(
-        //     "00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d00000000000000000000000000000000000000000000000000"
-        // );
-
         let byte_msg : Vec<u8> = bytes!("00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d00000000000000000000000000000000000000000000000000");
-
         let msg = byte_msg
             .iter()
             .map(|b| builder.constant::<ByteVariable>(*b))
@@ -297,7 +292,42 @@ mod tests {
             bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
         let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
-        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length, last_chunk); // bytes_length);
+        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length, last_chunk);
+        builder.watch(&msg_hash, "msg_hash");
+        builder.assert_is_equal(msg_hash, expected_digest);
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+
+        circuit.test_default_serializers();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha256_curta_variable_different_chunk() {
+        env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+
+        let mut byte_msg : Vec<u8> = bytes!("00de6ad0941095ada2a7996e6a888581928203b8b69e07ee254d289f5b9c9caea193c2ab01902d00000000000000000000000000000000000000000000000000");
+        byte_msg.resize(192, 0);
+        let msg = byte_msg
+            .iter()
+            .map(|b| builder.constant::<ByteVariable>(*b))
+            .collect::<Vec<_>>();
+
+        let bytes_length = builder.constant::<U32Variable>(39);
+        let last_chunk = builder.constant::<U32Variable>(0);
+
+        let expected_digest =
+            bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
+        let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
+
+        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length, last_chunk);
         builder.watch(&msg_hash, "msg_hash");
         builder.assert_is_equal(msg_hash, expected_digest);
 

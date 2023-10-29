@@ -245,11 +245,33 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha512_curta_variable_length_messages() {
+    fn test_sha512_curta_variable_large_message() {
         let mut msg : Vec<u8> = bytes!("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273");
         let len = msg.len() as u32;
         msg.resize(256, 1);
         let expected_digest = bytes!("4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39");
+
+        test_sha512_variable_length(&msg, len, 0, expected_digest);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_curta_variable_short_message_same_slice() {
+        let mut msg: Vec<u8> = b"plonky2".to_vec();
+        let len = msg.len() as u32;
+        msg.resize(128, 1);
+        let expected_digest = bytes!("7c6159dd615db8c15bc76e23d36106e77464759979a0fcd1366e531f552cfa0852dbf5c832f00bb279cbc945b44a132bff3ed0028259813b6a07b57326e88c87");
+
+        test_sha512_variable_length(&msg, len, 0, expected_digest);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_curta_variable_short_message_different_slice() {
+        let mut msg: Vec<u8> = b"plonky2".to_vec();
+        let len = msg.len() as u32;
+        msg.resize(256, 1);
+        let expected_digest = bytes!("7c6159dd615db8c15bc76e23d36106e77464759979a0fcd1366e531f552cfa0852dbf5c832f00bb279cbc945b44a132bff3ed0028259813b6a07b57326e88c87");
 
         test_sha512_variable_length(&msg, len, 0, expected_digest);
     }
