@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.16;
 
-import {IFunctionGateway} from "./interfaces/IFunctionGateway.sol";
+import {ISuccinctGateway} from "./interfaces/ISuccinctGateway.sol";
 import {IFunctionVerifier} from "./interfaces/IFunctionVerifier.sol";
 import {FunctionRegistry} from "./FunctionRegistry.sol";
 import {TimelockedUpgradeable} from "./upgrades/TimelockedUpgradeable.sol";
 import {IFeeVault} from "./payments/interfaces/IFeeVault.sol";
 
-contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgradeable {
+contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgradeable {
     /// @dev The address of the fee vault.
     address public feeVault;
 
@@ -88,7 +87,9 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
         nonce++;
 
         // Send the fee to the vault.
-        IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
+        if (feeVault != address(0)) {
+            IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
+        }
 
         return requestHash;
     }
@@ -119,7 +120,9 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
         );
 
         // Send the fee to the vault.
-        IFeeVault(feeVault).depositNative{value: msg.value}(msg.sender);
+        if (feeVault != address(0)) {
+            IFeeVault(feeVault).depositNative{value: msg.value}(msg.sender);
+        }
     }
 
     /// @dev If the call matches the currently verified function, returns the output. Otherwise,
@@ -241,6 +244,13 @@ contract FunctionGateway is IFunctionGateway, FunctionRegistry, TimelockedUpgrad
 
         // Emit event.
         emit Call(_functionId, inputHash, outputHash);
+    }
+
+    /// @dev Sets the fee vault to a new address. Can be set to address(0) to disable fees.
+    /// @param _feeVault The address of the fee vault.
+    function setFeeVault(address _feeVault) external onlyGuardian {
+        emit SetFeeVault(feeVault, _feeVault);
+        feeVault = _feeVault;
     }
 
     /// @dev Computes a unique identifier for a request.

@@ -131,7 +131,7 @@ func (f *CircuitFunction) Prove(inputBytes []byte, build *CircuitBuild) (*types.
 	return output, nil
 }
 
-// Generates a JSON fixture for use in Solidity tests with MockFunctionGateway.sol.
+// Generates a JSON fixture for use in Solidity tests with MockSuccinctGateway.sol.
 func (f *CircuitFunction) GenerateFixture(inputBytes []byte) (types.Fixture, error) {
 	f.SetWitness(inputBytes)
 	fixture := types.Fixture{
