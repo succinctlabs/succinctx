@@ -51,11 +51,11 @@ make_uint32_n!(U64Variable, u64, 2);
 make_uint32_n_tests!(U64Variable, u64, 2);
 
 impl U64Variable {
-    /// Converts a U64Variable to Variable.
+    /// Converts a U64Variable to Variable with overflow.
     ///
     /// Note: This function assumes that the U64 is in the range [0, 2^64-2^32+1). Otherwise, it
     /// will overflow.
-    pub fn to_variable<L: PlonkParameters<D>, const D: usize>(
+    pub fn to_variable_with_overflow<L: PlonkParameters<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<L, D>,
     ) -> Variable {
