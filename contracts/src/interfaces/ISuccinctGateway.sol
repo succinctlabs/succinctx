@@ -34,6 +34,7 @@ interface ISuccinctGatewayErrors {
     error InvalidCall(bytes32 functionId, bytes input);
     error CallFailed(address callbackAddress, bytes callbackData);
     error InvalidProof(address verifier, bytes32 inputHash, bytes32 outputHash, bytes proof);
+    error ReentrantFulfill();
 }
 
 interface ISuccinctGateway is ISuccinctGatewayEvents, ISuccinctGatewayErrors {
