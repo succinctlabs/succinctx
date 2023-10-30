@@ -195,9 +195,19 @@ contract AttackConsumer is Test {
     }
 }
 
-contract TestFunctionVerifier is IFunctionVerifier {
+contract TestFunctionVerifier1 is IFunctionVerifier {
     function verificationKeyHash() external pure returns (bytes32) {
-        return keccak256("verificationKeyHash");
+        return keccak256("verificationKeyHash1");
+    }
+
+    function verify(bytes32, bytes32, bytes memory) external pure returns (bool) {
+        return true;
+    }
+}
+
+contract TestFunctionVerifier2 is IFunctionVerifier {
+    function verificationKeyHash() external pure returns (bytes32) {
+        return keccak256("verificationKeyHash2");
     }
 
     function verify(bytes32, bytes32, bytes memory) external pure returns (bool) {
