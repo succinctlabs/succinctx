@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 
 pub mod uint128;
+pub mod uint160;
 pub mod uint256;
 pub mod uint32;
 pub mod uint64;
