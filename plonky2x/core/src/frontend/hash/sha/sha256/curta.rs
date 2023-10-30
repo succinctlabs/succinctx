@@ -361,13 +361,14 @@ mod tests {
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let max_number_of_chunks = 2;
-        let total_message_length = 64 * max_number_of_chunks - 10;
+        let total_message_length = 64 * max_number_of_chunks;
+        let max_len = 55;
 
         let mut rng = thread_rng();
-        for i in 0..total_message_length {
-            let total_message = (0..total_message_length)
-                .map(|_| rng.gen::<u8>())
-                .collect::<Vec<_>>();
+        let total_message = (0..total_message_length)
+            .map(|_| rng.gen::<u8>())
+            .collect::<Vec<_>>();
+        for i in 0..max_len {
             let message = &total_message[..i];
             let expected_digest = H256::from(sha256(message));
 
