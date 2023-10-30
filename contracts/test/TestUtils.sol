@@ -53,7 +53,7 @@ contract TestConsumer {
         nonce++;
     }
 
-    function handleCall(bytes memory _output, bytes memory _context) external {
+    function handleCall(bytes memory _output) external {
         if (msg.sender != SUCCINCT_GATEWAY) {
             revert NotValid();
         }
@@ -66,7 +66,7 @@ contract TestConsumer {
         handledRequests[nonce - 1] = result;
     }
 
-    function verifiedCall(bytes memory _input) public {
+    function verifiedCall(bytes memory _input) public view {
         ISuccinctGateway(SUCCINCT_GATEWAY).verifiedCall(FUNCTION_ID, _input);
     }
 }

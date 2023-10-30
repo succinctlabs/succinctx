@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 use curta::chip::arithmetic::expression::ArithmeticExpression;
-use curta::chip::builder::{AirBuilder, AirTraceData};
+use curta::chip::builder::AirBuilder;
 use curta::chip::ec::gadget::EllipticCurveGadget;
 use curta::chip::ec::point::AffinePointRegister;
 use curta::chip::ec::{EllipticCurve, EllipticCurveAir};
@@ -11,6 +11,7 @@ use curta::chip::register::array::ArrayRegister;
 use curta::chip::register::bit::BitRegister;
 use curta::chip::register::cubic::CubicRegister;
 use curta::chip::register::{Register, RegisterSerializable, RegisterSized};
+use curta::chip::trace::data::AirTraceData;
 use curta::chip::{AirParameters, Chip};
 use curta::math::prelude::{CubicParameters, *};
 use serde::{Deserialize, Serialize};
@@ -87,11 +88,11 @@ impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveAir<PKAirParameters
             &pk_challenges,
             &[clk.expr(), current.x.expr(), current.y.expr()],
         );
-        builder.output_from_bus_filtered(channel_idx, current_point_digest, cycle.start_bit.expr());
+        builder.output_from_bus_filtered(channel_idx, current_point_digest, cycle.start_bit);
         // Connect the selector into the bus, depending on the cycle.
         let selector_digest =
             builder.accumulate_expressions(&selector_challenges, &[clk.expr(), flag.expr()]);
-        builder.output_from_bus_filtered(channel_idx, selector_digest, cycle.start_bit.expr());
+        builder.output_from_bus_filtered(channel_idx, selector_digest, cycle.start_bit);
 
         // Insert the public keys and selector values to the bus
         for i in 0..num_public_keys {

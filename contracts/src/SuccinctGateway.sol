@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.16;
 
 import {ISuccinctGateway} from "./interfaces/ISuccinctGateway.sol";
@@ -88,7 +87,9 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         nonce++;
 
         // Send the fee to the vault.
-        IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
+        if (feeVault != address(0)) {
+            IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
+        }
 
         return requestHash;
     }
@@ -119,7 +120,9 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         );
 
         // Send the fee to the vault.
-        IFeeVault(feeVault).depositNative{value: msg.value}(msg.sender);
+        if (feeVault != address(0)) {
+            IFeeVault(feeVault).depositNative{value: msg.value}(msg.sender);
+        }
     }
 
     /// @dev If the call matches the currently verified function, returns the output. Otherwise,
@@ -241,6 +244,13 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
 
         // Emit event.
         emit Call(_functionId, inputHash, outputHash);
+    }
+
+    /// @dev Sets the fee vault to a new address. Can be set to address(0) to disable fees.
+    /// @param _feeVault The address of the fee vault.
+    function setFeeVault(address _feeVault) external onlyGuardian {
+        emit SetFeeVault(feeVault, _feeVault);
+        feeVault = _feeVault;
     }
 
     /// @dev Computes a unique identifier for a request.
