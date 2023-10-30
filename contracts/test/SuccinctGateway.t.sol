@@ -250,14 +250,14 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         bytes memory output = OUTPUT;
         bytes memory proof = PROOF;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector, OUTPUT, 0);
+        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
         uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
         uint256 fee = DEFAULT_FEE;
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
         emit RequestCall(functionId, input, callAddress, callData, callGasLimit, consumer, fee);
-        TestConsumer(consumer).requestCall{value: fee}(input, callData);
+        TestConsumer(consumer).requestCall{value: fee}(input);
 
         assertEq(TestConsumer(consumer).handledRequests(0), false);
 
@@ -277,14 +277,14 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         bytes memory output = OUTPUT;
         bytes memory proof = PROOF;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector, OUTPUT, 0);
+        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
         uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
         uint256 fee = 0;
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
         emit RequestCall(functionId, input, callAddress, callData, callGasLimit, consumer, fee);
-        TestConsumer(consumer).requestCall{value: fee}(input, callData);
+        TestConsumer(consumer).requestCall{value: fee}(input);
 
         assertEq(TestConsumer(consumer).handledRequests(0), false);
 
@@ -307,14 +307,14 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         bytes memory output = OUTPUT;
         bytes memory proof = PROOF;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector, OUTPUT, 0);
+        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
         uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
         uint256 fee = DEFAULT_FEE;
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
         emit RequestCall(functionId, input, callAddress, callData, callGasLimit, consumer, fee);
-        TestConsumer(consumer).requestCall{value: fee}(input, callData);
+        TestConsumer(consumer).requestCall{value: fee}(input);
 
         assertEq(TestConsumer(consumer).handledRequests(0), false);
 
@@ -334,7 +334,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         bytes memory output = OUTPUT;
         bytes memory proof = PROOF;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector, OUTPUT, 0);
+        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
 
         // Fulfill
         vm.expectRevert();
@@ -372,7 +372,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
         bytes memory input = INPUT;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector, OUTPUT, 0);
+        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
         uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
         uint256 fee = DEFAULT_FEE;
         address newFeeVault = address(new SuccinctFeeVault());
@@ -388,7 +388,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         // Request with fee
         vm.expectEmit(true, true, true, true, gateway);
         emit RequestCall(functionId, input, callAddress, callData, callGasLimit, consumer, fee);
-        TestConsumer(consumer).requestCall{value: fee}(input, callData);
+        TestConsumer(consumer).requestCall{value: fee}(input);
     }
 
     function test_RevertSetFeeVault_WhenNotGuardian() public {

@@ -29,6 +29,17 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     /// @dev A flag that indicates whether the contract is currently making a callback.
     bool public isCallback;
 
+    /// @dev Protects functions from being re-entered when a fulfill call is made.
+    modifier nonReentrant() {
+        if (
+            isCallback || verifiedFunctionId != bytes32(0) || verifiedInputHash != bytes32(0)
+                || verifiedOutput.length != 0
+        ) {
+            revert ReentrantFulfill();
+        }
+        _;
+    }
+
     /// @dev Initializes the contract.
     /// @param _feeVault The address of the fee vault.
     /// @param _timelock The address of the timelock contract.
@@ -162,7 +173,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         bytes memory _context,
         bytes memory _output,
         bytes memory _proof
-    ) external {
+    ) external nonReentrant {
         // Reconstruct the callback hash.
         bytes32 contextHash = keccak256(_context);
         bytes32 requestHash = _requestHash(
@@ -218,7 +229,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         bytes memory _proof,
         address _callbackAddress,
         bytes memory _callbackData
-    ) external {
+    ) external nonReentrant {
         // Compute the input and output hashes.
         bytes32 inputHash = sha256(_input);
         bytes32 outputHash = sha256(_output);
