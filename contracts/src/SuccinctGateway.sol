@@ -29,7 +29,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     /// @dev A flag that indicates whether the contract is currently making a callback.
     bool public isCallback;
 
-    /// @dev Protects functions from being re-entered when a fulfill call is made.
+    /// @dev Protects functions from being re-entered during a fullfil call.
     modifier nonReentrant() {
         if (
             isCallback || verifiedFunctionId != bytes32(0) || verifiedInputHash != bytes32(0)

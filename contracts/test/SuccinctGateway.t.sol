@@ -509,7 +509,7 @@ contract AttackSuccinctGateway is SuccinctGatewayTest {
         vm.prank(sender);
         AttackConsumer(attackConsumer).requestCallbackReenterCallback{value: fee}(input);
 
-        // Fulfill (test fails if doesn't revert with ReentrantFulfill error)
+        // Fulfill (test fails this doesn't revert with ReentrantFulfill() error)
         SuccinctGateway(gateway).fulfillCallback(
             0,
             functionId,
@@ -538,7 +538,7 @@ contract AttackSuccinctGateway is SuccinctGatewayTest {
         vm.prank(sender);
         AttackConsumer(attackConsumer).requestCallbackReenterCall{value: fee}(input);
 
-        // Fulfill (test fails if doesn't revert with ReentrantFulfill error)
+        // Fulfill (test fails this doesn't revert with ReentrantFulfill() error)
         SuccinctGateway(gateway).fulfillCallback(
             0,
             functionId,
@@ -566,7 +566,7 @@ contract AttackSuccinctGateway is SuccinctGatewayTest {
         vm.prank(sender);
         AttackConsumer(attackConsumer).requestCallReenterCallback{value: fee}(input);
 
-        // Fulfill (test fails if doesn't revert with ReentrantFulfill error)
+        // Fulfill (test fails this doesn't revert with ReentrantFulfill() error)
         SuccinctGateway(gateway).fulfillCall(
             functionId, input, output, proof, callAddress, callData
         );
@@ -586,7 +586,7 @@ contract AttackSuccinctGateway is SuccinctGatewayTest {
         vm.prank(sender);
         AttackConsumer(attackConsumer).requestCallReenterCall{value: fee}(input);
 
-        // Fulfill (test fails if doesn't revert with ReentrantFulfill error)
+        // Fulfill (test fails this doesn't revert with ReentrantFulfill() error)
         SuccinctGateway(gateway).fulfillCall(
             functionId, input, output, proof, callAddress, callData
         );
