@@ -3,7 +3,7 @@ pragma solidity ^0.8.16;
 
 import {IFunctionRegistry} from "./interfaces/IFunctionRegistry.sol";
 
-contract FunctionRegistry is IFunctionRegistry {
+abstract contract FunctionRegistry is IFunctionRegistry {
     /// @dev Maps function identifiers to their corresponding verifiers.
     mapping(bytes32 => address) public verifiers;
 
@@ -18,7 +18,7 @@ contract FunctionRegistry is IFunctionRegistry {
         external
         returns (bytes32 functionId)
     {
-        functionId = getFunctionId(msg.sender, _name);
+        functionId = getFunctionId(_owner, _name);
         if (address(verifiers[functionId]) != address(0)) {
             revert FunctionAlreadyRegistered(functionId); // should call update instead
         }
@@ -39,7 +39,7 @@ contract FunctionRegistry is IFunctionRegistry {
         external
         returns (bytes32 functionId, address verifier)
     {
-        functionId = getFunctionId(msg.sender, _name);
+        functionId = getFunctionId(_owner, _name);
         if (address(verifiers[functionId]) != address(0)) {
             revert FunctionAlreadyRegistered(functionId); // should call update instead
         }
@@ -90,7 +90,7 @@ contract FunctionRegistry is IFunctionRegistry {
     }
 
     /// @notice Returns the functionId for a given owner and function name.
-    /// @param _owner The owner of the function (sender of registerFunction).
+    /// @param _owner The owner of the function.
     /// @param _name The name of the function.
     function getFunctionId(address _owner, string memory _name)
         public

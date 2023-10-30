@@ -11,10 +11,17 @@ import {
     ISuccinctGatewayEvents,
     ISuccinctGatewayErrors
 } from "src/interfaces/ISuccinctGateway.sol";
-import {IFunctionRegistry} from "src/interfaces/IFunctionRegistry.sol";
 import {TestConsumer, AttackConsumer, TestFunctionVerifier} from "test/TestUtils.sol";
+import {
+    IFunctionRegistry,
+    IFunctionRegistryEvents,
+    IFunctionRegistryErrors
+} from "src/interfaces/IFunctionRegistry.sol";
+import {TestConsumer, TestFunctionVerifier} from "test/TestUtils.sol";
 import {Proxy} from "src/upgrades/Proxy.sol";
 import {SuccinctFeeVault} from "src/payments/SuccinctFeeVault.sol";
+import {AccessControlUpgradeable} from
+    "@openzeppelin-upgradeable/contracts/access/AccessControlUpgradeable.sol";
 
 contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayErrors {
     // Example Function Request and expected values.
@@ -64,6 +71,11 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
 
         vm.deal(sender, DEFAULT_FEE);
         vm.deal(consumer, DEFAULT_FEE);
+    }
+
+    function test_SetUp() public {
+        assertTrue(AccessControlUpgradeable(gateway).hasRole(keccak256("TIMELOCK_ROLE"), timelock));
+        assertTrue(AccessControlUpgradeable(gateway).hasRole(keccak256("GUARDIAN_ROLE"), guardian));
     }
 
     function test_Callback() public {
@@ -356,7 +368,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         vm.store(gateway, bytes32(uint256(255)), functionId);
         vm.store(gateway, bytes32(uint256(256)), inputHash);
 
-        // Verifiy call
+        // Verify call
         TestConsumer(consumer).verifiedCall(input);
     }
 
@@ -364,7 +376,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         bytes memory input = INPUT;
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
 
-        // Verifiy call
+        // Verify call
         vm.expectRevert(abi.encodeWithSelector(InvalidCall.selector, functionId, input));
         TestConsumer(consumer).verifiedCall(input);
     }
@@ -516,5 +528,33 @@ contract AttackSuccinctGateway is SuccinctGatewayTest {
         SuccinctGateway(gateway).fulfillCall(
             functionId, input, output, proof, callAddress, callData
         );
+    }
+}
+
+contract FunctionRegistryTests is
+    SuccinctGatewayTest,
+    IFunctionRegistryEvents,
+    IFunctionRegistryErrors
+{
+    function setUp() public override {
+        super.setUp();
+    }
+
+    function test_RegisterFunction() public {
+        bytes32 functionId1;
+        address verifier1;
+
+        // Register function
+        vm.expectEmit(true, true, true, true, gateway);
+        emit Deployed(keccak256(type(TestFunctionVerifier).creationCode), functionId1, verifier1);
+        // vm.expectEmit(false, true, true, false, gateway);
+        // emit FunctionRegistered(bytes32(0), address(0), "test-verifier1", owner);
+        (functionId1, verifier1) = IFunctionRegistry(gateway).deployAndRegisterFunction(
+            owner, type(TestFunctionVerifier).creationCode, "test-verifier1"
+        );
+
+        // assertEq(verifier1, address(new TestFunctionVerifier(gateway, functionId1)));
+        // assertEq(IFunctionRegistry(gateway).verifiers(functionId1), verifier);
+        // assertEq(IFunctionRegistry(gateway).verifierOwners(functionId1), owner);
     }
 }
