@@ -805,17 +805,6 @@ mod tests {
     }
 
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_graffiti() -> Result<()> {
-        utils::setup_logger();
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
-        let client = BeaconClient::new(rpc.to_string());
-        let slot = 7052735;
-        let result = client.get_graffiti(slot.to_string())?;
-        debug!("{:?}", result);
-        Ok(())
-    }
-
-    #[cfg_attr(feature = "ci", ignore)]
     #[test]
     fn test_get_headers_from_offset_range() -> Result<()> {
         utils::setup_logger();
