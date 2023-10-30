@@ -21,7 +21,7 @@ impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
         let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
         let header_root = input_stream.read_value::<Bytes32Variable>();
         let start_offset = input_stream.read_value::<U64Variable>();
-        let end_offset = input_stream.read_value::<U64Variable>();
+        let end_offset = input_stream.read_value::<U64Variable>() + 1;
         let response = client
             .get_headers_from_offset_range(hex!(header_root), start_offset, end_offset)
             .unwrap();

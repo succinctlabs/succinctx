@@ -1,5 +1,6 @@
 use array_macro::array;
 use ethers::types::U64;
+use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 
 use super::uint256::U256Variable;
@@ -50,6 +51,20 @@ make_uint32_n!(U64Variable, u64, 2);
 make_uint32_n_tests!(U64Variable, u64, 2);
 
 impl U64Variable {
+    /// Converts a U64Variable to Variable with overflow.
+    ///
+    /// Note: This function assumes that the U64 is in the range [0, 2^64-2^32+1). Otherwise, it
+    /// will overflow.
+    pub fn to_variable_with_overflow<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Variable {
+        let digit = builder.constant::<Variable>(L::Field::from_canonical_u64(1 << 32));
+        let mut result = builder.mul(self.limbs[1].variable, digit);
+        result = builder.add(result, self.limbs[0].variable);
+        result
+    }
+
     pub fn to_u256<L: PlonkParameters<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<L, D>,

@@ -8,9 +8,9 @@ import (
 
 	"github.com/consensys/gnark/frontend"
 	"github.com/stretchr/testify/assert"
-	"github.com/succinctlabs/sdk/gnarkx/builder"
-	"github.com/succinctlabs/sdk/gnarkx/utils/byteutils"
-	"github.com/succinctlabs/sdk/gnarkx/vars"
+	"github.com/succinctlabs/succinctx/gnarkx/builder"
+	"github.com/succinctlabs/succinctx/gnarkx/utils/byteutils"
+	"github.com/succinctlabs/succinctx/gnarkx/vars"
 )
 
 type TestCircuit struct {
