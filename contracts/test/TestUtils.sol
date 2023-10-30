@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import "forge-std/Vm.sol";
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {IFunctionVerifier} from "src/interfaces/IFunctionVerifier.sol";
 import {ISuccinctGateway} from "src/interfaces/ISuccinctGateway.sol";
 
