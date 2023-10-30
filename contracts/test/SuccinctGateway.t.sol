@@ -32,11 +32,10 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
     address internal gateway;
     address internal verifier;
     address payable internal consumer;
-    address payable internal attackConsumer;
     address payable internal sender;
     address internal owner;
 
-    function setUp() public {
+    function setUp() public virtual {
         // Init variables
         timelock = makeAddr("timelock");
         guardian = makeAddr("guardian");
@@ -63,12 +62,8 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         // Deploy TestConsumer
         consumer = payable(address(new TestConsumer(gateway, functionId)));
 
-        // Deploy AttackConsumer
-        attackConsumer = payable(address(new AttackConsumer(gateway, functionId)));
-
         vm.deal(sender, DEFAULT_FEE);
         vm.deal(consumer, DEFAULT_FEE);
-        vm.deal(attackConsumer, DEFAULT_FEE);
     }
 
     function test_Callback() public {
@@ -407,6 +402,24 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
 }
 
 contract AttackSuccinctGateway is SuccinctGatewayTest {
+    address payable internal attackConsumer;
+
+    function setUp() public override {
+        super.setUp();
+
+        // Deploy Verifier
+        bytes32 functionId;
+        vm.prank(sender);
+        (functionId, verifier) = IFunctionRegistry(gateway).deployAndRegisterFunction(
+            owner, type(TestFunctionVerifier).creationCode, "attack-verifier"
+        );
+
+        // Deploy AttackConsumer
+        attackConsumer = payable(address(new AttackConsumer(gateway, functionId)));
+
+        vm.deal(attackConsumer, DEFAULT_FEE);
+    }
+
     function test_RevertCallbackReenterCallback() public {
         bytes memory input = INPUT;
         bytes memory output = OUTPUT;
