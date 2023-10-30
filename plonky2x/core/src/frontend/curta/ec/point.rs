@@ -1,6 +1,7 @@
 use curta::chip::ec::point::{AffinePoint, AffinePointRegister};
 use curta::chip::ec::EllipticCurve;
 use curta::chip::register::Register;
+use curve25519_dalek::edwards::CompressedEdwardsY;
 
 use crate::frontend::curta::field::variable::FieldVariable;
 use crate::prelude::*;
@@ -32,5 +33,44 @@ impl<F: RichField, E: EllipticCurve> From<AffinePoint<E>> for AffinePointVariabl
 impl<F: RichField, E: EllipticCurve> From<AffinePointVariableValue<E, F>> for AffinePoint<E> {
     fn from(value: AffinePointVariableValue<E, F>) -> Self {
         Self::new(value.x, value.y)
+    }
+}
+
+pub struct CompressedEdwardsYVariable(Bytes32Variable);
+
+impl CircuitVariable for CompressedEdwardsYVariable {
+    type ValueType<F: RichField> = CompressedEdwardsY;
+
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+    ) -> Self {
+        Self(Bytes32Variable::init_unsafe(builder))
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+    ) {
+        self.0.assert_is_valid(builder)
+    }
+
+    fn nb_elements() -> usize {
+        Bytes32Variable.nb_elements()
+    }
+
+    fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
+        Bytes32Variable.elements(value.to_bytes().as_slice())
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        CompressedEdwardsY(&BytesVariable::<32>::from_elements(elements))
+    }
+
+    fn variables(&self) -> Vec<Variable> {
+        self.0.variables()
+    }
+
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        Self(BytesVariable::from_variables_unsafe(variables))
     }
 }
