@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
+import "forge-std/Vm.sol";
+import "forge-std/Test.sol";
 import {IFunctionVerifier} from "src/interfaces/IFunctionVerifier.sol";
 import {ISuccinctGateway} from "src/interfaces/ISuccinctGateway.sol";
 
@@ -105,8 +107,9 @@ contract TestConsumer {
     }
 }
 
-// Attempts re-entry into the gateway contract.
-contract AttackConsumer {
+// Attempts re-enter into the gateway contract. Errors are directly checked because expectRevert only
+// checks the last call, which would be CallbackFailed() if in test.
+contract AttackConsumer is Test {
     address public immutable SUCCINCT_GATEWAY;
     bytes32 public immutable FUNCTION_ID;
     uint32 public constant CALLBACK_GAS_LIMIT = 2000000;
@@ -149,6 +152,7 @@ contract AttackConsumer {
     }
 
     function handleCallbackReenterCallback(bytes memory _output, bytes memory) external {
+        vm.expectRevert(abi.encodeWithSignature("ReentrantFulfill()"));
         ISuccinctGatewayWithFulfill(SUCCINCT_GATEWAY).fulfillCallback(
             0,
             FUNCTION_ID,
@@ -163,12 +167,14 @@ contract AttackConsumer {
     }
 
     function handleCallbackReenterCall(bytes memory _output, bytes memory) external {
+        vm.expectRevert(abi.encodeWithSignature("ReentrantFulfill()"));
         ISuccinctGatewayWithFulfill(SUCCINCT_GATEWAY).fulfillCall(
             FUNCTION_ID, "", _output, "", address(this), ""
         );
     }
 
-    function handleCallReenterCallback(bytes memory _output) external {
+    function handleCallReenterCallback() external {
+        vm.expectRevert(abi.encodeWithSignature("ReentrantFulfill()"));
         ISuccinctGatewayWithFulfill(SUCCINCT_GATEWAY).fulfillCallback(
             0,
             FUNCTION_ID,
@@ -177,14 +183,15 @@ contract AttackConsumer {
             this.handleCallbackReenterCallback.selector,
             0,
             "",
-            _output,
+            "",
             ""
         );
     }
 
-    function handleCallReenterCall(bytes memory _output) external {
+    function handleCallReenterCall() external {
+        vm.expectRevert(abi.encodeWithSignature("ReentrantFulfill()"));
         ISuccinctGatewayWithFulfill(SUCCINCT_GATEWAY).fulfillCall(
-            FUNCTION_ID, "", _output, "", address(this), ""
+            FUNCTION_ID, "", "", "", address(this), ""
         );
     }
 }

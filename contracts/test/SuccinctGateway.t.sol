@@ -12,7 +12,7 @@ import {
     ISuccinctGatewayErrors
 } from "src/interfaces/ISuccinctGateway.sol";
 import {IFunctionRegistry} from "src/interfaces/IFunctionRegistry.sol";
-import {TestConsumer, TestFunctionVerifier} from "test/TestUtils.sol";
+import {TestConsumer, AttackConsumer, TestFunctionVerifier} from "test/TestUtils.sol";
 import {Proxy} from "src/upgrades/Proxy.sol";
 import {SuccinctFeeVault} from "src/payments/SuccinctFeeVault.sol";
 
@@ -32,6 +32,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
     address internal gateway;
     address internal verifier;
     address payable internal consumer;
+    address payable internal attackConsumer;
     address payable internal sender;
     address internal owner;
 
@@ -52,6 +53,7 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         gateway = address(new Proxy(gatewayImpl, ""));
         SuccinctGateway(gateway).initialize(feeVault, timelock, guardian);
 
+        // Deploy Verifier
         bytes32 functionId;
         vm.prank(sender);
         (functionId, verifier) = IFunctionRegistry(gateway).deployAndRegisterFunction(
@@ -61,8 +63,12 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         // Deploy TestConsumer
         consumer = payable(address(new TestConsumer(gateway, functionId)));
 
+        // Deploy AttackConsumer
+        attackConsumer = payable(address(new AttackConsumer(gateway, functionId)));
+
         vm.deal(sender, DEFAULT_FEE);
         vm.deal(consumer, DEFAULT_FEE);
+        vm.deal(attackConsumer, DEFAULT_FEE);
     }
 
     function test_Callback() public {
@@ -397,5 +403,192 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         // Set FeeVault
         vm.expectRevert();
         SuccinctGateway(gateway).setFeeVault(newFeeVault);
+    }
+}
+
+// contract AttackConsumer is Test {
+//     address public immutable SUCCINCT_GATEWAY;
+//     bytes32 public immutable FUNCTION_ID;
+//     uint32 public constant CALLBACK_GAS_LIMIT = 2000000;
+
+//     constructor(address _gateway, bytes32 _functionId) payable {
+//         SUCCINCT_GATEWAY = _gateway;
+//         FUNCTION_ID = _functionId;
+//     }
+
+//     function requestCallbackReenterCallback(bytes memory _input) external payable {
+//         ISuccinctGateway(SUCCINCT_GATEWAY).requestCallback{value: msg.value}(
+//             FUNCTION_ID, _input, "", this.handleCallbackReenterCallback.selector, CALLBACK_GAS_LIMIT
+//         );
+//     }
+
+//     function requestCallbackReenterCall(bytes memory _input) external payable {
+//         ISuccinctGateway(SUCCINCT_GATEWAY).requestCallback{value: msg.value}(
+//             FUNCTION_ID, _input, "", this.handleCallbackReenterCall.selector, CALLBACK_GAS_LIMIT
+//         );
+//     }
+
+//     function requestCallReenterCallback(bytes memory _input) external payable {
+//         ISuccinctGateway(SUCCINCT_GATEWAY).requestCall{value: msg.value}(
+//             FUNCTION_ID,
+//             _input,
+//             address(this),
+//             abi.encodeWithSelector(this.handleCallReenterCallback.selector),
+//             CALLBACK_GAS_LIMIT
+//         );
+//     }
+
+//     function requestCallReenterCall(bytes memory _input) external payable {
+//         ISuccinctGateway(SUCCINCT_GATEWAY).requestCall{value: msg.value}(
+//             FUNCTION_ID,
+//             _input,
+//             address(this),
+//             abi.encodeWithSelector(this.handleCallReenterCall.selector),
+//             CALLBACK_GAS_LIMIT
+//         );
+//     }
+
+//     function handleCallbackReenterCallback(bytes memory _output, bytes memory) external {
+//         vm.expectRevert(abi.encodeWithSignature("ReentrantFulfill()"));
+//         ISuccinctGatewayWithFulfill(SUCCINCT_GATEWAY).fulfillCallback(
+//             0,
+//             FUNCTION_ID,
+//             "",
+//             address(this),
+//             this.handleCallbackReenterCallback.selector,
+//             0,
+//             "",
+//             _output,
+//             ""
+//         );
+//     }
+
+//     function handleCallbackReenterCall(bytes memory _output, bytes memory) external {
+//         vm.expectRevert(abi.encodeWithSignature("ReentrantFulfill()"));
+//         ISuccinctGatewayWithFulfill(SUCCINCT_GATEWAY).fulfillCall(
+//             FUNCTION_ID, "", _output, "", address(this), ""
+//         );
+//     }
+
+//     function handleCallReenterCallback(bytes memory _output) external {
+//         vm.expectRevert(abi.encodeWithSignature("ReentrantFulfill()"));
+//         ISuccinctGatewayWithFulfill(SUCCINCT_GATEWAY).fulfillCallback(
+//             0,
+//             FUNCTION_ID,
+//             "",
+//             address(this),
+//             this.handleCallbackReenterCallback.selector,
+//             0,
+//             "",
+//             _output,
+//             ""
+//         );
+//     }
+
+//     function handleCallReenterCall(bytes memory _output) external {
+//         vm.expectRevert(abi.encodeWithSignature("ReentrantFulfill()"));
+//         ISuccinctGatewayWithFulfill(SUCCINCT_GATEWAY).fulfillCall(
+//             FUNCTION_ID, "", _output, "", address(this), ""
+//         );
+//     }
+// }
+
+contract AttackSuccinctGateway is SuccinctGatewayTest {
+    function test_RevertCallbackReenterCallback() public {
+        bytes memory input = INPUT;
+        bytes memory output = OUTPUT;
+        bytes memory proof = PROOF;
+        bytes32 functionId = AttackConsumer(attackConsumer).FUNCTION_ID();
+        bytes32 inputHash = INPUT_HASH;
+        address callbackAddress = attackConsumer;
+        bytes4 callbackSelector = AttackConsumer.handleCallbackReenterCallback.selector;
+        uint32 callbackGasLimit = AttackConsumer(attackConsumer).CALLBACK_GAS_LIMIT();
+        uint256 fee = DEFAULT_FEE;
+
+        // Request
+        vm.prank(sender);
+        AttackConsumer(attackConsumer).requestCallbackReenterCallback{value: fee}(input);
+
+        // Fulfill (test fails if doesn't revert with ReentrantFulfill error)
+        SuccinctGateway(gateway).fulfillCallback(
+            0,
+            functionId,
+            inputHash,
+            callbackAddress,
+            callbackSelector,
+            callbackGasLimit,
+            "",
+            output,
+            proof
+        );
+    }
+
+    function test_RevertCallbackReenterCall() public {
+        bytes memory input = INPUT;
+        bytes memory output = OUTPUT;
+        bytes memory proof = PROOF;
+        bytes32 functionId = AttackConsumer(attackConsumer).FUNCTION_ID();
+        bytes32 inputHash = INPUT_HASH;
+        address callbackAddress = attackConsumer;
+        bytes4 callbackSelector = AttackConsumer.handleCallbackReenterCall.selector;
+        uint32 callbackGasLimit = AttackConsumer(attackConsumer).CALLBACK_GAS_LIMIT();
+        uint256 fee = DEFAULT_FEE;
+
+        // Request
+        vm.prank(sender);
+        AttackConsumer(attackConsumer).requestCallbackReenterCall{value: fee}(input);
+
+        // Fulfill (test fails if doesn't revert with ReentrantFulfill error)
+        SuccinctGateway(gateway).fulfillCallback(
+            0,
+            functionId,
+            inputHash,
+            callbackAddress,
+            callbackSelector,
+            callbackGasLimit,
+            "",
+            output,
+            proof
+        );
+    }
+
+    function test_RevertCallReenterCallback() public {
+        bytes memory input = INPUT;
+        bytes memory output = OUTPUT;
+        bytes memory proof = PROOF;
+        bytes32 functionId = AttackConsumer(attackConsumer).FUNCTION_ID();
+        address callAddress = attackConsumer;
+        bytes memory callData =
+            abi.encodeWithSelector(AttackConsumer.handleCallReenterCallback.selector);
+        uint256 fee = DEFAULT_FEE;
+
+        // Request
+        vm.prank(sender);
+        AttackConsumer(attackConsumer).requestCallReenterCallback{value: fee}(input);
+
+        // Fulfill (test fails if doesn't revert with ReentrantFulfill error)
+        SuccinctGateway(gateway).fulfillCall(
+            functionId, input, output, proof, callAddress, callData
+        );
+    }
+
+    function test_RevertCallReenterCall() public {
+        bytes memory input = INPUT;
+        bytes memory output = OUTPUT;
+        bytes memory proof = PROOF;
+        bytes32 functionId = AttackConsumer(attackConsumer).FUNCTION_ID();
+        address callAddress = attackConsumer;
+        bytes memory callData =
+            abi.encodeWithSelector(AttackConsumer.handleCallReenterCall.selector);
+        uint256 fee = DEFAULT_FEE;
+
+        // Request
+        vm.prank(sender);
+        AttackConsumer(attackConsumer).requestCallReenterCall{value: fee}(input);
+
+        // Fulfill (test fails if doesn't revert with ReentrantFulfill error)
+        SuccinctGateway(gateway).fulfillCall(
+            functionId, input, output, proof, callAddress, callData
+        );
     }
 }
