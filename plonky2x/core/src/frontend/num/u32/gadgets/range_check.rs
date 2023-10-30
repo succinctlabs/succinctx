@@ -20,7 +20,10 @@ pub fn range_check_u32_circuit<F: RichField + Extendable<D>, const D: usize>(
         let row = builder.add_gate(gate, vec![]);
 
         for i in 0..num_input_limbs {
-            builder.connect(Target::wire(row, gate.wire_ith_input_limb(i)), chunk[i].0);
+            builder.connect(
+                Target::wire(row, gate.wire_ith_input_limb(i)),
+                chunk[i].target,
+            );
         }
     })
 }

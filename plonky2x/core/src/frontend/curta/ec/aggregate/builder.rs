@@ -66,7 +66,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // Read the stark proof and stark public inputs from the output stream.
         let proof = outputs.read_stark_proof(self, &stark, &config);
-        let public_inputs = outputs.read_exact(self, stark.air.num_public_inputs());
+
+        // The stark proof will verify that the public inputs are range checked.
+        let public_inputs = outputs.read_exact_unsafe(self, stark.air.num_public_inputs());
         self.verify_stark_proof(&config, &stark, &proof, &public_inputs);
 
         // Read the aggregated public key from the stark public inputs.

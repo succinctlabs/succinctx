@@ -5,6 +5,9 @@ use clap::{Parser, Subcommand};
 pub struct BuildArgs {
     #[arg(long, default_value = "./build")]
     pub build_dir: String,
+
+    #[arg(long, default_value = "/verifier-build")]
+    pub wrapper_path: String,
 }
 
 #[derive(Parser, Debug, Clone)]

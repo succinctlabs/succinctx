@@ -49,7 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
     for CircuitBuilder<F, D>
 {
     fn split_u32_to_4_bit_limbs(&mut self, val: U32Target) -> Vec<Target> {
-        let two_bit_limbs = self.split_le_base::<4>(val.0, 16);
+        let two_bit_limbs = self.split_le_base::<4>(val.target, 16);
         let four = self.constant(F::from_canonical_usize(4));
         let combined_limbs = two_bit_limbs
             .iter()
@@ -100,7 +100,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
         val.value
             .limbs
             .iter()
-            .flat_map(|&l| self.split_le_base::<4>(l.0, 16))
+            .flat_map(|&l| self.split_le_base::<4>(l.target, 16))
             .collect()
     }
 
@@ -115,7 +115,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
             .map(|chunk| {
                 let mut combined_chunk = self.zero_u32();
                 for i in (0..8).rev() {
-                    let (low, _high) = self.mul_add_u32(combined_chunk, base, U32Target(chunk[i]));
+                    // This function assumes each chunk element is a 4 bit limb.
+                    let (low, _high) = self.mul_add_u32(
+                        combined_chunk,
+                        base,
+                        U32Target::from_target_unsafe(chunk[i]),
+                    );
                     combined_chunk = low;
                 }
                 combined_chunk
@@ -139,7 +144,12 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
             .map(|chunk| {
                 let mut combined_chunk = self.zero_u32();
                 for i in (0..2).rev() {
-                    let (low, _high) = self.mul_add_u32(combined_chunk, base, U32Target(chunk[i]));
+                    // This function assumes each chunk element is a 16 bit limb.
+                    let (low, _high) = self.mul_add_u32(
+                        combined_chunk,
+                        base,
+                        U32Target::from_target_unsafe(chunk[i]),
+                    );
                     combined_chunk = low;
                 }
                 combined_chunk

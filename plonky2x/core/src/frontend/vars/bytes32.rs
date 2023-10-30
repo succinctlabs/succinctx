@@ -110,6 +110,20 @@ impl SSZVariable for Bytes32Variable {
     }
 }
 
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    // Returns a Bytes32Variable with the first `num_bits` set to 0.
+    pub fn mask_be_bits(&mut self, original: Bytes32Variable, num_bits: usize) -> Bytes32Variable {
+        let variables = original.variables();
+        let mut new_variables = vec![];
+        for _ in 0..num_bits {
+            new_variables.push(self.zero::<Variable>());
+        }
+        new_variables.extend_from_slice(&variables[num_bits..]);
+
+        Bytes32Variable::from_variables_unsafe(&new_variables)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use ethers::types::U256;

@@ -151,6 +151,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         };
     }
 
+    // @audit
     pub fn read<V: CircuitVariable>(&mut self) -> V {
         self.try_init_field_io();
         let variable = self.init::<V>();
@@ -161,6 +162,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         variable
     }
 
+    // @audit
     pub fn evm_read<V: EvmVariable>(&mut self) -> V {
         self.try_init_evm_io();
         let nb_bytes = V::nb_bytes::<L, D>();
@@ -176,6 +178,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         variable
     }
 
+    // @audit
     pub fn proof_read(
         &mut self,
         child_circuit: &CircuitBuild<L, D>,
@@ -189,6 +192,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         proof
     }
 
+    // @audit
     pub fn write<V: CircuitVariable>(&mut self, variable: V) {
         self.try_init_field_io();
         match self.io {
@@ -197,6 +201,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
     }
 
+    // @audit
     pub fn evm_write<V: EvmVariable>(&mut self, variable: V) {
         self.try_init_evm_io();
         let bytes = variable.encode(self);
@@ -206,6 +211,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
     }
 
+    // @audit
     pub fn proof_write<V: CircuitVariable>(&mut self, variable: V) {
         self.try_init_proof_io();
         match self.io {

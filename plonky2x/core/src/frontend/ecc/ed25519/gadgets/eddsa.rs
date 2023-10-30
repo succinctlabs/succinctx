@@ -13,7 +13,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
 use crate::frontend::ecc::ed25519::curve::curve_types::Curve;
 use crate::frontend::ecc::ed25519::field::ed25519_scalar::Ed25519Scalar;
 use crate::frontend::ecc::ed25519::gadgets::curve::{AffinePointTarget, CircuitBuilderCurve};
-use crate::frontend::hash::sha::sha512::{
+use crate::frontend::hash::deprecated::sha512::{
     sha512, sha512_variable, CHUNK_BITS_1024, LENGTH_BITS_128,
 };
 use crate::frontend::num::biguint::BigUintTarget;
@@ -81,7 +81,11 @@ fn biguint_from_le_bytes<F: RichField + Extendable<D>, const D: usize>(
     let mut u32_targets = Vec::new();
     for u32_chunk in be_byte_ordered_bits.as_slice().chunks(32).rev() {
         // The chunk's bit ordering is in BE.  Need to reverse it for the le_sum function.
-        u32_targets.push(U32Target(builder.le_sum(u32_chunk.iter().rev())));
+        // Per the assert above, we are guaranteed that the chunks will be 32 bool targets,
+        // so will fit within a U32Target.
+        u32_targets.push(U32Target::from_target_unsafe(
+            builder.le_sum(u32_chunk.iter().rev()),
+        ));
     }
 
     BigUintTarget { limbs: u32_targets }
@@ -188,10 +192,21 @@ pub fn curta_batch_eddsa_verify_variable<
         let digest = biguint_from_le_bytes(builder, sha512_targets.digest);
         let h_scalar = builder.reduce::<Ed25519Scalar>(&digest);
 
-        let h_scalar_limbs = h_scalar.value.limbs.iter().map(|x| x.0).collect::<Vec<_>>();
+        let h_scalar_limbs = h_scalar
+            .value
+            .limbs
+            .iter()
+            .map(|x| x.target)
+            .collect::<Vec<_>>();
         h_scalars_limbs.push(h_scalar_limbs);
 
-        let sig_s_limbs = sig.s.value.limbs.iter().map(|x| x.0).collect::<Vec<_>>();
+        let sig_s_limbs = sig
+            .s
+            .value
+            .limbs
+            .iter()
+            .map(|x| x.target)
+            .collect::<Vec<_>>();
         sigs_s_limbs.push(sig_s_limbs);
 
         let generator =
@@ -322,10 +337,21 @@ pub fn curta_batch_eddsa_verify<
         let digest = biguint_from_le_bytes(builder, digest_bits_target);
         let h_scalar = builder.reduce::<Ed25519Scalar>(&digest);
 
-        let h_scalar_limbs = h_scalar.value.limbs.iter().map(|x| x.0).collect::<Vec<_>>();
+        let h_scalar_limbs = h_scalar
+            .value
+            .limbs
+            .iter()
+            .map(|x| x.target)
+            .collect::<Vec<_>>();
         h_scalars_limbs.push(h_scalar_limbs);
 
-        let sig_s_limbs = sig.s.value.limbs.iter().map(|x| x.0).collect::<Vec<_>>();
+        let sig_s_limbs = sig
+            .s
+            .value
+            .limbs
+            .iter()
+            .map(|x| x.target)
+            .collect::<Vec<_>>();
         sigs_s_limbs.push(sig_s_limbs);
 
         let generator =

@@ -19,13 +19,13 @@ macro_rules! make_uint32_n {
             }
 
             fn variables(&self) -> Vec<Variable> {
-                self.limbs.iter().map(|x| x.0).collect()
+                self.limbs.iter().map(|x| x.variable).collect()
             }
 
             fn from_variables_unsafe(variables: &[Variable]) -> Self {
                 assert_eq!(variables.len(), $c);
                 Self {
-                    limbs: array![i => U32Variable(variables[i]); $c],
+                    limbs: array![i => U32Variable::from_variables_unsafe(&[variables[i]]); $c],
                 }
             }
 
@@ -139,12 +139,12 @@ macro_rules! make_uint32_n {
                 let self_targets = self
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.0 .0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 let rhs_targets = rhs
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.0 .0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 assert_eq!(self_targets.len(), rhs_targets.len());
                 assert_eq!(self_targets.len(), $c);
@@ -157,7 +157,7 @@ macro_rules! make_uint32_n {
 
                 let mut limbs: [U32Variable; $c] = Self::zero(builder).limbs;
                 for i in 0..$c {
-                    limbs[i] = U32Variable(Variable(sum_biguint.limbs[i].0));
+                    limbs[i] = sum_biguint.limbs[i].into();
                 }
 
                 Self {
@@ -173,12 +173,12 @@ macro_rules! make_uint32_n {
                 let self_targets = self
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.0 .0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 let rhs_targets = rhs
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.0 .0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 assert_eq!(self_targets.len(), rhs_targets.len());
                 assert_eq!(self_targets.len(), $c);
@@ -187,11 +187,11 @@ macro_rules! make_uint32_n {
                     limbs: self_targets,
                 };
                 let rhs_biguint = BigUintTarget { limbs: rhs_targets };
-
                 let diff_biguint = builder.api.sub_biguint(&self_biguint, &rhs_biguint);
+
                 let mut limbs: [U32Variable; $c] = Self::zero(builder).limbs;
                 for i in 0..$c {
-                    limbs[i] = U32Variable(Variable(diff_biguint.limbs[i].0));
+                    limbs[i] = diff_biguint.limbs[i].into();
                 }
 
                 Self {
@@ -207,12 +207,12 @@ macro_rules! make_uint32_n {
                 let self_targets = self
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.0 .0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 let rhs_targets = rhs
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.0 .0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 assert_eq!(self_targets.len(), rhs_targets.len());
                 assert_eq!(self_targets.len(), $c);
@@ -225,7 +225,7 @@ macro_rules! make_uint32_n {
 
                 let mut limbs: [U32Variable; $c] = Self::zero(builder).limbs;
                 for i in 0..$c {
-                    limbs[i] = U32Variable(Variable(product_biguint.limbs[i].0));
+                    limbs[i] = product_biguint.limbs[i].into();
                 }
 
                 Self {
@@ -241,12 +241,12 @@ macro_rules! make_uint32_n {
                 let self_targets = self
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.0 .0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 let rhs_targets = rhs
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.0 .0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 assert_eq!(self_targets.len(), rhs_targets.len());
                 assert_eq!(self_targets.len(), $c);
@@ -255,11 +255,11 @@ macro_rules! make_uint32_n {
                     limbs: self_targets,
                 };
                 let rhs_biguint = BigUintTarget { limbs: rhs_targets };
-                let product_biguint = builder.api.div_biguint(&self_biguint, &rhs_biguint);
+                let quotient_biguint = builder.api.div_biguint(&self_biguint, &rhs_biguint);
 
                 let mut limbs: [U32Variable; $c] = Self::zero(builder).limbs;
                 for i in 0..$c {
-                    limbs[i] = U32Variable(Variable(product_biguint.limbs[i].0));
+                    limbs[i] = quotient_biguint.limbs[i].into();
                 }
 
                 Self {
@@ -275,12 +275,12 @@ macro_rules! make_uint32_n {
                 let self_targets = self
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.0 .0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 let rhs_targets = rhs
                     .limbs
                     .iter()
-                    .map(|x| U32Target(x.0 .0))
+                    .map(|x| U32Target::from(*x))
                     .collect::<Vec<_>>();
                 assert_eq!(self_targets.len(), rhs_targets.len());
                 assert_eq!(self_targets.len(), $c);
@@ -289,10 +289,11 @@ macro_rules! make_uint32_n {
                     limbs: self_targets,
                 };
                 let rhs_biguint = BigUintTarget { limbs: rhs_targets };
-                let product_biguint = builder.api.rem_biguint(&self_biguint, &rhs_biguint);
+                let rem_biguint = builder.api.rem_biguint(&self_biguint, &rhs_biguint);
+
                 let mut limbs: [U32Variable; $c] = Self::zero(builder).limbs;
                 for i in 0..$c {
-                    limbs[i] = U32Variable(Variable(product_biguint.limbs[i].0));
+                    limbs[i] = rem_biguint.limbs[i].into();
                 }
 
                 Self {

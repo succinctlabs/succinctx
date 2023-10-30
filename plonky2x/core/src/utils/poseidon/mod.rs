@@ -1,9 +1,8 @@
+use plonky2::hash::hash_types::HashOut;
 use plonky2::hash::hashing::hash_n_to_hash_no_pad;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 
-use crate::frontend::hash::poseidon::poseidon256::{
-    PoseidonHashOutVariable, PoseidonHashOutVariableValue,
-};
+use crate::frontend::hash::poseidon::poseidon256::PoseidonHashOutVariable;
 use crate::prelude::{CircuitVariable, PlonkParameters};
 
 pub fn mapreduce_merkle_tree_root<
@@ -13,7 +12,7 @@ pub fn mapreduce_merkle_tree_root<
     const D: usize,
 >(
     inputs: &[Input::ValueType<L::Field>],
-) -> PoseidonHashOutVariableValue<L::Field>
+) -> HashOut<L::Field>
 where
     <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
         AlgebraicHasher<<L as PlonkParameters<D>>::Field>,

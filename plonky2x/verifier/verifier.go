@@ -10,18 +10,18 @@ import (
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/logger"
 )
 
-func LoadVerifierKey(path string) (groth16.VerifyingKey, error) {
+func LoadVerifierKey(path string) (plonk.VerifyingKey, error) {
 	log := logger.Logger()
 	vkFile, err := os.Open(path + "/vk.bin")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open vk file: %w", err)
 	}
-	vk := groth16.NewVerifyingKey(ecc.BN254)
+	vk := plonk.NewVerifyingKey(ecc.BN254)
 	start := time.Now()
 	_, err = vk.ReadFrom(vkFile)
 	if err != nil {
@@ -51,13 +51,13 @@ func LoadPublicWitness(circuitPath string) (witness.Witness, error) {
 	return publicWitness, nil
 }
 
-func LoadProof() (groth16.Proof, error) {
+func LoadProof() (plonk.Proof, error) {
 	log := logger.Logger()
 	proofFile, err := os.Open("/proof.json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open proof file: %w", err)
 	}
-	proof := groth16.NewProof(ecc.BN254)
+	proof := plonk.NewProof(ecc.BN254)
 	jsonProof, err := io.ReadAll(proofFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read proof file: %w", err)
@@ -72,7 +72,7 @@ func LoadProof() (groth16.Proof, error) {
 	return proof, nil
 }
 
-func ExportIFunctionVerifierSolidity(path string, vk groth16.VerifyingKey) error {
+func ExportIFunctionVerifierSolidity(path string, vk plonk.VerifyingKey) error {
 	log := logger.Logger()
 	// Create a new buffer and export the VerifyingKey into it as a Solidity contract and
 	// convert the buffer content to a string for further manipulation.

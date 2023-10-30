@@ -6,6 +6,7 @@
 
 # IDE
 *.log
+.idea/
 
 # MacOS
 **/.DS_Store
@@ -19,14 +20,20 @@ keystore
 **/build
 **/data
 
+# Solidity
 **/__pycache__
 **/FunctionVerifier.sol
+**/broadcast
 
-.idea/
+# Platform
 proof.json
 output.json
+**/verifier-build
+**/verifier-build-groth16
+plonky2x/core/wrapped
+*.tar.gz
 
-
+# Typescript
 .yarn/*
 !.yarn/patches
 !.yarn/plugins

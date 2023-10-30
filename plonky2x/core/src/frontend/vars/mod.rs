@@ -107,7 +107,8 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
         self.variables().into_iter().map(|v| v.0).collect()
     }
 
-    /// Deserializes a variable from a list of targets.
+    /// Deserializes a variable from a list of targets.  It does not do any validaty checks (e.g.
+    /// range checks).
     fn from_targets(targets: &[Target]) -> Self {
         Self::from_variables_unsafe(&targets.iter().map(|t| Variable(*t)).collect_vec())
     }
