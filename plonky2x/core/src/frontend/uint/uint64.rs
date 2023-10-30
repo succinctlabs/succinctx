@@ -60,8 +60,8 @@ impl U64Variable {
         builder: &mut CircuitBuilder<L, D>,
     ) -> Variable {
         let digit = builder.constant::<Variable>(L::Field::from_canonical_u64(1 << 32));
-        let mut result = builder.mul(self.limbs[1].0, digit);
-        result = builder.add(result, self.limbs[0].0);
+        let mut result = builder.mul(self.limbs[1].variable, digit);
+        result = builder.add(result, self.limbs[0].variable);
         result
     }
 

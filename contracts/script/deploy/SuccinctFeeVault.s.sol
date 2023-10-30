@@ -2,8 +2,8 @@
 pragma solidity ^0.8.16;
 
 import "forge-std/console.sol";
-import {BaseScript} from "script/misc/Base.s.sol";
-import {SuccinctFeeVault} from "src/payments/SuccinctFeeVault.sol";
+import {BaseScript} from "../misc/Base.s.sol";
+import {SuccinctFeeVault} from "../../src/payments/SuccinctFeeVault.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract DeploySuccinctFeeVault is BaseScript {

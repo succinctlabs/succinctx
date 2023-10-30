@@ -12,7 +12,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     // Verifies and constrains a STARK proof from Curta's SHA256 gadget.
     pub fn constrain_sha256_gadget(
         &mut self,
-        gadget: SHA256BuilderGadget<L::Field, L::CubicParams, D>,
+        gadget: &SHA256BuilderGadget<L::Field, L::CubicParams, D>,
     ) {
         let mut input_stream = VariableStream::new();
 

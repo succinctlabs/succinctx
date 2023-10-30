@@ -1,4 +1,4 @@
-USAGE="Usage: ./deploy.sh <contracts> <chain_ids>\n  Example: ./deploy.sh \"FunctionGateway\" \"5 420 84531 421613\""
+USAGE="Usage: ./deploy.sh <contracts> <chain_ids>\n  Example: ./deploy.sh \"SuccinctGateway\" \"5 420 84531 421613\""
 
 if [ -z "$1" ]; then
 	echo $USAGE

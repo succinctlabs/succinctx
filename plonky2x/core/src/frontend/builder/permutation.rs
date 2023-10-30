@@ -40,6 +40,7 @@ impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    // @no-audit-okay
     pub fn permute_with_dummy<const B: usize>(
         &mut self,
         inputs: ArrayVariable<U32Variable, B>,
@@ -55,7 +56,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut filtered_acc = self.one::<CubicExtensionVariable>();
         for i in 0..inputs.len() {
             let is_dummy = self.is_equal(inputs[i], dummy);
-            let input_extension = inputs[i].0.as_cubic_extension(self);
+            let input_extension = inputs[i].variable.as_cubic_extension(self);
             let term = self.sub(gamma, input_extension);
             let acc = self.mul(filtered_acc, term);
             filtered_acc = self.select(is_dummy, filtered_acc, acc);
@@ -73,7 +74,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut permuted_filtered_acc = self.one::<CubicExtensionVariable>();
         for i in 0..inputs.len() {
             let is_dummy = self.is_equal(permuted_inputs[i], dummy);
-            let permuted_input_extension = permuted_inputs[i].0.as_cubic_extension(self);
+            let permuted_input_extension = permuted_inputs[i].variable.as_cubic_extension(self);
             let term = self.sub(gamma, permuted_input_extension);
             let acc = self.mul(permuted_filtered_acc, term);
             permuted_filtered_acc = self.select(is_dummy, permuted_filtered_acc, acc);
