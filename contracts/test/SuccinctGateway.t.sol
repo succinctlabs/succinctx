@@ -734,7 +734,7 @@ contract FunctionRegistryTest is
         );
 
         // Update function
-        vm.expectRevert(abi.encodeWithSelector(FunctionAlreadyRegistered.selector, functionId1));
+        vm.expectRevert(abi.encodeWithSelector(VerifierAlreadyUpdated.selector, functionId1));
         vm.prank(owner);
         IFunctionRegistry(gateway).updateFunction(verifier1, "test-verifier1");
     }

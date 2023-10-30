@@ -67,7 +67,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
             revert VerifierCannotBeZero();
         }
         if (_verifier == verifiers[functionId]) {
-            revert FunctionAlreadyRegistered(functionId);
+            revert VerifierAlreadyUpdated(functionId);
         }
         verifiers[functionId] = _verifier;
 

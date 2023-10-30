@@ -15,6 +15,7 @@ interface IFunctionRegistryErrors {
     error EmptyBytecode();
     error FailedDeploy();
     error VerifierCannotBeZero();
+    error VerifierAlreadyUpdated(bytes32 functionId);
     error FunctionAlreadyRegistered(bytes32 functionId);
     error NotFunctionOwner(address owner, address actualOwner);
 }
