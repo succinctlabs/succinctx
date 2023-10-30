@@ -116,6 +116,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         length: U32Variable,
         last_chunk: U32Variable,
     ) -> Bytes32Variable {
+        assert_eq!(
+            input.len() % 64,
+            0,
+            "input length should be a multiple of 64"
+        );
         if self.sha256_accelerator.is_none() {
             self.sha256_accelerator = Some(SHA256Accelerator {
                 sha_requests: Vec::new(),
@@ -153,9 +158,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 mod tests {
     use std::env;
 
+    use ethers::types::H256;
+    use rand::{thread_rng, Rng};
+
     use crate::backend::circuit::{CircuitBuild, DefaultParameters};
     use crate::frontend::vars::Bytes32Variable;
     use crate::prelude::*;
+    use crate::utils::hash::sha256;
     use crate::utils::{bytes, bytes32};
 
     type L = DefaultParameters;
@@ -204,14 +213,14 @@ mod tests {
         let mut builder = CircuitBuilder::<L, D>::new();
         let byte_msg : Vec<u8> = bytes!("243f6a8885a308d313198a2e03707344a4093822299f31d0082efa98ec4e6c89452821e638d01377be5466cf34e90c6cc0ac29b7c97c50dd3f84d5b5b5470917");
         let msg = byte_msg
-            .into_iter()
-            .map(|b| builder.constant::<ByteVariable>(b))
+            .iter()
+            .map(|b| builder.constant::<ByteVariable>(*b))
             .collect::<Vec<_>>();
         let result = builder.curta_sha256(&msg);
         builder.watch(&result, "result");
 
-        let expected_digest =
-            bytes32!("aca16131a2e4c4c49e656d35aac1f0e689b3151bb108fa6cf5bcc3ac08a09bf9");
+        let expected_digest = H256::from(sha256(&byte_msg));
+        // bytes32!("aca16131a2e4c4c49e656d35aac1f0e689b3151bb108fa6cf5bcc3ac08a09bf9");
         let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
         builder.assert_is_equal(result, expected_digest);
@@ -233,41 +242,44 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha256_curta_allocation() {
+    fn test_sha256_curta_different_lengths() {
         env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let mut builder = DefaultBuilder::new();
+        let mut builder = CircuitBuilder::<L, D>::new();
 
-        // Requires 2 chunks each.
-        let short_msg = [1u8; 56];
+        let max_len = 256;
 
-        let short_msg_bytes = short_msg
-            .iter()
-            .map(|b| builder.constant::<ByteVariable>(*b))
-            .collect::<Vec<_>>();
+        let mut rng = thread_rng();
+        for i in 0..max_len {
+            let message = (0..i).map(|_| rng.gen::<u8>()).collect::<Vec<_>>();
+            let expected_digest = H256::from(sha256(&message));
 
-        let mut msgs = (0..10).map(|_| short_msg_bytes.clone()).collect::<Vec<_>>();
+            let message = message
+                .iter()
+                .map(|b| builder.constant::<ByteVariable>(*b))
+                .collect::<Vec<_>>();
+            let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
-        // Requires 3 chunks each.
-        let long_msg = [1u8; 128];
-        let long_msg_bytes = long_msg
-            .iter()
-            .map(|b| builder.constant::<ByteVariable>(*b))
-            .collect::<Vec<_>>();
-
-        msgs.extend((0..15).map(|_| long_msg_bytes.clone()).collect::<Vec<_>>());
-
-        let _ = msgs
-            .iter()
-            .map(|msg| builder.curta_sha256(msg))
-            .collect::<Vec<_>>();
+            let digest = builder.curta_sha256(&message);
+            builder.watch(&digest, &format!("digest of message {}", i));
+            builder.assert_is_equal(digest, expected_digest);
+        }
 
         let circuit = builder.build();
+        let gate_serializer = GateRegistry::<L, D>::new();
+        let generator_serializer = HintRegistry::<L, D>::new();
+        let bytes = circuit
+            .serialize(&gate_serializer, &generator_serializer)
+            .unwrap();
+        let circuit =
+            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer)
+                .unwrap();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
     }
 
     #[test]
@@ -341,30 +353,47 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_serialized_sha256_curta() {
+    fn test_sha256_curta_variable_different_lengths() {
         env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<L, D>::new();
-        let zero = builder.constant::<ByteVariable>(0u8);
-        let result = builder.curta_sha256(&[zero; 1]);
-        builder.watch(&result, "result");
 
-        let expected_digest =
-            bytes32!("0x6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d");
-        let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
+        let max_number_of_chunks = 2;
+        let total_message_length = 64 * max_number_of_chunks - 10;
 
-        builder.assert_is_equal(result, expected_digest);
+        let mut rng = thread_rng();
+        for i in 0..total_message_length {
+            let total_message = (0..total_message_length)
+                .map(|_| rng.gen::<u8>())
+                .collect::<Vec<_>>();
+            let message = &total_message[..i];
+            let expected_digest = H256::from(sha256(message));
+
+            let length = builder.constant::<U32Variable>(i as u32);
+            let last_chunk = builder.constant::<U32Variable>((i as u32 + 9) / 64);
+
+            let total_message = total_message
+                .iter()
+                .map(|b| builder.constant::<ByteVariable>(*b))
+                .collect::<Vec<_>>();
+            let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
+
+            let digest = builder.curta_sha256_variable(&total_message, length, last_chunk);
+            builder.watch(&digest, &format!("digest of message {}", i));
+            builder.assert_is_equal(digest, expected_digest);
+        }
 
         let circuit = builder.build();
         let gate_serializer = GateRegistry::<L, D>::new();
-        let hint_serializer = HintRegistry::<L, D>::new();
+        let generator_serializer = HintRegistry::<L, D>::new();
         let bytes = circuit
-            .serialize(&gate_serializer, &hint_serializer)
+            .serialize(&gate_serializer, &generator_serializer)
             .unwrap();
         let circuit =
-            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &hint_serializer).unwrap();
+            CircuitBuild::<L, D>::deserialize(&bytes, &gate_serializer, &generator_serializer)
+                .unwrap();
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
