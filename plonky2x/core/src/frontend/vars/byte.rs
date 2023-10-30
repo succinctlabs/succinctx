@@ -151,6 +151,14 @@ impl ByteVariable {
         ByteVariable::from_be_bits(le_bool_variables)
     }
 
+    /// Creates a ByteVariable from a `Variable`.
+    pub fn from_variable<L: PlonkParameters<D>, const D: usize>(
+        builder: &mut CircuitBuilder<L, D>,
+        byte: Variable,
+    ) -> Self {
+        Self::from_target(builder, byte.0)
+    }
+
     /// Creates a Target from a ByteVariable.
     pub fn to_variable<L: PlonkParameters<D>, const D: usize>(
         self: ByteVariable,
