@@ -4,6 +4,7 @@ pragma solidity ^0.8.16;
 import {IFeeVault} from "./interfaces/IFeeVault.sol";
 import {TimelockedUpgradeable} from "../upgrades/TimelockedUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title SuccinctFeeVault
 /// @author Succinct Labs
@@ -18,6 +19,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 ///         make a bulk deposit.
 /// @dev Address(0) is used to represent native currency in places where token address is specified.
 contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
+    using SafeERC20 for IERC20;
+
     /// @notice Tracks the amount of active balance that an account has for Succinct services.
     /// @dev balances[token][account] returns the amount of balance for token the account has. To
     ///      check native currency balance, use address(0) as the token address.
@@ -83,7 +86,7 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
             revert InsufficentAllowance(_token, _amount);
         }
 
-        token.transferFrom(msg.sender, address(this), _amount);
+        token.safeTransferFrom(msg.sender, address(this), _amount);
         balances[_token][_account] += _amount;
 
         emit Received(_account, _token, _amount);
