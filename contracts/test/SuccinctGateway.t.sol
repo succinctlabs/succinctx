@@ -87,6 +87,10 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
 
 contract SetupTest is SuccinctGatewayTest {
     function test_SetUp() public {
+        bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
+        assertEq(IFunctionRegistry(gateway).verifiers(functionId), verifier);
+        assertEq(IFunctionRegistry(gateway).verifierOwners(functionId), owner);
+        assertEq(SuccinctGateway(gateway).allowedProvers(prover), true);
         assertTrue(AccessControlUpgradeable(gateway).hasRole(keccak256("TIMELOCK_ROLE"), timelock));
         assertTrue(AccessControlUpgradeable(gateway).hasRole(keccak256("GUARDIAN_ROLE"), guardian));
     }
