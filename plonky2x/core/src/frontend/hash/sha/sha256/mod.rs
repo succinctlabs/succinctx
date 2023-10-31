@@ -269,12 +269,107 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 mod tests {
     use std::env;
 
+    use rand::{thread_rng, Rng};
+
     use super::*;
     use crate::prelude::{ByteVariable, CircuitBuilder, DefaultParameters};
     use crate::utils::hash::sha256;
+    use crate::utils::setup_logger;
 
     type L = DefaultParameters;
     const D: usize = 2;
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha256_padding() {
+        setup_logger();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+
+        let max_len = 1024;
+
+        let mut rng = thread_rng();
+        for i in 0..max_len {
+            let message = (0..i).map(|_| rng.gen::<u8>()).collect::<Vec<_>>();
+            let expected_padding = SHA256::pad(&message)
+                .iter()
+                .flat_map(|x| x.to_be_bytes())
+                .collect::<Vec<_>>();
+
+            let message = message
+                .iter()
+                .map(|b| builder.constant::<ByteVariable>(*b))
+                .collect::<Vec<_>>();
+            let expected_padding = expected_padding
+                .iter()
+                .map(|b| builder.constant::<ByteVariable>(*b))
+                .collect::<Vec<_>>();
+
+            let padding = builder.pad_message_sha256(&message);
+
+            for (value, expected) in padding.iter().zip(expected_padding.iter()) {
+                builder.assert_is_equal(*value, *expected);
+            }
+        }
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha256_variable_padding() {
+        setup_logger();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+
+        let max_number_of_chunks = 2;
+        let total_message_length = 64 * max_number_of_chunks;
+        let max_len = 55;
+
+        let mut rng = thread_rng();
+        let total_message = (0..total_message_length)
+            .map(|_| rng.gen::<u8>())
+            .collect::<Vec<_>>();
+        for i in 0..max_len {
+            let message = &total_message[..i];
+            let expected_padding = SHA256::pad(message)
+                .iter()
+                .flat_map(|x| x.to_be_bytes())
+                .collect::<Vec<_>>();
+
+            let length = builder.constant::<U32Variable>(i as u32);
+            let last_chunk = builder.constant::<U32Variable>((i as u32 + 9) / 64);
+
+            let message = total_message
+                .iter()
+                .map(|b| builder.constant::<ByteVariable>(*b))
+                .collect::<Vec<_>>();
+            let expected_padding = expected_padding
+                .iter()
+                .map(|b| builder.constant::<ByteVariable>(*b))
+                .collect::<Vec<_>>();
+
+            let padding = builder.pad_message_sha256_variable(&message, length, last_chunk);
+
+            for (value, expected) in padding.iter().zip(expected_padding.iter()) {
+                builder.assert_is_equal(*value, *expected);
+            }
+        }
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha_padding_variable() {}
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]

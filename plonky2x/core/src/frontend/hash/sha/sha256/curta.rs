@@ -249,7 +249,7 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let max_len = 256;
+        let max_len = 513;
 
         let mut rng = thread_rng();
         for i in 0..max_len {
@@ -263,7 +263,6 @@ mod tests {
             let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
             let digest = builder.curta_sha256(&message);
-            builder.watch(&digest, &format!("digest of message {}", i));
             builder.assert_is_equal(digest, expected_digest);
         }
 
@@ -362,7 +361,7 @@ mod tests {
 
         let max_number_of_chunks = 2;
         let total_message_length = 64 * max_number_of_chunks;
-        let max_len = 55;
+        let max_len = 56;
 
         let mut rng = thread_rng();
         let total_message = (0..total_message_length)
