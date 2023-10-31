@@ -7,6 +7,7 @@ use super::SHA;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::*;
 
+/// Provides the SHA of a message usign the algorithm specified by `S`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SHADigestHint<S, const CYCLE_LEN: usize> {
     _marker: PhantomData<S>,

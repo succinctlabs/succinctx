@@ -5,14 +5,25 @@ use crate::prelude::{
     BoolVariable, CircuitVariable, PlonkParameters, ValueStream, Variable, VariableStream,
 };
 
+/// Circuit variables for the input data of a SHA computation.
 pub struct SHAInputData<T> {
+    /// The padded chunks of the input message.
     pub padded_chunks: Vec<T>,
+    // A flag for each chunk indicating whether the hash state needs to be restarted after
+    // processing the chunk.
     pub end_bits: Vec<BoolVariable>,
+    /// A flag for each chunk indicating whether the digest should be read after processing the
+    /// chunk.
     pub digest_bits: Vec<BoolVariable>,
+    /// The index of the digests to be read, corresponding to their location in `padded chunks`.
     pub digest_indices: Vec<Variable>,
+    /// The message digests.
     pub digests: Vec<[T; 8]>,
 }
 
+/// The values of the input data of a SHA computation.
+///
+/// This struct represents the values of the variables of `SHAInputData`.
 pub struct SHAInputDataValues<
     L: PlonkParameters<D>,
     S: SHA<L, D, CYCLE_LEN>,
@@ -26,6 +37,7 @@ pub struct SHAInputDataValues<
     pub digests: Vec<[S::Integer; 8]>,
 }
 
+/// The parameters required for reading the input data of a SHA computation from a stream.
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub struct SHAInputParameters {
     pub num_chunks: usize,
@@ -33,6 +45,7 @@ pub struct SHAInputParameters {
 }
 
 impl<T> SHAInputData<T> {
+    /// Get parameters from the input data.
     pub fn parameters(&self) -> SHAInputParameters {
         SHAInputParameters {
             num_chunks: self.end_bits.len(),
@@ -42,6 +55,7 @@ impl<T> SHAInputData<T> {
 }
 
 impl VariableStream {
+    /// Read sha input data from the stream.
     pub fn write_sha_input<T: CircuitVariable>(&mut self, input: &SHAInputData<T>) {
         self.write_slice(&input.padded_chunks);
         self.write_slice(&input.end_bits);
@@ -52,7 +66,7 @@ impl VariableStream {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
-    #[allow(clippy::type_complexity)]
+    /// Read sha input data from the stream.
     pub fn read_sha_input_values<S: SHA<L, D, CYCLE_LEN>, const CYCLE_LEN: usize>(
         &mut self,
         parameters: SHAInputParameters,
