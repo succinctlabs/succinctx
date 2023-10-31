@@ -1,6 +1,7 @@
 use std::env;
 
 use async_trait::async_trait;
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 use crate::backend::circuit::PlonkParameters;
@@ -59,5 +60,7 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconHistorical
                     .map(|x| bytes32!(*x))
                     .collect(),
             );
+
+        debug!("done with historical block hint {}", target_slot);
     }
 }
