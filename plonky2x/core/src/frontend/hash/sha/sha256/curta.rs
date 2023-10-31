@@ -359,9 +359,9 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let max_number_of_chunks = 2;
+        let max_number_of_chunks = 5;
         let total_message_length = 64 * max_number_of_chunks;
-        let max_len = 56;
+        let max_len = 300;
 
         let mut rng = thread_rng();
         let total_message = (0..total_message_length)
