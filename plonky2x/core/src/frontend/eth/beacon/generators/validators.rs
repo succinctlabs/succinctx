@@ -19,13 +19,11 @@ use crate::utils::{bytes32, hex};
 pub(crate) const DEPTH: usize = 8;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BeaconValidatorsHint {
-    client: BeaconClient,
-}
+pub struct BeaconValidatorsHint {}
 
 impl BeaconValidatorsHint {
-    pub fn new(client: BeaconClient) -> Self {
-        Self { client }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
@@ -38,8 +36,7 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconValidators
     ) {
         let block_root = input_stream.read_value::<Bytes32Variable>();
 
-        let result = self
-            .client
+        let result = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap())
             .get_validators_root(hex!(block_root.as_bytes()).to_string())
             .expect("failed to get validators root");
 
@@ -55,7 +52,6 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconValidators
 
 #[derive(Debug, Clone)]
 pub struct BeaconValidatorsGenerator<L: PlonkParameters<D>, const D: usize> {
-    client: BeaconClient,
     block_root: Bytes32Variable,
     pub validators_root: Bytes32Variable,
     pub proof: Vec<Bytes32Variable>,
@@ -63,13 +59,8 @@ pub struct BeaconValidatorsGenerator<L: PlonkParameters<D>, const D: usize> {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> BeaconValidatorsGenerator<L, D> {
-    pub fn new(
-        builder: &mut CircuitBuilder<L, D>,
-        client: BeaconClient,
-        block_root: Bytes32Variable,
-    ) -> Self {
+    pub fn new(builder: &mut CircuitBuilder<L, D>, block_root: Bytes32Variable) -> Self {
         Self {
-            client,
             block_root,
             validators_root: builder.init::<Bytes32Variable>(),
             proof: (0..DEPTH)
@@ -102,8 +93,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
     ) {
         let block_root = self.block_root.get(witness);
 
-        let result = self
-            .client
+        let result = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap())
             .get_validators_root(hex!(block_root.as_bytes()).to_string())
             .expect("failed to get validators root");
 
@@ -139,10 +129,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         for i in 0..DEPTH {
             proof.push(Bytes32Variable::from_targets(&src.read_target_vec()?));
         }
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
-        let client = BeaconClient::new(consensus_rpc);
         Ok(Self {
-            client,
             block_root,
             validators_root,
             proof,
@@ -179,7 +166,7 @@ pub(crate) mod tests {
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(
             "0xe6d6e23b8e07e15b98811579e5f6c36a916b749fd7146d009196beeddc4a6670"
         ));
-        let generator = BeaconValidatorsGenerator::<L, D>::new(&mut builder, client, block_root);
+        let generator = BeaconValidatorsGenerator::<L, D>::new(&mut builder, block_root);
         builder.add_simple_generator(generator);
 
         let circuit = builder.build();

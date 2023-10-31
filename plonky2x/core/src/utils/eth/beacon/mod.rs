@@ -6,7 +6,7 @@ use itertools::Itertools;
 use log::{debug, info};
 use num::BigInt;
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use serde_with::serde_as;
 
@@ -15,7 +15,7 @@ use crate::utils::reqwest::ReqwestClient;
 use crate::utils::serde::deserialize_bigint;
 
 /// A client used for connecting and querying a beacon node.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct BeaconClient {
     rpc_url: String,
     client: ReqwestClient,

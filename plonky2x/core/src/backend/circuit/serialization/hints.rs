@@ -369,11 +369,11 @@ where
         >>(simple_stark_witness_generator_id);
 
         r.register_hint::<BeaconBalanceWitnessHint>();
-        r.register_hint::<Eth1BlockToSlotHint>();
         r.register_hint::<BeaconExecutionPayloadHint>();
         r.register_hint::<BeaconHeaderHint>();
         r.register_hint::<BeaconAllWithdrawalsHint>();
 
+        r.register_async_hint::<Eth1BlockToSlotHint>();
         r.register_async_hint::<BeaconHistoricalBlockHint>();
         r.register_async_hint::<EthStorageProofHint<L, D>>();
         r.register_async_hint::<BeaconValidatorsHint>();

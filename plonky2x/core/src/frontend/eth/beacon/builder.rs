@@ -131,7 +131,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ) -> BeaconValidatorsVariable {
         let mut input_stream = VariableStream::new();
         input_stream.write(&block_root);
-        let hint = BeaconValidatorsHint::new(self.beacon_client.clone().unwrap());
+        let hint = BeaconValidatorsHint::new();
         let output_stream = self.async_hint(input_stream, hint);
 
         let validators_root = output_stream.read::<Bytes32Variable>(self);
@@ -486,7 +486,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         // Witness the slot number from the eth1 block number
         let mut block_to_slot_input = VariableStream::new();
         block_to_slot_input.write(&eth1_block_number);
-        let block_to_slot_output = self.hint(block_to_slot_input, Eth1BlockToSlotHint {});
+        let block_to_slot_output = self.async_hint(block_to_slot_input, Eth1BlockToSlotHint {});
         let slot = block_to_slot_output.read::<U64Variable>(self);
 
         // Prove source block root -> witnessed beacon block
