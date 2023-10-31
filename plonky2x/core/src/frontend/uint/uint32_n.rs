@@ -376,82 +376,84 @@ macro_rules! make_uint32_n_tests {
             }
 
             #[test]
-            fn test_u32n_add() {
+            fn test_add() {
                 let mut rng = OsRng;
+                for _ in 0..100 {
+                    let a = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
+                    let b = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
 
-                let a = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
-                let b = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
+                    let (expected_value, _) = a.overflowing_add(b);
 
-                let (expected_value, _) = a.overflowing_add(b);
+                    let mut builder = CircuitBuilder::<L, D>::new();
 
-                let mut builder = CircuitBuilder::<L, D>::new();
+                    let a = $a::constant(&mut builder, a);
+                    let b = $a::constant(&mut builder, b);
+                    let result = builder.add(a, b);
+                    let expected_result_var = $a::constant(&mut builder, expected_value);
 
-                let a = $a::constant(&mut builder, a);
-                let b = $a::constant(&mut builder, b);
-                let result = builder.add(a, b);
-                let expected_result_var = $a::constant(&mut builder, expected_value);
+                    builder.assert_is_equal(result, expected_result_var);
 
-                builder.assert_is_equal(result, expected_result_var);
+                    let circuit = builder.build();
+                    let pw = PartialWitness::new();
 
-                let circuit = builder.build();
-                let pw = PartialWitness::new();
-
-                let proof = circuit.data.prove(pw).unwrap();
-                circuit.data.verify(proof).unwrap();
+                    let proof = circuit.data.prove(pw).unwrap();
+                    circuit.data.verify(proof).unwrap();
+                }
             }
 
             #[test]
-            fn test_u256_sub() {
+            fn test_sub() {
                 let _num_bytes = $c * 4;
-
                 let mut rng = OsRng;
 
-                let a = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
-                let b = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
+                for _ in 0..100 {
+                    let a = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
+                    let b = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
 
-                let (expected_value, _) = a.overflowing_sub(b);
+                    let (expected_value, _) = a.overflowing_sub(b);
 
-                let mut builder = CircuitBuilder::<L, D>::new();
+                    let mut builder = CircuitBuilder::<L, D>::new();
 
-                let a = $a::constant(&mut builder, a);
-                let b = $a::constant(&mut builder, b);
-                let result = builder.sub(a, b);
-                let expected_result_var = $a::constant(&mut builder, expected_value);
+                    let a = $a::constant(&mut builder, a);
+                    let b = $a::constant(&mut builder, b);
+                    let result = builder.sub(a, b);
+                    let expected_result_var = $a::constant(&mut builder, expected_value);
 
-                builder.assert_is_equal(result, expected_result_var);
+                    builder.assert_is_equal(result, expected_result_var);
 
-                let circuit = builder.build();
-                let pw = PartialWitness::new();
+                    let circuit = builder.build();
+                    let pw = PartialWitness::new();
 
-                let proof = circuit.data.prove(pw).unwrap();
-                circuit.data.verify(proof).unwrap();
+                    let proof = circuit.data.prove(pw).unwrap();
+                    circuit.data.verify(proof).unwrap();
+                }
             }
 
             #[test]
-            fn test_u256_mul() {
+            fn test_mul() {
                 const D: usize = 2;
-
                 let mut rng = OsRng;
+                for _ in 0..100 {
+                    let a = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
+                    let b = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
 
-                let a = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
-                let b = <$b as Uint<$c>>::from_u32_limbs([rng.gen(); $c]);
+                    let (expected_value, _) = a.overflowing_mul(b);
 
-                let (expected_value, _) = a.overflowing_mul(b);
+                    let mut builder = CircuitBuilder::<L, D>::new();
 
-                let mut builder = CircuitBuilder::<L, D>::new();
+                    let a = $a::constant(&mut builder, a);
+                    let b = $a::constant(&mut builder, b);
+                    let result = builder.mul(a, b);
+                    let expected_result_var = $a::constant(&mut builder, expected_value);
 
-                let a = $a::constant(&mut builder, a);
-                let b = $a::constant(&mut builder, b);
-                let result = builder.mul(a, b);
-                let expected_result_var = $a::constant(&mut builder, expected_value);
+                    builder.assert_is_equal(result, expected_result_var);
 
-                builder.assert_is_equal(result, expected_result_var);
+                    let circuit = builder.build();
+                    let pw = PartialWitness::new();
 
-                let circuit = builder.build();
-                let pw = PartialWitness::new();
-
-                let proof = circuit.data.prove(pw).unwrap();
-                circuit.data.verify(proof).unwrap();
+                    let proof = circuit.data.prove(pw).unwrap();
+                    circuit.data.verify(proof).unwrap();
+                }
             }
         }
     };

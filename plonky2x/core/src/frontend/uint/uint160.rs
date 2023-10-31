@@ -67,7 +67,7 @@ impl Uint<5> for U160 {
             let overflow = overflow1 || overflow2;
 
             result[i] = sum;
-            carry = if overflow { 1 } else { carry };
+            carry = if overflow { 1 } else { 0 };
         }
         (Self(result), carry == 1)
     }
@@ -81,7 +81,7 @@ impl Uint<5> for U160 {
             let overflow = overflow1 || overflow2;
 
             result[i] = diff;
-            carry = if overflow { 1 } else { carry };
+            carry = if overflow { 1 } else { 0 };
         }
         (Self(result), carry == 1)
     }
