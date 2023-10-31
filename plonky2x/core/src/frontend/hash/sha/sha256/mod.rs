@@ -358,7 +358,6 @@ mod tests {
                 .collect::<Vec<_>>();
 
             let length = builder.constant::<U32Variable>(i as u32);
-            let last_chunk = builder.constant::<U32Variable>((i as u32 + 8) / 64);
 
             let message = total_message
                 .iter()
