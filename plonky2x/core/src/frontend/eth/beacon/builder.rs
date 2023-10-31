@@ -481,6 +481,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn beacon_get_block_from_eth1_block_number(
         &mut self,
         source_beacon_block_root: Bytes32Variable,
+        source_slot: U64Variable,
         eth1_block_number: U256Variable,
     ) -> Bytes32Variable {
         // Witness the slot number from the eth1 block number
@@ -490,7 +491,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let slot = block_to_slot_output.read::<U64Variable>(self);
 
         // Prove source block root -> witnessed beacon block
-        let source_slot = self.beacon_get_block_header(source_beacon_block_root).slot;
         let target_root =
             self.beacon_get_historical_block(source_beacon_block_root, source_slot, slot);
 
