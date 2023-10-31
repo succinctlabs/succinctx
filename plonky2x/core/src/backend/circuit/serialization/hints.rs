@@ -370,9 +370,9 @@ where
 
         r.register_hint::<BeaconBalanceWitnessHint>();
         r.register_hint::<BeaconExecutionPayloadHint>();
-        r.register_hint::<BeaconHeaderHint>();
-        r.register_hint::<BeaconAllWithdrawalsHint>();
 
+        r.register_async_hint::<BeaconAllWithdrawalsHint>();
+        r.register_async_hint::<BeaconHeaderHint>();
         r.register_async_hint::<Eth1BlockToSlotHint>();
         r.register_async_hint::<BeaconHistoricalBlockHint>();
         r.register_async_hint::<EthStorageProofHint<L, D>>();

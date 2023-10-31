@@ -607,9 +607,17 @@ impl BeaconClient {
     pub fn get_withdrawals(&self, beacon_id: String) -> Result<GetBeaconWithdrawals> {
         let endpoint = format!("{}/api/beacon/proof/withdrawal/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(120, 0)).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconWithdrawals> = response.json()?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    pub async fn get_withdrawals_async(&self, beacon_id: String) -> Result<GetBeaconWithdrawals> {
+        let endpoint = format!("{}/api/beacon/proof/withdrawal/{}", self.rpc_url, beacon_id);
+        info!("{}", endpoint);
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<GetBeaconWithdrawals> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
@@ -667,11 +675,11 @@ impl BeaconClient {
     }
 
     /// Gets the block header at the given `beacon_id`.
-    pub fn get_header(&self, beacon_id: String) -> Result<BeaconHeader> {
+    pub async fn get_header(&self, beacon_id: String) -> Result<BeaconHeader> {
         let endpoint = format!("{}/eth/v1/beacon/headers/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
-        let response = self.client.fetch(&endpoint)?;
-        let parsed: BeaconData<BeaconHeaderContainer> = response.json()?;
+        let response = self.client.fetch_async(&endpoint).await?;
+        let parsed: BeaconData<BeaconHeaderContainer> = response.json().await?;
 
         Ok(parsed.data.header.message)
     }

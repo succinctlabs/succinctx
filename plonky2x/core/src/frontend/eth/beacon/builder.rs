@@ -419,7 +419,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut withdrawals_hint_input = VariableStream::new();
         withdrawals_hint_input.write(&block_root);
         let withdrawals_hint_output =
-            self.hint(withdrawals_hint_input, BeaconAllWithdrawalsHint {});
+            self.async_hint(withdrawals_hint_input, BeaconAllWithdrawalsHint {});
 
         let withdrawals = withdrawals_hint_output
             .read::<ArrayVariable<BeaconWithdrawalVariable, MAX_WITHDRAWALS_PER_PAYLOAD>>(self);
@@ -468,7 +468,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn beacon_get_block_header(&mut self, block_root: Bytes32Variable) -> BeaconHeaderVariable {
         let mut slot_hint_input = VariableStream::new();
         slot_hint_input.write(&block_root);
-        let slot_hint_output = self.hint(slot_hint_input, BeaconHeaderHint {});
+        let slot_hint_output = self.async_hint(slot_hint_input, BeaconHeaderHint {});
         let header = slot_hint_output.read::<BeaconHeaderVariable>(self);
 
         let restored_root = self.ssz_hash_tree_root(header);
