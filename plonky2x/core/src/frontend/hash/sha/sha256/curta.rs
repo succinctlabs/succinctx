@@ -120,7 +120,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             0,
             "input length should be a multiple of 64"
         );
-        let last_chunk = self.compute_last_chunk(length);
+        let last_chunk = self.compute_sha256_last_chunk(length);
         if self.sha256_accelerator.is_none() {
             self.sha256_accelerator = Some(SHA256Accelerator {
                 sha_requests: Vec::new(),
@@ -297,7 +297,6 @@ mod tests {
             .collect::<Vec<_>>();
 
         let bytes_length = builder.constant::<U32Variable>(39);
-        let last_chunk = builder.constant::<U32Variable>(0);
 
         let expected_digest =
             bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
@@ -332,7 +331,6 @@ mod tests {
             .collect::<Vec<_>>();
 
         let bytes_length = builder.constant::<U32Variable>(39);
-        let last_chunk = builder.constant::<U32Variable>(0);
 
         let expected_digest =
             bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
@@ -372,7 +370,6 @@ mod tests {
             let expected_digest = H256::from(sha256(message));
 
             let length = builder.constant::<U32Variable>(i as u32);
-            let last_chunk = builder.constant::<U32Variable>((i as u32 + 8) / 64);
 
             let total_message = total_message
                 .iter()

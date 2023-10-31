@@ -46,8 +46,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .collect_vec()
     }
 
-    /// Calculates the last chunk of the message.
-    fn compute_last_chunk(&mut self, input_byte_length: U32Variable) -> U32Variable {
+    /// Calculates the last valid SHA256 chunk of an input_byte_length long message.
+    /// This is useful for padding the message correctly for variable length inputs.
+    fn compute_sha256_last_chunk(&mut self, input_byte_length: U32Variable) -> U32Variable {
         // 9 is the number of bytes added by the padding and LE length representation. Subtract 1
         // to account for the case where input.len() + 9 % 64 == 0, in which case an extra chunk is
         // not needed. Divide by 64 to get the number of chunks.
@@ -76,7 +77,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             input.len(),
             "input length must be a multiple of 64 bytes"
         );
-        let last_chunk = self.compute_last_chunk(input_byte_length);
+        let last_chunk = self.compute_sha256_last_chunk(input_byte_length);
 
         // Compute the length bytes (big-endian representation of the length in bits).
         let zero_byte = self.constant::<ByteVariable>(0x00);
