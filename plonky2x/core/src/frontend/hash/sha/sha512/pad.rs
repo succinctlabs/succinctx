@@ -41,15 +41,32 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .collect::<Vec<_>>()
     }
 
+    /// Calculates the last valid SHA512 chunk of an input_byte_length long message.
+    /// This is useful for padding the message correctly for variable length inputs.
+    pub(crate) fn compute_sha512_last_chunk(
+        &mut self,
+        input_byte_length: U32Variable,
+    ) -> U32Variable {
+        // 17 is the number of bytes added by the padding and LE length representation. Subtract 1
+        // to account for the case where input.len() + 17 % 128 == 0, in which case an extra chunk is
+        // not needed. Divide by 128 (chunk size in bytes) to get the number of chunks.
+        let padding_and_length = self.constant::<U32Variable>((17 - 1) as u32);
+        let chunk_size = self.constant::<U32Variable>(128);
+
+        let total_length = self.add(input_byte_length, padding_and_length);
+        self.div(total_length, chunk_size)
+    }
+
     // Should be a multiple of CHUNK_BITS_1024
     pub(crate) fn pad_sha512_variable_length(
         &mut self,
         input: &[ByteVariable],
         input_byte_length: U32Variable,
-        last_chunk: U32Variable,
     ) -> Vec<ByteVariable> {
         let max_num_chunks = input.len() / LENGTH_BITS_128;
         assert_eq!(input.len() % LENGTH_BITS_128, 0);
+
+        let last_chunk = self.compute_sha512_last_chunk(input_byte_length);
 
         let message = input
             .iter()
