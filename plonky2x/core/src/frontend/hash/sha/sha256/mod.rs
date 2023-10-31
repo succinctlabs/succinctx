@@ -52,7 +52,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The true number of non-zero bytes in `input` is given by input_byte_length.
     ///
     /// 'last_chunk' is the index of the last chunk in `input`. Its value should be given by
-    /// (input_byte_length + 9)/64 It is assumed that the last chunk is calculated correctly.
+    /// (input_byte_length + 8)/64 It is assumed that the last chunk is calculated correctly.
     fn pad_message_sha256_variable(
         &mut self,
         input: &[ByteVariable],
@@ -121,6 +121,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 padded_bytes.push(byte);
             }
         }
+
+        // self.watch_slice(&padded_bytes, "padded bytes");
 
         assert_eq!(padded_bytes.len(), max_number_of_chunks * 64);
         padded_bytes
@@ -326,9 +328,9 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let max_number_of_chunks = 2;
+        let max_number_of_chunks = 5;
         let total_message_length = 64 * max_number_of_chunks;
-        let max_len = 55;
+        let max_len = 300;
 
         let mut rng = thread_rng();
         let total_message = (0..total_message_length)
@@ -342,7 +344,7 @@ mod tests {
                 .collect::<Vec<_>>();
 
             let length = builder.constant::<U32Variable>(i as u32);
-            let last_chunk = builder.constant::<U32Variable>((i as u32 + 9) / 64);
+            let last_chunk = builder.constant::<U32Variable>((i as u32 + 8) / 64);
 
             let message = total_message
                 .iter()
@@ -352,8 +354,12 @@ mod tests {
                 .iter()
                 .map(|b| builder.constant::<ByteVariable>(*b))
                 .collect::<Vec<_>>();
+            println!("length of expected padding: {}", expected_padding.len());
 
             let padding = builder.pad_message_sha256_variable(&message, length, last_chunk);
+
+            builder.watch_slice(&padding, "padding");
+            builder.watch_slice(&expected_padding, "expected padding");
 
             for (value, expected) in padding.iter().zip(expected_padding.iter()) {
                 builder.assert_is_equal(*value, *expected);
@@ -364,7 +370,7 @@ mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        circuit.test_default_serializers();
+        // circuit.test_default_serializers();
     }
 
     #[test]

@@ -372,7 +372,7 @@ mod tests {
             let expected_digest = H256::from(sha256(message));
 
             let length = builder.constant::<U32Variable>(i as u32);
-            let last_chunk = builder.constant::<U32Variable>((i as u32 + 9) / 64);
+            let last_chunk = builder.constant::<U32Variable>((i as u32 + 8) / 64);
 
             let total_message = total_message
                 .iter()
