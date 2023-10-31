@@ -29,6 +29,9 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     /// @dev A flag that indicates whether the contract is currently making a callback.
     bool public isCallback;
 
+    /// @dev The allowed provers that can fulfill requests.
+    mapping(address => bool) public allowedProvers;
+
     /// @dev Protects functions from being re-entered during a fullfil call.
     modifier nonReentrant() {
         if (
@@ -36,6 +39,14 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
                 || verifiedOutput.length != 0
         ) {
             revert ReentrantFulfill();
+        }
+        _;
+    }
+
+    /// @dev Protects functions from being called by anyone other than the prover.
+    modifier onlyProver() {
+        if (!allowedProvers[msg.sender]) {
+            revert OnlyProver(msg.sender);
         }
         _;
     }
@@ -173,7 +184,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         bytes memory _context,
         bytes memory _output,
         bytes memory _proof
-    ) external nonReentrant {
+    ) external nonReentrant onlyProver {
         // Reconstruct the callback hash.
         bytes32 contextHash = keccak256(_context);
         bytes32 requestHash = _requestHash(
@@ -229,7 +240,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         bytes memory _proof,
         address _callbackAddress,
         bytes memory _callbackData
-    ) external nonReentrant {
+    ) external nonReentrant onlyProver {
         // Compute the input and output hashes.
         bytes32 inputHash = sha256(_input);
         bytes32 outputHash = sha256(_output);
@@ -262,6 +273,20 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     function setFeeVault(address _feeVault) external onlyGuardian {
         emit SetFeeVault(feeVault, _feeVault);
         feeVault = _feeVault;
+    }
+
+    /// @notice Add the specified prover.
+    /// @param _prover The address of the prover to add.
+    function addProver(address _prover) external onlyGuardian {
+        allowedProvers[_prover] = true;
+        emit ProverUpdated(_prover, true);
+    }
+
+    /// @notice Remove the specified prover.
+    /// @param _prover The address of the prover to remove.
+    function removeProver(address _prover) external onlyGuardian {
+        allowedProvers[_prover] = false;
+        emit ProverUpdated(_prover, false);
     }
 
     /// @dev Computes a unique identifier for a request.
@@ -312,5 +337,5 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
 
     /// @dev This empty reserved space to add new variables without shifting down storage.
     ///      See: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 }

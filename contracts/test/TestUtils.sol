@@ -31,24 +31,25 @@ interface ISuccinctGatewayWithFulfill is ISuccinctGateway {
 contract TestConsumer {
     address public immutable SUCCINCT_GATEWAY;
     bytes32 public immutable FUNCTION_ID;
+    bytes public INPUT;
     uint32 public constant CALLBACK_GAS_LIMIT = 2000000;
 
     uint32 public nonce;
-    bytes callInput;
     mapping(uint32 => bool) public handledRequests;
 
     error NotValid();
     error InvalidRequestNonce(uint32 expectedNonce, uint32 actualNonce);
     error ResultNotTrue();
 
-    constructor(address _gateway, bytes32 _functionId) payable {
+    constructor(address _gateway, bytes32 _functionId, bytes memory _input) payable {
         SUCCINCT_GATEWAY = _gateway;
         FUNCTION_ID = _functionId;
+        INPUT = _input;
     }
 
-    function requestCallback(bytes memory _input) external payable {
+    function requestCallback() external payable {
         ISuccinctGateway(SUCCINCT_GATEWAY).requestCallback{value: msg.value}(
-            FUNCTION_ID, _input, abi.encode(nonce), this.handleCallback.selector, CALLBACK_GAS_LIMIT
+            FUNCTION_ID, INPUT, abi.encode(nonce), this.handleCallback.selector, CALLBACK_GAS_LIMIT
         );
 
         nonce++;
@@ -70,18 +71,14 @@ contract TestConsumer {
         handledRequests[nonce - 1] = result;
     }
 
-    function requestCall(bytes memory _input) external payable {
-        callInput = _input;
-
+    function requestCall() external payable {
         ISuccinctGateway(SUCCINCT_GATEWAY).requestCall{value: msg.value}(
             FUNCTION_ID,
-            _input,
+            INPUT,
             address(this),
             abi.encodeWithSelector(this.handleCall.selector),
             CALLBACK_GAS_LIMIT
         );
-
-        nonce++;
     }
 
     function handleCall() external {
@@ -89,20 +86,18 @@ contract TestConsumer {
             revert NotValid();
         }
 
-        bytes memory output =
-            ISuccinctGateway(SUCCINCT_GATEWAY).verifiedCall(FUNCTION_ID, callInput);
-        callInput = "";
+        bytes memory output = ISuccinctGateway(SUCCINCT_GATEWAY).verifiedCall(FUNCTION_ID, INPUT);
 
         bool result = abi.decode(output, (bool));
         if (!result) {
             revert ResultNotTrue();
         }
 
-        handledRequests[nonce - 1] = result;
+        handledRequests[nonce++] = result;
     }
 
-    function verifiedCall(bytes memory _input) public view {
-        ISuccinctGateway(SUCCINCT_GATEWAY).verifiedCall(FUNCTION_ID, _input);
+    function verifiedCall() public view {
+        ISuccinctGateway(SUCCINCT_GATEWAY).verifiedCall(FUNCTION_ID, INPUT);
     }
 }
 
@@ -111,39 +106,41 @@ contract TestConsumer {
 contract AttackConsumer is Test {
     address public immutable SUCCINCT_GATEWAY;
     bytes32 public immutable FUNCTION_ID;
+    bytes public INPUT;
     uint32 public constant CALLBACK_GAS_LIMIT = 2000000;
 
-    constructor(address _gateway, bytes32 _functionId) payable {
+    constructor(address _gateway, bytes32 _functionId, bytes memory _input) payable {
         SUCCINCT_GATEWAY = _gateway;
         FUNCTION_ID = _functionId;
+        INPUT = _input;
     }
 
-    function requestCallbackReenterCallback(bytes memory _input) external payable {
+    function requestCallbackReenterCallback() external payable {
         ISuccinctGateway(SUCCINCT_GATEWAY).requestCallback{value: msg.value}(
-            FUNCTION_ID, _input, "", this.handleCallbackReenterCallback.selector, CALLBACK_GAS_LIMIT
+            FUNCTION_ID, INPUT, "", this.handleCallbackReenterCallback.selector, CALLBACK_GAS_LIMIT
         );
     }
 
-    function requestCallbackReenterCall(bytes memory _input) external payable {
+    function requestCallbackReenterCall() external payable {
         ISuccinctGateway(SUCCINCT_GATEWAY).requestCallback{value: msg.value}(
-            FUNCTION_ID, _input, "", this.handleCallbackReenterCall.selector, CALLBACK_GAS_LIMIT
+            FUNCTION_ID, INPUT, "", this.handleCallbackReenterCall.selector, CALLBACK_GAS_LIMIT
         );
     }
 
-    function requestCallReenterCallback(bytes memory _input) external payable {
+    function requestCallReenterCallback() external payable {
         ISuccinctGateway(SUCCINCT_GATEWAY).requestCall{value: msg.value}(
             FUNCTION_ID,
-            _input,
+            INPUT,
             address(this),
             abi.encodeWithSelector(this.handleCallReenterCallback.selector),
             CALLBACK_GAS_LIMIT
         );
     }
 
-    function requestCallReenterCall(bytes memory _input) external payable {
+    function requestCallReenterCall() external payable {
         ISuccinctGateway(SUCCINCT_GATEWAY).requestCall{value: msg.value}(
             FUNCTION_ID,
-            _input,
+            INPUT,
             address(this),
             abi.encodeWithSelector(this.handleCallReenterCall.selector),
             CALLBACK_GAS_LIMIT

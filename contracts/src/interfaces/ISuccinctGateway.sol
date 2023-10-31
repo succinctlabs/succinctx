@@ -26,6 +26,7 @@ interface ISuccinctGatewayEvents {
     );
     event Call(bytes32 indexed functionId, bytes32 inputHash, bytes32 outputHash);
     event SetFeeVault(address indexed oldFeeVault, address indexed newFeeVault);
+    event ProverUpdated(address indexed prover, bool added);
 }
 
 interface ISuccinctGatewayErrors {
@@ -35,6 +36,7 @@ interface ISuccinctGatewayErrors {
     error CallFailed(address callbackAddress, bytes callbackData);
     error InvalidProof(address verifier, bytes32 inputHash, bytes32 outputHash, bytes proof);
     error ReentrantFulfill();
+    error OnlyProver(address sender);
 }
 
 interface ISuccinctGateway is ISuccinctGatewayEvents, ISuccinctGatewayErrors {
