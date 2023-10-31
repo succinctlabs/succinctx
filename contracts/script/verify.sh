@@ -1,8 +1,4 @@
-# # Edit this array to add/remove contracts. Must have a script named Deploy${contract}.
-# CONTRACTS=(CountMessenger)
-# CONSTRUCTOR_ARGS=("$(cast abi-encode "constructor(address)" "0x41EA857C32c8Cb42EEFa00AF67862eCFf4eB795a")")
-
-USAGE="Usage: ./verify.sh <contract> <chain_ids> <is_proxy> <constructor_args> \n  Example: ./verify.sh \"SuccinctGateway\" \"5 420 84531 421613\" \"true\" \"$(cast abi-encode "constructor(address)" "0x41EA857C32c8Cb42EEFa00AF67862eCFf4eB795a")\""
+USAGE="Usage: ./verify.sh <contract> <chain_ids> <is_proxy> <constructor_args> \n  Example: ./verify.sh \"SuccinctGateway\" \"5 420 84531 421613\" \"true\" \"$(cast abi-encode "constructor(address)" "0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803")\""
 
 if [ -z "$1" ]; then
 	echo $USAGE
@@ -24,7 +20,8 @@ IFS=' ' read -r -a CHAIN_IDS <<< "$2"
 IS_PROXY=$3
 CONSTRUCTOR_ARGS=$4
 
-source .env.deployments
+# Load environment variables from .env
+source .env
 
 # Create .env.deployments if it doesn't exist
 if [ ! -f .env.deployments ]; then
@@ -32,6 +29,10 @@ if [ ! -f .env.deployments ]; then
 fi
 
 for chain_id in "${CHAIN_IDS[@]}"; do
+	set -a
+	source .env.deployments
+	set +a
+	
 	contract=$CONTRACT
 	constructor_args=${CONSTRUCTOR_ARGS[$i]}
 	is_proxy=${IS_PROXY[$i]}
