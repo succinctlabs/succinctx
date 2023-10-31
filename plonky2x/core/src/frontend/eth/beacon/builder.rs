@@ -490,7 +490,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let slot = block_to_slot_output.read::<U64Variable>(self);
 
         // Prove source block root -> witnessed beacon block
-        let target_root = self.beacon_get_historical_block(source_beacon_block_root, slot);
+        let source_slot = self.beacon_get_block_header(source_beacon_block_root).slot;
+        let target_root =
+            self.beacon_get_historical_block(source_beacon_block_root, source_slot, slot);
 
         // Witness SSZ proof for target block root -> beacon body -> execution payload -> eth1 block number
         let mut beacon_block_to_eth1_number_input = VariableStream::new();
@@ -522,6 +524,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn beacon_get_historical_block(
         &mut self,
         block_root: Bytes32Variable,
+        source_slot: U64Variable,
         target_slot: U64Variable,
     ) -> Bytes32Variable {
         let mut hint_input = VariableStream::new();
@@ -539,7 +542,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .read::<ArrayVariable<Bytes32Variable, FAR_SLOT_HISTORICAL_SUMMARY_DEPTH>>(self);
 
         // Use close slot logic if (source - target) < 8192
-        let source_slot = self.beacon_get_block_header(block_root).slot;
         let source_sub_target = self.sub(source_slot, target_slot);
         let slots_per_historical = self.constant::<U64Variable>(SLOTS_PER_HISTORICAL_ROOT as u64);
         let one_u64 = self.constant::<U64Variable>(1);
@@ -1058,7 +1060,7 @@ pub(crate) mod tests {
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let idx = builder.constant::<U64Variable>(slot - 100);
-        let historical_block = builder.beacon_get_historical_block(block_root, idx);
+        let historical_block = builder.beacon_get_historical_block(block_root, slot, idx);
         builder.watch(&historical_block, "historical_block");
 
         let circuit = builder.build();
