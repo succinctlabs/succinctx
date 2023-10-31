@@ -46,6 +46,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .collect_vec()
     }
 
+    /// Calculates the last chunk of the message.
+    fn compute_last_chunk(&mut self, input_byte_length: U32Variable) -> U32Variable {
+        // 9 is the number of bytes added by the padding and LE length representation. Subtract 1
+        // to account for the case where input.len() + 9 % 64 == 0, in which case an extra chunk is
+        // not needed. Divide by 64 to get the number of chunks.
+        let padding_and_length = self.constant::<U32Variable>((9 - 1) as u32);
+        let chunk_size = self.constant::<U32Variable>(64);
+
+        let total_length = self.add(input_byte_length, padding_and_length);
+        self.div(total_length, chunk_size)
+    }
+
     /// Pad the given variable length input according to the SHA-256 spec.
     ///
     /// It is assumed that `input` has length MAX_NUM_CHUNKS * 64.
@@ -57,7 +69,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         input: &[ByteVariable],
         input_byte_length: U32Variable,
-        last_chunk: U32Variable,
     ) -> Vec<ByteVariable> {
         let max_number_of_chunks = input.len() / 64;
         assert_eq!(
@@ -65,6 +76,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             input.len(),
             "input length must be a multiple of 64 bytes"
         );
+        let last_chunk = self.compute_last_chunk(input_byte_length);
+
         // Compute the length bytes (big-endian representation of the length in bits).
         let zero_byte = self.constant::<ByteVariable>(0x00);
         let mut length_bytes = vec![zero_byte; 4];
@@ -356,7 +369,7 @@ mod tests {
                 .collect::<Vec<_>>();
             println!("length of expected padding: {}", expected_padding.len());
 
-            let padding = builder.pad_message_sha256_variable(&message, length, last_chunk);
+            let padding = builder.pad_message_sha256_variable(&message, length);
 
             builder.watch_slice(&padding, "padding");
             builder.watch_slice(&expected_padding, "expected padding");

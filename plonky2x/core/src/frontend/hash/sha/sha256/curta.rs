@@ -51,7 +51,7 @@ impl<L: PlonkParameters<D>, const D: usize> SHA<L, D, 64> for SHA256 {
         length: U32Variable,
         last_chunk: U32Variable,
     ) -> Vec<Self::IntVariable> {
-        let padded_bytes = builder.pad_message_sha256_variable(input, length, last_chunk);
+        let padded_bytes = builder.pad_message_sha256_variable(input, length);
 
         padded_bytes
             .chunks_exact(4)
@@ -114,13 +114,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         input: &[ByteVariable],
         length: U32Variable,
-        last_chunk: U32Variable,
     ) -> Bytes32Variable {
         assert_eq!(
             input.len() % 64,
             0,
             "input length should be a multiple of 64"
         );
+        let last_chunk = self.compute_last_chunk(length);
         if self.sha256_accelerator.is_none() {
             self.sha256_accelerator = Some(SHA256Accelerator {
                 sha_requests: Vec::new(),
@@ -303,7 +303,7 @@ mod tests {
             bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
         let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
-        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length, last_chunk);
+        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length);
         builder.watch(&msg_hash, "msg_hash");
         builder.assert_is_equal(msg_hash, expected_digest);
 
@@ -338,7 +338,7 @@ mod tests {
             bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
         let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
-        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length, last_chunk);
+        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length);
         builder.watch(&msg_hash, "msg_hash");
         builder.assert_is_equal(msg_hash, expected_digest);
 
@@ -380,7 +380,7 @@ mod tests {
                 .collect::<Vec<_>>();
             let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
-            let digest = builder.curta_sha256_variable(&total_message, length, last_chunk);
+            let digest = builder.curta_sha256_variable(&total_message, length);
             builder.watch(&digest, &format!("digest of message {}", i));
             builder.assert_is_equal(digest, expected_digest);
         }
