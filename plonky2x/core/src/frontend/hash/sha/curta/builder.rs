@@ -53,7 +53,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input_stream.write_sha_input(&sha_data);
 
         // Read the stark proof and public inputs from the hint's output stream.
-        let output_stream = self.async_hint(input_stream, Async(proof_hint));
+        let output_stream = self.hint(input_stream, proof_hint);
         let proof = output_stream.read_byte_stark_proof(self, &sha_stark.stark);
         let num_public_inputs = sha_stark.stark.air_data.num_public_inputs;
         let public_inputs = output_stream.read_vec(self, num_public_inputs);
