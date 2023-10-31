@@ -63,9 +63,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ///
     /// It is assumed that `input` has length MAX_NUM_CHUNKS * 64.
     /// The true number of non-zero bytes in `input` is given by input_byte_length.
-    ///
-    /// 'last_chunk' is the index of the last chunk in `input`. Its value should be given by
-    /// (input_byte_length + 8)/64 It is assumed that the last chunk is calculated correctly.
     fn pad_message_sha256_variable(
         &mut self,
         input: &[ByteVariable],
@@ -344,7 +341,7 @@ mod tests {
 
         let max_number_of_chunks = 5;
         let total_message_length = 64 * max_number_of_chunks;
-        let max_len = 300;
+        let max_len = (total_message_length - 9) / 64;
 
         let mut rng = thread_rng();
         let total_message = (0..total_message_length)
@@ -367,12 +364,8 @@ mod tests {
                 .iter()
                 .map(|b| builder.constant::<ByteVariable>(*b))
                 .collect::<Vec<_>>();
-            println!("length of expected padding: {}", expected_padding.len());
 
             let padding = builder.pad_message_sha256_variable(&message, length);
-
-            builder.watch_slice(&padding, "padding");
-            builder.watch_slice(&expected_padding, "expected padding");
 
             for (value, expected) in padding.iter().zip(expected_padding.iter()) {
                 builder.assert_is_equal(*value, *expected);
@@ -383,7 +376,7 @@ mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-        // circuit.test_default_serializers();
+        circuit.test_default_serializers();
     }
 
     #[test]

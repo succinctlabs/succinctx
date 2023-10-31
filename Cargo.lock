@@ -744,9 +744,9 @@ checksum = "28c122c3980598d243d63d9a704629a2d748d101f278052ff068be5a4423ab6f"
 
 [[package]]
 name = "const-random"
-version = "0.1.16"
+version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11df32a13d7892ec42d51d3d175faba5211ffe13ed25d4fb348ac9e9ce835593"
+checksum = "5aaf16c9c2c612020bcfd042e170f6e32de9b9d75adb5277cdbbd2e2c8c8299a"
 dependencies = [
  "const-random-macro",
 ]
@@ -2873,7 +2873,7 @@ checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/mir-protocol/plonky2.git#6332900d86b4372ca1bba702ba80d92fe205868a"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ca166204a70f36d4987bc90df56078efe2ca2b4"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2897,7 +2897,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#6332900d86b4372ca1bba702ba80d92fe205868a"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ca166204a70f36d4987bc90df56078efe2ca2b4"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2921,7 +2921,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#6332900d86b4372ca1bba702ba80d92fe205868a"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ca166204a70f36d4987bc90df56078efe2ca2b4"
 dependencies = [
  "rayon",
 ]
@@ -2929,7 +2929,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#6332900d86b4372ca1bba702ba80d92fe205868a"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ca166204a70f36d4987bc90df56078efe2ca2b4"
 
 [[package]]
 name = "plonky2x"

@@ -151,7 +151,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use rand::Rng;
+    use rand::{thread_rng, Rng};
 
     use crate::prelude::*;
     use crate::utils::hash::sha512;
@@ -291,6 +291,41 @@ mod tests {
                 .map(|b| builder.constant::<ByteVariable>(*b))
                 .collect::<Vec<_>>();
             let digest = builder.curta_sha512(&message);
+            let expected_digest = builder.constant::<BytesVariable<64>>(expected_digest);
+            builder.assert_is_equal(digest, expected_digest);
+        }
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_variable_length_random() {
+        setup_logger();
+        let mut builder = DefaultBuilder::new();
+
+        let max_number_of_chunks = 20;
+        let total_message_length = 128 * max_number_of_chunks;
+        let max_len = (total_message_length - 18) / 128;
+
+        let mut rng = thread_rng();
+        let total_message = (0..total_message_length)
+            .map(|_| rng.gen::<u8>())
+            .collect::<Vec<_>>();
+        for i in 0..max_len {
+            let message = &total_message[..i];
+            let expected_digest = sha512(message);
+            let message = total_message
+                .iter()
+                .map(|b| builder.constant::<ByteVariable>(*b))
+                .collect::<Vec<_>>();
+
+            let length = builder.constant::<U32Variable>(i as u32);
+
+            let digest = builder.curta_sha512_variable(&message, length);
             let expected_digest = builder.constant::<BytesVariable<64>>(expected_digest);
             builder.assert_is_equal(digest, expected_digest);
         }
