@@ -48,7 +48,7 @@ use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
     BeaconExecutionPayloadHint, BeaconGraffitiHint, BeaconHeaderHint,
-    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint, BeaconPartialBalancesHint,
     BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
     BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
@@ -336,12 +336,6 @@ where
         let beacon_withdrawals_generator_id = BeaconWithdrawalsGenerator::<L, D>::id();
         r.register_simple::<BeaconWithdrawalsGenerator<L, D>>(beacon_withdrawals_generator_id);
 
-        let beacon_historical_block_generator_id =
-            BeaconHistoricalBlockGenerator::<L::Field, D>::id();
-        r.register_simple::<BeaconHistoricalBlockGenerator<L::Field, D>>(
-            beacon_historical_block_generator_id,
-        );
-
         let big_uint_div_rem_generator_id = BigUintDivRemGenerator::<L::Field, D>::id();
         r.register_simple::<BigUintDivRemGenerator<L::Field, D>>(big_uint_div_rem_generator_id);
 
@@ -380,6 +374,7 @@ where
         r.register_hint::<BeaconHeaderHint>();
         r.register_hint::<BeaconAllWithdrawalsHint>();
 
+        r.register_async_hint::<BeaconHistoricalBlockHint>();
         r.register_async_hint::<EthStorageProofHint<L, D>>();
         r.register_async_hint::<BeaconValidatorsHint>();
 

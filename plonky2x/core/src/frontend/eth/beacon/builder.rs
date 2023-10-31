@@ -5,10 +5,11 @@ use super::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
     BeaconExecutionPayloadHint, BeaconGraffitiHint, BeaconHeaderHint,
-    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint, BeaconPartialBalancesHint,
     BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsHint, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
-    CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
+    CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint, CLOSE_SLOT_BLOCK_ROOT_DEPTH,
+    FAR_SLOT_BLOCK_ROOT_DEPTH, FAR_SLOT_HISTORICAL_SUMMARY_DEPTH,
 };
 use super::vars::{
     BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
@@ -523,13 +524,19 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         block_root: Bytes32Variable,
         target_slot: U64Variable,
     ) -> Bytes32Variable {
-        let generator = BeaconHistoricalBlockGenerator::new(
-            self,
-            self.beacon_client.clone().unwrap(),
-            block_root,
-            target_slot,
-        );
-        self.add_simple_generator(generator.clone());
+        let mut hint_input = VariableStream::new();
+        hint_input.write(&block_root);
+        hint_input.write(&target_slot);
+        let hint_output = self.async_hint(hint_input, BeaconHistoricalBlockHint {});
+
+        let target_block_root = hint_output.read::<Bytes32Variable>(self);
+        let close_slot_block_root_proof =
+            hint_output.read::<ArrayVariable<Bytes32Variable, CLOSE_SLOT_BLOCK_ROOT_DEPTH>>(self);
+        let far_slot_block_root_proof =
+            hint_output.read::<ArrayVariable<Bytes32Variable, FAR_SLOT_BLOCK_ROOT_DEPTH>>(self);
+        let far_slot_historical_summary_root = hint_output.read::<Bytes32Variable>(self);
+        let far_slot_historical_summary_proof = hint_output
+            .read::<ArrayVariable<Bytes32Variable, FAR_SLOT_HISTORICAL_SUMMARY_DEPTH>>(self);
 
         // Use close slot logic if (source - target) < 8192
         let source_slot = self.beacon_get_block_header(block_root).slot;
@@ -547,8 +554,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         close_slot_block_root_gindex =
             self.add(close_slot_block_root_gindex, block_roots_array_index);
         let restored_close_slot_block_root = self.ssz_restore_merkle_root(
-            generator.target_block_root,
-            &generator.close_slot_block_root_proof,
+            target_block_root,
+            &close_slot_block_root_proof.as_vec(),
             close_slot_block_root_gindex,
         );
         let valid_close_slot = self.is_equal(restored_close_slot_block_root, block_root);
@@ -562,8 +569,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         historical_summary_gindex =
             self.add(historical_summary_gindex, historical_summary_array_index);
         let restored_far_slot_block_root = self.ssz_restore_merkle_root(
-            generator.far_slot_historical_summary_root,
-            &generator.far_slot_historical_summary_proof,
+            far_slot_historical_summary_root,
+            &far_slot_historical_summary_proof.as_vec(),
             historical_summary_gindex,
         );
         let valid_far_slot_block_root = self.is_equal(restored_far_slot_block_root, block_root);
@@ -572,13 +579,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             self.constant::<U64Variable>(HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX);
         far_slot_block_root_gindex = self.add(far_slot_block_root_gindex, block_roots_array_index);
         let restored_far_slot_historical_root = self.ssz_restore_merkle_root(
-            generator.target_block_root,
-            &generator.far_slot_block_root_proof,
+            target_block_root,
+            &far_slot_block_root_proof.as_vec(),
             far_slot_block_root_gindex,
         );
         let valid_far_slot_historical_root = self.is_equal(
             restored_far_slot_historical_root,
-            generator.far_slot_historical_summary_root,
+            far_slot_historical_summary_root,
         );
         let valid_far_slot = self.and(valid_far_slot_block_root, valid_far_slot_historical_root);
 
@@ -587,7 +594,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let true_bool = self.constant::<BoolVariable>(true);
         self.assert_is_equal(valid, true_bool);
 
-        generator.target_block_root
+        target_block_root
     }
 
     pub fn beacon_get_block_roots(

@@ -625,7 +625,7 @@ impl BeaconClient {
         Ok(response.result)
     }
 
-    pub fn get_historical_block(
+    pub async fn get_historical_block(
         &self,
         beacon_id: String,
         offset: u64,
@@ -635,8 +635,8 @@ impl BeaconClient {
             self.rpc_url, beacon_id, offset
         );
         info!("{}", endpoint);
-        let response = self.client.fetch(&endpoint)?;
-        let response: CustomResponse<GetBeaconHistoricalBlock> = response.json()?;
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<GetBeaconHistoricalBlock> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
