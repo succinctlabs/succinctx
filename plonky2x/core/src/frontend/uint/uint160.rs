@@ -67,9 +67,7 @@ impl Uint<5> for U160 {
             let overflow = overflow1 || overflow2;
 
             result[i] = sum;
-            if overflow {
-                carry = 1;
-            }
+            carry = if overflow { 1 } else { carry };
         }
         (Self(result), carry == 1)
     }
@@ -77,33 +75,40 @@ impl Uint<5> for U160 {
     fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
         let mut carry = 0;
         let mut result = [0; 5];
-        for i in (0..5).rev() {
+        for i in 0..5 {
             let (diff, overflow1) = self.0[i].overflowing_sub(rhs.0[i]);
             let (diff, overflow2) = diff.overflowing_sub(carry);
             let overflow = overflow1 || overflow2;
 
             result[i] = diff;
-            if overflow {
-                carry = 1;
-            }
+            carry = if overflow { 1 } else { carry };
         }
         (Self(result), carry == 1)
     }
 
     fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
-        let mut result = [0u32; 5];
-        let mut carry = 0;
+        let a = self.0;
+        let b = rhs.0;
+        let mut result = [0u32; 10];
         for i in 0..5 {
-            for j in 0..=i {
-                let (prod, overflow) = self.0[j].overflowing_mul(rhs.0[i - j]);
-                let (sum, overflow2) = result[i].overflowing_add(prod);
-                result[i] = sum;
-                if overflow || overflow2 {
-                    carry += 1;
-                }
+            let mut carry = 0u64;
+            for j in 0..5 {
+                let res = a[i] as u64 * b[j] as u64 + result[i + j] as u64 + carry;
+                result[i + j] = res as u32;
+                carry = res >> 32;
+            }
+            result[i + 5] = carry as u32;
+        }
+        let mut overflow = false;
+        for i in 5..10 {
+            if result[i] != 0 {
+                overflow = true;
             }
         }
-        (Self(result), carry > 0)
+        (
+            Self([result[0], result[1], result[2], result[3], result[4]]),
+            overflow,
+        )
     }
 }
 
