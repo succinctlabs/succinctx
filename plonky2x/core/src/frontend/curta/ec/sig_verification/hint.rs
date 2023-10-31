@@ -1,5 +1,5 @@
-use curta::chip::ec::gadget::EllipticCurveWriter;
-use curta::chip::ec::weierstrass::bn254::Bn254;
+use curta::chip::ec::edwards::ed25519::gadget::CompressedPointWriter;
+use curta::chip::ec::edwards::ed25519::params::Ed25519BaseField;
 use curta::chip::trace::generator::ArithmeticGenerator;
 use curta::maybe_rayon::*;
 use curta::plonky2::stark::config::StarkyConfig;
@@ -18,11 +18,7 @@ use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::{PlonkParameters, ValueStream};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Ed25519VerificationHint {
-    pub num_keys_degree: usize,
-}
-
-type E = Bn254;
+pub struct Ed25519VerificationHint {}
 
 impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Ed25519VerificationHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
@@ -35,16 +31,16 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Ed25519VerificationHi
 
         for _ in 0..NUM_VERIFICATIONS {
             let pk: CompressedEdwardsY = input_stream
-                .read_value::<CompressedEdwardsYVariable<E>>()
+                .read_value::<CompressedEdwardsYVariable>()
                 .into();
             let sig_r: CompressedEdwardsY = input_stream
-                .read_value::<CompressedEdwardsYVariable<E>>()
+                .read_value::<CompressedEdwardsYVariable>()
                 .into();
             let sig_s: BigUint = input_stream
-                .read_value::<FieldVariable<E::ScalarField>>()
+                .read_value::<FieldVariable<Ed25519BaseField>>()
                 .into();
             let h: BigUint = input_stream
-                .read_value::<FieldVariable<E::ScalarField>>()
+                .read_value::<FieldVariable<Ed25519BaseField>>()
                 .into();
             public_keys_values.push(pk);
             sigr_values.push(sig_r);
@@ -59,7 +55,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Ed25519VerificationHi
             sigr_s,
             sigs_s,
             h_s,
-        } = Ed25519VerificationAir::<L::Field, L::CubicParams, E>::new();
+        } = Ed25519VerificationAir::<L::Field, L::CubicParams>::new();
 
         let trace_generator = ArithmeticGenerator::new(trace_data, 1 << 16);
         let writer = trace_generator.new_writer();
@@ -68,14 +64,14 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Ed25519VerificationHi
             .par_iter()
             .zip(public_keys_values.par_iter())
             .for_each(|(pk, pk_value)| {
-                writer.write_ec_point(pk, pk_value, 0);
+                writer.write_ec_compressed_point(pk, pk_value, 0);
             });
 
         sigr_s
             .par_iter()
             .zip(sigr_values.par_iter())
             .for_each(|(sigr, sigr_value)| {
-                writer.write_ec_point(sigr, sigr_value, 0);
+                writer.write_ec_compressed_point(sigr, sigr_value, 0);
             });
 
         sigs_s
@@ -120,72 +116,70 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Ed25519VerificationHi
 mod tests {
 
     use curta::air::RAirData;
-    use curta::chip::register::Register;
     use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
-    use num_bigint::RandBigInt;
-    use rand::{thread_rng, Rng};
 
     use super::*;
     use crate::frontend::curta::field::variable::FieldVariable;
     use crate::prelude::*;
     use crate::utils::setup_logger;
 
+    const NUM_SIGS: usize = 1;
+
+    pub const H: [&str; NUM_SIGS] =
+        ["9f81b8e0cf40cb8ec8f0bdcf8d4f7a9b56002e7e04b1ffe9790d27974519eb06"];
+
+    pub const SIGS: [&str; NUM_SIGS] = [
+        "186953830bb9c1f18b8ed096eef919bf6409d1921b8dc698fb39ca8135c2575f0b6feb4f0383b70f5156a99cd8210ec516bd1d702bdc8444ed3172b5f42fb008"];
+
+    pub const PUB_KEYS: [&str; NUM_SIGS] =
+        ["02f80695f0a4a2308246c88134b2de759e347d527189742dd42e98724bd5a9bc"];
+
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_pk_hint() {
+    fn test_ed25519_verification_hint() {
         setup_logger();
 
         type F = GoldilocksField;
         type R = GoldilocksCubicParameters;
         type C = <DefaultParameters as PlonkParameters<2>>::CurtaConfig;
 
-        let num_keys_degree = 6;
-        let num_keys = 1 << num_keys_degree;
         let num_rows = 1 << 16;
+        const NUM_VERIFICATIONS: usize = 256;
 
         let mut builder = DefaultBuilder::new();
 
-        let PKAir {
-            air, aggregated_pk, ..
-        } = PKAir::<F, R, Bn254>::new(num_keys_degree);
+        let Ed25519VerificationAir { air, .. } = Ed25519VerificationAir::<F, R>::new();
 
         let stark = Starky::new(air);
         let config = StarkyConfig::<C, 2>::standard_fast_config(num_rows);
 
-        let base = Bn254::generator();
-        let public_keys_values = (0..num_keys)
-            .into_par_iter()
-            .map(|_| {
-                let mut rng = thread_rng();
-                let sk = rng.gen_biguint(256);
-                base.sw_scalar_mul(&sk)
-            })
-            .collect::<Vec<_>>();
-
-        let mut rng = thread_rng();
-        let selector_values = (0..num_keys).map(|_| rng.gen_bool(0.5)).collect::<Vec<_>>();
-
-        let public_keys = public_keys_values
-            .iter()
-            .map(|pk| builder.constant::<AffinePointVariable<Bn254>>(pk.clone().into()))
-            .collect::<Vec<_>>();
-        let selectors = selector_values
-            .iter()
-            .map(|b| builder.constant::<BoolVariable>(*b))
-            .collect::<Vec<_>>();
-
-        let agg_pk_value = public_keys_values
-            .iter()
-            .zip(selector_values.iter())
-            .fold(base, |agg, (pk, b)| if *b { agg.sw_add(pk) } else { agg });
-
         let mut input_stream = VariableStream::new();
-        for (pk, b) in public_keys.iter().zip(selectors.iter()) {
-            input_stream.write::<AffinePointVariable<Bn254>>(pk);
-            input_stream.write::<BoolVariable>(b);
+        for i in 0..NUM_VERIFICATIONS {
+            let compressed_p_bytes = hex::decode(PUB_KEYS[i % NUM_SIGS]).unwrap();
+            let compressed_p = builder.constant::<CompressedEdwardsYVariable>(CompressedEdwardsY(
+                compressed_p_bytes.try_into().unwrap(),
+            ));
+
+            let sig_bytes = hex::decode(SIGS[i % NUM_SIGS]).unwrap();
+            let sig_r = builder.constant::<CompressedEdwardsYVariable>(CompressedEdwardsY(
+                sig_bytes[0..32].try_into().unwrap(),
+            ));
+
+            let sig_s_biguint = builder.constant::<FieldVariable<Ed25519BaseField>>(
+                BigUint::from_bytes_le(sig_bytes[32..64].try_into().unwrap()),
+            );
+
+            let h_biguint = builder.constant::<FieldVariable<Ed25519BaseField>>(
+                BigUint::from_bytes_le(&hex::decode(H[i % NUM_SIGS]).unwrap()),
+            );
+
+            input_stream.write::<CompressedEdwardsYVariable>(&compressed_p);
+            input_stream.write::<CompressedEdwardsYVariable>(&sig_r);
+            input_stream.write::<FieldVariable<Ed25519BaseField>>(&sig_s_biguint);
+            input_stream.write::<FieldVariable<Ed25519BaseField>>(&h_biguint);
         }
 
-        let hint = Bn254PKHint { num_keys_degree };
+        let hint = Ed25519VerificationHint {};
         let outputs = builder.hint(input_stream, hint);
 
         // Read the stark proof and stark public inputs from the output stream.
@@ -193,31 +187,10 @@ mod tests {
         let public_inputs = outputs.read_exact_unsafe(&mut builder, stark.air.num_public_inputs());
         builder.verify_stark_proof(&config, &stark, &proof, &public_inputs);
 
-        let aggregated_pk = AffinePointVariable::<Bn254> {
-            x: FieldVariable::new(
-                aggregated_pk
-                    .x
-                    .read_from_slice(&public_inputs)
-                    .as_coefficients(),
-            ),
-            y: FieldVariable::new(
-                aggregated_pk
-                    .y
-                    .read_from_slice(&public_inputs)
-                    .as_coefficients(),
-            ),
-        };
-
-        builder.write(aggregated_pk);
-
         let circuit = builder.build();
         let input = circuit.input();
 
         let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
-
-        // Read the aggregated public key from the output and compare to the expected value.
-        let agg_pk_output = AffinePoint::from(output.read::<AffinePointVariable<Bn254>>());
-        assert_eq!(agg_pk_output, agg_pk_value);
     }
 }

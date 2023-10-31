@@ -168,8 +168,6 @@ mod tests {
     use crate::prelude::DefaultBuilder;
     use crate::utils::setup_logger;
 
-    pub const MESSAGE: &str = "01c63e6b7db7863b35b289b35349a8a488ae886a59c37d4825577ddb9470c4537f972804002c3a0000000000000001000000000000";
-
     const NUM_SIGS: usize = 1;
 
     pub const H: [&str; NUM_SIGS] =

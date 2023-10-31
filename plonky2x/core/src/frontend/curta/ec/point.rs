@@ -36,6 +36,7 @@ impl<F: RichField, E: EllipticCurve> From<AffinePointVariableValue<E, F>> for Af
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct CompressedEdwardsYVariable(Bytes32Variable);
 
 impl CircuitVariable for CompressedEdwardsYVariable {
@@ -55,15 +56,15 @@ impl CircuitVariable for CompressedEdwardsYVariable {
     }
 
     fn nb_elements() -> usize {
-        Bytes32Variable.nb_elements()
+        Bytes32Variable::nb_elements()
     }
 
     fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
-        Bytes32Variable.elements(value.to_bytes().as_slice())
+        BytesVariable::<32>::elements(*value.as_bytes())
     }
 
     fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
-        CompressedEdwardsY(&BytesVariable::<32>::from_elements(elements))
+        CompressedEdwardsY(BytesVariable::<32>::from_elements(elements))
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -71,6 +72,6 @@ impl CircuitVariable for CompressedEdwardsYVariable {
     }
 
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
-        Self(BytesVariable::from_variables_unsafe(variables))
+        Self(Bytes32Variable::from_variables_unsafe(variables))
     }
 }
