@@ -83,6 +83,7 @@ where
         }
     }
 
+    /// Generate a proof for the SHA stark given the input data.
     #[allow(clippy::type_complexity)]
     pub fn prove(
         &self,
@@ -90,14 +91,15 @@ where
     ) -> (ByteStarkProof<L::Field, L::CurtaConfig, D>, Vec<L::Field>) {
         // Initialize a writer for the trace.
         let writer = TraceWriter::new(&self.stark.air_data, self.num_rows);
-
+        // Write the public inputs to the trace.
         self.write_input(&writer, input);
-
+        // Execute the air instructions.
         writer.write_global_instructions(&self.stark.air_data);
         for i in 0..self.num_rows {
             writer.write_row_instructions(&self.stark.air_data, i);
         }
 
+        // Extract the trace and public input slice from the writer.
         let InnerWriterData { trace, public, .. } = writer.into_inner().unwrap();
         let proof = self
             .stark

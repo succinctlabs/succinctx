@@ -9,6 +9,7 @@ use super::SHA;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::*;
 
+/// A hint for Curta proof of a SHA stark.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SHAProofHint<S, const CYCLE_LEN: usize> {
     parameters: SHAInputParameters,

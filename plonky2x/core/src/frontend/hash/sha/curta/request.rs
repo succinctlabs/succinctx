@@ -18,6 +18,7 @@ pub enum SHARequest {
 }
 
 impl SHARequest {
+    /// Returns the type of the request.
     pub const fn req_type(&self) -> SHARequestType {
         match self {
             SHARequest::Fixed(_) => SHARequestType::Fixed,

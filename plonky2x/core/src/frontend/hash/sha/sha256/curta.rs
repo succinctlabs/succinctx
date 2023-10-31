@@ -358,6 +358,7 @@ mod tests {
 
         let max_number_of_chunks = 20;
         let total_message_length = 64 * max_number_of_chunks;
+
         let max_len = (total_message_length - 9) / 64;
 
         let mut rng = thread_rng();
