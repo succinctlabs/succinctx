@@ -13,7 +13,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         bits.push(self.api._true());
 
         let l = bits.len() - 1;
-        let k = 512 - (l + 1 + 64) % 512; // number of padding bits you need
+        let k = 512 - (l + 1 + 64) % 512;
         for _ in 0..k {
             bits.push(self.api._false());
         }

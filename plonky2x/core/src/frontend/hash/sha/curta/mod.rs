@@ -101,7 +101,7 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
 
                 // Get the padded chunks and the number of chunks in the message, depending on the
                 // type of the request.
-                let (padded_chunks, chunk_index) = match req {
+                let (padded_chunks, last_chunk_index) = match req {
                     SHARequest::Fixed(input) => {
                         // If the length is fixed, the chunk_index is just `number of chunks  - 1``.
                         let padded_chunks = Self::pad_circuit(builder, input);
@@ -125,7 +125,8 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
                 // the request.
                 let current_chunk_index_variable = builder
                     .constant::<Variable>(L::Field::from_canonical_usize(current_chunk_index));
-                let digest_index = builder.add(current_chunk_index_variable, chunk_index.variable);
+                let digest_index =
+                    builder.add(current_chunk_index_variable, last_chunk_index.variable);
                 digest_indices.push(digest_index);
                 // The digest bit is equal to zero for all chunks except the one that corresponds to
                 // the `chunk_index`. We find the bits by comparing each value between 0 and the
@@ -133,7 +134,7 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
                 let mut flag = builder.constant::<BoolVariable>(true);
                 for j in 0..total_number_of_chunks {
                     let j_var = builder.constant::<U32Variable>(j as u32);
-                    let lte = builder.lte(chunk_index, j_var);
+                    let lte = builder.lte(last_chunk_index, j_var);
                     let lte_times_flag = builder.and(lte, flag);
                     digest_bits.push(lte_times_flag);
                     let not_lte = builder.not(lte);

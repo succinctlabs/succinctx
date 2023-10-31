@@ -9,6 +9,7 @@ use super::SHA;
 use crate::prelude::*;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    /// The constraints for an accelerated SHA computation using Curta.
     pub(crate) fn curta_constrain_sha<S: SHA<L, D, CYCLE_LEN>, const CYCLE_LEN: usize>(
         &mut self,
         accelerator: SHAAccelerator<S::IntVariable>,

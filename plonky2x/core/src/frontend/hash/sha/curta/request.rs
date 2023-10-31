@@ -13,7 +13,7 @@ pub enum SHARequestType {
 pub enum SHARequest {
     /// A message of fixed length.
     Fixed(Vec<ByteVariable>),
-    /// A message of variable length, represented by a tuple `(total_message, lengh, chunk_index)`.
+    /// A message of variable length, represented by a tuple `(total_message, lengh, last_chunk)`.
     Variable(Vec<ByteVariable>, U32Variable, U32Variable),
 }
 

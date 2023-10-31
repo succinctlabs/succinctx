@@ -255,10 +255,6 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_sha_padding_variable() {}
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_bench() {
         env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
