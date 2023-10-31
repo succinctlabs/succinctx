@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import {IFeeVault} from "src/payments/interfaces/IFeeVault.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IFeeVault} from "./interfaces/IFeeVault.sol";
+import {TimelockedUpgradeable} from "../upgrades/TimelockedUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title SuccinctFeeVault
@@ -17,7 +17,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 ///         Any overspent fees will be used for future requests, so it may be more suitable to
 ///         make a bulk deposit.
 /// @dev Address(0) is used to represent native currency in places where token address is specified.
-contract SuccinctFeeVault is IFeeVault, Ownable {
+contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
     /// @notice Tracks the amount of active balance that an account has for Succinct services.
     /// @dev balances[token][account] returns the amount of balance for token the account has. To
     ///      check native currency balance, use address(0) as the token address.
@@ -43,19 +43,22 @@ contract SuccinctFeeVault is IFeeVault, Ownable {
         _;
     }
 
-    constructor(address _owner) {
-        transferOwnership(_owner);
+    /// @dev Initializes the contract.
+    /// @param _timelock The address of the timelock contract.
+    /// @param _guardian The address of the guardian.
+    function initialize(address _timelock, address _guardian) external initializer {
+        __TimelockedUpgradeable_init(_timelock, _guardian);
     }
 
     /// @notice Add the specified deductor.
     /// @param _deductor The address of the deductor to add.
-    function addDeductor(address _deductor) external onlyOwner {
+    function addDeductor(address _deductor) external onlyGuardian {
         allowedDeductors[_deductor] = true;
     }
 
     /// @notice Remove the specified deductor.
     /// @param _deductor The address of the deductor to remove.
-    function removeDeductor(address _deductor) external onlyOwner {
+    function removeDeductor(address _deductor) external onlyGuardian {
         allowedDeductors[_deductor] = false;
     }
 
@@ -136,7 +139,7 @@ contract SuccinctFeeVault is IFeeVault, Ownable {
     /// @notice Collect the specified amount of native currency.
     /// @param _to The address to send the collected native currency to.
     /// @param _amount The amount of native currency to collect.
-    function collectNative(address _to, uint256 _amount) external onlyOwner {
+    function collectNative(address _to, uint256 _amount) external onlyGuardian {
         if (address(this).balance < _amount) {
             revert InsufficientBalance(address(0), _amount);
         }
@@ -153,7 +156,7 @@ contract SuccinctFeeVault is IFeeVault, Ownable {
     /// @param _to The address to send the collected tokens to.
     /// @param _token The address of the token to collect.
     /// @param _amount The amount of the token to collect.
-    function collect(address _to, address _token, uint256 _amount) external onlyOwner {
+    function collect(address _to, address _token, uint256 _amount) external onlyGuardian {
         if (_token == address(0)) {
             revert InvalidToken(_token);
         }

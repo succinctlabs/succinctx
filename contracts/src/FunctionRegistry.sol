@@ -3,7 +3,7 @@ pragma solidity ^0.8.16;
 
 import {IFunctionRegistry} from "./interfaces/IFunctionRegistry.sol";
 
-contract FunctionRegistry is IFunctionRegistry {
+abstract contract FunctionRegistry is IFunctionRegistry {
     /// @dev Maps function identifiers to their corresponding verifiers.
     mapping(bytes32 => address) public verifiers;
 
@@ -11,45 +11,48 @@ contract FunctionRegistry is IFunctionRegistry {
     mapping(bytes32 => address) public verifierOwners;
 
     /// @notice Registers a function, using a pre-deployed verifier.
+    /// @param _owner The owner of the function.
     /// @param _verifier The address of the verifier.
     /// @param _name The name of the function to be registered.
-    function registerFunction(address _verifier, string memory _name)
+    function registerFunction(address _owner, address _verifier, string memory _name)
         external
         returns (bytes32 functionId)
     {
-        functionId = getFunctionId(msg.sender, _name);
+        functionId = getFunctionId(_owner, _name);
         if (address(verifiers[functionId]) != address(0)) {
             revert FunctionAlreadyRegistered(functionId); // should call update instead
         }
         if (_verifier == address(0)) {
             revert VerifierCannotBeZero();
         }
+        verifierOwners[functionId] = _owner;
         verifiers[functionId] = _verifier;
-        verifierOwners[functionId] = msg.sender;
 
-        emit FunctionRegistered(functionId, _verifier, _name, msg.sender);
+        emit FunctionRegistered(functionId, _verifier, _name, _owner);
     }
 
     /// @notice Registers a function, using CREATE2 to deploy the verifier.
+    /// @param _owner The owner of the function.
     /// @param _bytecode The bytecode of the verifier.
     /// @param _name The name of the function to be registered.
-    function deployAndRegisterFunction(bytes memory _bytecode, string memory _name)
+    function deployAndRegisterFunction(address _owner, bytes memory _bytecode, string memory _name)
         external
         returns (bytes32 functionId, address verifier)
     {
-        functionId = getFunctionId(msg.sender, _name);
+        functionId = getFunctionId(_owner, _name);
         if (address(verifiers[functionId]) != address(0)) {
             revert FunctionAlreadyRegistered(functionId); // should call update instead
         }
 
-        verifierOwners[functionId] = msg.sender;
+        verifierOwners[functionId] = _owner;
         verifier = _deploy(_bytecode, functionId);
         verifiers[functionId] = verifier;
 
-        emit FunctionRegistered(functionId, verifier, _name, msg.sender);
+        emit FunctionRegistered(functionId, verifier, _name, _owner);
     }
 
     /// @notice Updates the function, using a pre-deployed verifier.
+    /// @dev Only the owner of the function can update it.
     /// @param _verifier The address of the verifier.
     /// @param _name The name of the function to be updated.
     function updateFunction(address _verifier, string memory _name)
@@ -63,12 +66,16 @@ contract FunctionRegistry is IFunctionRegistry {
         if (_verifier == address(0)) {
             revert VerifierCannotBeZero();
         }
+        if (_verifier == verifiers[functionId]) {
+            revert VerifierAlreadyUpdated(functionId);
+        }
         verifiers[functionId] = _verifier;
 
         emit FunctionVerifierUpdated(functionId, _verifier);
     }
 
     /// @notice Updates the function, using CREATE2 to deploy the new verifier.
+    /// @dev Only the owner of the function can update it.
     /// @param _bytecode The bytecode of the verifier.
     /// @param _name The name of the function to be updated.
     function deployAndUpdateFunction(bytes memory _bytecode, string memory _name)
@@ -86,7 +93,7 @@ contract FunctionRegistry is IFunctionRegistry {
     }
 
     /// @notice Returns the functionId for a given owner and function name.
-    /// @param _owner The owner of the function (sender of registerFunction).
+    /// @param _owner The owner of the function.
     /// @param _name The name of the function.
     function getFunctionId(address _owner, string memory _name)
         public

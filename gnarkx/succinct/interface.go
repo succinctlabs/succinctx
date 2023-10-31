@@ -2,7 +2,7 @@ package succinct
 
 import (
 	"github.com/consensys/gnark/frontend"
-	"github.com/succinctlabs/sdk/gnarkx/vars"
+	"github.com/succinctlabs/succinctx/gnarkx/vars"
 )
 
 // Circuit is the interface a circuit interacting with the Succinct Hub must implement.

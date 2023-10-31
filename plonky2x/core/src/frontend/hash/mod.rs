@@ -3,4 +3,4 @@ pub mod common;
 pub mod deprecated;
 pub mod keccak;
 pub mod poseidon;
-pub mod sha256;
+pub mod sha;

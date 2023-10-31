@@ -69,7 +69,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // The stark proof will verify that the public inputs are range checked.
         let public_inputs = outputs.read_exact_unsafe(self, stark.air.num_public_inputs());
-        self.verify_stark_proof(&config, &stark, &proof, &public_inputs);
+        self.verify_stark_proof(&config, &stark, proof.clone(), &public_inputs);
 
         // Read the aggregated public key from the stark public inputs.
         AffinePointVariable::read_from_stark(&aggregated_pk, &public_inputs)

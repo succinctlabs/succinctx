@@ -8,10 +8,10 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/succinctlabs/sdk/gnarkx/builder"
-	"github.com/succinctlabs/sdk/gnarkx/ethereum/ssz"
-	"github.com/succinctlabs/sdk/gnarkx/utils/byteutils"
-	"github.com/succinctlabs/sdk/gnarkx/vars"
+	"github.com/succinctlabs/succinctx/gnarkx/builder"
+	"github.com/succinctlabs/succinctx/gnarkx/ethereum/ssz"
+	"github.com/succinctlabs/succinctx/gnarkx/utils/byteutils"
+	"github.com/succinctlabs/succinctx/gnarkx/vars"
 )
 
 type TestData struct {

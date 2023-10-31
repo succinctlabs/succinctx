@@ -6,7 +6,6 @@ interface IFunctionRegistryEvents {
         bytes32 indexed functionId, address verifier, string name, address owner
     );
     event FunctionVerifierUpdated(bytes32 indexed functionId, address verifier);
-    event FunctionOwnerUpdated(bytes32 indexed functionId, address owner);
     event Deployed(
         bytes32 indexed bytecodeHash, bytes32 indexed salt, address indexed deployedAddress
     );
@@ -16,6 +15,7 @@ interface IFunctionRegistryErrors {
     error EmptyBytecode();
     error FailedDeploy();
     error VerifierCannotBeZero();
+    error VerifierAlreadyUpdated(bytes32 functionId);
     error FunctionAlreadyRegistered(bytes32 functionId);
     error NotFunctionOwner(address owner, address actualOwner);
 }
@@ -23,10 +23,10 @@ interface IFunctionRegistryErrors {
 interface IFunctionRegistry is IFunctionRegistryEvents, IFunctionRegistryErrors {
     function verifiers(bytes32 functionId) external view returns (address verifier);
     function verifierOwners(bytes32 functionId) external view returns (address owner);
-    function registerFunction(address verifier, string memory name)
+    function registerFunction(address owner, address verifier, string memory name)
         external
         returns (bytes32 functionId);
-    function deployAndRegisterFunction(bytes memory bytecode, string memory name)
+    function deployAndRegisterFunction(address owner, bytes memory bytecode, string memory name)
         external
         returns (bytes32 functionId, address verifier);
     function updateFunction(address verifier, string memory name)

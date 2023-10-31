@@ -186,7 +186,7 @@ mod tests {
         // Read the stark proof and stark public inputs from the output stream.
         let proof = outputs.read_stark_proof(&mut builder, &stark, &config);
         let public_inputs = outputs.read_exact_unsafe(&mut builder, stark.air.num_public_inputs());
-        builder.verify_stark_proof(&config, &stark, &proof, &public_inputs);
+        builder.verify_stark_proof(&config, &stark, proof.clone(), &public_inputs);
 
         let aggregated_pk = AffinePointVariable::<Bn254> {
             x: FieldVariable::new(

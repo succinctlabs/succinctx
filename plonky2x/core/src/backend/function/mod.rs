@@ -140,19 +140,25 @@ impl<C: Circuit> Plonky2xFunction for C {
             AlgebraicHasher<InnerParameters::Field>,
         OuterParameters::Config: Serialize,
     {
-        let gnark_wrapper_process = if !args.wrapper_path.is_empty() {
-            // If the wrapper path is provided, then we know we will be wrapping the proof
-            let child_process =
-                std::process::Command::new(path::Path::new(&args.wrapper_path).join("verifier"))
-                    .arg("-prove")
-                    .arg("-data")
-                    .arg(path::Path::new(&args.wrapper_path))
-                    .stdout(std::process::Stdio::inherit())
-                    .stderr(std::process::Stdio::inherit())
-                    .stdin(std::process::Stdio::piped())
-                    .spawn()
-                    .expect("Failed to start gnark wrapper process");
-            Some(child_process)
+        // If the request is of type bytes and the wrapper path is not empty, then we need to
+        // start the gnark wrapper process.
+        let gnark_wrapper_process = if let ProofRequest::Bytes(_) = request {
+            if !args.wrapper_path.is_empty() {
+                let child_process = std::process::Command::new(
+                    path::Path::new(&args.wrapper_path).join("verifier"),
+                )
+                .arg("-prove")
+                .arg("-data")
+                .arg(path::Path::new(&args.wrapper_path))
+                .stdout(std::process::Stdio::inherit())
+                .stderr(std::process::Stdio::inherit())
+                .stdin(std::process::Stdio::piped())
+                .spawn()
+                .expect("Failed to start gnark wrapper process");
+                Some(child_process)
+            } else {
+                None
+            }
         } else {
             None
         };

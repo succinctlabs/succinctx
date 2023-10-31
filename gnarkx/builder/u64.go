@@ -3,7 +3,7 @@ package builder
 import (
 	"math"
 
-	"github.com/succinctlabs/sdk/gnarkx/vars"
+	"github.com/succinctlabs/succinctx/gnarkx/vars"
 )
 
 // Computes a_1 + ... + a_n where a_i \in [0, 2^64). This function automatically carries the result

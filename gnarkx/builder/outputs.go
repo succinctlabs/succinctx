@@ -1,7 +1,7 @@
 package builder
 
 import (
-	"github.com/succinctlabs/sdk/gnarkx/vars"
+	"github.com/succinctlabs/succinctx/gnarkx/vars"
 )
 
 // OutputWriter is used for writing outputs from a circuit that need to be read on-chain. In

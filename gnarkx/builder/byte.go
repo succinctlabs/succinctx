@@ -1,7 +1,7 @@
 package builder
 
 import (
-	"github.com/succinctlabs/sdk/gnarkx/vars"
+	"github.com/succinctlabs/succinctx/gnarkx/vars"
 )
 
 func (a *API) ToByteFromBits(i1 [8]vars.Bool) vars.Byte {

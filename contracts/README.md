@@ -20,6 +20,11 @@ Run Tests
 forge test
 ```
 
+## Addresses
+
+SUCCINCT_GATEWAY=[0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)
+SUCCINCT_FEE_VAULT=[0x5999d401444f15d262fdce310bb68bd234de11aa](https://etherscan.io/address/0x5999d401444f15d262fdce310bb68bd234de11aa)
+
 ## Deploying
 
 Each contract has it's own deployment file in the form of `script/deploy/{Contract}.s.sol`. Inside each, there is a `Deploy{Contract}` script that will deploy the contract. This allows for programmatic cross-chain deployment of contracts using `script/deploy.sh`.

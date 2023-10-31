@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.16;
 
 import {ISuccinctGateway} from "./interfaces/ISuccinctGateway.sol";
@@ -29,6 +28,17 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
 
     /// @dev A flag that indicates whether the contract is currently making a callback.
     bool public isCallback;
+
+    /// @dev Protects functions from being re-entered during a fullfil call.
+    modifier nonReentrant() {
+        if (
+            isCallback || verifiedFunctionId != bytes32(0) || verifiedInputHash != bytes32(0)
+                || verifiedOutput.length != 0
+        ) {
+            revert ReentrantFulfill();
+        }
+        _;
+    }
 
     /// @dev Initializes the contract.
     /// @param _feeVault The address of the fee vault.
@@ -88,7 +98,9 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         nonce++;
 
         // Send the fee to the vault.
-        IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
+        if (feeVault != address(0)) {
+            IFeeVault(feeVault).depositNative{value: msg.value}(callbackAddress);
+        }
 
         return requestHash;
     }
@@ -119,7 +131,9 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         );
 
         // Send the fee to the vault.
-        IFeeVault(feeVault).depositNative{value: msg.value}(msg.sender);
+        if (feeVault != address(0)) {
+            IFeeVault(feeVault).depositNative{value: msg.value}(msg.sender);
+        }
     }
 
     /// @dev If the call matches the currently verified function, returns the output. Otherwise,
@@ -159,7 +173,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         bytes memory _context,
         bytes memory _output,
         bytes memory _proof
-    ) external {
+    ) external nonReentrant {
         // Reconstruct the callback hash.
         bytes32 contextHash = keccak256(_context);
         bytes32 requestHash = _requestHash(
@@ -215,7 +229,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         bytes memory _proof,
         address _callbackAddress,
         bytes memory _callbackData
-    ) external {
+    ) external nonReentrant {
         // Compute the input and output hashes.
         bytes32 inputHash = sha256(_input);
         bytes32 outputHash = sha256(_output);
@@ -241,6 +255,13 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
 
         // Emit event.
         emit Call(_functionId, inputHash, outputHash);
+    }
+
+    /// @dev Sets the fee vault to a new address. Can be set to address(0) to disable fees.
+    /// @param _feeVault The address of the fee vault.
+    function setFeeVault(address _feeVault) external onlyGuardian {
+        emit SetFeeVault(feeVault, _feeVault);
+        feeVault = _feeVault;
     }
 
     /// @dev Computes a unique identifier for a request.

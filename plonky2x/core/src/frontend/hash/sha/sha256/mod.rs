@@ -1,3 +1,6 @@
+use ::curta::machine::hash::sha::algorithm::SHAPure;
+use ::curta::machine::hash::sha::sha256::SHA256;
+use array_macro::array;
 /// Implementation of sha256
 /// reference: https://github.com/thomdixon/pysha2/blob/master/sha2/sha256.py
 use itertools::Itertools;
@@ -6,15 +9,15 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::hash::common::{and_arr, not_arr, xor2_arr, xor3_arr};
 use crate::frontend::vars::{BoolVariable, ByteVariable, Bytes32Variable, CircuitVariable};
+use crate::prelude::U32Variable;
 
-mod consts;
 pub mod curta;
 
 /// Implements SHA256 implementation for CircuitBuilder
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Pad the given input according to the SHA-256 spec.
     /// The last chunk (each chunk is 64 bytes = 512 bits) gets padded.
-    fn pad_message_sha256(&mut self, input: &[ByteVariable]) -> Vec<ByteVariable> {
+    pub(crate) fn pad_message_sha256(&mut self, input: &[ByteVariable]) -> Vec<ByteVariable> {
         let mut bits = input
             .iter()
             .flat_map(|b| b.as_bool_targets().to_vec())
@@ -43,6 +46,86 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .collect_vec()
     }
 
+    /// Pad the given variable length input according to the SHA-256 spec.
+    ///
+    /// It is assumed that `input` has length MAX_NUM_CHUNKS * 64.
+    /// The true number of non-zero bytes in `input` is given by input_byte_length.
+    ///
+    /// 'last_chunk' is the index of the last chunk in `input`. Its value should be given by
+    /// (input_byte_length + 9)/64 It is assumed that the last chunk is calculated correctly.
+    fn pad_message_sha256_variable(
+        &mut self,
+        input: &[ByteVariable],
+        input_byte_length: U32Variable,
+        last_chunk: U32Variable,
+    ) -> Vec<ByteVariable> {
+        let max_number_of_chunks = input.len() / 64;
+        assert_eq!(
+            max_number_of_chunks * 64,
+            input.len(),
+            "input length must be a multiple of 64 bytes"
+        );
+        // Compute the length bytes (big-endian representation of the length in bits).
+        let zero_byte = self.constant::<ByteVariable>(0x00);
+        let mut length_bytes = vec![zero_byte; 4];
+
+        let bits_per_byte = self.constant::<U32Variable>(8);
+        let input_bit_length = self.mul(input_byte_length, bits_per_byte);
+
+        let mut length_bits = self.to_le_bits(input_bit_length);
+        length_bits.reverse();
+
+        // Prepend 4 zero bytes to length_bytes as abi.encodePacked(U32Variable) is 4 bytes.
+        length_bytes.extend_from_slice(
+            &length_bits
+                .chunks(8)
+                .map(|chunk| {
+                    let bits = array![x => chunk[x]; 8];
+                    ByteVariable(bits)
+                })
+                .collect_vec(),
+        );
+
+        let mut padded_bytes = Vec::new();
+
+        let mut message_byte_selector = self.constant::<BoolVariable>(true);
+        for i in 0..max_number_of_chunks {
+            let chunk_offset = 64 * i;
+            let curr_chunk = self.constant::<U32Variable>(i as u32);
+
+            let is_last_chunk = self.is_equal(curr_chunk, last_chunk);
+
+            for j in 0..64 {
+                let idx = chunk_offset + j;
+                let idx_t = self.constant::<U32Variable>(idx as u32);
+                let is_last_msg_byte = self.is_equal(idx_t, input_byte_length);
+                let not_last_msg_byte = self.not(is_last_msg_byte);
+
+                message_byte_selector = self.select(
+                    message_byte_selector,
+                    not_last_msg_byte,
+                    message_byte_selector,
+                );
+
+                let padding_start_byte = self.constant::<ByteVariable>(0x80);
+
+                // If message_byte_selector is true, select the message byte.
+                let mut byte = self.select(message_byte_selector, input[idx], zero_byte);
+                // If idx == length_bytes, select the padding start byte.
+                byte = self.select(is_last_msg_byte, padding_start_byte, byte);
+                if j >= 64 - 8 {
+                    // If in last chunk, select the length byte.
+                    byte = self.select(is_last_chunk, length_bytes[j % 8], byte);
+                }
+
+                padded_bytes.push(byte);
+            }
+        }
+
+        assert_eq!(padded_bytes.len(), max_number_of_chunks * 64);
+        padded_bytes
+    }
+
     fn const_be_bits(&mut self, u: u32) -> [BoolVariable; 32] {
         u.to_be_bytes()
             .iter()
@@ -53,11 +136,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     fn get_inital_hash(&mut self) -> [[BoolVariable; 32]; 8] {
-        consts::INITIAL_HASH.map(|x| self.const_be_bits(x))
+        SHA256::INITIAL_HASH.map(|x| self.const_be_bits(x))
     }
 
     fn get_round_constants(&mut self) -> [[BoolVariable; 32]; 64] {
-        consts::ROUND_CONSTANTS.map(|x| self.const_be_bits(x))
+        SHA256::ROUND_CONSTANTS.map(|x| self.const_be_bits(x))
     }
 
     fn process_padded_message(&mut self, msg_input: &[ByteVariable]) -> Vec<BoolVariable> {
