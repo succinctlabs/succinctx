@@ -6,7 +6,6 @@ use super::digest_hint::SHADigestHint;
 use super::proof_hint::SHAProofHint;
 use super::request::SHARequest;
 use super::SHA;
-use crate::frontend::hint::synchronous::Async;
 use crate::prelude::*;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
