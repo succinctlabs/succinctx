@@ -25,17 +25,6 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
     /// @notice The allowed senders for the deduct functions.
     mapping(address => bool) public allowedDeductors;
 
-    event Received(address indexed account, address indexed token, uint256 amount);
-    event Deducted(address indexed account, address indexed token, uint256 amount);
-    event Collected(address indexed to, address indexed token, uint256 amount);
-
-    error InvalidAccount(address account);
-    error InvalidToken(address token);
-    error InsufficentAllowance(address token, uint256 amount);
-    error InsufficientBalance(address token, uint256 amount);
-    error FailedToSendNative(uint256 amount);
-    error OnlyDeductor(address sender);
-
     modifier onlyDeductor() {
         if (!allowedDeductors[msg.sender]) {
             revert OnlyDeductor(msg.sender);
@@ -168,4 +157,8 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
 
         emit Collected(_to, _token, _amount);
     }
+
+    /// @dev This empty reserved space to add new variables without shifting down storage.
+    ///      See: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    uint256[50] private __gap;
 }
