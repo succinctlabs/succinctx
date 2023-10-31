@@ -50,7 +50,6 @@ impl<L: PlonkParameters<D>, const D: usize> SHA<L, D, 80> for SHA512 {
         builder: &mut CircuitBuilder<L, D>,
         input: &[ByteVariable],
         length: U32Variable,
-        _: U32Variable,
     ) -> Vec<Self::IntVariable> {
         let padded_bytes = builder.pad_sha512_variable_length(input, length);
 

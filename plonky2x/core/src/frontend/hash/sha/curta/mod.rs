@@ -23,12 +23,16 @@ pub mod proof_hint;
 pub mod request;
 pub mod stark;
 
+/// An interface for a circuit that computes SHA using Curta.
 pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
     SHAir<BytesBuilder<Self::AirParameters>, CYCLE_LEN>
 {
+    /// A `CircuitVariable` that represents the integer registers used by the hash function.
     type IntVariable: CircuitVariable<ValueType<L::Field> = Self::Integer> + Copy;
+    /// A `CircuitVariable` that represents the hash digest.
     type DigestVariable: CircuitVariable;
 
+    /// The air parameters of the corresponding Curta AIR.
     type AirParameters: AirParameters<
         Field = L::Field,
         CubicParams = L::CubicParams,
@@ -45,7 +49,6 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
         builder: &mut CircuitBuilder<L, D>,
         input: &[ByteVariable],
         length: U32Variable,
-        last_chunk: U32Variable,
     ) -> Vec<Self::IntVariable>;
 
     fn value_to_variable(
@@ -78,7 +81,7 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
                         (padded_chunks, num_chunks)
                     }
                     SHARequest::Variable(input, length, last_chunk) => (
-                        Self::pad_circuit_variable_length(builder, input, *length, *last_chunk),
+                        Self::pad_circuit_variable_length(builder, input, *length),
                         *last_chunk,
                     ),
                 };
