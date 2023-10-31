@@ -8,12 +8,12 @@ pub enum SHARequestType {
     Variable,
 }
 
-/// A SHA request.
+/// A request for a SHA computation.
 #[derive(Debug, Clone)]
 pub enum SHARequest {
     /// A message of fixed length.
     Fixed(Vec<ByteVariable>),
-    /// A message of variable length, with the actual legnth given by the Variable.
+    /// A message of variable length, represented by a tuple `(total_message, lengh, chunk_index)`.
     Variable(Vec<ByteVariable>, U32Variable, U32Variable),
 }
 

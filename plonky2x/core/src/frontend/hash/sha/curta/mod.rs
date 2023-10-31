@@ -125,6 +125,7 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
             .map(|_| builder.alloc_array_public::<Self::IntRegister>(16))
             .collect::<Vec<_>>();
 
+        // Allocate registers for the public inputs to the Stark.
         let end_bits = builder.alloc_array_public::<BitRegister>(num_chunks);
         let digest_bits = builder.alloc_array_public::<BitRegister>(num_chunks);
         let digest_indices = builder.alloc_array_public::<ElementRegister>(parameters.num_digests);
