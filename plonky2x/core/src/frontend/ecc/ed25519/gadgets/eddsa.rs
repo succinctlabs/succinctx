@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use curta::chip::ec::edwards::ed25519::Ed25519 as CurtaEd25519;
+use curta::chip::ec::edwards::ed25519::params::Ed25519 as CurtaEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::ScalarMulEd25519Gadget;
 use curta::chip::ec::EllipticCurve;
 use curta::math::extension::cubic::parameters::CubicParameters;
