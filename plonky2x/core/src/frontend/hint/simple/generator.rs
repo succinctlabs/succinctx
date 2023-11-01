@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 
+use log::trace;
 use plonky2::iop::generator::{GeneratedValues, WitnessGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness};
@@ -58,6 +59,7 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> WitnessGenerator<L::F
         if !witness.contains_all(&self.watch_list()) {
             return false;
         }
+        trace!("Hint {:?} : started running", H::id());
         let input_values = self
             .input_stream
             .real_all()
@@ -80,6 +82,7 @@ impl<L: PlonkParameters<D>, const D: usize, H: Hint<L, D>> WitnessGenerator<L::F
         for (var, val) in output_vars.iter().zip(output_values) {
             var.set(out_buffer, *val);
         }
+        trace!("Hint {:?} : finished running", H::id());
         true
     }
 
