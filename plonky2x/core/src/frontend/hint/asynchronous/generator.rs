@@ -254,6 +254,6 @@ impl<L: PlonkParameters<D>, H: AsyncHint<L, D>, const D: usize> WitnessGenerator
         _witness: &PartitionWitness<L::Field>,
         _out_buffer: &mut GeneratedValues<L::Field>,
     ) -> bool {
-        true
+        unreachable!("Asnc hint data does not run!")
     }
 }
