@@ -1,7 +1,8 @@
 use std::env;
 
 use async_trait::async_trait;
-use ethers::types::{H256, U256};
+use ethers::types::H256;
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::hint::asynchronous::hint::AsyncHint;
@@ -25,6 +26,7 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for Eth1BlockToSlotH
         input_stream: &mut ValueStream<L, D>,
         output_stream: &mut ValueStream<L, D>,
     ) {
+        debug!("Eth1BlockToSlotHint");
         let client = BeaconchainAPIClient::new(
             env::var("BEACONCHAIN_API_URL_1").unwrap(),
             env::var("BEACONCHAIN_API_KEY_1").unwrap(),
@@ -35,6 +37,7 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for Eth1BlockToSlotH
         let execution_blocks = client.get_execution_blocks(&[eth1_block]).await.unwrap();
         let slot = execution_blocks[0].pos_consensus.slot;
         output_stream.write_value::<U64Variable>(slot);
+        debug!("Eth1BlockToSlotHint: slot written");
     }
 }
 
@@ -48,9 +51,10 @@ pub struct BeaconExecutionPayloadHint {}
 impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconExecutionPayloadHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
+        debug!("BeaconExecutionPayloadHint");
 
         let block_root = input_stream.read_value::<Bytes32Variable>();
-        let execution_payload = client
+        let execution_payload: crate::utils::eth::beacon::GetBeaconExecutionPayload = client
             .get_execution_payload(hex!(block_root.to_fixed_bytes()))
             .unwrap();
 
@@ -59,9 +63,8 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconExecutionPayloa
             .iter()
             .map(|h| bytes32!(h))
             .collect::<Vec<H256>>();
-        let eth1_block_number = U256::from_dec_str(&execution_payload.block_number).unwrap();
 
         output_stream.write_value::<ArrayVariable<Bytes32Variable, DEPTH>>(proof);
-        output_stream.write_value::<U256Variable>(eth1_block_number);
+        debug!("BeaconExecutionPayloadHint: proof written");
     }
 }
