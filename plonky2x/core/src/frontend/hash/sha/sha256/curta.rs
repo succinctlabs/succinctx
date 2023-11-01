@@ -49,9 +49,8 @@ impl<L: PlonkParameters<D>, const D: usize> SHA<L, D, 64> for SHA256 {
         builder: &mut CircuitBuilder<L, D>,
         input: &[ByteVariable],
         length: U32Variable,
-        last_chunk: U32Variable,
     ) -> Vec<Self::IntVariable> {
-        let padded_bytes = builder.pad_message_sha256_variable(input, length, last_chunk);
+        let padded_bytes = builder.pad_message_sha256_variable(input, length);
 
         padded_bytes
             .chunks_exact(4)
@@ -114,13 +113,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         input: &[ByteVariable],
         length: U32Variable,
-        last_chunk: U32Variable,
     ) -> Bytes32Variable {
         assert_eq!(
             input.len() % 64,
             0,
             "input length should be a multiple of 64"
         );
+        let last_chunk = self.compute_sha256_last_chunk(length);
         if self.sha256_accelerator.is_none() {
             self.sha256_accelerator = Some(SHA256Accelerator {
                 sha_requests: Vec::new(),
@@ -249,7 +248,7 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let max_len = 256;
+        let max_len = 513;
 
         let mut rng = thread_rng();
         for i in 0..max_len {
@@ -263,7 +262,6 @@ mod tests {
             let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
             let digest = builder.curta_sha256(&message);
-            builder.watch(&digest, &format!("digest of message {}", i));
             builder.assert_is_equal(digest, expected_digest);
         }
 
@@ -298,13 +296,12 @@ mod tests {
             .collect::<Vec<_>>();
 
         let bytes_length = builder.constant::<U32Variable>(39);
-        let last_chunk = builder.constant::<U32Variable>(0);
 
         let expected_digest =
             bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
         let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
-        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length, last_chunk);
+        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length);
         builder.watch(&msg_hash, "msg_hash");
         builder.assert_is_equal(msg_hash, expected_digest);
 
@@ -333,13 +330,12 @@ mod tests {
             .collect::<Vec<_>>();
 
         let bytes_length = builder.constant::<U32Variable>(39);
-        let last_chunk = builder.constant::<U32Variable>(0);
 
         let expected_digest =
             bytes32!("84f633a570a987326947aafd434ae37f151e98d5e6d429137a4cc378d4a7988e");
         let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
-        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length, last_chunk);
+        let msg_hash = builder.curta_sha256_variable(&msg, bytes_length);
         builder.watch(&msg_hash, "msg_hash");
         builder.assert_is_equal(msg_hash, expected_digest);
 
@@ -360,19 +356,20 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let max_number_of_chunks = 2;
-        let total_message_length = 64 * max_number_of_chunks - 10;
+        let max_number_of_chunks = 20;
+        let total_message_length = 64 * max_number_of_chunks;
+
+        let max_len = (total_message_length - 9) / 64;
 
         let mut rng = thread_rng();
-        for i in 0..total_message_length {
-            let total_message = (0..total_message_length)
-                .map(|_| rng.gen::<u8>())
-                .collect::<Vec<_>>();
+        let total_message = (0..total_message_length)
+            .map(|_| rng.gen::<u8>())
+            .collect::<Vec<_>>();
+        for i in 0..max_len {
             let message = &total_message[..i];
             let expected_digest = H256::from(sha256(message));
 
             let length = builder.constant::<U32Variable>(i as u32);
-            let last_chunk = builder.constant::<U32Variable>((i as u32 + 9) / 64);
 
             let total_message = total_message
                 .iter()
@@ -380,8 +377,7 @@ mod tests {
                 .collect::<Vec<_>>();
             let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
-            let digest = builder.curta_sha256_variable(&total_message, length, last_chunk);
-            builder.watch(&digest, &format!("digest of message {}", i));
+            let digest = builder.curta_sha256_variable(&total_message, length);
             builder.assert_is_equal(digest, expected_digest);
         }
 

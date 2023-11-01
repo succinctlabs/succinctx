@@ -50,9 +50,8 @@ impl<L: PlonkParameters<D>, const D: usize> SHA<L, D, 80> for SHA512 {
         builder: &mut CircuitBuilder<L, D>,
         input: &[ByteVariable],
         length: U32Variable,
-        last_chunk: U32Variable,
     ) -> Vec<Self::IntVariable> {
-        let padded_bytes = builder.pad_sha512_variable_length(input, length, last_chunk);
+        let padded_bytes = builder.pad_sha512_variable_length(input, length);
 
         padded_bytes
             .chunks_exact(8)
@@ -124,8 +123,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         input: &[ByteVariable],
         length: U32Variable,
-        last_chunk: U32Variable,
     ) -> BytesVariable<64> {
+        let last_chunk = self.compute_sha512_last_chunk(length);
+
         if self.sha512_accelerator.is_none() {
             self.sha512_accelerator = Some(SHA512Accelerator {
                 sha_requests: Vec::new(),
@@ -150,7 +150,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use rand::Rng;
+    use rand::{thread_rng, Rng};
 
     use crate::prelude::*;
     use crate::utils::hash::sha512;
@@ -174,23 +174,17 @@ mod tests {
         circuit.verify(&proof, &input, &output);
     }
 
-    fn test_sha512_variable_length(
-        message: &[u8],
-        input_length: u32,
-        last_chunk: u32,
-        expected_digest: [u8; 64],
-    ) {
+    fn test_sha512_variable_length(message: &[u8], input_length: u32, expected_digest: [u8; 64]) {
         setup_logger();
         let mut builder = DefaultBuilder::new();
 
         let input_length = builder.constant::<U32Variable>(input_length);
-        let last_chunk = builder.constant::<U32Variable>(last_chunk);
 
         let message = message
             .iter()
             .map(|b| builder.constant::<ByteVariable>(*b))
             .collect::<Vec<_>>();
-        let digest = builder.curta_sha512_variable(&message, input_length, last_chunk);
+        let digest = builder.curta_sha512_variable(&message, input_length);
 
         let expected_digest = builder.constant::<BytesVariable<64>>(expected_digest);
         builder.assert_is_equal(digest, expected_digest);
@@ -234,7 +228,7 @@ mod tests {
         let msg: Vec<u8> = vec![1; 128];
         let expected_digest = bytes!("cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e");
 
-        test_sha512_variable_length(&msg, 0, 0, expected_digest);
+        test_sha512_variable_length(&msg, 0, expected_digest);
     }
 
     #[test]
@@ -243,7 +237,7 @@ mod tests {
         let msg: Vec<u8> = vec![1; 256];
         let expected_digest = bytes!("cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e");
 
-        test_sha512_variable_length(&msg, 0, 0, expected_digest);
+        test_sha512_variable_length(&msg, 0, expected_digest);
     }
 
     #[test]
@@ -254,7 +248,7 @@ mod tests {
         msg.resize(256, 1);
         let expected_digest = bytes!("4388243c4452274402673de881b2f942ff5730fd2c7d8ddb94c3e3d789fb3754380cba8faa40554d9506a0730a681e88ab348a04bc5c41d18926f140b59aed39");
 
-        test_sha512_variable_length(&msg, len, 0, expected_digest);
+        test_sha512_variable_length(&msg, len, expected_digest);
     }
 
     #[test]
@@ -265,7 +259,7 @@ mod tests {
         msg.resize(128, 1);
         let expected_digest = bytes!("7c6159dd615db8c15bc76e23d36106e77464759979a0fcd1366e531f552cfa0852dbf5c832f00bb279cbc945b44a132bff3ed0028259813b6a07b57326e88c87");
 
-        test_sha512_variable_length(&msg, len, 0, expected_digest);
+        test_sha512_variable_length(&msg, len, expected_digest);
     }
 
     #[test]
@@ -276,7 +270,7 @@ mod tests {
         msg.resize(512, 1);
         let expected_digest = bytes!("7c6159dd615db8c15bc76e23d36106e77464759979a0fcd1366e531f552cfa0852dbf5c832f00bb279cbc945b44a132bff3ed0028259813b6a07b57326e88c87");
 
-        test_sha512_variable_length(&msg, len, 0, expected_digest);
+        test_sha512_variable_length(&msg, len, expected_digest);
     }
 
     #[test]
@@ -296,6 +290,41 @@ mod tests {
                 .map(|b| builder.constant::<ByteVariable>(*b))
                 .collect::<Vec<_>>();
             let digest = builder.curta_sha512(&message);
+            let expected_digest = builder.constant::<BytesVariable<64>>(expected_digest);
+            builder.assert_is_equal(digest, expected_digest);
+        }
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_variable_length_random() {
+        setup_logger();
+        let mut builder = DefaultBuilder::new();
+
+        let max_number_of_chunks = 20;
+        let total_message_length = 128 * max_number_of_chunks;
+        let max_len = (total_message_length - 18) / 128;
+
+        let mut rng = thread_rng();
+        let total_message = (0..total_message_length)
+            .map(|_| rng.gen::<u8>())
+            .collect::<Vec<_>>();
+        for i in 0..max_len {
+            let message = &total_message[..i];
+            let expected_digest = sha512(message);
+            let message = total_message
+                .iter()
+                .map(|b| builder.constant::<ByteVariable>(*b))
+                .collect::<Vec<_>>();
+
+            let length = builder.constant::<U32Variable>(i as u32);
+
+            let digest = builder.curta_sha512_variable(&message, length);
             let expected_digest = builder.constant::<BytesVariable<64>>(expected_digest);
             builder.assert_is_equal(digest, expected_digest);
         }
