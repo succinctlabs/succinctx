@@ -1058,7 +1058,8 @@ pub(crate) mod tests {
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let idx = builder.constant::<U64Variable>(slot - 100);
-        let historical_block = builder.beacon_get_historical_block(block_root, slot, idx);
+        let slot_var = builder.constant::<U64Variable>(slot);
+        let historical_block = builder.beacon_get_historical_block(block_root, slot_var, idx);
         builder.watch(&historical_block, "historical_block");
 
         let circuit = builder.build();

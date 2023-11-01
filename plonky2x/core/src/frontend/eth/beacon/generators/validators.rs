@@ -27,6 +27,12 @@ impl BeaconValidatorsHint {
     }
 }
 
+impl Default for BeaconValidatorsHint {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconValidatorsHint {
     async fn hint(
@@ -140,7 +146,6 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::env;
 
     use plonky2::iop::witness::PartialWitness;
 
@@ -149,7 +154,6 @@ pub(crate) mod tests {
     use crate::frontend::eth::beacon::generators::validators::BeaconValidatorsGenerator;
     use crate::frontend::vars::Bytes32Variable;
     use crate::utils::bytes32;
-    use crate::utils::eth::beacon::BeaconClient;
 
     type L = DefaultParameters;
     const D: usize = 2;
@@ -158,9 +162,6 @@ pub(crate) mod tests {
     #[cfg_attr(feature = "ci", ignore)]
     fn test_get_validators_generator() {
         dotenv::dotenv().ok();
-
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
-        let client = BeaconClient::new(consensus_rpc);
 
         let mut builder = CircuitBuilder::<L, D>::new();
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(

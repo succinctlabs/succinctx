@@ -87,15 +87,15 @@ mod test {
     type L = DefaultParameters;
     const D: usize = 2;
 
-    #[test]
+    #[tokio::test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_beacon_header_hash_tree_root() {
+    async fn test_beacon_header_hash_tree_root() {
         dotenv::dotenv().ok();
         env::set_var("RUST_LOG", "debug");
         env_logger::init();
         let mut builder = CircuitBuilder::<L, D>::new();
         let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
-        let header = client.get_header("7404237".to_string()).unwrap();
+        let header = client.get_header("7404237".to_string()).await.unwrap();
         let beacon_header = BeaconHeaderValue::<<L as PlonkParameters<D>>::Field> {
             slot: U64::from_dec_str(header.slot.as_str()).unwrap().as_u64(),
             proposer_index: U64::from_dec_str(header.proposer_index.as_str())
