@@ -368,6 +368,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "atty"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
+dependencies = [
+ "hermit-abi 0.1.19",
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "auto_impl"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -744,9 +755,9 @@ checksum = "28c122c3980598d243d63d9a704629a2d748d101f278052ff068be5a4423ab6f"
 
 [[package]]
 name = "const-random"
-version = "0.1.16"
+version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11df32a13d7892ec42d51d3d175faba5211ffe13ed25d4fb348ac9e9ce835593"
+checksum = "5aaf16c9c2c612020bcfd042e170f6e32de9b9d75adb5277cdbbd2e2c8c8299a"
 dependencies = [
  "const-random-macro",
 ]
@@ -881,11 +892,12 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/ed25519_sig_verification#464563e9a33550996cd0443439782c5705191f80"
+source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/fieldparameters_funcs#8ddadb22b4e87948f710f1712c5e070a309dc2c6"
 dependencies = [
  "anyhow",
  "bincode",
  "curve25519-dalek",
+ "env_logger 0.9.3",
  "hex",
  "itertools 0.10.5",
  "log",
@@ -915,9 +927,9 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek-derive"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83fdaf97f4804dcebfa5862639bc9ce4121e82140bec2a987ac5140294865b5b"
+checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1191,6 +1203,19 @@ dependencies = [
  "serde",
  "sha3",
  "zeroize",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a12e6657c4c97ebab115a42dcee77225f7f482cdd841cf7088c657a42e9e00e7"
+dependencies = [
+ "atty",
+ "humantime",
+ "log",
+ "regex",
+ "termcolor",
 ]
 
 [[package]]
@@ -1914,6 +1939,15 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hermit-abi"
+version = "0.1.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "hermit-abi"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d77f7ec81a6d05a3abb01ab6eb7590f6083d08449fe5a1c8b1e620283546ccb7"
@@ -2135,9 +2169,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.0.2"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8adf3ddd720272c6ea8bf59463c04e0f93d0bbf7c5439b691bca2987e0270897"
+checksum = "d530e1a18b1cb4c484e6e34556a0d948706958449fca0cab753d649f2bce3d1f"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.2",
@@ -2174,7 +2208,7 @@ version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb0889898416213fab133e1d33a0e5858a48177452750691bde3666d0fdbaf8b"
 dependencies = [
- "hermit-abi",
+ "hermit-abi 0.3.3",
  "rustix",
  "windows-sys",
 ]
@@ -2507,7 +2541,7 @@ version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
 dependencies = [
- "hermit-abi",
+ "hermit-abi 0.3.3",
  "libc",
 ]
 
@@ -2755,7 +2789,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1d3afd2628e69da2be385eb6f2fd57c8ac7977ceeff6dc166ff1657b0e386a9"
 dependencies = [
  "fixedbitset",
- "indexmap 2.0.2",
+ "indexmap 2.1.0",
 ]
 
 [[package]]
@@ -2876,7 +2910,7 @@ checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/mir-protocol/plonky2.git#6332900d86b4372ca1bba702ba80d92fe205868a"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ca166204a70f36d4987bc90df56078efe2ca2b4"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2900,7 +2934,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#6332900d86b4372ca1bba702ba80d92fe205868a"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ca166204a70f36d4987bc90df56078efe2ca2b4"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2924,7 +2958,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#6332900d86b4372ca1bba702ba80d92fe205868a"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ca166204a70f36d4987bc90df56078efe2ca2b4"
 dependencies = [
  "rayon",
 ]
@@ -2932,7 +2966,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#6332900d86b4372ca1bba702ba80d92fe205868a"
+source = "git+https://github.com/mir-protocol/plonky2.git#3ca166204a70f36d4987bc90df56078efe2ca2b4"
 
 [[package]]
 name = "plonky2x"
@@ -2950,7 +2984,7 @@ dependencies = [
  "digest 0.10.7",
  "dotenv",
  "ed25519-consensus",
- "env_logger",
+ "env_logger 0.10.0",
  "ethers",
  "ff",
  "futures",
@@ -3367,9 +3401,9 @@ dependencies = [
 
 [[package]]
 name = "ruint"
-version = "1.10.1"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95294d6e3a6192f3aabf91c38f56505a625aa495533442744185a36d75a790c4"
+checksum = "724fd11728a3804e9944b14cab63825024c40bf42f8af87c8b5d97c4bbacf426"
 dependencies = [
  "alloy-rlp",
  "ark-ff 0.3.0",
@@ -3377,6 +3411,7 @@ dependencies = [
  "bytes",
  "fastrlp",
  "num-bigint 0.4.4",
+ "num-traits",
  "parity-scale-codec",
  "primitive-types 0.12.2",
  "proptest",
@@ -3482,7 +3517,7 @@ dependencies = [
  "alloy-sol-types",
  "clap",
  "dotenv",
- "env_logger",
+ "env_logger 0.10.0",
  "ethers",
  "hex",
  "log",
@@ -3737,7 +3772,7 @@ dependencies = [
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.0.2",
+ "indexmap 2.1.0",
  "serde",
  "serde_json",
  "serde_with_macros",
@@ -4292,7 +4327,7 @@ version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
- "indexmap 2.0.2",
+ "indexmap 2.1.0",
  "serde",
  "serde_spanned",
  "toml_datetime",
@@ -4305,7 +4340,7 @@ version = "0.20.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70f427fce4d84c72b5b732388bf4a9f4531b53f74e2887e3ecb2481f68f66d81"
 dependencies = [
- "indexmap 2.0.2",
+ "indexmap 2.1.0",
  "toml_datetime",
  "winnow",
 ]
@@ -4799,18 +4834,18 @@ checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
 
 [[package]]
 name = "zerocopy"
-version = "0.7.20"
+version = "0.7.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd66a62464e3ffd4e37bd09950c2b9dd6c4f8767380fabba0d523f9a775bc85a"
+checksum = "686b7e407015242119c33dab17b8f61ba6843534de936d94368856528eae4dcc"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.7.20"
+version = "0.7.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "255c4596d41e6916ced49cfafea18727b24d67878fa180ddfd69b9df34fd1726"
+checksum = "020f3dfe25dfc38dfea49ce62d5d45ecdd7f0d8a724fa63eb36b6eba4ec76806"
 dependencies = [
  "proc-macro2",
  "quote",
