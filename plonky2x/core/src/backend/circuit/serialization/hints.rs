@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
+use curta::chip::ec::edwards::ed25519::params::Ed25519BaseField;
 use curta::chip::ec::edwards::scalar_mul::air::ScalarMulEd25519;
 use curta::chip::ec::edwards::scalar_mul::generator::{
     SimpleScalarMulEd25519Generator, SimpleScalarMulEd25519HintGenerator,
@@ -43,7 +44,6 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSeria
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
-use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
@@ -74,8 +74,8 @@ use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
 use crate::frontend::hint::synchronous::Async;
 use crate::frontend::num::biguint::BigUintDivRemGenerator;
 use crate::frontend::num::nonnative::nonnative::{
-    NonNativeAdditionGenerator, NonNativeInverseGenerator, NonNativeMultipleAddsGenerator,
-    NonNativeMultiplicationGenerator, NonNativeSubtractionGenerator,
+    NonNativeAdditionGenerator, NonNativeMultipleAddsGenerator, NonNativeMultiplicationGenerator,
+    NonNativeSubtractionGenerator,
 };
 use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGenerator;
 use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
@@ -388,20 +388,17 @@ where
         register_powers_of_two!(r, BeaconValidatorBatchHint);
         register_powers_of_two!(r, BeaconPartialValidatorsHint);
         register_powers_of_two!(r, CompressedBeaconValidatorBatchHint);
-        let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519Base>>(id);
+        let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519BaseField>::default().id();
+        r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519BaseField>>(id);
 
-        let id = NonNativeInverseGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeInverseGenerator<L::Field, D, Ed25519Base>>(id);
+        let id = NonNativeMultipleAddsGenerator::<L::Field, D, Ed25519BaseField>::default().id();
+        r.register_simple::<NonNativeMultipleAddsGenerator<L::Field, D, Ed25519BaseField>>(id);
 
-        let id = NonNativeMultipleAddsGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeMultipleAddsGenerator<L::Field, D, Ed25519Base>>(id);
+        let id = NonNativeMultiplicationGenerator::<L::Field, D, Ed25519BaseField>::default().id();
+        r.register_simple::<NonNativeMultiplicationGenerator<L::Field, D, Ed25519BaseField>>(id);
 
-        let id = NonNativeMultiplicationGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeMultiplicationGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id = NonNativeSubtractionGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeSubtractionGenerator<L::Field, D, Ed25519Base>>(id);
+        let id = NonNativeSubtractionGenerator::<L::Field, D, Ed25519BaseField>::default().id();
+        r.register_simple::<NonNativeSubtractionGenerator<L::Field, D, Ed25519BaseField>>(id);
 
         let id =
             SimpleScalarMulEd25519Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
