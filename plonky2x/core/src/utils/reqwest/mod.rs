@@ -40,11 +40,9 @@ impl ReqwestClient {
                 .timeout(core::time::Duration::from_secs(60))
                 .send()
                 .await;
-            debug!("got response {}", endpoint);
             match response {
                 Ok(res) => {
                     if res.status().is_success() {
-                        debug!("done fetching {}", endpoint);
                         return Ok(res);
                     } else if res.status().is_server_error() {
                         debug!("Server error: {:?}", res.status());
@@ -52,7 +50,6 @@ impl ReqwestClient {
                             return Err(anyhow!("Maximum retries exceeded"));
                         }
                     } else {
-                        debug!("non-200 status {}", endpoint);
                         return Ok(res);
                     }
                 }
