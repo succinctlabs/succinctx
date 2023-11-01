@@ -37,7 +37,7 @@ impl<F: RichField, E: EllipticCurve> From<AffinePointVariableValue<E, F>> for Af
 }
 
 #[derive(Debug, Clone)]
-pub struct CompressedEdwardsYVariable(Bytes32Variable);
+pub struct CompressedEdwardsYVariable(pub Bytes32Variable);
 
 impl CircuitVariable for CompressedEdwardsYVariable {
     type ValueType<F: RichField> = CompressedEdwardsY;
