@@ -1,6 +1,5 @@
 use array_macro::array;
 use ethers::types::{H256, U256};
-use log::debug;
 
 use super::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
@@ -485,7 +484,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         source_slot: U64Variable,
         eth1_block_number: U256Variable,
     ) -> Bytes32Variable {
-        debug!("beacon_get_block_from_eth1_block_number");
         // Witness the slot number from the eth1 block number
         let mut block_to_slot_input = VariableStream::new();
         block_to_slot_input.write(&eth1_block_number);
@@ -495,7 +493,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         // Prove source block root -> witnessed beacon block
         let target_root =
             self.beacon_get_historical_block(source_beacon_block_root, source_slot, slot);
-        self.watch(&target_root, "target_root_in_eth1blocknumber");
 
         // Witness SSZ proof for target block root -> beacon body -> execution payload -> eth1 block number
         let mut beacon_block_to_eth1_number_input = VariableStream::new();
@@ -518,7 +515,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             EXECUTION_PAYLOAD_BLOCK_NUMBER_GINDEX,
         );
 
-        debug!("beacon_get_block_from_eth1_block_number done");
         target_root
     }
 
@@ -542,11 +538,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let far_slot_historical_summary_root = hint_output.read::<Bytes32Variable>(self);
         let far_slot_historical_summary_proof = hint_output
             .read::<ArrayVariable<Bytes32Variable, FAR_SLOT_HISTORICAL_SUMMARY_DEPTH>>(self);
-
-        self.watch(
-            &target_block_root,
-            "target_block_root in get_historical_block",
-        );
 
         // Use close slot logic if (source - target) < 8192
         let source_sub_target = self.sub(source_slot, target_slot);
