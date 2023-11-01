@@ -31,8 +31,8 @@ pub struct NonNativeTarget<FF: FieldParameters> {
     pub _phantom: PhantomData<FF>,
 }
 
-fn num_nonnative_limbs<FF>() -> usize {
-    ceil_div_usize(FF::BITS, 32)
+fn num_nonnative_limbs<FF: FieldParameters>() -> usize {
+    ceil_div_usize(FF::nb_bits(), 32)
 }
 
 impl<FF: FieldParameters> CircuitVariable for NonNativeTarget<FF> {
@@ -48,7 +48,7 @@ impl<FF: FieldParameters> CircuitVariable for NonNativeTarget<FF> {
         builder: &mut CircuitBuilder<L, D>,
         value: Self::ValueType<L::Field>,
     ) -> Self {
-        builder.api.constant_nonnative::<FF>(value)
+        builder.api.constant_nonnative::<FF>(&value)
     }
 
     fn variables(&self) -> Vec<Variable> {
@@ -78,7 +78,7 @@ impl<FF: FieldParameters> CircuitVariable for NonNativeTarget<FF> {
     ) {
         let modulus = builder
             .api
-            .constant_biguint(&(FF::order() - BigUint::one()));
+            .constant_biguint(&(FF::modulus() - BigUint::one()));
         let cmp = builder.api.cmp_biguint(&self.value, &modulus);
         let one = builder.api.one();
         builder.api.connect(cmp.target, one);
@@ -89,8 +89,7 @@ impl<FF: FieldParameters> CircuitVariable for NonNativeTarget<FF> {
     }
 
     fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
-        let biguint = value.to_canonical_biguint();
-        let limbs = biguint.to_u32_digits();
+        let limbs = value.to_u32_digits();
         let num_limbs = num_nonnative_limbs::<FF>();
         assert_eq!(limbs.len(), num_limbs);
         limbs
@@ -104,14 +103,13 @@ impl<FF: FieldParameters> CircuitVariable for NonNativeTarget<FF> {
             .iter()
             .map(|x| Variable::from_elements(&[*x]).to_canonical_u64() as u32)
             .collect::<Vec<u32>>();
-        let big_uint = BigUint::from_slice(&u32_slice);
-        FF::from_noncanonical_biguint(big_uint)
+        BigUint::from_slice(&u32_slice)
     }
 }
 
 pub trait CircuitBuilderNonNative<F: RichField + Extendable<D>, const D: usize> {
     fn num_nonnative_limbs<FF: FieldParameters>() -> usize {
-        ceil_div_usize(FF::BITS, 32)
+        ceil_div_usize(FF::nb_bits(), 32)
     }
 
     fn biguint_to_nonnative<FF: FieldParameters>(
@@ -124,7 +122,7 @@ pub trait CircuitBuilderNonNative<F: RichField + Extendable<D>, const D: usize> 
         x: &NonNativeTarget<FF>,
     ) -> BigUintTarget;
 
-    fn constant_nonnative<FF: FieldParameters>(&mut self, x: FF) -> NonNativeTarget<FF>;
+    fn constant_nonnative<FF: FieldParameters>(&mut self, x: &BigUint) -> NonNativeTarget<FF>;
 
     fn zero_nonnative<FF: FieldParameters>(&mut self) -> NonNativeTarget<FF>;
 
@@ -189,11 +187,6 @@ pub trait CircuitBuilderNonNative<F: RichField + Extendable<D>, const D: usize> 
         x: &NonNativeTarget<FF>,
     ) -> NonNativeTarget<FF>;
 
-    fn inv_nonnative<FF: FieldParameters>(
-        &mut self,
-        x: &NonNativeTarget<FF>,
-    ) -> NonNativeTarget<FF>;
-
     /// Returns `x % |FF|` as a `NonNativeTarget`.
     fn reduce<FF: FieldParameters>(&mut self, x: &BigUintTarget) -> NonNativeTarget<FF>;
 
@@ -227,7 +220,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     for BaseCircuitBuilder<F, D>
 {
     fn num_nonnative_limbs<FF: FieldParameters>() -> usize {
-        ceil_div_usize(FF::BITS, 32)
+        ceil_div_usize(FF::nb_bits(), 32)
     }
 
     fn biguint_to_nonnative<FF: FieldParameters>(
@@ -247,13 +240,13 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         x.value.clone()
     }
 
-    fn constant_nonnative<FF: FieldParameters>(&mut self, x: FF) -> NonNativeTarget<FF> {
-        let x_biguint = self.constant_biguint(&x.to_canonical_biguint());
+    fn constant_nonnative<FF: FieldParameters>(&mut self, x: &BigUint) -> NonNativeTarget<FF> {
+        let x_biguint = self.constant_biguint(x);
         self.biguint_to_nonnative(&x_biguint)
     }
 
     fn zero_nonnative<FF: FieldParameters>(&mut self) -> NonNativeTarget<FF> {
-        self.constant_nonnative(FF::ZERO)
+        self.constant_nonnative(&BigUint::zero())
     }
 
     // Assert that two NonNativeTarget's, both assumed to be in reduced form, are equal.
@@ -305,7 +298,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
 
         let sum_expected = self.add_biguint(&a.value, &b.value);
 
-        let modulus = self.constant_biguint(&FF::order());
+        let modulus = self.constant_biguint(&FF::modulus());
         let mod_times_overflow = self.mul_biguint_by_bool(&modulus, overflow);
         let sum_actual = self.add_biguint(&sum.value, &mod_times_overflow);
         self.connect_biguint(&sum_expected, &sum_actual);
@@ -369,7 +362,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
             .iter()
             .fold(self.zero_biguint(), |a, b| self.add_biguint(&a, &b.value));
 
-        let modulus = self.constant_biguint(&FF::order());
+        let modulus = self.constant_biguint(&FF::modulus());
         let overflow_biguint = BigUintTarget {
             limbs: vec![overflow],
         };
@@ -407,7 +400,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         self.assert_bool(overflow);
 
         let diff_plus_b = self.add_biguint(&diff.value, &b.value);
-        let modulus = self.constant_biguint(&FF::order());
+        let modulus = self.constant_biguint(&FF::modulus());
         let mod_times_overflow = self.mul_biguint_by_bool(&modulus, overflow);
         let diff_plus_b_reduced = self.sub_biguint(&diff_plus_b, &mod_times_overflow);
         self.connect_biguint(&a.value, &diff_plus_b_reduced);
@@ -421,7 +414,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         b: &NonNativeTarget<FF>,
     ) -> NonNativeTarget<FF> {
         let prod = self.add_virtual_nonnative_target::<FF>();
-        let modulus = self.constant_biguint(&FF::order());
+        let modulus = self.constant_biguint(&FF::modulus());
         // Will be ranged checked below.
         let overflow = self.add_virtual_biguint_target_unsafe(
             a.value.num_limbs() + b.value.num_limbs() - modulus.num_limbs(),
@@ -472,41 +465,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         self.sub_nonnative(&zero_ff, x)
     }
 
-    fn inv_nonnative<FF: FieldParameters>(
-        &mut self,
-        x: &NonNativeTarget<FF>,
-    ) -> NonNativeTarget<FF> {
-        let num_limbs = x.value.num_limbs();
-        let inv_biguint = self.add_virtual_biguint_target_unsafe(num_limbs);
-        let div = self.add_virtual_biguint_target_unsafe(num_limbs);
-
-        self.add_simple_generator(NonNativeInverseGenerator::<F, D, FF> {
-            x: x.clone(),
-            inv: inv_biguint.clone(),
-            div: div.clone(),
-            _phantom: PhantomData,
-        });
-
-        range_check_u32_circuit(self, inv_biguint.limbs.clone());
-        range_check_u32_circuit(self, div.limbs.clone());
-
-        let product = self.mul_biguint(&x.value, &inv_biguint);
-
-        let modulus = self.constant_biguint(&FF::order());
-        let mod_times_div = self.mul_biguint(&modulus, &div);
-        let one = self.constant_biguint(&BigUint::one());
-        let expected_product = self.add_biguint(&mod_times_div, &one);
-        self.connect_biguint(&product, &expected_product);
-
-        NonNativeTarget::<FF> {
-            value: inv_biguint,
-            _phantom: PhantomData,
-        }
-    }
-
     /// Returns `x % |FF|` as a `NonNativeTarget`.
     fn reduce<FF: FieldParameters>(&mut self, x: &BigUintTarget) -> NonNativeTarget<FF> {
-        let modulus = FF::order();
+        let modulus = FF::modulus();
         let order_target = self.constant_biguint(&modulus);
         let value = self.rem_biguint(x, &order_target);
 
@@ -645,16 +606,14 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: FieldParameters> SimpleGe
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let a = FF::from_noncanonical_biguint(witness.get_biguint_target(self.a.value.clone()));
-        let b = FF::from_noncanonical_biguint(witness.get_biguint_target(self.b.value.clone()));
-        let a_biguint = a.to_canonical_biguint();
-        let b_biguint = b.to_canonical_biguint();
-        let sum_biguint = a_biguint + b_biguint;
-        let modulus = FF::order();
-        let (overflow, sum_reduced) = if sum_biguint > modulus {
-            (true, sum_biguint - modulus)
+        let modulus = &FF::modulus();
+        let a = witness.get_biguint_target(self.a.value.clone()) % modulus;
+        let b = witness.get_biguint_target(self.b.value.clone()) % modulus;
+        let sum = a + b;
+        let (overflow, sum_reduced) = if sum > *modulus {
+            (true, sum - modulus)
         } else {
-            (false, sum_biguint)
+            (false, sum)
         };
 
         out_buffer.set_biguint_target(&self.sum.value, &sum_reduced);
@@ -721,24 +680,16 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: FieldParameters> SimpleGe
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+        let modulus = &FF::modulus();
         let summands: Vec<_> = self
             .summands
             .iter()
-            .map(|summand| {
-                FF::from_noncanonical_biguint(witness.get_biguint_target(summand.value.clone()))
-            })
-            .collect();
-        let summand_biguints: Vec<_> = summands
-            .iter()
-            .map(|summand| summand.to_canonical_biguint())
+            .map(|summand| witness.get_biguint_target(summand.value.clone()) % modulus)
             .collect();
 
-        let sum_biguint = summand_biguints
-            .iter()
-            .fold(BigUint::zero(), |a, b| a + b.clone());
+        let sum_biguint = summands.iter().fold(BigUint::zero(), |a, b| a + b.clone());
 
-        let modulus = FF::order();
-        let (overflow_biguint, sum_reduced) = sum_biguint.div_rem(&modulus);
+        let (overflow_biguint, sum_reduced) = sum_biguint.div_rem(modulus);
         let overflow = overflow_biguint.to_u64_digits()[0] as u32;
 
         out_buffer.set_biguint_target(&self.sum.value, &sum_reduced);
@@ -807,19 +758,17 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: FieldParameters> SimpleGe
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let a = FF::from_noncanonical_biguint(witness.get_biguint_target(self.a.value.clone()));
-        let b = FF::from_noncanonical_biguint(witness.get_biguint_target(self.b.value.clone()));
-        let a_biguint = a.to_canonical_biguint();
-        let b_biguint = b.to_canonical_biguint();
+        let modulus = &FF::modulus();
+        let a = witness.get_biguint_target(self.a.value.clone()) % modulus;
+        let b = witness.get_biguint_target(self.b.value.clone()) % modulus;
 
-        let modulus = FF::order();
-        let (diff_biguint, overflow) = if a_biguint >= b_biguint {
-            (a_biguint - b_biguint, false)
+        let (diff, overflow) = if a >= b {
+            (a - b, false)
         } else {
-            (modulus + a_biguint - b_biguint, true)
+            (modulus + a - b, true)
         };
 
-        out_buffer.set_biguint_target(&self.diff.value, &diff_biguint);
+        out_buffer.set_biguint_target(&self.diff.value, &diff);
         out_buffer.set_bool_target(self.overflow, overflow);
     }
 }
@@ -885,82 +834,16 @@ impl<F: RichField + Extendable<D>, const D: usize, FF: FieldParameters> SimpleGe
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let a = FF::from_noncanonical_biguint(witness.get_biguint_target(self.a.value.clone()));
-        let b = FF::from_noncanonical_biguint(witness.get_biguint_target(self.b.value.clone()));
-        let a_biguint = a.to_canonical_biguint();
-        let b_biguint = b.to_canonical_biguint();
+        let modulus = &FF::modulus();
+        let a = witness.get_biguint_target(self.a.value.clone()) % modulus;
+        let b = witness.get_biguint_target(self.b.value.clone()) % modulus;
 
-        let prod_biguint = a_biguint * b_biguint;
+        let prod = a * b;
 
-        let modulus = FF::order();
-        let (overflow_biguint, prod_reduced) = prod_biguint.div_rem(&modulus);
+        let (overflow, prod_reduced) = prod.div_rem(modulus);
 
         out_buffer.set_biguint_target(&self.prod.value, &prod_reduced);
-        out_buffer.set_biguint_target(&self.overflow, &overflow_biguint);
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct NonNativeInverseGenerator<
-    F: RichField + Extendable<D>,
-    const D: usize,
-    FF: FieldParameters,
-> {
-    x: NonNativeTarget<FF>,
-    inv: BigUintTarget,
-    div: BigUintTarget,
-    _phantom: PhantomData<F>,
-}
-
-impl<F: RichField + Extendable<D>, const D: usize, FF: FieldParameters>
-    NonNativeInverseGenerator<F, D, FF>
-{
-    fn id() -> String {
-        "NonNativeInverseGenerator".to_string()
-    }
-}
-
-impl<F: RichField + Extendable<D>, const D: usize, FF: FieldParameters> SimpleGenerator<F, D>
-    for NonNativeInverseGenerator<F, D, FF>
-{
-    fn id(&self) -> String {
-        Self::id()
-    }
-
-    fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        dst.write_target_nonnative(self.x.clone())?;
-        dst.write_target_biguint(self.inv.clone())?;
-        dst.write_target_biguint(self.div.clone())
-    }
-
-    fn deserialize(src: &mut Buffer, _common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        let x = src.read_target_nonnative()?;
-        let inv = src.read_target_biguint()?;
-        let div = src.read_target_biguint()?;
-        Ok(Self {
-            x,
-            inv,
-            div,
-            _phantom: PhantomData,
-        })
-    }
-
-    fn dependencies(&self) -> Vec<Target> {
-        self.x.value.limbs.iter().map(|&l| l.target).collect()
-    }
-
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let x = FF::from_noncanonical_biguint(witness.get_biguint_target(self.x.value.clone()));
-        let inv = x.inverse();
-
-        let x_biguint = x.to_canonical_biguint();
-        let inv_biguint = inv.to_canonical_biguint();
-        let prod = x_biguint * &inv_biguint;
-        let modulus = FF::order();
-        let (div, _rem) = prod.div_rem(&modulus);
-
-        out_buffer.set_biguint_target(&self.div, &div);
-        out_buffer.set_biguint_target(&self.inv, &inv_biguint);
+        out_buffer.set_biguint_target(&self.overflow, &overflow);
     }
 }
 
@@ -999,8 +882,8 @@ impl ReadNonNativeTarget for Buffer<'_> {
 #[cfg(test)]
 mod tests {
 
-    use plonky2::field::secp256k1_base::Secp256K1Base;
-    use plonky2::field::types::{Field, PrimeField, Sample};
+    use curta::chip::ec::edwards::ed25519::params::Ed25519BaseField;
+    use curta::chip::field::parameters::FieldParameters;
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::circuit_builder::CircuitBuilder as BaseCircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
@@ -1010,24 +893,24 @@ mod tests {
 
     #[test]
     fn test_nonnative_add() {
-        type FF = Secp256K1Base;
+        type FF = Ed25519BaseField;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let x_ff = FF::rand();
-        let y_ff = FF::rand();
-        let sum_ff = x_ff + y_ff;
+        let x_biguint = &FF::rand();
+        let y_biguint = &FF::rand();
+        let sum_biguint = (x_biguint + y_biguint) % &FF::modulus();
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
         let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
-        let x = builder.constant_nonnative(x_ff);
-        let y = builder.constant_nonnative(y_ff);
+        let x = builder.constant_nonnative::<FF>(x_biguint);
+        let y = builder.constant_nonnative(y_biguint);
         let sum = builder.add_nonnative(&x, &y);
 
-        let sum_expected = builder.constant_nonnative(sum_ff);
+        let sum_expected = builder.constant_nonnative(&sum_biguint);
         builder.connect_nonnative(&sum, &sum_expected);
 
         let data = builder.build::<C>();
@@ -1037,37 +920,45 @@ mod tests {
 
     #[test]
     fn test_nonnative_many_adds() {
-        type FF = Secp256K1Base;
+        type FF = Ed25519BaseField;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let a_ff = FF::rand();
-        let b_ff = FF::rand();
-        let c_ff = FF::rand();
-        let d_ff = FF::rand();
-        let e_ff = FF::rand();
-        let f_ff = FF::rand();
-        let g_ff = FF::rand();
-        let h_ff = FF::rand();
-        let sum_ff = a_ff + b_ff + c_ff + d_ff + e_ff + f_ff + g_ff + h_ff;
+        let a_biguint = &FF::rand();
+        let b_biguint = &FF::rand();
+        let c_biguint = &FF::rand();
+        let d_biguint = &FF::rand();
+        let e_biguint = &FF::rand();
+        let f_biguint = &FF::rand();
+        let g_biguint = &FF::rand();
+        let h_biguint = &FF::rand();
+        let sum_biguint = (a_biguint
+            + b_biguint
+            + c_biguint
+            + d_biguint
+            + e_biguint
+            + f_biguint
+            + g_biguint
+            + h_biguint)
+            % &FF::modulus();
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
         let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
-        let a = builder.constant_nonnative(a_ff);
-        let b = builder.constant_nonnative(b_ff);
-        let c = builder.constant_nonnative(c_ff);
-        let d = builder.constant_nonnative(d_ff);
-        let e = builder.constant_nonnative(e_ff);
-        let f = builder.constant_nonnative(f_ff);
-        let g = builder.constant_nonnative(g_ff);
-        let h = builder.constant_nonnative(h_ff);
+        let a = builder.constant_nonnative::<FF>(a_biguint);
+        let b = builder.constant_nonnative(b_biguint);
+        let c = builder.constant_nonnative(c_biguint);
+        let d = builder.constant_nonnative(d_biguint);
+        let e = builder.constant_nonnative(e_biguint);
+        let f = builder.constant_nonnative(f_biguint);
+        let g = builder.constant_nonnative(g_biguint);
+        let h = builder.constant_nonnative(h_biguint);
         let all = [a, b, c, d, e, f, g, h];
         let sum = builder.add_many_nonnative(&all);
 
-        let sum_expected = builder.constant_nonnative(sum_ff);
+        let sum_expected = builder.constant_nonnative(&sum_biguint);
         builder.connect_nonnative(&sum, &sum_expected);
 
         let data = builder.build::<C>();
@@ -1077,27 +968,27 @@ mod tests {
 
     #[test]
     fn test_nonnative_sub() {
-        type FF = Secp256K1Base;
+        type FF = Ed25519BaseField;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let x_ff = FF::rand();
-        let mut y_ff = FF::rand();
-        while y_ff.to_canonical_biguint() > x_ff.to_canonical_biguint() {
-            y_ff = FF::rand();
+        let x_biguint = &FF::rand();
+        let mut y_biguint = FF::rand();
+        while y_biguint > *x_biguint {
+            y_biguint = FF::rand();
         }
-        let diff_ff = x_ff - y_ff;
+        let diff_biguint = x_biguint - &y_biguint;
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
         let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
-        let x = builder.constant_nonnative(x_ff);
-        let y = builder.constant_nonnative(y_ff);
+        let x = builder.constant_nonnative::<FF>(x_biguint);
+        let y = builder.constant_nonnative(&y_biguint);
         let diff = builder.sub_nonnative(&x, &y);
 
-        let diff_expected = builder.constant_nonnative(diff_ff);
+        let diff_expected = builder.constant_nonnative(&diff_biguint);
         builder.connect_nonnative(&diff, &diff_expected);
 
         let data = builder.build::<C>();
@@ -1107,23 +998,23 @@ mod tests {
 
     #[test]
     fn test_nonnative_mul() {
-        type FF = Secp256K1Base;
+        type FF = Ed25519BaseField;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
-        let x_ff = FF::rand();
-        let y_ff = FF::rand();
-        let product_ff = x_ff * y_ff;
+        let x_biguint = &FF::rand();
+        let y_biguint = &FF::rand();
+        let product_biguint = (x_biguint * y_biguint) % FF::modulus();
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
         let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
-        let x = builder.constant_nonnative(x_ff);
-        let y = builder.constant_nonnative(y_ff);
+        let x = builder.constant_nonnative::<FF>(x_biguint);
+        let y = builder.constant_nonnative(y_biguint);
         let product = builder.mul_nonnative(&x, &y);
 
-        let product_expected = builder.constant_nonnative(product_ff);
+        let product_expected = builder.constant_nonnative(&product_biguint);
         builder.connect_nonnative(&product, &product_expected);
 
         let data = builder.build::<C>();
@@ -1133,46 +1024,22 @@ mod tests {
 
     #[test]
     fn test_nonnative_neg() {
-        type FF = Secp256K1Base;
+        type FF = Ed25519BaseField;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
-        let x_ff = FF::rand();
-        let neg_x_ff = -x_ff;
+        let x_biguint = &FF::rand();
+        let neg_x_biguint = FF::modulus() - x_biguint;
 
         let config = CircuitConfig::standard_ecc_config();
         let pw = PartialWitness::new();
         let mut builder = BaseCircuitBuilder::<F, D>::new(config);
 
-        let x = builder.constant_nonnative(x_ff);
+        let x = builder.constant_nonnative::<FF>(x_biguint);
         let neg_x = builder.neg_nonnative(&x);
 
-        let neg_x_expected = builder.constant_nonnative(neg_x_ff);
+        let neg_x_expected = builder.constant_nonnative(&neg_x_biguint);
         builder.connect_nonnative(&neg_x, &neg_x_expected);
-
-        let data = builder.build::<C>();
-        let proof = data.prove(pw).unwrap();
-        data.verify(proof).unwrap();
-    }
-
-    #[test]
-    fn test_nonnative_inv() {
-        type FF = Secp256K1Base;
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        let x_ff = FF::rand();
-        let inv_x_ff = x_ff.inverse();
-
-        let config = CircuitConfig::standard_ecc_config();
-        let pw = PartialWitness::new();
-        let mut builder = BaseCircuitBuilder::<F, D>::new(config);
-
-        let x = builder.constant_nonnative(x_ff);
-        let inv_x = builder.inv_nonnative(&x);
-
-        let inv_x_expected = builder.constant_nonnative(inv_x_ff);
-        builder.connect_nonnative(&inv_x, &inv_x_expected);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();

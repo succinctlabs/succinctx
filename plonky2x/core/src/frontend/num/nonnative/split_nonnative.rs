@@ -166,23 +166,21 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
 #[cfg(test)]
 mod tests {
 
+    use curta::chip::ec::edwards::ed25519::params::Ed25519BaseField;
     use curta::chip::utils::biguint_to_16_digits_field;
     use num::bigint::RandBigInt;
-    use plonky2::field::secp256k1_scalar::Secp256K1Scalar;
-    use plonky2::field::types::Sample;
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use rand::thread_rng;
 
     use super::*;
-    use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
     use crate::frontend::num::biguint::CircuitBuilderBiguint;
-    use crate::frontend::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
+    use crate::frontend::num::nonnative::nonnative::CircuitBuilderNonNative;
 
     #[test]
     fn test_split_nonnative() {
-        type FF = Secp256K1Scalar;
+        type FF = Ed25519BaseField;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -192,10 +190,9 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
         let x = FF::rand();
-        let x_target = builder.constant_nonnative(x);
+        let x_target = builder.constant_nonnative::<FF>(&x);
         let split = builder.split_nonnative_to_4_bit_limbs(&x_target);
-        let combined: NonNativeTarget<Secp256K1Scalar> =
-            builder.recombine_nonnative_4_bit_limbs(split);
+        let combined = builder.recombine_nonnative_4_bit_limbs(split);
         builder.connect_nonnative(&x_target, &combined);
 
         let data = builder.build::<C>();
@@ -205,7 +202,7 @@ mod tests {
 
     #[test]
     fn test_split_nonnative_16_bit_limbs() {
-        type FF = Ed25519Base;
+        type FF = Ed25519BaseField;
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
