@@ -477,13 +477,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         header
     }
 
-    /// Get beacon block hash from eth1 block number, then prove from source block root.
+    /// Get beacon block hash and slot from eth1 block number, then prove from source block root.
     pub fn beacon_get_block_from_eth1_block_number(
         &mut self,
         source_beacon_block_root: Bytes32Variable,
         source_slot: U64Variable,
         eth1_block_number: U256Variable,
-    ) -> Bytes32Variable {
+    ) -> (Bytes32Variable, U64Variable) {
         // Witness the slot number from the eth1 block number
         let mut block_to_slot_input = VariableStream::new();
         block_to_slot_input.write(&eth1_block_number);
@@ -515,7 +515,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             EXECUTION_PAYLOAD_BLOCK_NUMBER_GINDEX,
         );
 
-        target_root
+        (target_root, slot)
     }
 
     /// Get a historical block root using state.block_roots for close slots and historical_summaries for slots > 8192 slots away.
