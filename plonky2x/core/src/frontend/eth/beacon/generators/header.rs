@@ -1,10 +1,11 @@
 use std::env;
 
+use async_trait::async_trait;
 use ethers::types::U64;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::eth::beacon::vars::{BeaconHeaderValue, BeaconHeaderVariable};
-use crate::frontend::hint::simple::hint::Hint;
+use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::vars::ValueStream;
 use crate::prelude::{Bytes32Variable, PlonkParameters};
 use crate::utils::eth::beacon::BeaconClient;
@@ -15,12 +16,20 @@ use crate::utils::{bytes32, hex};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BeaconHeaderHint {}
 
-impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconHeaderHint {
-    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
+#[async_trait]
+impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconHeaderHint {
+    async fn hint(
+        &self,
+        input_stream: &mut ValueStream<L, D>,
+        output_stream: &mut ValueStream<L, D>,
+    ) {
         let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
         let block_root = input_stream.read_value::<Bytes32Variable>();
 
-        let header = client.get_header(hex!(block_root.as_bytes())).unwrap();
+        let header = client
+            .get_header(hex!(block_root.as_bytes()))
+            .await
+            .unwrap();
 
         let beacon_header = BeaconHeaderValue::<L::Field> {
             slot: U64::from_dec_str(header.slot.as_str()).unwrap().as_u64(),

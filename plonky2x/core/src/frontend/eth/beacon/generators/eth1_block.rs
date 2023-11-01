@@ -1,8 +1,10 @@
 use std::env;
 
-use ethers::types::{H256, U256};
+use async_trait::async_trait;
+use ethers::types::H256;
 use serde::{Deserialize, Serialize};
 
+use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{U256Variable, ValueStream};
@@ -16,8 +18,13 @@ use crate::utils::{bytes32, hex};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Eth1BlockToSlotHint {}
 
-impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Eth1BlockToSlotHint {
-    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
+#[async_trait]
+impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for Eth1BlockToSlotHint {
+    async fn hint(
+        &self,
+        input_stream: &mut ValueStream<L, D>,
+        output_stream: &mut ValueStream<L, D>,
+    ) {
         let client = BeaconchainAPIClient::new(
             env::var("BEACONCHAIN_API_URL_1").unwrap(),
             env::var("BEACONCHAIN_API_KEY_1").unwrap(),
@@ -25,7 +32,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for Eth1BlockToSlotHint {
         let eth1_block = input_stream.read_value::<U256Variable>();
 
         // Convert block numbers to slots
-        let execution_blocks = client.get_execution_blocks(&[eth1_block]).unwrap();
+        let execution_blocks = client.get_execution_blocks(&[eth1_block]).await.unwrap();
         let slot = execution_blocks[0].pos_consensus.slot;
         output_stream.write_value::<U64Variable>(slot);
     }
@@ -43,7 +50,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconExecutionPayloa
         let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
 
         let block_root = input_stream.read_value::<Bytes32Variable>();
-        let execution_payload = client
+        let execution_payload: crate::utils::eth::beacon::GetBeaconExecutionPayload = client
             .get_execution_payload(hex!(block_root.to_fixed_bytes()))
             .unwrap();
 
@@ -52,9 +59,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconExecutionPayloa
             .iter()
             .map(|h| bytes32!(h))
             .collect::<Vec<H256>>();
-        let eth1_block_number = U256::from_dec_str(&execution_payload.block_number).unwrap();
 
         output_stream.write_value::<ArrayVariable<Bytes32Variable, DEPTH>>(proof);
-        output_stream.write_value::<U256Variable>(eth1_block_number);
     }
 }

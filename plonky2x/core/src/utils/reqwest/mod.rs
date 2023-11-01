@@ -3,27 +3,39 @@ use core::time::Duration;
 use anyhow::{anyhow, Result};
 use log::debug;
 use reqwest::blocking::Response;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ReqwestClient;
+#[derive(Debug, Clone, Default)]
+pub struct ReqwestClient {
+    pub client: reqwest::blocking::Client,
+    pub client_async: reqwest::Client,
+}
 
 impl ReqwestClient {
     pub fn new() -> Self {
-        ReqwestClient {}
+        ReqwestClient {
+            client: reqwest::blocking::Client::new(),
+            client_async: reqwest::Client::new(),
+        }
+    }
+
+    pub fn from_clients(client: reqwest::blocking::Client, client_async: reqwest::Client) -> Self {
+        ReqwestClient {
+            client,
+            client_async,
+        }
     }
 
     pub async fn fetch_async(&self, endpoint: &str) -> Result<reqwest::Response> {
         const MAX_RETRIES: u32 = 2;
         const INITIAL_RETRY_DELAY: u64 = 5;
 
-        let client = reqwest::Client::new();
         let mut retries = 0;
         let mut retry_delay = INITIAL_RETRY_DELAY;
 
         loop {
             debug!("fetching {}: retries={}", endpoint, retries);
-            let response = client
+            let response = self
+                .client_async
                 .get(endpoint)
                 .timeout(core::time::Duration::from_secs(60))
                 .send()
@@ -59,12 +71,12 @@ impl ReqwestClient {
         const MAX_RETRIES: u32 = 2;
         const INITIAL_RETRY_DELAY: u64 = 5;
 
-        let client = reqwest::blocking::Client::new();
         let mut retries = 0;
         let mut retry_delay = INITIAL_RETRY_DELAY;
 
         loop {
-            let response = client
+            let response = self
+                .client
                 .get(endpoint)
                 .timeout(core::time::Duration::from_secs(60))
                 .send();

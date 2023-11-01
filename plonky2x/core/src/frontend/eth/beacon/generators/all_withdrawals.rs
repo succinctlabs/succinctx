@@ -1,11 +1,12 @@
 use std::env;
 
+use async_trait::async_trait;
 use ethers::types::{H160, U256};
 use log::debug;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::eth::beacon::vars::{BeaconWithdrawalValue, BeaconWithdrawalVariable};
-use crate::frontend::hint::simple::hint::Hint;
+use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::vars::ValueStream;
 use crate::prelude::{ArrayVariable, Bytes32Variable, PlonkParameters};
 use crate::utils::eth::beacon::BeaconClient;
@@ -18,12 +19,20 @@ const MAX_WITHDRAWALS_PER_PAYLOAD: usize = 16;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BeaconAllWithdrawalsHint {}
 
-impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconAllWithdrawalsHint {
-    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
+#[async_trait]
+impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconAllWithdrawalsHint {
+    async fn hint(
+        &self,
+        input_stream: &mut ValueStream<L, D>,
+        output_stream: &mut ValueStream<L, D>,
+    ) {
         let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
 
         let block_root = input_stream.read_value::<Bytes32Variable>();
-        let withdrawals_res = client.get_withdrawals(hex!(block_root)).unwrap();
+        let withdrawals_res = client
+            .get_withdrawals_async(hex!(block_root))
+            .await
+            .unwrap();
         let withdrawals = withdrawals_res
             .withdrawals
             .iter()
