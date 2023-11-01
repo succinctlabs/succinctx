@@ -71,12 +71,12 @@ impl<F: PrimeField64, R: CubicParameters<F>, E: EllipticCurveAir<PKAirParameters
         let mut bus = builder.new_bus();
         let channel_idx = bus.new_channel(&mut builder);
 
-        let pk_challenges = builder.alloc_challenge_array::<CubicRegister>(
+        let pk_challenges = builder.alloc_array_challenge::<CubicRegister>(
             1 + 2 * FieldRegister::<E::BaseField>::size_of(),
         );
 
         let selector_challenges =
-            builder.alloc_challenge_array::<CubicRegister>(1 + BitRegister::size_of());
+            builder.alloc_array_challenge::<CubicRegister>(1 + BitRegister::size_of());
 
         // Initialize the public key aggregator and bit flag.
         let accumulator: AffinePointRegister<E> = builder.alloc_ec_point();
