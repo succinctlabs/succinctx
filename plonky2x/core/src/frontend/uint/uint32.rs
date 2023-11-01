@@ -172,6 +172,24 @@ impl<L: PlonkParameters<D>, const D: usize> Mul<L, D> for U32Variable {
     }
 }
 
+impl<L: PlonkParameters<D>, const D: usize> Div<L, D> for U32Variable {
+    type Output = Self;
+
+    fn div(self, rhs: U32Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        let self_biguint = BigUintTarget {
+            limbs: vec![self.into()],
+        };
+        let rhs_biguint = BigUintTarget {
+            limbs: vec![rhs.into()],
+        };
+
+        let quotient_biguint = builder.api.div_biguint(&self_biguint, &rhs_biguint);
+
+        // Get the least significant u32 limb.
+        quotient_biguint.limbs[0].into()
+    }
+}
+
 impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for U32Variable {
     type Output = Self;
 
