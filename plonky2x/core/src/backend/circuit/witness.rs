@@ -7,6 +7,7 @@
 //! [1] : https://github.com/mir-protocol/plonky2/blob/main/plonky2/src/iop/generator.rs#L19
 
 use alloc::collections::BTreeMap;
+use std::collections::HashSet;
 
 use anyhow::{anyhow, Error, Result};
 use curta::maybe_rayon::rayon;
@@ -122,7 +123,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
 
     // Build a list of "pending" generators which are queued to be run. Initially, all generators
     // are queued.
-    let mut pending_generator_indices: Vec<_> = (0..generators.len()).collect();
+    let mut pending_generator_indices: HashSet<_> = (0..generators.len()).collect();
 
     // We also track a list of "expired" generators which have already returned false.
     let mut generator_is_expired = vec![false; generators.len()];
@@ -141,7 +142,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
 
     // Keep running generators until we fail to make progress.
     while !pending_generator_indices.is_empty() {
-        let mut next_pending_generator_indices = Vec::new();
+        let mut next_pending_generator_indices = HashSet::new();
         for &generator_idx in &pending_generator_indices {
             if generator_is_expired[generator_idx] {
                 continue;
@@ -157,7 +158,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
                 match pol {
                     HintPoll::InputPending => {}
                     HintPoll::Pending => {
-                        next_pending_generator_indices.push(generator_idx);
+                        next_pending_generator_indices.insert(generator_idx);
                     }
                     HintPoll::Ready => {
                         generator_is_expired[generator_idx] = true;
@@ -184,8 +185,10 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
                 let opt_watchers = generator_indices_by_watches.get(&watch);
                 if let Some(watchers) = opt_watchers {
                     for &watching_generator_idx in watchers {
-                        if !generator_is_expired[watching_generator_idx] {
-                            next_pending_generator_indices.push(watching_generator_idx);
+                        if !generator_is_expired[watching_generator_idx]
+                            && !next_pending_generator_indices.contains(&watching_generator_idx)
+                        {
+                            next_pending_generator_indices.insert(watching_generator_idx);
                         }
                     }
                 }
