@@ -210,6 +210,7 @@ pub fn verify_decoded_list<const M: usize>(
     assert!(claim_poly == encoding_poly);
 }
 
+/// TODO: Consider removing LIST_LEN and using MAX_STRING_SIZE instead.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DecodeHint<const ENCODING_LEN: usize, const LIST_LEN: usize> {}
 impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize, const LIST_LEN: usize>
