@@ -119,7 +119,16 @@ mod tests {
     use crate::utils;
 
     #[test]
-    fn test_curta_eddsa_verify_variable_msg_len() {
+    fn test_curta_eddsa_verify_sigs_constant_msg_len() {
+        test_curta_eddsa_verify_sigs(false);
+    }
+
+    #[test]
+    fn test_curta_eddsa_verify_sigs_variable_msg_len() {
+        test_curta_eddsa_verify_sigs(true);
+    }
+
+    fn test_curta_eddsa_verify_sigs(variable_msg_len: bool) {
         utils::setup_logger();
 
         const MAX_MSG_LEN_BYTES: usize = 192;
@@ -128,12 +137,20 @@ mod tests {
 
         let mut builder = DefaultBuilder::new();
 
-        let messages = builder.read::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>();
-        let message_lens = builder.read::<ArrayVariable<U32Variable, NUM_SIGS>>();
         let pkeys = builder.read::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>();
         let signatures = builder.read::<ArrayVariable<EDDSASignatureVariable<FF>, NUM_SIGS>>();
-
-        builder.curta_eddsa_verify_sigs_variable_msg_len(messages, message_lens, signatures, pkeys);
+        let messages = builder.read::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>();
+        if variable_msg_len {
+            let message_lens = builder.read::<ArrayVariable<U32Variable, NUM_SIGS>>();
+            builder.curta_eddsa_verify_sigs_variable_msg_len(
+                messages,
+                message_lens,
+                signatures,
+                pkeys,
+            );
+        } else {
+            builder.curta_eddsa_verify_sigs_constant_msg_len(messages, signatures, pkeys);
+        }
 
         let circuit = builder.build();
 
@@ -146,8 +163,13 @@ mod tests {
         let mut csprng = OsRng;
         for _i in 0..NUM_SIGS {
             // Generate random length
-            let msg_len = rand::thread_rng().gen_range(1..MAX_MSG_LEN_BYTES);
-            test_message_lens.push(msg_len as u32);
+            let msg_len: u32;
+            if variable_msg_len {
+                msg_len = rand::thread_rng().gen_range(1..MAX_MSG_LEN_BYTES) as u32;
+                test_message_lens.push(msg_len);
+            } else {
+                msg_len = MAX_MSG_LEN_BYTES as u32;
+            }
             let mut test_message = Vec::new();
             for _ in 0..msg_len {
                 test_message.push(rand::thread_rng().gen_range(0..255));
@@ -167,10 +189,12 @@ mod tests {
         }
 
         let mut input = circuit.input();
-        input.write::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>(test_messages);
-        input.write::<ArrayVariable<U32Variable, NUM_SIGS>>(test_message_lens);
         input.write::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>(test_pub_keys);
         input.write::<ArrayVariable<EDDSASignatureVariable<FF>, NUM_SIGS>>(test_signatures);
+        input.write::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>(test_messages);
+        if variable_msg_len {
+            input.write::<ArrayVariable<U32Variable, NUM_SIGS>>(test_message_lens);
+        }
 
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
