@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::env;
 
 use backtrace::Backtrace;
+use curta::chip::ec::edwards::ed25519::params::Ed25519ScalarField;
 use curta::machine::hash::sha::sha256::SHA256;
 use curta::machine::hash::sha::sha512::SHA512;
 use ethers::providers::{Http, Middleware, Provider};
@@ -21,6 +22,7 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
+use super::ecc::ed25519::curta::accelerator::EcOpAccelerator;
 use super::hash::blake2::curta::Blake2bAccelerator;
 use super::hash::sha::sha256::curta::SHA256Accelerator;
 use super::hash::sha::sha512::curta::SHA512Accelerator;
@@ -50,6 +52,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
     pub sha256_accelerator: Option<SHA256Accelerator>,
     pub sha512_accelerator: Option<SHA512Accelerator>,
+    pub ec_ops_accelerator: Option<EcOpAccelerator<Ed25519ScalarField>>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
@@ -82,6 +85,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             blake2b_accelerator: None,
             sha256_accelerator: None,
             sha512_accelerator: None,
+            ec_ops_accelerator: None,
         };
 
         if let Ok(rpc_url) = env::var("CONSENSUS_RPC_1") {
@@ -156,6 +160,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let sha512_accelerator = self.sha512_accelerator.clone();
         if let Some(accelerator) = sha512_accelerator {
             self.curta_constrain_sha::<SHA512, 80>(accelerator);
+        }
+
+        let ec_ops_accelerator = self.ec_ops_accelerator.clone();
+        if let Some(accelerator) = ec_ops_accelerator {
+            self.curta_constrain_ec_op::<Ed25519ScalarField>(accelerator);
         }
 
         for (index, gen_ref) in self

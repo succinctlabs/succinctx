@@ -23,25 +23,25 @@ impl<L: PlonkParameters<D>, const D: usize, FF: FieldParameters> Hint<L, D> for 
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let mut result: Option<AffinePoint<Curve>> = None;
         match &self.ec_op {
-            Add => {
+            EcOpRequestType::Add => {
                 let a = input_stream.read_value::<AffinePointVariable<Curve>>();
                 let b = input_stream.read_value::<AffinePointVariable<Curve>>();
                 result = Some(a + b);
             }
-            ScalarMul => {
+            EcOpRequestType::ScalarMul => {
                 let scalar = input_stream.read_value::<NonNativeTarget<FF>>();
                 let point = input_stream.read_value::<AffinePointVariable<Curve>>();
                 result = Some(point.scalar_mul(&scalar));
             }
-            Decompress => {
+            EcOpRequestType::Decompress => {
                 let compressed_point = input_stream.read_value::<CompressedEdwardsYVariable>();
                 result = Some(decompress(&compressed_point));
             }
-            IsValid => {}
+            EcOpRequestType::IsValid => {}
         }
 
-        if result.is_some() {
-            output_stream.write_value::<AffinePointVariable<Curve>>(result.unwrap());
+        if let Some(return_val) = result {
+            output_stream.write_value::<AffinePointVariable<Curve>>(return_val);
         }
     }
 }

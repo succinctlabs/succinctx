@@ -88,13 +88,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let h_biguint = biguint_from_bytes_variable(self, digest);
             let h_scalar = self.api.reduce::<Ed25519ScalarField>(&h_biguint);
 
-            let p1 = self.curta_scalar_mul(signatures[i].s, generator_var);
-            let pubkey_affine = self.curta_decompress(pubkeys[i]);
-            self.curta_is_valid(pubkey_affine);
+            let p1 = self.curta_scalar_mul(signatures[i].s.clone(), generator_var.clone());
+            let pubkey_affine = self.curta_decompress(pubkeys[i].clone());
+            self.curta_is_valid(pubkey_affine.clone());
             let mut p2 = self.curta_scalar_mul(h_scalar, pubkey_affine);
-            let sigr_affine = self.curta_decompress(signatures[i].r);
-            self.curta_is_valid(sigr_affine);
-            let p2 = self.curta_add(sigr_affine, p2);
+            let sigr_affine = self.curta_decompress(signatures[i].r.clone());
+            self.curta_is_valid(sigr_affine.clone());
+            p2 = self.curta_add(sigr_affine, p2);
 
             self.assert_is_equal(p1, p2);
         }
@@ -105,7 +105,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         a: AffinePointVariable<Ed25519>,
         b: AffinePointVariable<Ed25519>,
     ) -> AffinePointVariable<Ed25519> {
-        let request = EcOpRequest::Add(a, b);
+        let request = EcOpRequest::Add(Box::new(a), Box::new(b));
         self.add_ec_ops_request(request).unwrap()
     }
 
@@ -114,7 +114,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         scalar: NonNativeTarget<Ed25519ScalarField>,
         point: AffinePointVariable<Ed25519>,
     ) -> AffinePointVariable<Ed25519> {
-        let request = EcOpRequest::ScalarMul(scalar, point);
+        let request = EcOpRequest::ScalarMul(Box::new(scalar), Box::new(point));
         self.add_ec_ops_request(request).unwrap()
     }
 
@@ -122,12 +122,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         compressed_point: CompressedEdwardsYVariable,
     ) -> AffinePointVariable<Ed25519> {
-        let request = EcOpRequest::Decompress(compressed_point);
+        let request = EcOpRequest::Decompress(Box::new(compressed_point));
         self.add_ec_ops_request(request).unwrap()
     }
 
     pub fn curta_is_valid(&mut self, point: AffinePointVariable<Ed25519>) {
-        let request = EcOpRequest::IsValid(point);
+        let request = EcOpRequest::IsValid(Box::new(point));
         self.add_ec_ops_request(request);
     }
 
@@ -316,7 +316,9 @@ mod tests {
     use num::BigUint;
 
     use crate::frontend::curta::ec::point::CompressedEdwardsYVariable;
-    use crate::frontend::ecc::ed25519::verify::eddsa::EDDSASignatureVariable;
+    use crate::frontend::ecc::ed25519::verify::eddsa::{
+        EDDSASignatureVariable, EDDSASignatureVariableValue,
+    };
     use crate::prelude::{ArrayVariable, BytesVariable, DefaultBuilder, U32Variable};
     use crate::utils;
 

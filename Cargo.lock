@@ -892,7 +892,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/fieldparameters_funcs#92d47f9665f006e86ce248e3e3d142447c556af3"
+source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/fieldparameters_funcs#bb3a57dcdeb30173e3b14e1ed336837718674663"
 dependencies = [
  "anyhow",
  "bincode",

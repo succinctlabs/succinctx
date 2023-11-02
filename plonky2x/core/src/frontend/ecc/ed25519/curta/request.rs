@@ -17,13 +17,13 @@ pub enum EcOpRequestType {
 #[derive(Debug, Clone)]
 pub enum EcOpRequest<E: EllipticCurve, FF: FieldParameters> {
     /// Add
-    Add(AffinePointVariable<E>, AffinePointVariable<E>),
+    Add(Box<AffinePointVariable<E>>, Box<AffinePointVariable<E>>),
     /// Scalar Mul
-    ScalarMul(NonNativeTarget<FF>, AffinePointVariable<E>),
+    ScalarMul(Box<NonNativeTarget<FF>>, Box<AffinePointVariable<E>>),
     /// Decompress
-    Decompress(CompressedEdwardsYVariable),
+    Decompress(Box<CompressedEdwardsYVariable>),
     /// IsValid
-    IsValid(AffinePointVariable<E>),
+    IsValid(Box<AffinePointVariable<E>>),
 }
 
 impl<E: EllipticCurve, FF: FieldParameters> EcOpRequest<E, FF> {

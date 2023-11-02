@@ -24,18 +24,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             match &request {
                 EcOpRequest::Add(a, b) => {
-                    input_stream.write(a);
-                    input_stream.write(b);
+                    input_stream.write(&**a);
+                    input_stream.write(&**b);
                 }
                 EcOpRequest::ScalarMul(scalar, point) => {
-                    input_stream.write(scalar);
-                    input_stream.write(point);
+                    input_stream.write(&**scalar);
+                    input_stream.write(&**point);
                 }
-                EcOpRequest::Decompress(compressedPoint) => {
-                    input_stream.write(compressedPoint);
+                EcOpRequest::Decompress(compressed_point) => {
+                    input_stream.write(&**compressed_point);
                 }
                 EcOpRequest::IsValid(point) => {
-                    input_stream.write(point);
+                    input_stream.write(&**point);
                 }
             }
 
@@ -46,7 +46,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 | EcOpRequest::ScalarMul(_, _)
                 | EcOpRequest::Decompress(_) => {
                     let result = output_stream.read::<AffinePointVariable<Curve>>(self);
-                    self.assert_is_equal(result, response.expect("response should not be None"));
+                    self.assert_is_equal(
+                        result,
+                        response.clone().expect("response should not be None"),
+                    );
                 }
                 EcOpRequest::IsValid(_) => {}
             }
