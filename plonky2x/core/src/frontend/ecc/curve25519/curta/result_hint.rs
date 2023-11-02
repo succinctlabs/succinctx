@@ -9,7 +9,7 @@ use super::request::EcOpRequestType;
 use super::Curve;
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
 use crate::frontend::hint::simple::hint::Hint;
-use crate::frontend::num::nonnative::nonnative::NonNativeTarget;
+use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
 use crate::prelude::{PlonkParameters, ValueStream};
 
 /// Provides the result of a EC operation.
@@ -29,7 +29,7 @@ impl<L: PlonkParameters<D>, const D: usize, FF: FieldParameters> Hint<L, D> for 
                 result = Some(a + b);
             }
             EcOpRequestType::ScalarMul => {
-                let scalar = input_stream.read_value::<NonNativeTarget<FF>>();
+                let scalar = input_stream.read_value::<NonNativeVariable<FF>>();
                 let point = input_stream.read_value::<AffinePointVariable<Curve>>();
                 result = Some(point.scalar_mul(&scalar));
             }

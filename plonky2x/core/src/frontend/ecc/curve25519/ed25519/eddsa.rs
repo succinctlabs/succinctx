@@ -11,7 +11,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
 use crate::frontend::num::biguint::biguint_from_bytes_variable;
-use crate::frontend::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
+use crate::frontend::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeVariable};
 use crate::prelude::{
     ArrayVariable, BoolVariable, BytesVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
     U32Variable, Variable,
@@ -22,7 +22,7 @@ const MAX_NUM_SIGS: usize = 256;
 #[derive(Clone, Debug, CircuitVariable)]
 pub struct EDDSASignatureVariable<FF: FieldParameters> {
     pub r: CompressedEdwardsYVariable,
-    pub s: NonNativeTarget<FF>,
+    pub s: NonNativeVariable<FF>,
 }
 
 // DUMMY_PRIVATE_KEY is [1u8; 32].
@@ -43,7 +43,7 @@ pub const DUMMY_SIGNATURE: [u8; 64] = [
 ];
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    fn get_dummy_targets<const MAX_MSG_BYTE_LENGTH: usize>(
+    fn get_dummy_variables<const MAX_MSG_BYTE_LENGTH: usize>(
         &mut self,
     ) -> (
         CompressedEdwardsYVariable,
@@ -78,7 +78,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
         let (dummy_pub_key, dummy_sig, dummy_msg, dummy_msg_byte_length) =
-            self.get_dummy_targets::<MAX_MSG_LENGTH_BYTES>();
+            self.get_dummy_variables::<MAX_MSG_LENGTH_BYTES>();
 
         let mut msg_vec = Vec::new();
         let mut msg_len_vec = Vec::new();

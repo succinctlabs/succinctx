@@ -3,7 +3,7 @@ use curta::chip::ec::edwards::ed25519::params::{Ed25519, Ed25519ScalarField};
 use super::curta::accelerator::EcOpAccelerator;
 use super::curta::request::{EcOpRequest, EcOpRequestType};
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
-use crate::frontend::num::nonnative::nonnative::NonNativeTarget;
+use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
 use crate::prelude::{CircuitBuilder, PlonkParameters};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
@@ -18,7 +18,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn curta_scalar_mul(
         &mut self,
-        scalar: NonNativeTarget<Ed25519ScalarField>,
+        scalar: NonNativeVariable<Ed25519ScalarField>,
         point: AffinePointVariable<Ed25519>,
     ) -> AffinePointVariable<Ed25519> {
         let request = EcOpRequest::ScalarMul(Box::new(scalar), Box::new(point));

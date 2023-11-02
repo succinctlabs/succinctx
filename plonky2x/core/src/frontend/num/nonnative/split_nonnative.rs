@@ -9,7 +9,7 @@ use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::frontend::num::biguint::BigUintTarget;
-use crate::frontend::num::nonnative::nonnative::NonNativeTarget;
+use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
 use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 
 pub trait CircuitBuilderSplit<F: RichField + Extendable<D>, const D: usize> {
@@ -19,30 +19,30 @@ pub trait CircuitBuilderSplit<F: RichField + Extendable<D>, const D: usize> {
 
     fn split_nonnative_to_16_bit_limbs<FF: FieldParameters>(
         &mut self,
-        val: &NonNativeTarget<FF>,
+        val: &NonNativeVariable<FF>,
     ) -> Vec<Target>;
 
     fn split_nonnative_to_4_bit_limbs<FF: FieldParameters>(
         &mut self,
-        val: &NonNativeTarget<FF>,
+        val: &NonNativeVariable<FF>,
     ) -> Vec<Target>;
 
     fn split_nonnative_to_2_bit_limbs<FF: FieldParameters>(
         &mut self,
-        val: &NonNativeTarget<FF>,
+        val: &NonNativeVariable<FF>,
     ) -> Vec<Target>;
 
     // Note: assumes its inputs are 4-bit limbs, and does not range-check.
     fn recombine_nonnative_4_bit_limbs<FF: FieldParameters>(
         &mut self,
         limbs: Vec<Target>,
-    ) -> NonNativeTarget<FF>;
+    ) -> NonNativeVariable<FF>;
 
     // Note: assumes its inputs are 16-bit limbs, and does not range-check.
     fn recombine_nonnative_16_bit_limbs<FF: FieldParameters>(
         &mut self,
         limbs: Vec<Target>,
-    ) -> NonNativeTarget<FF>;
+    ) -> NonNativeVariable<FF>;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
@@ -73,7 +73,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
 
     fn split_nonnative_to_16_bit_limbs<FF: FieldParameters>(
         &mut self,
-        val: &NonNativeTarget<FF>,
+        val: &NonNativeVariable<FF>,
     ) -> Vec<Target> {
         val.value
             .limbs
@@ -84,7 +84,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
 
     fn split_nonnative_to_4_bit_limbs<FF: FieldParameters>(
         &mut self,
-        val: &NonNativeTarget<FF>,
+        val: &NonNativeVariable<FF>,
     ) -> Vec<Target> {
         val.value
             .limbs
@@ -95,7 +95,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
 
     fn split_nonnative_to_2_bit_limbs<FF: FieldParameters>(
         &mut self,
-        val: &NonNativeTarget<FF>,
+        val: &NonNativeVariable<FF>,
     ) -> Vec<Target> {
         val.value
             .limbs
@@ -108,7 +108,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
     fn recombine_nonnative_4_bit_limbs<FF: FieldParameters>(
         &mut self,
         limbs: Vec<Target>,
-    ) -> NonNativeTarget<FF> {
+    ) -> NonNativeVariable<FF> {
         let base = self.constant_u32(1 << 4);
         let u32_limbs = limbs
             .chunks(8)
@@ -127,7 +127,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
             })
             .collect();
 
-        NonNativeTarget {
+        NonNativeVariable {
             value: BigUintTarget { limbs: u32_limbs },
             _phantom: PhantomData,
         }
@@ -137,7 +137,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
     fn recombine_nonnative_16_bit_limbs<FF: FieldParameters>(
         &mut self,
         limbs: Vec<Target>,
-    ) -> NonNativeTarget<FF> {
+    ) -> NonNativeVariable<FF> {
         let base = self.constant_u32(1 << 16);
         let u32_limbs = limbs
             .chunks(2)
@@ -156,7 +156,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderSplit<F, D>
             })
             .collect();
 
-        NonNativeTarget {
+        NonNativeVariable {
             value: BigUintTarget { limbs: u32_limbs },
             _phantom: PhantomData,
         }

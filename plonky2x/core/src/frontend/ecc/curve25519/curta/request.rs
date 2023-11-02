@@ -3,7 +3,7 @@ use curta::chip::field::parameters::FieldParameters;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
-use crate::frontend::num::nonnative::nonnative::NonNativeTarget;
+use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum EcOpRequestType {
@@ -19,7 +19,7 @@ pub enum EcOpRequest<E: EllipticCurve, FF: FieldParameters> {
     /// Add
     Add(Box<AffinePointVariable<E>>, Box<AffinePointVariable<E>>),
     /// Scalar Mul
-    ScalarMul(Box<NonNativeTarget<FF>>, Box<AffinePointVariable<E>>),
+    ScalarMul(Box<NonNativeVariable<FF>>, Box<AffinePointVariable<E>>),
     /// Decompress
     Decompress(Box<CompressedEdwardsYVariable>),
     /// IsValid
