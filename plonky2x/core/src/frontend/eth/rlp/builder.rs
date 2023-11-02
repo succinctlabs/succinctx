@@ -193,6 +193,9 @@ pub fn verify_decoded_list<const M: usize>(
 
     let mut size_accumulator: u32 = 0;
     let mut claim_poly = BigInt::default();
+    // TODO: I don't think this correctly handles the padded 0's. For instance, a node could have
+    // only two strings. If the remaining 15 strings are 0's, this still adds the `poly` to the
+    // accumulator.
     for i in 0..MAX_NODE_SIZE {
         let (prefix_byte, rlp_encoding_length) = calculate_rlp_encode_metadata(node[i], lens[i]);
         let mut poly = prefix_byte.to_bigint().unwrap() * random.pow(size_accumulator);
