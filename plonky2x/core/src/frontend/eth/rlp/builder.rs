@@ -187,7 +187,9 @@ fn calculate_rlp_encode_metadata(padded_string: FixedSizeString, len: usize) -> 
 pub fn verify_decoded_list<const M: usize>(
     node: FixedSizeMPTNode,
     lens: FixedSizeStringLengths,
+    node_len: usize,
     encoding: [u8; M],
+    encoding_len: usize,
 ) {
     let random = 1000_i32.to_bigint().unwrap();
 
@@ -202,10 +204,10 @@ pub fn verify_decoded_list<const M: usize>(
         for j in 0..MAX_STRING_SIZE {
             poly += node[i][j] as u32
                 * (random.pow(1 + size_accumulator + j as u32))
-                * bool_to_u32(j <= lens[i]);
+                * bool_to_u32(j < lens[i]);
         }
-        size_accumulator += rlp_encoding_length;
-        claim_poly += poly;
+        size_accumulator += rlp_encoding_length * bool_to_u32(i < node_len);
+        claim_poly += poly * bool_to_u32(i < node_len);
     }
     // claim_poly += 0xf9 * random.pow(size_accumulator);
     // claim_poly += (size_accumulator / 16) * random.pow(size_accumulator + 1);
@@ -215,9 +217,8 @@ pub fn verify_decoded_list<const M: usize>(
     for i in 3..M {
         // TODO: don't hardcode 3 here
         let idx = i - 3;
-        encoding_poly += encoding[i] as u32
-            * (random.pow(idx as u32))
-            * bool_to_u32(idx < size_accumulator as usize);
+        encoding_poly +=
+            encoding[i] as u32 * (random.pow(idx as u32)) * bool_to_u32(idx < encoding_len);
     }
     // encoding_poly += encoding[0] * random.pow(size_accumulator);
     // encoding_poly += encoding[1] * random.pow(size_accumulator + 1);
@@ -335,7 +336,9 @@ mod tests {
         verify_decoded_list::<MAX_SIZE>(
             decoded_node_fixed_size,
             string_lengths_fixed_size,
+            17,
             encoding_fixed_size,
+            rlp_encoding.len(),
         );
     }
 
@@ -371,7 +374,9 @@ mod tests {
             verify_decoded_list::<MAX_SIZE>(
                 decoded_node_fixed_size,
                 string_lengths_fixed_size,
+                17,
                 encoding_fixed_size,
+                rlp_encoding.len(),
             );
         });
         assert!(result.is_err());
