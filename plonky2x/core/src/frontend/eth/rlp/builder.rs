@@ -17,11 +17,16 @@ use crate::prelude::{
 const MAX_STRING_SIZE: usize = 32;
 type FixedSizeString = [u8; MAX_STRING_SIZE];
 
-/// This represents a node in a MPT, potentiall padded. This could be a null, branch, leaf, or
-/// extension node. Note that a nested list (when a small node is referenced inside node) isn't
-/// decoded.
+/// This represents a node in a MPT, potentially padded. This could be a null, branch, leaf, or
+/// extension node. Note that a nested list (when a small node is referenced inside node), if any,
+/// isn't decoded.
 const MAX_NODE_SIZE: usize = 17;
 type FixedSizeMPTNode = [FixedSizeString; MAX_NODE_SIZE];
+
+/// This represents the length of each string in a node, potentially padded Since each
+/// FixedSizeString in FixedSizeString is padded, we need to keep track of the "true" length of each
+/// string.
+type FixedSizeStringLengths = [usize; MAX_NODE_SIZE];
 
 pub fn bool_to_u32(b: bool) -> u32 {
     if b {
@@ -136,7 +141,7 @@ pub fn decode_element_as_list<
     )
 }
 
-fn parse_list_element(element: [u8; 32], len: u8) -> (u32, u32) {
+fn parse_list_element(element: [u8; 32], len: usize) -> (u32, u32) {
     let prefix = element[0];
     if len == 0 {
         (0x80, 0)
@@ -153,20 +158,20 @@ fn parse_list_element(element: [u8; 32], len: u8) -> (u32, u32) {
 }
 
 // This is the vanilla implementation of the RLC trick for verifying the decoded_list
-pub fn verify_decoded_list<const L: usize, const M: usize>(
-    list: [[u8; 32]; L],
-    lens: [u8; L],
+pub fn verify_decoded_list<const M: usize>(
+    node: FixedSizeMPTNode,
+    lens: FixedSizeStringLengths,
     encoding: [u8; M],
 ) {
     let random = 1000_i32.to_bigint().unwrap();
 
     let mut size_accumulator: u32 = 0;
     let mut claim_poly = BigInt::default();
-    for i in 0..L {
-        let (start_byte, list_len) = parse_list_element(list[i], lens[i]);
+    for i in 0..MAX_NODE_SIZE {
+        let (start_byte, list_len) = parse_list_element(node[i], lens[i]);
         let mut poly = start_byte.to_bigint().unwrap() * random.pow(size_accumulator);
-        for j in 0..32 {
-            poly += list[i][j] as u32
+        for j in 0..MAX_STRING_SIZE {
+            poly += node[i][j] as u32
                 * (random.pow(1 + size_accumulator + j as u32))
                 * bool_to_u32(j as u32 <= list_len);
         }
@@ -273,24 +278,24 @@ mod tests {
 
         let decoded_list = rlp_decode_list_2_or_17(&rlp_encoding);
         assert!(decoded_list.len() == 17);
-        let element_lengths = decoded_list
+        let string_lengths = decoded_list
             .iter()
             .map(|item| item.len() as u8)
             .collect::<Vec<u8>>();
 
-        let mut decoded_list_fixed_size = [[0u8; 32]; 17];
-        let mut element_lengths_fixed_size = [0u8; 17];
+        let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_STRING_SIZE]; MAX_NODE_SIZE];
+        let mut string_lengths_fixed_size: FixedSizeStringLengths = [0 as usize; 17];
         for (i, item) in decoded_list.iter().enumerate() {
             let len = item.len();
             assert!(len <= 32, "The nested vector is longer than 32 bytes!");
-            decoded_list_fixed_size[i][..len].copy_from_slice(item);
-            element_lengths_fixed_size[i] = element_lengths[i] as u8;
+            decoded_node_fixed_size[i][..len].copy_from_slice(item);
+            string_lengths_fixed_size[i] = string_lengths[i] as usize;
         }
 
         // TODO: move below to a different test
-        verify_decoded_list::<17, MAX_SIZE>(
-            decoded_list_fixed_size,
-            element_lengths_fixed_size,
+        verify_decoded_list::<MAX_SIZE>(
+            decoded_node_fixed_size,
+            string_lengths_fixed_size,
             encoding_fixed_size,
         );
     }
