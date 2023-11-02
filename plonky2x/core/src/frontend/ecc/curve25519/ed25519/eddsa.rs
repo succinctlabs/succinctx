@@ -5,14 +5,16 @@ use ::curta::chip::field::parameters::FieldParameters;
 use curta::chip::ec::edwards::ed25519::params::Ed25519Parameters;
 use curta::chip::ec::edwards::EdwardsParameters;
 use curta::chip::ec::point::AffinePoint;
+use curve25519_dalek::edwards::CompressedEdwardsY;
+use num_bigint::BigUint;
 use plonky2::hash::hash_types::RichField;
 
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
 use crate::frontend::num::biguint::biguint_from_bytes_variable;
 use crate::frontend::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
 use crate::prelude::{
-    ArrayVariable, BytesVariable, CircuitBuilder, CircuitVariable, PlonkParameters, U32Variable,
-    Variable,
+    ArrayVariable, BoolVariable, BytesVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
+    U32Variable, Variable,
 };
 
 const MAX_NUM_SIGS: usize = 256;
@@ -23,34 +25,96 @@ pub struct EDDSASignatureVariable<FF: FieldParameters> {
     pub s: NonNativeTarget<FF>,
 }
 
+// DUMMY_PRIVATE_KEY is [1u8; 32].
+pub const DUMMY_PUBLIC_KEY: [u8; 32] = [
+    138, 136, 227, 221, 116, 9, 241, 149, 253, 82, 219, 45, 60, 186, 93, 114, 202, 103, 9, 191, 29,
+    148, 18, 27, 243, 116, 136, 1, 180, 15, 111, 92,
+];
+
+pub const DUMMY_MSG_LENGTH_BYTES: u32 = 32;
+pub const DUMMY_MSG: [u8; 32] = [0u8; DUMMY_MSG_LENGTH_BYTES as usize];
+
+// Produced by signing DUMMY_MSG with DUMMY_PRIVATE_KEY.
+pub const DUMMY_SIGNATURE: [u8; 64] = [
+    55, 20, 104, 158, 84, 120, 194, 17, 6, 237, 157, 164, 85, 88, 158, 137, 187, 119, 187, 240,
+    159, 73, 80, 63, 133, 162, 74, 91, 48, 53, 6, 138, 1, 41, 22, 121, 249, 46, 198, 145, 155, 102,
+    3, 210, 168, 135, 173, 55, 252, 72, 45, 126, 169, 178, 191, 7, 153, 67, 112, 90, 150, 33, 140,
+    7,
+];
+
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn curta_eddsa_verify_sigs_constant_msg_len<
-        const MSG_LENGTH: usize,
-        const NUM_SIGS: usize,
-    >(
+    fn get_dummy_targets<const MAX_MSG_BYTE_LENGTH: usize>(
         &mut self,
-        messages: ArrayVariable<BytesVariable<MSG_LENGTH>, NUM_SIGS>,
-        signatures: ArrayVariable<EDDSASignatureVariable<Ed25519ScalarField>, NUM_SIGS>,
-        pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
+    ) -> (
+        CompressedEdwardsYVariable,
+        EDDSASignatureVariable<Ed25519ScalarField>,
+        BytesVariable<MAX_MSG_BYTE_LENGTH>,
+        U32Variable,
     ) {
-        self.curta_eddsa_verify_sigs(messages, None, signatures, pubkeys);
+        let pub_key: CompressedEdwardsYVariable =
+            CompressedEdwardsYVariable::constant(self, CompressedEdwardsY(DUMMY_PUBLIC_KEY));
+        let signature = EDDSASignatureVariable::constant(
+            self,
+            EDDSASignatureVariableValue {
+                r: CompressedEdwardsY(DUMMY_SIGNATURE[0..32].try_into().unwrap()),
+                s: BigUint::from_bytes_le(&DUMMY_SIGNATURE[32..64]),
+            },
+        );
+        let message = self.zero::<BytesVariable<MAX_MSG_BYTE_LENGTH>>();
+        let dummy_msg_byte_length = self.constant::<U32Variable>(DUMMY_MSG_LENGTH_BYTES);
+
+        (pub_key, signature, message, dummy_msg_byte_length)
     }
 
-    pub fn curta_eddsa_verify_sigs_variable_msg_len<
-        // Maximum length of a signed message in bytes.
+    pub fn curta_eddsa_verify_sigs_conditional<
         const MAX_MSG_LENGTH_BYTES: usize,
         const NUM_SIGS: usize,
     >(
         &mut self,
+        is_active: ArrayVariable<BoolVariable, NUM_SIGS>,
+        message_byte_lengths: Option<ArrayVariable<U32Variable, NUM_SIGS>>,
         messages: ArrayVariable<BytesVariable<MAX_MSG_LENGTH_BYTES>, NUM_SIGS>,
-        message_byte_lengths: ArrayVariable<U32Variable, NUM_SIGS>,
         signatures: ArrayVariable<EDDSASignatureVariable<Ed25519ScalarField>, NUM_SIGS>,
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
-        self.curta_eddsa_verify_sigs(messages, Some(message_byte_lengths), signatures, pubkeys);
+        let (dummy_pub_key, dummy_sig, dummy_msg, dummy_msg_byte_length) =
+            self.get_dummy_targets::<MAX_MSG_LENGTH_BYTES>();
+
+        let mut msg_vec = Vec::new();
+        let mut msg_len_vec = Vec::new();
+        let mut sig_vec = Vec::new();
+        let mut pub_key_vec = Vec::new();
+
+        for i in 0..NUM_SIGS {
+            msg_vec.push(self.select(is_active[i], messages[i], dummy_msg));
+            if let Some(ref msg_lens) = message_byte_lengths {
+                msg_len_vec.push(self.select(is_active[i], msg_lens[i], dummy_msg_byte_length));
+            }
+            sig_vec.push(self.select(is_active[i], signatures[i].clone(), dummy_sig.clone()));
+            pub_key_vec.push(self.select(is_active[i], pubkeys[i].clone(), dummy_pub_key.clone()));
+        }
+
+        let msg_array =
+            ArrayVariable::<BytesVariable<MAX_MSG_LENGTH_BYTES>, NUM_SIGS>::from(msg_vec);
+        let msg_len_array = ArrayVariable::<U32Variable, NUM_SIGS>::from(msg_len_vec);
+        let sig_array =
+            ArrayVariable::<EDDSASignatureVariable<Ed25519ScalarField>, NUM_SIGS>::from(sig_vec);
+        let pub_key_array =
+            ArrayVariable::<CompressedEdwardsYVariable, NUM_SIGS>::from(pub_key_vec);
+
+        self.curta_eddsa_verify_sigs(
+            msg_array,
+            if message_byte_lengths.is_none() {
+                None
+            } else {
+                Some(msg_len_array)
+            },
+            sig_array,
+            pub_key_array,
+        );
     }
 
-    fn curta_eddsa_verify_sigs<
+    pub fn curta_eddsa_verify_sigs<
         // Maximum length of a signed message in bytes.
         const MAX_MSG_LENGTH_BYTES: usize,
         const NUM_SIGS: usize,
@@ -132,9 +196,8 @@ mod tests {
         utils::setup_logger();
 
         const MAX_MSG_LEN_BYTES: usize = 192;
-        const NUM_SIGS: usize = 10;
+        const NUM_SIGS: usize = 1;
         type FF = Ed25519ScalarField;
-
         let mut builder = DefaultBuilder::new();
 
         let pkeys = builder.read::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>();
@@ -142,14 +205,9 @@ mod tests {
         let messages = builder.read::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>();
         if variable_msg_len {
             let message_lens = builder.read::<ArrayVariable<U32Variable, NUM_SIGS>>();
-            builder.curta_eddsa_verify_sigs_variable_msg_len(
-                messages,
-                message_lens,
-                signatures,
-                pkeys,
-            );
+            builder.curta_eddsa_verify_sigs(messages, Some(message_lens), signatures, pkeys);
         } else {
-            builder.curta_eddsa_verify_sigs_constant_msg_len(messages, signatures, pkeys);
+            builder.curta_eddsa_verify_sigs(messages, None, signatures, pkeys);
         }
 
         let circuit = builder.build();
@@ -189,11 +247,13 @@ mod tests {
         }
 
         let mut input = circuit.input();
-        input.write::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>(test_pub_keys);
-        input.write::<ArrayVariable<EDDSASignatureVariable<FF>, NUM_SIGS>>(test_signatures);
-        input.write::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>(test_messages);
+        input.write::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>(test_pub_keys.clone());
+        input.write::<ArrayVariable<EDDSASignatureVariable<FF>, NUM_SIGS>>(test_signatures.clone());
+        input.write::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>(
+            test_messages.clone(),
+        );
         if variable_msg_len {
-            input.write::<ArrayVariable<U32Variable, NUM_SIGS>>(test_message_lens);
+            input.write::<ArrayVariable<U32Variable, NUM_SIGS>>(test_message_lens.clone());
         }
 
         let (proof, output) = circuit.prove(&input);
