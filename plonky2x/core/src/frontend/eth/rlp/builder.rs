@@ -12,6 +12,17 @@ use crate::prelude::{
     Variable, VariableStream,
 };
 
+/// Byte array of at most 32 bytes, potentially padded. This could be a hash,
+/// rlp.encode(branch node), rlp.encode(leaf node), or rlp.encode(extension node) under the hood.
+const MAX_STRING_SIZE: usize = 32;
+type FixedSizeString = [u8; MAX_STRING_SIZE];
+
+/// This represents a node in a MPT, potentiall padded. This could be a null, branch, leaf, or
+/// extension node. Note that a nested list (when a small node is referenced inside node) isn't
+/// decoded.
+const MAX_NODE_SIZE: usize = 17;
+type FixedSizeMPTNode = [FixedSizeString; MAX_NODE_SIZE];
+
 pub fn bool_to_u32(b: bool) -> u32 {
     if b {
         1
