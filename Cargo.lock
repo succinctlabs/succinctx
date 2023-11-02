@@ -2910,7 +2910,7 @@ checksum = "14e6ab3f592e6fb464fc9712d8d6e6912de6473954635fd76a589d832cffcbb0"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/mir-protocol/plonky2.git#1e8ed78f5afd2df49666f9efed1f9038c2a077ca"
+source = "git+https://github.com/mir-protocol/plonky2.git#f71f227d3ca8ac6da62ff3748a2279dc4fd23c77"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2934,7 +2934,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#1e8ed78f5afd2df49666f9efed1f9038c2a077ca"
+source = "git+https://github.com/mir-protocol/plonky2.git#f71f227d3ca8ac6da62ff3748a2279dc4fd23c77"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2958,7 +2958,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#1e8ed78f5afd2df49666f9efed1f9038c2a077ca"
+source = "git+https://github.com/mir-protocol/plonky2.git#f71f227d3ca8ac6da62ff3748a2279dc4fd23c77"
 dependencies = [
  "rayon",
 ]
@@ -2966,7 +2966,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#1e8ed78f5afd2df49666f9efed1f9038c2a077ca"
+source = "git+https://github.com/mir-protocol/plonky2.git#f71f227d3ca8ac6da62ff3748a2279dc4fd23c77"
 
 [[package]]
 name = "plonky2x"
@@ -4834,18 +4834,18 @@ checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
 
 [[package]]
 name = "zerocopy"
-version = "0.7.21"
+version = "0.7.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "686b7e407015242119c33dab17b8f61ba6843534de936d94368856528eae4dcc"
+checksum = "e50cbb27c30666a6108abd6bc7577556265b44f243e2be89a8bc4e07a528c107"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.7.21"
+version = "0.7.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "020f3dfe25dfc38dfea49ce62d5d45ecdd7f0d8a724fa63eb36b6eba4ec76806"
+checksum = "a25f293fe55f0a48e7010d65552bb63704f6ceb55a1a385da10d41d8f78e4a3d"
 dependencies = [
  "proc-macro2",
  "quote",
