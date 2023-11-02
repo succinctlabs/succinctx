@@ -207,6 +207,9 @@ pub fn verify_decoded_list<const M: usize>(
         size_accumulator += rlp_encoding_length;
         claim_poly += poly;
     }
+    // claim_poly += 0xf9 * random.pow(size_accumulator);
+    // claim_poly += (size_accumulator / 16) * random.pow(size_accumulator + 1);
+    // claim_poly += (size_accumulator % 16) * random.pow(size_accumulator + 2);
 
     let mut encoding_poly = BigInt::default();
     for i in 3..M {
@@ -216,7 +219,14 @@ pub fn verify_decoded_list<const M: usize>(
             * (random.pow(idx as u32))
             * bool_to_u32(idx < size_accumulator as usize);
     }
+    // encoding_poly += encoding[0] * random.pow(size_accumulator);
+    // encoding_poly += encoding[1] * random.pow(size_accumulator + 1);
+    // encoding_poly += encoding[2] * random.pow(size_accumulator + 2);
 
+    println!(
+        "encoding[0] = {}, encoding[1] = {}, encoding[2] = {}, size_accumulator = {}, size_accumulator / 16 = {}, size_accumulator % 16 = {}",
+        encoding[0], encoding[1], encoding[2], size_accumulator, size_accumulator / 16, size_accumulator % 16
+    );
     println!(
         "claim_poly = {}, encoding_poly = {}",
         claim_poly, encoding_poly
@@ -329,8 +339,6 @@ mod tests {
         );
     }
 
-    /// TODO: Change this to a test that checks that the verification fails.  For now, the expected
-    /// outcome of this test is that it fails.
     #[test]
     fn test_decode_element_as_list_wrong_prefix() {
         const MAX_SIZE: usize = 17 * 32 + 20;
@@ -359,11 +367,14 @@ mod tests {
         println!("encoding_fixed_size[0] is now {}", encoding_fixed_size[0]);
 
         // This should NOT pass.
-        verify_decoded_list::<MAX_SIZE>(
-            decoded_node_fixed_size,
-            string_lengths_fixed_size,
-            encoding_fixed_size,
-        );
+        let result = std::panic::catch_unwind(|| {
+            verify_decoded_list::<MAX_SIZE>(
+                decoded_node_fixed_size,
+                string_lengths_fixed_size,
+                encoding_fixed_size,
+            );
+        });
+        assert!(result.is_err());
     }
 
     #[test]
