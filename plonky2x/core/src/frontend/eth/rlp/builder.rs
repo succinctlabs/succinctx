@@ -12,7 +12,7 @@ use crate::prelude::{
     Variable, VariableStream,
 };
 
-/// Byte array of at most 32 bytes, potentially padded. This could be a hash,
+/// Byte array of at most 32 bytes, potentially padded. This could be a hash, value,
 /// rlp.encode(branch node), rlp.encode(leaf node), or rlp.encode(extension node) under the hood.
 const MAX_STRING_SIZE: usize = 32;
 type FixedSizeString = [u8; MAX_STRING_SIZE];
@@ -39,7 +39,7 @@ pub fn bool_to_u32(b: bool) -> u32 {
 /// This decodes the next byte string contained in the input. It also returns the number of bytes we
 /// processed. This is useful for decoding the next string.
 pub fn rlp_decode_next_string(input: &[u8]) -> (Vec<u8>, usize) {
-    if input.len() == 0 {
+    if input.is_empty() {
         panic!("input cannot be empty")
     }
     let prefix = input[0];
@@ -68,6 +68,10 @@ pub fn rlp_decode_next_string(input: &[u8]) -> (Vec<u8>, usize) {
             1 + len_of_str_len + str_len,
         );
     } else {
+        // TODO: In some cases, a MPT node may be a nested list. So, this is not necessarily an
+        // error. "When one node is referenced inside another node, what is included is
+        // H(rlp.encode(x)), where H(x) = keccak256(x) if len(x) >= 32 else x and rlp.encode is the
+        // RLP encoding function."
         info!("input {:?}", input);
         panic!("Prefix indicates this is a list, but we expect a string")
     }
