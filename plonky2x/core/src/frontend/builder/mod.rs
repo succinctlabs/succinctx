@@ -52,7 +52,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
     pub sha256_accelerator: Option<SHA256Accelerator>,
     pub sha512_accelerator: Option<SHA512Accelerator>,
-    pub ec_ops_accelerator: Option<EcOpAccelerator<Ed25519ScalarField>>,
+    pub ec_25519_ops_accelerator: Option<EcOpAccelerator<Ed25519ScalarField>>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
@@ -85,7 +85,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             blake2b_accelerator: None,
             sha256_accelerator: None,
             sha512_accelerator: None,
-            ec_ops_accelerator: None,
+            ec_25519_ops_accelerator: None,
         };
 
         if let Ok(rpc_url) = env::var("CONSENSUS_RPC_1") {
@@ -162,7 +162,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             self.curta_constrain_sha::<SHA512, 80>(accelerator);
         }
 
-        let ec_ops_accelerator = self.ec_ops_accelerator.clone();
+        let ec_ops_accelerator = self.ec_25519_ops_accelerator.clone();
         if let Some(accelerator) = ec_ops_accelerator {
             self.curta_constrain_ec_op::<Ed25519ScalarField>(accelerator);
         }

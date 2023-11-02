@@ -171,13 +171,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let h_biguint = biguint_from_bytes_variable(self, digest);
             let h_scalar = self.api.reduce::<Ed25519ScalarField>(&h_biguint);
 
-            let p1 = self.curta_scalar_mul(signatures[i].s.clone(), generator_var.clone());
-            let pubkey_affine = self.curta_decompress(pubkeys[i].clone());
-            self.curta_is_valid(pubkey_affine.clone());
-            let mut p2 = self.curta_scalar_mul(h_scalar, pubkey_affine);
-            let sigr_affine = self.curta_decompress(signatures[i].r.clone());
-            self.curta_is_valid(sigr_affine.clone());
-            p2 = self.curta_add(sigr_affine, p2);
+            let p1 = self.curta_25519_scalar_mul(signatures[i].s.clone(), generator_var.clone());
+            let pubkey_affine = self.curta_25519_decompress(pubkeys[i].clone());
+            self.curta_25519_is_valid(pubkey_affine.clone());
+            let mut p2 = self.curta_25519_scalar_mul(h_scalar, pubkey_affine);
+            let sigr_affine = self.curta_25519_decompress(signatures[i].r.clone());
+            self.curta_25519_is_valid(sigr_affine.clone());
+            p2 = self.curta_25519_add(sigr_affine, p2);
 
             self.assert_is_equal(p1, p2);
         }
