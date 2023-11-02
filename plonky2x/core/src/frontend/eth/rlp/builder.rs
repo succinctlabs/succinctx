@@ -164,8 +164,11 @@ pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
     )
 }
 
-fn parse_list_element(element: [u8; 32], len: usize) -> (u32, u32) {
-    let prefix = element[0];
+/// This calculates the prefix and the length of the body if we were to RLP-encode the given string.
+/// More specifically, this calculates the prefix and the length in bytes of
+/// rlp_encode(padded_string[]
+fn parse_string(padded_string: FixedSizeString, len: usize) -> (u32, u32) {
+    let prefix = padded_string[0];
     if len == 0 {
         (0x80, 0)
     } else if len == 1 && prefix <= 0x7F {
@@ -191,14 +194,14 @@ pub fn verify_decoded_list<const M: usize>(
     let mut size_accumulator: u32 = 0;
     let mut claim_poly = BigInt::default();
     for i in 0..MAX_NODE_SIZE {
-        let (start_byte, list_len) = parse_list_element(node[i], lens[i]);
-        let mut poly = start_byte.to_bigint().unwrap() * random.pow(size_accumulator);
+        let (prefix_byte, string_body_length) = parse_string(node[i], lens[i]);
+        let mut poly = prefix_byte.to_bigint().unwrap() * random.pow(size_accumulator);
         for j in 0..MAX_STRING_SIZE {
             poly += node[i][j] as u32
                 * (random.pow(1 + size_accumulator + j as u32))
-                * bool_to_u32(j as u32 <= list_len);
+                * bool_to_u32(j as u32 <= string_body_length);
         }
-        size_accumulator += 1 + list_len;
+        size_accumulator += 1 + string_body_length;
         claim_poly += poly;
     }
 
@@ -211,6 +214,10 @@ pub fn verify_decoded_list<const M: usize>(
             * bool_to_u32(idx < size_accumulator as usize);
     }
 
+    println!(
+        "claim_poly = {}, encoding_poly = {}",
+        claim_poly, encoding_poly
+    );
     assert!(claim_poly == encoding_poly);
 }
 
