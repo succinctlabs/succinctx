@@ -66,6 +66,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         (pub_key, signature, message, dummy_msg_byte_length)
     }
 
+    /// This function will verify a set of eddsa signatures.  It also contains a BoolVariable array
+    /// bitmask ("is_active") that will specify which signatures should be verified.
     pub fn curta_eddsa_verify_sigs_conditional<
         const MAX_MSG_LENGTH_BYTES: usize,
         const NUM_SIGS: usize,
@@ -77,6 +79,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         signatures: ArrayVariable<EDDSASignatureVariable<Ed25519ScalarField>, NUM_SIGS>,
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
+        assert!(NUM_SIGS > 0 && NUM_SIGS <= MAX_NUM_SIGS);
+        assert!(is_active.len() == NUM_SIGS);
+        assert!(messages.len() == NUM_SIGS);
+        if let Some(ref msg_lens) = message_byte_lengths {
+            assert!(msg_lens.len() == NUM_SIGS);
+        }
+        assert!(signatures.len() == NUM_SIGS);
+        assert!(pubkeys.len() == NUM_SIGS);
+
         let (dummy_pub_key, dummy_sig, dummy_msg, dummy_msg_byte_length) =
             self.get_dummy_variables::<MAX_MSG_LENGTH_BYTES>();
 
@@ -114,6 +125,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         );
     }
 
+    /// This function will verify a set of eddsa signatures.
     pub fn curta_eddsa_verify_sigs<
         // Maximum length of a signed message in bytes.
         const MAX_MSG_LENGTH_BYTES: usize,
@@ -126,6 +138,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
         assert!(NUM_SIGS > 0 && NUM_SIGS <= MAX_NUM_SIGS);
+        assert!(messages.len() == NUM_SIGS);
+        if let Some(ref msg_lens) = message_byte_lengths {
+            assert!(msg_lens.len() == NUM_SIGS);
+        }
+        assert!(signatures.len() == NUM_SIGS);
+        assert!(pubkeys.len() == NUM_SIGS);
 
         let (generator_x, generator_y) = Ed25519Parameters::generator();
         let generator_affine = AffinePoint::new(generator_x, generator_y);
