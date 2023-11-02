@@ -380,6 +380,8 @@ mod tests {
         }
 
         println!("encoding_fixed_size[0] = {}", encoding_fixed_size[0]);
+        // Change the prefix of the rlp encoding. We want verify_decoded_list to detect it and fail
+        // even if the remaining encoding is correct.
         encoding_fixed_size[0] = 0x80;
         println!("encoding_fixed_size[0] is now {}", encoding_fixed_size[0]);
 
