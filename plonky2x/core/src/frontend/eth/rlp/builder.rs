@@ -35,20 +35,27 @@ pub fn bool_to_u32(b: bool) -> u32 {
         0
     }
 }
-// Note this only decodes bytes and doesn't support long strings
-pub fn rlp_decode_bytes(input: &[u8]) -> (Vec<u8>, usize) {
+
+/// This decodes the next byte string contained in the input. It also returns the number of bytes we
+/// processed. This is useful for decoding the next string.
+pub fn rlp_decode_next_string(input: &[u8]) -> (Vec<u8>, usize) {
+    if input.len() == 0 {
+        panic!("input cannot be empty")
+    }
     let prefix = input[0];
     if prefix <= 0x7F {
+        // The prefix indicateas that the byte is its own RLP encoding.
         (vec![prefix], 1)
     } else if prefix == 0x80 {
-        (vec![], 1) // null value
+        // This is the null value. In other words, the empty string.
+        (vec![], 1)
     } else if prefix <= 0xB7 {
-        // Short string (0-55 bytes length)
+        // Prefix indicates short string containing up to 55 bytes.
         let length = (prefix - 0x80) as usize;
         let res = &input[1..1 + length];
         (res.into(), 1 + length)
     } else if prefix <= 0xBF {
-        // Long string (more than 55 bytes length)
+        // Prefix indicates long string containing more than 55 bytes.
         let len_of_str_len = (prefix - 0xB7) as usize;
         let mut str_len_bytes: Vec<u8> = input[1..1 + len_of_str_len].to_vec();
         str_len_bytes.reverse();
@@ -62,21 +69,23 @@ pub fn rlp_decode_bytes(input: &[u8]) -> (Vec<u8>, usize) {
         );
     } else {
         info!("input {:?}", input);
-        panic!("Invalid prefix rlp_decode_bytes")
+        panic!("Prefix indicates this is a list, but we expect a string")
     }
 }
 
-pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
+pub fn rlp_decode_mpt_node(input: &[u8]) -> Vec<Vec<u8>> {
     info!("input {:?}", Bytes::from(input.to_vec()).to_string());
     let prefix = input[0];
 
-    // Short list (0-55 bytes total payload)
-    if prefix <= 0xF7 {
+    if prefix < 0xC0 {
+        panic!("Invalid prefix, MPT node must be a list")
+    } else if prefix <= 0xF7 {
+        // Short list (0-55 bytes total payload)
         let list_length = (prefix - 0xC0) as usize;
         // We assert that the input is simply [list_length, list_content...] and not suffixed by anything else
         assert!(input.len() == 1 + list_length);
-        let (ele_1, increment) = rlp_decode_bytes(&input[1..]);
-        let (ele_2, _) = rlp_decode_bytes(&input[1 + increment..]);
+        let (ele_1, increment) = rlp_decode_next_string(&input[1..]);
+        let (ele_2, _) = rlp_decode_next_string(&input[1 + increment..]);
         vec![ele_1, ele_2]
     } else {
         info!("hi in this case");
@@ -87,12 +96,15 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
         let mut pos = 1 + len_of_list_length as usize;
         let mut res = vec![];
         for _ in 0..17 {
-            let (ele, increment) = rlp_decode_bytes(&input[pos..]);
-            info!("ele {:?}", Bytes::from(ele.clone()).to_string());
-            info!("increment {:?}", increment);
-            res.push(ele);
-            pos += increment;
-            if pos == input.len() {
+            let (decoded_string, num_bytes_processed) = rlp_decode_next_string(&input[pos..]);
+            info!(
+                "decoded_string {:?}",
+                Bytes::from(decoded_string.clone()).to_string()
+            );
+            info!("{:?} bytes processed", num_bytes_processed);
+            res.push(decoded_string);
+            pos += num_bytes_processed;
+            if pos >= input.len() {
                 break;
             }
         }
@@ -104,11 +116,18 @@ pub fn rlp_decode_list_2_or_17(input: &[u8]) -> Vec<Vec<u8>> {
 }
 
 /// Given `encoded` which is a RLP-encoded list, passed in as a byte array of length `M`, with "true length" `len`
-pub fn decode_element_as_list<
-    const ENCODING_LEN: usize,
-    const LIST_LEN: usize,
-    const ELEMENT_LEN: usize,
->(
+/// This decodes a padded, RLP encoded MPT node.
+///
+/// The input is a tuple of:
+/// - encoded: padded, RLP-encoded MPT node,
+/// - len: "true length" of `encoded`,
+/// - finish: a boolean indicating whether we should terminate early.
+///
+/// The output is a tuple of:
+/// - Padded decoded node,
+/// - Lengths of each string in the decoded node,
+/// - Length of the decoded node.
+pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
     encoded: &[u8],
     len: usize,
     finish: bool,
@@ -117,27 +136,27 @@ pub fn decode_element_as_list<
     assert!(len <= ENCODING_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
     assert!(LIST_LEN == 2 || LIST_LEN == 17); // Right now we only support decoding lists of length 2 or 17
 
-    let mut decoded_list_as_fixed = vec![vec![0u8; ELEMENT_LEN]; LIST_LEN];
-    let mut decoded_list_lens = vec![0usize; LIST_LEN];
+    let mut decoded_node_fixed_size = vec![vec![0u8; MAX_STRING_SIZE]; LIST_LEN];
+    let mut decoded_node_lens = vec![0usize; LIST_LEN];
     let decoded_list_len = 0;
     if finish {
         // terminate early
-        return (decoded_list_as_fixed, decoded_list_lens, decoded_list_len);
+        return (decoded_node_fixed_size, decoded_node_lens, decoded_list_len);
     }
-    let decoded_element = rlp_decode_list_2_or_17(&encoded[..len]);
-    for (i, element) in decoded_element.iter().enumerate() {
-        let len: usize = element.len();
+    let decoded_node = rlp_decode_mpt_node(&encoded[..len]);
+    for (i, string) in decoded_node.iter().enumerate() {
+        let len: usize = string.len();
         assert!(
-            len <= ELEMENT_LEN,
-            "The decoded element should have length <= {ELEMENT_LEN}!"
+            len <= MAX_STRING_SIZE,
+            "The decoded string should have length <= {MAX_STRING_SIZE}!"
         );
-        decoded_list_as_fixed[i][..len].copy_from_slice(element);
-        decoded_list_lens[i] = len;
+        decoded_node_fixed_size[i][..len].copy_from_slice(string);
+        decoded_node_lens[i] = len;
     }
     (
-        decoded_list_as_fixed,
-        decoded_list_lens,
-        decoded_element.len(),
+        decoded_node_fixed_size,
+        decoded_node_lens,
+        decoded_node.len(),
     )
 }
 
@@ -192,14 +211,9 @@ pub fn verify_decoded_list<const M: usize>(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct DecodeHint<const ENCODING_LEN: usize, const LIST_LEN: usize, const ELEMENT_LEN: usize> {}
-impl<
-        L: PlonkParameters<D>,
-        const D: usize,
-        const ENCODING_LEN: usize,
-        const LIST_LEN: usize,
-        const ELEMENT_LEN: usize,
-    > Hint<L, D> for DecodeHint<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>
+struct DecodeHint<const ENCODING_LEN: usize, const LIST_LEN: usize> {}
+impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize, const LIST_LEN: usize>
+    Hint<L, D> for DecodeHint<ENCODING_LEN, LIST_LEN>
 {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let encoded = input_stream.read_value::<ArrayVariable<ByteVariable, ENCODING_LEN>>();
@@ -207,14 +221,14 @@ impl<
         let finish = input_stream.read_value::<BoolVariable>();
 
         let (decoded_list, decoded_list_lens, len_decoded_list) =
-            decode_element_as_list::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
+            decode_padded_mpt_node::<ENCODING_LEN, LIST_LEN>(
                 &encoded,
                 len.as_canonical_u64() as usize,
                 finish,
             );
 
         output_stream
-            .write_value::<ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>>(
+            .write_value::<ArrayVariable<ArrayVariable<ByteVariable, MAX_STRING_SIZE>, LIST_LEN>>(
                 decoded_list,
             );
         output_stream.write_value::<ArrayVariable<Variable, LIST_LEN>>(
@@ -247,7 +261,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input_stream.write(&len);
         input_stream.write(&finish);
 
-        let hint = DecodeHint::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN> {};
+        let hint = DecodeHint::<ENCODING_LEN, LIST_LEN> {};
 
         let output_stream = self.hint(input_stream, hint);
         let decoded_list = output_stream
@@ -276,7 +290,7 @@ mod tests {
         let mut encoding_fixed_size = [0u8; MAX_SIZE];
         encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
 
-        let decoded_list = rlp_decode_list_2_or_17(&rlp_encoding);
+        let decoded_list = rlp_decode_mpt_node(&rlp_encoding);
         assert!(decoded_list.len() == 17);
         let string_lengths = decoded_list
             .iter()
@@ -308,10 +322,8 @@ mod tests {
         type F = GoldilocksField;
         const ENCODING_LEN: usize = 600;
         const LIST_LEN: usize = 17;
-        const ELEMENT_LEN: usize = 32;
 
-        let hint: DecodeHint<ENCODING_LEN, LIST_LEN, ELEMENT_LEN> =
-            DecodeHint::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN> {};
+        let hint: DecodeHint<ENCODING_LEN, LIST_LEN> = DecodeHint::<ENCODING_LEN, LIST_LEN> {};
         let encoded = builder.read::<ArrayVariable<ByteVariable, ENCODING_LEN>>();
         let len = builder.read::<Variable>();
         let finish = builder.read::<BoolVariable>();
@@ -321,7 +333,7 @@ mod tests {
         input_stream.write(&finish);
         let output_stream = builder.hint(input_stream, hint);
         let decoded_list = output_stream
-            .read::<ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>>(
+            .read::<ArrayVariable<ArrayVariable<ByteVariable, MAX_STRING_SIZE>, LIST_LEN>>(
                 &mut builder,
             );
         let decoded_element_lens =
@@ -349,12 +361,12 @@ mod tests {
         circuit.verify(&proof, &input, &output);
 
         let decoded_list_out =
-            output.read::<ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>>();
+            output.read::<ArrayVariable<ArrayVariable<ByteVariable, MAX_STRING_SIZE>, LIST_LEN>>();
         let decoded_element_lens_out = output.read::<ArrayVariable<Variable, LIST_LEN>>();
         let len_decoded_list_out = output.read::<Variable>();
 
         let (decoded_list_exp, decoded_list_lens_exp, len_decoded_list_exp) =
-            decode_element_as_list::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
+            decode_padded_mpt_node::<ENCODING_LEN, LIST_LEN>(
                 &encoding_fixed_size,
                 rlp_encoding.len(),
                 finish,

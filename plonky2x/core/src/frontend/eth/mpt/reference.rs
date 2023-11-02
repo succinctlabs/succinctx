@@ -1,7 +1,7 @@
 use ethers::types::H256;
 use ethers::utils::keccak256;
 
-use crate::frontend::eth::rlp::builder::{rlp_decode_bytes, rlp_decode_list_2_or_17};
+use crate::frontend::eth::rlp::builder::{rlp_decode_mpt_node, rlp_decode_next_string};
 
 const TREE_RADIX: usize = 16;
 const BRANCH_NODE_LENGTH: usize = 17;
@@ -50,7 +50,7 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> V
         } else {
             assert_bytes_equal(current_node, &current_node_id);
         }
-        let decoded = rlp_decode_list_2_or_17(current_node);
+        let decoded = rlp_decode_mpt_node(current_node);
         match decoded.len() {
             BRANCH_NODE_LENGTH => {
                 if current_key_index == key_path.len() {
@@ -102,7 +102,7 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> V
             if account_proof {
                 return current_node_id;
             } else {
-                return rlp_decode_bytes(&current_node_id[..]).0;
+                return rlp_decode_next_string(&current_node_id[..]).0;
             }
         }
     }
