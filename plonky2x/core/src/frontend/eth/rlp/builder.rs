@@ -199,7 +199,7 @@ pub fn verify_decoded_list<const M: usize>(
         for j in 0..MAX_STRING_SIZE {
             poly += node[i][j] as u32
                 * (random.pow(1 + size_accumulator + j as u32))
-                * bool_to_u32(j as u32 <= string_body_length);
+                * bool_to_u32(j <= lens[i]);
         }
         size_accumulator += 1 + string_body_length;
         claim_poly += poly;
