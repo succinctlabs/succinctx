@@ -24,7 +24,7 @@ pub struct EDDSASignatureVariable<FF: FieldParameters> {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn curta_eddsa_verify_variable<
+    pub fn curta_eddsa_verify_variable_msg_len<
         // Maximum length of a signed message in bytes.
         const MAX_MSG_LENGTH_BYTES: usize,
         const NUM_SIGS: usize,
@@ -35,6 +35,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         signatures: ArrayVariable<EDDSASignatureVariable<Ed25519ScalarField>, NUM_SIGS>,
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
+        assert!(NUM_SIGS > 0 && NUM_SIGS <= MAX_NUM_SIGS);
+
         let (generator_x, generator_y) = Ed25519Parameters::generator();
         let generator_affine = AffinePoint::new(generator_x, generator_y);
         let generator_var = AffinePointVariable::constant(self, generator_affine);
@@ -63,6 +65,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let sigr_affine = self.curta_decompress(signatures[i].r.clone());
             self.curta_is_valid(sigr_affine.clone());
             p2 = self.curta_add(sigr_affine, p2);
+
+            //self.watch(&p1, "p1");
+            //self.watch(&p2, "p2");
 
             self.assert_is_equal(p1, p2);
         }
@@ -220,7 +225,10 @@ pub fn curta_batch_eddsa_verify<
 mod tests {
     use curta::chip::ec::edwards::ed25519::params::Ed25519ScalarField;
     use curve25519_dalek::edwards::CompressedEdwardsY;
+    use ed25519_dalek::{Signer, SigningKey};
     use num::BigUint;
+    use rand::rngs::OsRng;
+    use rand::Rng;
 
     use crate::frontend::curta::ec::point::CompressedEdwardsYVariable;
     use crate::frontend::ecc::curve25519::ed25519::eddsa::{
@@ -451,45 +459,59 @@ mod tests {
         outer_data.verify(outer_proof).unwrap();
     } */
 
-    fn test_variable_eddsa_circuit_with_test_case(
-        message_bytes: Vec<u8>,
-        pub_key_bytes: [u8; 32],
-        sig_bytes: [u8; 64],
-    ) {
+    #[test]
+    fn test_curta_eddsa_verify_variable_msg_len() {
         utils::setup_logger();
 
         const MAX_MSG_LEN_BYTES: usize = 192;
-        const MAX_NUM_SIGS: usize = 1;
+        const NUM_SIGS: usize = 10;
         type FF = Ed25519ScalarField;
 
         let mut builder = DefaultBuilder::new();
 
-        let message = builder.read::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, 1>>();
-        let message_len = builder.read::<ArrayVariable<U32Variable, 1>>();
-        let pkey = builder.read::<ArrayVariable<CompressedEdwardsYVariable, 1>>();
-        let signature = builder.read::<ArrayVariable<EDDSASignatureVariable<FF>, 1>>();
+        let messages = builder.read::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>();
+        let message_lens = builder.read::<ArrayVariable<U32Variable, NUM_SIGS>>();
+        let pkeys = builder.read::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>();
+        let signatures = builder.read::<ArrayVariable<EDDSASignatureVariable<FF>, NUM_SIGS>>();
 
-        builder.curta_eddsa_verify_variable(message, message_len, signature, pkey);
+        builder.curta_eddsa_verify_variable_msg_len(messages, message_lens, signatures, pkeys);
 
         let circuit = builder.build();
 
-        let sig_r = CompressedEdwardsY(sig_bytes[0..32].try_into().unwrap());
-        let sig_s = BigUint::from_bytes_le(&sig_bytes[32..64]);
+        // Generate random messages and private keys
+        let mut test_messages: Vec<[u8; MAX_MSG_LEN_BYTES]> = Vec::new();
+        let mut test_message_lens = Vec::new();
+        let mut test_pub_keys = Vec::new();
+        let mut test_signatures = Vec::new();
 
-        let mut resized_message_bytes = message_bytes.clone();
-        resized_message_bytes.resize(MAX_MSG_LEN_BYTES, 0);
+        let mut csprng = OsRng;
+        for _i in 0..NUM_SIGS {
+            // Generate random length
+            let msg_len = rand::thread_rng().gen_range(1..MAX_MSG_LEN_BYTES);
+            test_message_lens.push(msg_len as u32);
+            let mut test_message = Vec::new();
+            for _ in 0..msg_len {
+                test_message.push(rand::thread_rng().gen_range(0..255));
+            }
+
+            let test_signing_key = SigningKey::generate(&mut csprng);
+            let test_pub_key = test_signing_key.verifying_key();
+            let test_signature = test_signing_key.sign(&test_message);
+
+            test_message.resize(MAX_MSG_LEN_BYTES, 0);
+            test_messages.push(test_message.try_into().unwrap());
+            test_pub_keys.push(CompressedEdwardsY(test_pub_key.to_bytes()));
+            test_signatures.push(EDDSASignatureVariableValue {
+                r: CompressedEdwardsY(*test_signature.r_bytes()),
+                s: BigUint::from_bytes_le(test_signature.s_bytes()),
+            });
+        }
 
         let mut input = circuit.input();
-        input.write::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, 1>>(vec![
-            resized_message_bytes.try_into().unwrap(),
-        ]);
-        input.write::<ArrayVariable<U32Variable, 1>>(vec![message_bytes.len() as u32]);
-        input.write::<ArrayVariable<CompressedEdwardsYVariable, 1>>(vec![CompressedEdwardsY(
-            pub_key_bytes,
-        )]);
-        input.write::<ArrayVariable<EDDSASignatureVariable<FF>, 1>>(vec![
-            EDDSASignatureVariableValue { r: sig_r, s: sig_s },
-        ]);
+        input.write::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>(test_messages);
+        input.write::<ArrayVariable<U32Variable, NUM_SIGS>>(test_message_lens);
+        input.write::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>(test_pub_keys);
+        input.write::<ArrayVariable<EDDSASignatureVariable<FF>, NUM_SIGS>>(test_signatures);
 
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -552,22 +574,4 @@ mod tests {
         );
     }
     */
-
-    #[test]
-    #[cfg_attr(feature = "ci", ignore)]
-    fn test_variable_eddsa_circuit_with_celestia_test_case() {
-        let msg = "6c080211f82a00000000000022480a2036f2d954fe1ba37c5036cb3c6b366d0daf68fccbaa370d9490361c51a0a38b61122408011220cddf370e891591c9d912af175c966cd8dfa44b2c517e965416b769eb4b9d5d8d2a0c08f6b097a50610dffbcba90332076d6f6368612d33";
-        let pubkey = "de25aec935b10f657b43fa97e5a8d4e523bdb0f9972605f0b064eff7b17048ba";
-        let sig = "091576e9e3ad0e5ba661f7398e1adb3976ba647b579b8e4a224d1d02b591ade6aedb94d3bf55d258f089d6413155a57adfd4932418a798c2d68b29850f6fb50b";
-
-        let msg_bytes = hex::decode(msg).unwrap();
-        let pub_key_bytes = hex::decode(pubkey).unwrap();
-        let sig_bytes = hex::decode(sig).unwrap();
-
-        test_variable_eddsa_circuit_with_test_case(
-            msg_bytes,
-            pub_key_bytes.try_into().unwrap(),
-            sig_bytes.try_into().unwrap(),
-        );
-    }
 }
