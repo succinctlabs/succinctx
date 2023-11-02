@@ -2,18 +2,14 @@ use core::fmt::Debug;
 
 use ::curta::chip::ec::edwards::ed25519::params::Ed25519ScalarField;
 use ::curta::chip::field::parameters::FieldParameters;
-use curta::chip::ec::edwards::ed25519::params::{Ed25519, Ed25519Parameters};
+use curta::chip::ec::edwards::ed25519::params::Ed25519Parameters;
 use curta::chip::ec::edwards::EdwardsParameters;
 use curta::chip::ec::point::AffinePoint;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::BoolTarget;
 
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
-use crate::frontend::ecc::ed25519::curta::accelerator::EcOpAccelerator;
-use crate::frontend::ecc::ed25519::curta::request::{EcOpRequest, EcOpRequestType};
-use crate::frontend::num::biguint::BigUintTarget;
+use crate::frontend::num::biguint::biguint_from_bytes_variable;
 use crate::frontend::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeTarget};
-use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
 use crate::prelude::{
     ArrayVariable, BytesVariable, CircuitBuilder, CircuitVariable, PlonkParameters, U32Variable,
     Variable,
@@ -25,34 +21,6 @@ const MAX_NUM_SIGS: usize = 256;
 pub struct EDDSASignatureVariable<FF: FieldParameters> {
     pub r: CompressedEdwardsYVariable,
     pub s: NonNativeTarget<FF>,
-}
-
-// This function create a circuit to output a will accept a bit vector that is in little endian byte order
-// and will output a BigUintTarget.
-fn biguint_from_bytes_variable<L: PlonkParameters<D>, const D: usize, const N: usize>(
-    builder: &mut CircuitBuilder<L, D>,
-    bytes: BytesVariable<N>,
-) -> BigUintTarget {
-    assert!(bytes.len() % 32 == 0);
-
-    // Convert to BigUintTarget.
-    // Note that the limbs within the BigUintTarget are in little endian ordering, so
-    // the least significant u32 should be processed first.
-    let mut u32_targets = Vec::new();
-
-    // Convert the bytes into bits.
-    let mut le_bits: Vec<BoolTarget> = Vec::new();
-    for i in 0..bytes.len() {
-        le_bits.extend_from_slice(&bytes[i].as_le_bits().map(|x| x.into()));
-    }
-
-    for u32_chunk in le_bits.chunks(32) {
-        u32_targets.push(U32Target::from_target_unsafe(
-            builder.api.le_sum(u32_chunk.iter()),
-        ));
-    }
-
-    BigUintTarget { limbs: u32_targets }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
@@ -98,67 +66,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             self.assert_is_equal(p1, p2);
         }
-    }
-
-    pub fn curta_add(
-        &mut self,
-        a: AffinePointVariable<Ed25519>,
-        b: AffinePointVariable<Ed25519>,
-    ) -> AffinePointVariable<Ed25519> {
-        let request = EcOpRequest::Add(Box::new(a), Box::new(b));
-        self.add_ec_ops_request(request).unwrap()
-    }
-
-    pub fn curta_scalar_mul(
-        &mut self,
-        scalar: NonNativeTarget<Ed25519ScalarField>,
-        point: AffinePointVariable<Ed25519>,
-    ) -> AffinePointVariable<Ed25519> {
-        let request = EcOpRequest::ScalarMul(Box::new(scalar), Box::new(point));
-        self.add_ec_ops_request(request).unwrap()
-    }
-
-    pub fn curta_decompress(
-        &mut self,
-        compressed_point: CompressedEdwardsYVariable,
-    ) -> AffinePointVariable<Ed25519> {
-        let request = EcOpRequest::Decompress(Box::new(compressed_point));
-        self.add_ec_ops_request(request).unwrap()
-    }
-
-    pub fn curta_is_valid(&mut self, point: AffinePointVariable<Ed25519>) {
-        let request = EcOpRequest::IsValid(Box::new(point));
-        self.add_ec_ops_request(request);
-    }
-
-    fn add_ec_ops_request(
-        &mut self,
-        request: EcOpRequest<Ed25519, Ed25519ScalarField>,
-    ) -> Option<AffinePointVariable<Ed25519>> {
-        if self.ec_ops_accelerator.is_none() {
-            self.ec_ops_accelerator = Some(EcOpAccelerator::<Ed25519ScalarField> {
-                ec_op_requests: Vec::new(),
-                ec_op_responses: Vec::new(),
-            });
-        }
-
-        let mut result: Option<AffinePointVariable<Ed25519>> = None;
-        match &request.req_type() {
-            EcOpRequestType::Add | EcOpRequestType::ScalarMul | EcOpRequestType::Decompress => {
-                result = Some(self.init_unsafe::<AffinePointVariable<Ed25519>>());
-            }
-            EcOpRequestType::IsValid => {}
-        }
-
-        let accelerator = self
-            .ec_ops_accelerator
-            .as_mut()
-            .expect("sha256 accelerator should exist");
-
-        accelerator.ec_op_requests.push(request);
-        accelerator.ec_op_responses.push(result.clone());
-
-        result
     }
 }
 
@@ -316,7 +223,7 @@ mod tests {
     use num::BigUint;
 
     use crate::frontend::curta::ec::point::CompressedEdwardsYVariable;
-    use crate::frontend::ecc::ed25519::verify::eddsa::{
+    use crate::frontend::ecc::curve25519::ed25519::eddsa::{
         EDDSASignatureVariable, EDDSASignatureVariableValue,
     };
     use crate::prelude::{ArrayVariable, BytesVariable, DefaultBuilder, U32Variable};

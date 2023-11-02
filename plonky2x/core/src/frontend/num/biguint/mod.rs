@@ -17,6 +17,7 @@ use super::u32::serialization::{ReadU32, WriteU32};
 use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use crate::frontend::num::u32::gadgets::multiple_comparison::list_le_u32_circuit;
 use crate::frontend::num::u32::witness::{GeneratedValuesU32, WitnessU32};
+use crate::prelude::{BytesVariable, CircuitBuilder as Plonky2xCircuitBuilder, PlonkParameters};
 
 #[derive(Clone, Debug, Default)]
 pub struct BigUintTarget {
@@ -31,6 +32,33 @@ impl BigUintTarget {
     pub fn get_limb(&self, i: usize) -> U32Target {
         self.limbs[i]
     }
+}
+
+// This function will convert a BytesVariable into a plonky2 BigUintTarget.
+pub fn biguint_from_bytes_variable<L: PlonkParameters<D>, const D: usize, const N: usize>(
+    builder: &mut Plonky2xCircuitBuilder<L, D>,
+    bytes: BytesVariable<N>,
+) -> BigUintTarget {
+    assert!(bytes.len() % 32 == 0);
+
+    // Convert to BigUintTarget.
+    // Note that the limbs within the BigUintTarget are in little endian ordering, so
+    // the least significant u32 should be processed first.
+    let mut u32_targets = Vec::new();
+
+    // Convert the bytes into bits.
+    let mut le_bits: Vec<BoolTarget> = Vec::new();
+    for i in 0..bytes.len() {
+        le_bits.extend_from_slice(&bytes[i].as_le_bits().map(|x| x.into()));
+    }
+
+    for u32_chunk in le_bits.chunks(32) {
+        u32_targets.push(U32Target::from_target_unsafe(
+            builder.api.le_sum(u32_chunk.iter()),
+        ));
+    }
+
+    BigUintTarget { limbs: u32_targets }
 }
 
 pub trait CircuitBuilderBiguint<F: RichField + Extendable<D>, const D: usize> {

@@ -22,7 +22,7 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
-use super::ecc::ed25519::curta::accelerator::EcOpAccelerator;
+use super::ecc::curve25519::curta::accelerator::EcOpAccelerator;
 use super::hash::blake2::curta::Blake2bAccelerator;
 use super::hash::sha::sha256::curta::SHA256Accelerator;
 use super::hash::sha::sha512::curta::SHA512Accelerator;
