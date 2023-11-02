@@ -1,17 +1,17 @@
-use curta::chip::ec::EllipticCurve;
 use curta::chip::field::parameters::FieldParameters;
 
 use super::accelerator::EcOpAccelerator;
 use super::request::EcOpRequest;
 use super::result_hint::EcOpResultHint;
+use super::Curve;
 use crate::frontend::curta::ec::point::AffinePointVariable;
 use crate::prelude::{CircuitBuilder, PlonkParameters, VariableStream};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The constraints for an accelerated EC Ops computation using Curta.
-    pub(crate) fn curta_constrain_ec_op<E: EllipticCurve, FF: FieldParameters>(
+    pub(crate) fn curta_constrain_ec_op<FF: FieldParameters>(
         &mut self,
-        accelerator: EcOpAccelerator<E, FF>,
+        accelerator: EcOpAccelerator<FF>,
     ) {
         // Get all the digest values using the digest hint.
         for (request, response) in accelerator
@@ -19,7 +19,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .iter()
             .zip(accelerator.ec_op_responses.iter())
         {
-            let result_hint = EcOpResultHint::<E, FF>::new(request.req_type());
+            let result_hint = EcOpResultHint::<FF>::new(request.req_type());
             let mut input_stream = VariableStream::new();
 
             match &request {
@@ -45,7 +45,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 EcOpRequest::Add(_, _)
                 | EcOpRequest::ScalarMul(_, _)
                 | EcOpRequest::Decompress(_) => {
-                    let result = output_stream.read::<AffinePointVariable<E>>(self);
+                    let result = output_stream.read::<AffinePointVariable<Curve>>(self);
                     self.assert_is_equal(result, response.expect("response should not be None"));
                 }
                 EcOpRequest::IsValid(_) => {}
