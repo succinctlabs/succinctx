@@ -169,14 +169,19 @@ pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
 /// second return value is rlp_encode(padded_string[..len]).len().
 fn calculate_rlp_encode_metadata(padded_string: FixedSizeString, len: usize) -> (u32, u32) {
     if len == 0 {
+        // While it may be counterintutive, rlp_encode(the empty string) = 0x80.
         (0x80, 1)
     } else if len == 1 {
         if padded_string[0] < 0x80 {
+            // A single byte less than 0x80 is its own RLP encoding.
             (padded_string[0] as u32, 1)
         } else {
+            // A single byte greater than 0x80 is encoded as 0x81 + the byte.
             (0x81, 2)
         }
     } else if len <= 55 {
+        // A string of length <= 55 is encoded as (0x80 + length of the string) followed by the
+        // string.
         (len as u32 + 0x80, len as u32 + 1)
     } else {
         panic!("Invalid length {}", len)
@@ -195,9 +200,6 @@ pub fn verify_decoded_list<const M: usize>(
 
     let mut size_accumulator: u32 = 0;
     let mut claim_poly = BigInt::default();
-    // TODO: I don't think this correctly handles the padded 0's. For instance, a node could have
-    // only two strings. If the remaining 15 strings are 0's, this still adds the `poly` to the
-    // accumulator.
     for i in 0..MAX_NODE_SIZE {
         let (prefix_byte, rlp_encoding_length) = calculate_rlp_encode_metadata(node[i], lens[i]);
         let mut poly = prefix_byte.to_bigint().unwrap() * random.pow(size_accumulator);
@@ -209,20 +211,32 @@ pub fn verify_decoded_list<const M: usize>(
         size_accumulator += rlp_encoding_length * bool_to_u32(i < node_len);
         claim_poly += poly * bool_to_u32(i < node_len);
     }
-    // claim_poly += 0xf9 * random.pow(size_accumulator);
-    // claim_poly += (size_accumulator / 16) * random.pow(size_accumulator + 1);
-    // claim_poly += (size_accumulator % 16) * random.pow(size_accumulator + 2);
+
+    // Based on what we've seen, this is what the prefix of the whole encoding should be.
+    //
+    // Note: For this first version, we assume that the combined length of all the encoded items is
+    // >= 56. More specifically, rlp_encode(node[0]).len() + rlp_encode(node[1]).len() + ... +
+    // rlp_encode(node[node_len - 1]).len() >= 56. This means:
+    // 1. The prefix of `0xf7 + length in bytes of the combined length = 0xf7 + 2 = 0xf9`.
+    // 2. 0xf9 is followed by the combined length of all the encoded items.
+    claim_poly += 0xf9 * random.pow(size_accumulator);
+    claim_poly += (size_accumulator / 256) * random.pow(size_accumulator + 1);
+    claim_poly += (size_accumulator % 256) * random.pow(size_accumulator + 2);
 
     let mut encoding_poly = BigInt::default();
     for i in 3..M {
-        // TODO: don't hardcode 3 here
+        // TODO: Don't hardcode 3 here. To understand why we have 3 here, see the comments above
+        // about 0xf9.
         let idx = i - 3;
         encoding_poly +=
             encoding[i] as u32 * (random.pow(idx as u32)) * bool_to_u32(idx < encoding_len);
     }
-    // encoding_poly += encoding[0] * random.pow(size_accumulator);
-    // encoding_poly += encoding[1] * random.pow(size_accumulator + 1);
-    // encoding_poly += encoding[2] * random.pow(size_accumulator + 2);
+
+    // Stick the linear combination of the 3-byte prefix to the accumulator. Again, to understand
+    // why we have 3 here, see the comments above about 0xf9.
+    encoding_poly += encoding[0] * random.pow(size_accumulator);
+    encoding_poly += encoding[1] * random.pow(size_accumulator + 1);
+    encoding_poly += encoding[2] * random.pow(size_accumulator + 2);
 
     println!(
         "encoding[0] = {}, encoding[1] = {}, encoding[2] = {}, size_accumulator = {}, size_accumulator / 16 = {}, size_accumulator % 16 = {}",
