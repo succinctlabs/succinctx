@@ -165,21 +165,21 @@ pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
 }
 
 /// This calculates the prefix and the length of the body if we were to RLP-encode the given string.
-/// More specifically, this calculates the prefix and the length in bytes of
-/// rlp_encode(padded_string[]
-fn parse_string(padded_string: FixedSizeString, len: usize) -> (u32, u32) {
-    let prefix = padded_string[0];
+/// More specifically, the first return value is the prefix of rlp_encode(padded_string[..len]). The
+/// second return value is the length of rlp_encode(padded_string[..len]) without the prefix bytes.
+fn calculate_rlp_encode_metadata(padded_string: FixedSizeString, len: usize) -> (u32, u32) {
     if len == 0 {
         (0x80, 0)
-    } else if len == 1 && prefix <= 0x7F {
-        (prefix as u32, 0)
-    } else if len == 1 && prefix > 0x7F {
-        // TODO: maybe this is the same as the below case
-        (0x80 + 0x01, 1)
+    } else if len == 1 {
+        if padded_string[0] < 0x80 {
+            (padded_string[0] as u32, 0)
+        } else {
+            (0x81, 1)
+        }
     } else if len <= 55 {
         (len as u32 + 0x80, len as u32)
     } else {
-        panic!("Invalid length and prefix combo {} {}", len, prefix)
+        panic!("Invalid length {}", len)
     }
 }
 
@@ -194,7 +194,7 @@ pub fn verify_decoded_list<const M: usize>(
     let mut size_accumulator: u32 = 0;
     let mut claim_poly = BigInt::default();
     for i in 0..MAX_NODE_SIZE {
-        let (prefix_byte, string_body_length) = parse_string(node[i], lens[i]);
+        let (prefix_byte, string_body_length) = calculate_rlp_encode_metadata(node[i], lens[i]);
         let mut poly = prefix_byte.to_bigint().unwrap() * random.pow(size_accumulator);
         for j in 0..MAX_STRING_SIZE {
             poly += node[i][j] as u32
