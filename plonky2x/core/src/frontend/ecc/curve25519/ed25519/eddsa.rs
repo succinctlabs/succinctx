@@ -67,7 +67,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// This function will verify a set of eddsa signatures.  It also contains a BoolVariable array
-    /// bitmask ("is_active") that will specify which signatures should be verified.
+    /// bitmask ("is_active") that will specify which signatures should be verified.  If
+    /// message_byte_lengths is None, then all the messages should have the length of
+    /// MAX_MSG_LENGTH_BYTES.
     pub fn curta_eddsa_verify_sigs_conditional<
         const MAX_MSG_LENGTH_BYTES: usize,
         const NUM_SIGS: usize,
@@ -125,7 +127,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         );
     }
 
-    /// This function will verify a set of eddsa signatures.
+    /// This function will verify a set of eddsa signatures.   If message_byte_lengths is None, then
+    /// all the messages should have the length of MAX_MSG_LENGTH_BYTES.
     pub fn curta_eddsa_verify_sigs<
         // Maximum length of a signed message in bytes.
         const MAX_MSG_LENGTH_BYTES: usize,
