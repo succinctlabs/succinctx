@@ -20,6 +20,14 @@ type FixedSizeString = [u8; MAX_STRING_SIZE];
 /// This represents a node in a MPT, potentially padded. This could be a null, branch, leaf, or
 /// extension node. Note that a nested list (when a small node is referenced inside node), if any,
 /// isn't decoded.
+///
+/// Why we can use FixdSizeString for the type of each element in FixedSizeMPTNode:
+/// 1. For a branch node, each node is referenced by a 32-byte hash, or the node itself. We use the
+///    node if and only if the len(node) < 32.
+/// 2. For a leaf node, the encodedPath is an an array of up to 32 bytes because a path in Ethereum
+///    is exactly 64 hex character long. Furthermore, the value is guaranteed to be up to 32 bytes.
+/// 3. For an extension node, the encodedPath is the same as the leaf node. The key is keccak256(x),
+///    which is exactly 32 bytes.
 const MAX_NODE_SIZE: usize = 17;
 type FixedSizeMPTNode = [FixedSizeString; MAX_NODE_SIZE];
 
