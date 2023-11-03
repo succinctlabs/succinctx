@@ -1,7 +1,5 @@
 use curta::math::field::Field;
 use curta::math::prelude::PrimeField64;
-use ethers::types::Bytes;
-use log::info;
 use serde::{Deserialize, Serialize};
 
 use super::utils::decode_padded_mpt_node;
