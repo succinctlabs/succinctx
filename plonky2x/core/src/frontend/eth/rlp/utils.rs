@@ -15,7 +15,7 @@ use crate::prelude::{
 /// Byte array of at most 32 bytes, potentially padded. This could be a hash, value,
 /// rlp.encode(branch node), rlp.encode(leaf node), or rlp.encode(extension node) under the hood.
 pub const MAX_STRING_SIZE: usize = 32;
-type FixedSizeString = [u8; MAX_STRING_SIZE];
+pub type FixedSizeString = [u8; MAX_STRING_SIZE];
 
 /// This represents a node in a MPT, potentially padded. This could be a null, branch, leaf, or
 /// extension node. Note that a nested list (when a small node is referenced inside node), if any,
@@ -29,12 +29,12 @@ type FixedSizeString = [u8; MAX_STRING_SIZE];
 /// 3. For an extension node, the encodedPath is the same as the leaf node. The key is keccak256(x),
 ///    which is exactly 32 bytes.
 pub const MAX_NODE_SIZE: usize = 17;
-type FixedSizeMPTNode = [FixedSizeString; MAX_NODE_SIZE];
+pub type FixedSizeMPTNode = [FixedSizeString; MAX_NODE_SIZE];
 
 /// This represents the length of each string in a node, potentially padded Since each
 /// FixedSizeString in FixedSizeString is padded, we need to keep track of the "true" length of each
 /// string.
-type FixedSizeStringLengths = [usize; MAX_NODE_SIZE];
+pub type FixedSizeStringLengths = [usize; MAX_NODE_SIZE];
 
 pub fn bool_to_u32(b: bool) -> u32 {
     if b {
@@ -275,4 +275,119 @@ pub fn verify_decoded_list<const M: usize>(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::utils::bytes;
+
+    #[test]
+    fn test_decode_element_as_list() {
+        const MAX_SIZE: usize = 17 * 32 + 20;
+        let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0c5becd7f8e5d47c1fe63ad9fa267d86fe0811bea0a4115aac7123b85fba2d662a03ab19202cb1de4f10fb0da8b5992c54af3dabb2312203f7477918df1393e24aea0b463eb71bcae8fa3183d0232b0d50e2400c21a0131bd48d918330e8683149b76a0d49a6c09224f74cef1286dad36a7f0e23e43e8ba4013fa386a3cda8903a3fe1ea06b6702bcfe04d3a135b786833b2748614d3aea00c728f86b2d1bbbb01b4e2311a08164a965258f9be5befcbf4de8e6cb4cd028689aad98e36ffc612b7255e4fa30a0b90309c6cb6383b2cb4cfeef9511004b705f1bca2c0556aadc2a5fe7ddf665e7a0749c3cee27e5ce85715122b76c18b7b945f1a19f507d5142445b42d50b2dd65aa0dbe35c115e9013b339743ebc2d9940158fb63b9e39f248b15ab74fade183c556a0a2b202f9b8003d73c7c84c8f7eb03298c064842382e57cecac1dfc2d5cabe2ffa02c5f8eba535bf5f18ca5aec74b51e46f219150886618c0301069dfb947006810a0dc01263a3b7c7942b5f0ac23931e0fda54fabaa3e6a58d2aca7ec65957cf8131a07d47344efa308df47f7e0e10491fa22d0564dbce634397c7748cd325fadd6b90a0cf9e45e08b8d60c68a86359adfa31c82883bb4a75b1d854392deb1f4499ba113a0081a664033eb00d5a69fc60f1f8b30e41eb643c5b9772d47301b602902b8d184a058b0bcf02a206cfa7b5f275ef09c97b4ae56abd8e9072f89dad8df1b98dfaa0280");
+        let mut encoding_fixed_size = [0u8; MAX_SIZE];
+        encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
+
+        let decoded_list = rlp_decode_mpt_node(&rlp_encoding);
+        assert!(decoded_list.len() == 17);
+        let string_lengths = decoded_list
+            .iter()
+            .map(|item| item.len() as u8)
+            .collect::<Vec<u8>>();
+
+        let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_STRING_SIZE]; MAX_NODE_SIZE];
+        let mut string_lengths_fixed_size: FixedSizeStringLengths = [0 as usize; 17];
+        for (i, item) in decoded_list.iter().enumerate() {
+            let len = item.len();
+            assert!(len <= 32, "The nested vector is longer than 32 bytes!");
+            decoded_node_fixed_size[i][..len].copy_from_slice(item);
+            string_lengths_fixed_size[i] = string_lengths[i] as usize;
+        }
+
+        // TODO: move below to a different test
+        verify_decoded_list::<MAX_SIZE>(
+            decoded_node_fixed_size,
+            string_lengths_fixed_size,
+            17,
+            encoding_fixed_size,
+            rlp_encoding.len(),
+        );
+    }
+
+    #[test]
+    fn test_decode_element_as_list_wrong_prefix() {
+        const MAX_SIZE: usize = 17 * 32 + 20;
+        let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0c5becd7f8e5d47c1fe63ad9fa267d86fe0811bea0a4115aac7123b85fba2d662a03ab19202cb1de4f10fb0da8b5992c54af3dabb2312203f7477918df1393e24aea0b463eb71bcae8fa3183d0232b0d50e2400c21a0131bd48d918330e8683149b76a0d49a6c09224f74cef1286dad36a7f0e23e43e8ba4013fa386a3cda8903a3fe1ea06b6702bcfe04d3a135b786833b2748614d3aea00c728f86b2d1bbbb01b4e2311a08164a965258f9be5befcbf4de8e6cb4cd028689aad98e36ffc612b7255e4fa30a0b90309c6cb6383b2cb4cfeef9511004b705f1bca2c0556aadc2a5fe7ddf665e7a0749c3cee27e5ce85715122b76c18b7b945f1a19f507d5142445b42d50b2dd65aa0dbe35c115e9013b339743ebc2d9940158fb63b9e39f248b15ab74fade183c556a0a2b202f9b8003d73c7c84c8f7eb03298c064842382e57cecac1dfc2d5cabe2ffa02c5f8eba535bf5f18ca5aec74b51e46f219150886618c0301069dfb947006810a0dc01263a3b7c7942b5f0ac23931e0fda54fabaa3e6a58d2aca7ec65957cf8131a07d47344efa308df47f7e0e10491fa22d0564dbce634397c7748cd325fadd6b90a0cf9e45e08b8d60c68a86359adfa31c82883bb4a75b1d854392deb1f4499ba113a0081a664033eb00d5a69fc60f1f8b30e41eb643c5b9772d47301b602902b8d184a058b0bcf02a206cfa7b5f275ef09c97b4ae56abd8e9072f89dad8df1b98dfaa0280");
+        let mut encoding_fixed_size = [0u8; MAX_SIZE];
+        encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
+
+        let decoded_list = rlp_decode_mpt_node(&rlp_encoding);
+        assert!(decoded_list.len() == 17);
+        let string_lengths = decoded_list
+            .iter()
+            .map(|item| item.len() as u8)
+            .collect::<Vec<u8>>();
+
+        let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_STRING_SIZE]; MAX_NODE_SIZE];
+        let mut string_lengths_fixed_size: FixedSizeStringLengths = [0 as usize; 17];
+        for (i, item) in decoded_list.iter().enumerate() {
+            let len = item.len();
+            assert!(len <= 32, "The nested vector is longer than 32 bytes!");
+            decoded_node_fixed_size[i][..len].copy_from_slice(item);
+            string_lengths_fixed_size[i] = string_lengths[i] as usize;
+        }
+
+        println!("encoding_fixed_size[0] = {}", encoding_fixed_size[0]);
+        // Change the prefix of the rlp encoding. We want verify_decoded_list to detect it and fail
+        // even if the remaining encoding is correct.
+        encoding_fixed_size[0] = 0x80;
+        println!("encoding_fixed_size[0] is now {}", encoding_fixed_size[0]);
+
+        // We expect the verifier to fail as the encoding is incorrect.
+        let result = std::panic::catch_unwind(|| {
+            verify_decoded_list::<MAX_SIZE>(
+                decoded_node_fixed_size,
+                string_lengths_fixed_size,
+                17,
+                encoding_fixed_size,
+                rlp_encoding.len(),
+            );
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decode_short_encoding() {
+        const MAX_SIZE: usize = 2 * 32 + 20;
+        // This is a RLP-encoded list of an extension node. The 00 in 0x006f indicates that the path
+        // length is even, and the path is 6 -> f. This extension node points to a leaf node with
+        // the hash starting with 0x188d11.  ["0x006f",
+        // "0x188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6"]
+        let rlp_encoding: Vec<u8> =
+            bytes!("0xe482006fa0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6");
+        let mut encoding_fixed_size = [0u8; MAX_SIZE];
+        encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
+
+        let decoded_list = rlp_decode_mpt_node(&rlp_encoding);
+        assert!(decoded_list.len() == 2);
+        let string_lengths = decoded_list
+            .iter()
+            .map(|item| item.len() as u8)
+            .collect::<Vec<u8>>();
+
+        let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_STRING_SIZE]; MAX_NODE_SIZE];
+        let mut string_lengths_fixed_size: FixedSizeStringLengths = [0; 17];
+        for (i, item) in decoded_list.iter().enumerate() {
+            let len = item.len();
+            assert!(len <= 32, "The nested vector is longer than 32 bytes!");
+            decoded_node_fixed_size[i][..len].copy_from_slice(item);
+            string_lengths_fixed_size[i] = string_lengths[i] as usize;
+        }
+
+        verify_decoded_list::<MAX_SIZE>(
+            decoded_node_fixed_size,
+            string_lengths_fixed_size,
+            2,
+            encoding_fixed_size,
+            rlp_encoding.len(),
+        );
+    }
+}
