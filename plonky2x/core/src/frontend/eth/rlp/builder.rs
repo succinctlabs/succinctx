@@ -260,9 +260,10 @@ pub fn verify_decoded_list<const M: usize>(
         claim_poly += (sum_of_rlp_encoding_length % 256) * random.pow(2);
     }
 
+    // TODO: Remove these debugging statements before making a PR.
     println!(
-        "encoding[0] = {}, encoding[1] = {}, encoding[2] = {}, size_accumulator = {}, size_accumulator / 16 = {}, size_accumulator % 16 = {}",
-        encoding[0], encoding[1], encoding[2], sum_of_rlp_encoding_length, sum_of_rlp_encoding_length / 16, sum_of_rlp_encoding_length % 16
+        "encoding[0] = {}, encoding[1] = {}, encoding[2] = {}, size_accumulator = {}, size_accumulator / 256 = {}, size_accumulator % 256 = {}",
+        encoding[0], encoding[1], encoding[2], sum_of_rlp_encoding_length, sum_of_rlp_encoding_length / 256, sum_of_rlp_encoding_length % 256
     );
     println!(
         "claim_poly = {}, encoding_poly = {}",
