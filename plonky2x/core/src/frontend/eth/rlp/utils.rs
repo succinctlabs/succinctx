@@ -143,7 +143,7 @@ pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
 /// the given string. More specifically, the first return value is the prefix of
 /// rlp_encode(padded_string[..len]). The second return value is
 /// rlp_encode(padded_string[..len]).len().
-fn calculate_rlp_encode_metadata(padded_string: RLPItemFixedSize) -> (u32, u32) {
+fn calculate_rlp_encode_metadata(padded_string: &RLPItemFixedSize) -> (u32, u32) {
     if padded_string.len == 0 {
         // While it may be counterintutive, rlp_encode(the empty string) = 0x80.
         (0x80, 1)
@@ -194,7 +194,7 @@ pub fn verify_decoded_list<const M: usize>(
     let mut claim_poly = BigInt::default();
     for i in 0..MAX_MPT_NODE_SIZE {
         // Calculate the prefix and the length of the encoding of the _current_ string.
-        let (prefix_byte, rlp_encoding_length) = calculate_rlp_encode_metadata(node.data[i]);
+        let (prefix_byte, rlp_encoding_length) = calculate_rlp_encode_metadata(&node.data[i]);
         let mut poly = prefix_byte.to_bigint().unwrap() * random.pow(sum_of_rlp_encoding_length);
         for j in 0..MAX_RLP_ITEM_SIZE {
             poly += node.data[i].data[j] as u32

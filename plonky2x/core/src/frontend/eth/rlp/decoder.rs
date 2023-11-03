@@ -1,6 +1,7 @@
 //! This file implements RLP decoder.
 //!
 //! Reference: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
+//!
 
 use crate::utils::stream::Stream;
 
@@ -22,7 +23,7 @@ pub enum RLPItem {
 ///
 impl Stream<u8> {
     /// Decodes the next item in the input using RLP.
-    fn rlp_decode_next_item(&self) -> RLPItem {
+    fn rlp_decode_next_item(&mut self) -> RLPItem {
         let prefix = self.read_exact(0)[0];
         if prefix <= 0x7F {
             // The prefix indicates that the byte has its own RLP encoding.
@@ -38,10 +39,9 @@ impl Stream<u8> {
             // The prefix indicates a long string containing more than 55 bytes.
             let nb_length_bytes = (prefix - 0xB7) as usize;
             let mut length_bytes = self.read_exact(nb_length_bytes);
-            length_bytes.reverse();
             let mut length = 0;
             for i in 0..nb_length_bytes {
-                length += length_bytes[i] as usize * 256_usize.pow(i as u32);
+                length += length_bytes[nb_length_bytes - i] as usize * 256_usize.pow(i as u32);
             }
             RLPItem::String(self.read_exact(length).to_vec())
         } else if prefix <= 0xF7 {
@@ -63,6 +63,6 @@ impl Stream<u8> {
 // I also need to create a decoder. Use the function above to decode and return the results instead
 // of creating a stream.
 
-pub fn decode(encoded_item: &vec<u8>) -> RLPItem {
+pub fn decode(encoded_item: &Vec<u8>) -> RLPItem {
     todo!();
 }
