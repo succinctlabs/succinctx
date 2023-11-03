@@ -407,6 +407,44 @@ mod tests {
     }
 
     #[test]
+    fn test_decode_short_encoding() {
+        const MAX_SIZE: usize = 17 * 32 + 20;
+        // This is a RLP-encoded list of an extension node. The 00 in 0x006f indicates that the path
+        // length is even, and the path is 6 -> f. This extension node points to a leaf node with
+        // the hash starting with 0x188d11.  ["0x006f",
+        // "0x188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6"]
+        let rlp_encoding: Vec<u8> =
+            bytes!("0xe482006fa0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6");
+        let mut encoding_fixed_size = [0u8; MAX_SIZE];
+        encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
+
+        let decoded_list = rlp_decode_mpt_node(&rlp_encoding);
+        assert!(decoded_list.len() == 17);
+        let string_lengths = decoded_list
+            .iter()
+            .map(|item| item.len() as u8)
+            .collect::<Vec<u8>>();
+
+        let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_STRING_SIZE]; MAX_NODE_SIZE];
+        let mut string_lengths_fixed_size: FixedSizeStringLengths = [0; 17];
+        for (i, item) in decoded_list.iter().enumerate() {
+            let len = item.len();
+            assert!(len <= 32, "The nested vector is longer than 32 bytes!");
+            decoded_node_fixed_size[i][..len].copy_from_slice(item);
+            string_lengths_fixed_size[i] = string_lengths[i] as usize;
+        }
+
+        verify_decoded_list::<MAX_SIZE>(
+            decoded_node_fixed_size,
+            string_lengths_fixed_size,
+            17,
+            encoding_fixed_size,
+            rlp_encoding.len(),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
 
     fn test_rlp_decode_hint() {
         let mut builder: CircuitBuilder<DefaultParameters, 2> = DefaultBuilder::new();
