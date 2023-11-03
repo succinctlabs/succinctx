@@ -1,7 +1,7 @@
 use ethers::types::H256;
 use ethers::utils::keccak256;
 
-use crate::frontend::eth::rlp::builder::{rlp_decode_mpt_node, rlp_decode_next_string};
+use crate::frontend::eth::rlp::utils::{rlp_decode_mpt_node, rlp_decode_next_string};
 
 const TREE_RADIX: usize = 16;
 const BRANCH_NODE_LENGTH: usize = 17;
