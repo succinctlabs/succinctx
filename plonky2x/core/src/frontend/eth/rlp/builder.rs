@@ -206,54 +206,70 @@ pub fn verify_decoded_list<const M: usize>(
 ) {
     let random = 1000_i32.to_bigint().unwrap();
 
-    let mut size_accumulator: u32 = 0;
+    // First, we'll calculate the polynomial that represents the given encoding. encoding_poly is
+    // \sigma_{i = 0}^{encoding_len - 1} encoding[i] * random^i.
+
+    let mut encoding_poly = BigInt::default();
+
+    for i in 0..M {
+        encoding_poly +=
+            encoding[i] as u32 * (random.pow(i as u32)) * bool_to_u32(i < encoding_len);
+    }
+
+    // Now, we will calculate the polynomial that represents the node. Here, we will calculate what
+    // the polynomial should be if we correctly encode this node. Due to the complexity of the
+    // rlp encoding, we need to encode every string in the node _before_ we know the prefix of the
+    // whole encoding. So, we will calculate the polynomial that represents the encoding of each
+    // string in the node.
+
+    let mut sum_of_rlp_encoding_length: u32 = 0;
     let mut claim_poly = BigInt::default();
     for i in 0..MAX_NODE_SIZE {
+        // Calculate the prefix and the length of the encoding of the _current_ string.
         let (prefix_byte, rlp_encoding_length) = calculate_rlp_encode_metadata(node[i], lens[i]);
-        let mut poly = prefix_byte.to_bigint().unwrap() * random.pow(size_accumulator);
+        let mut poly = prefix_byte.to_bigint().unwrap() * random.pow(sum_of_rlp_encoding_length);
         for j in 0..MAX_STRING_SIZE {
             poly += node[i][j] as u32
-                * (random.pow(1 + size_accumulator + j as u32))
+                * (random.pow(1 + sum_of_rlp_encoding_length + j as u32))
                 * bool_to_u32(j < lens[i]);
         }
-        size_accumulator += rlp_encoding_length * bool_to_u32(i < node_len);
+        sum_of_rlp_encoding_length += rlp_encoding_length * bool_to_u32(i < node_len);
         claim_poly += poly * bool_to_u32(i < node_len);
     }
 
-    // Based on what we've seen, this is what the prefix of the whole encoding should be.
-    //
-    // Note: For this first version, we assume that the combined length of all the encoded items is
-    // >= 56. More specifically, rlp_encode(node[0]).len() + rlp_encode(node[1]).len() + ... +
-    // rlp_encode(node[node_len - 1]).len() >= 56. This means:
-    // 1. The prefix of `0xf7 + length in bytes of the combined length = 0xf7 + 2 = 0xf9`.
-    // 2. 0xf9 is followed by the combined length of all the encoded items.
-    claim_poly += 0xf9 * random.pow(size_accumulator);
-    claim_poly += (size_accumulator / 256) * random.pow(size_accumulator + 1);
-    claim_poly += (size_accumulator % 256) * random.pow(size_accumulator + 2);
+    // Based on what we've seen, we calculate the prefix of the whole encoding.
+    if sum_of_rlp_encoding_length <= 55 {
+        // If the combined length of the encoded strings is <= 55, then the prefix is simply the
+        // length of the encoding + 0xc0.
 
-    let mut encoding_poly = BigInt::default();
-    for i in 3..M {
-        // TODO: Don't hardcode 3 here. To understand why we have 3 here, see the comments above
-        // about 0xf9.
-        let idx = i - 3;
-        encoding_poly +=
-            encoding[i] as u32 * (random.pow(idx as u32)) * bool_to_u32(idx < encoding_len);
+        // "Shift" the current polynomial by multiplying it by random to "make room" for the prefix.
+        claim_poly *= random.clone();
+        claim_poly += 0xc0 + sum_of_rlp_encoding_length;
+    } else {
+        // If the combined length of the encoded strings is > 55, then the prefix is [0xf7 + the
+        // length of the combined length of the encoding] followed by the length of the encoding.
+
+        // "Shift" the current polynomial by multiplying it by random.pow(3) to "make room" for the
+        // prefix.
+        claim_poly *= random.pow(3);
+        claim_poly += 0xf9;
+
+        // Most signficant byte.
+        claim_poly += (sum_of_rlp_encoding_length / 256) * random.clone();
+        // Lease siginificant byte.
+        claim_poly += (sum_of_rlp_encoding_length % 256) * random.pow(2);
     }
-
-    // Stick the linear combination of the 3-byte prefix to the accumulator. Again, to understand
-    // why we have 3 here, see the comments above about 0xf9.
-    encoding_poly += encoding[0] * random.pow(size_accumulator);
-    encoding_poly += encoding[1] * random.pow(size_accumulator + 1);
-    encoding_poly += encoding[2] * random.pow(size_accumulator + 2);
 
     println!(
         "encoding[0] = {}, encoding[1] = {}, encoding[2] = {}, size_accumulator = {}, size_accumulator / 16 = {}, size_accumulator % 16 = {}",
-        encoding[0], encoding[1], encoding[2], size_accumulator, size_accumulator / 16, size_accumulator % 16
+        encoding[0], encoding[1], encoding[2], sum_of_rlp_encoding_length, sum_of_rlp_encoding_length / 16, sum_of_rlp_encoding_length % 16
     );
     println!(
         "claim_poly = {}, encoding_poly = {}",
         claim_poly, encoding_poly
     );
+
+    // Now, we have both polynomials. Hopefully, they match!
     assert!(claim_poly == encoding_poly);
 }
 
