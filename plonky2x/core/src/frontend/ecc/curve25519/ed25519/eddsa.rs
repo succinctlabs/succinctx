@@ -160,7 +160,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             message_bytes.extend(pubkeys[i].0.as_bytes());
             message_bytes.extend(messages[i].0);
 
-            // Can be unsafe since the message bytes elements were all retrieved from BytesVariables.
             let digest: BytesVariable<64>;
             if let Some(ref msg_lens) = message_byte_lengths {
                 let const_64 = U32Variable::constant(self, 64);
@@ -170,7 +169,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 digest = self.curta_sha512(&message_bytes);
             }
 
-            // digest is in big endian byte / big endian bit
             let h_biguint = biguint_from_bytes_variable(self, digest);
             let h_scalar = self.api.reduce::<Ed25519ScalarField>(&h_biguint);
 
