@@ -6,8 +6,9 @@
 use num::bigint::ToBigInt;
 use num::BigInt;
 
-use crate::utils::stream::Stream;
+// use super::decoder::rlp_decode_next_item;
 
+pub const MAX_RLP_ITEM_SIZE: usize = 32;
 /// An item is a string (i.e., byte array) or a list of items. The item assumes a fixed size.
 ///
 /// This item can potentially represent the following objects:
@@ -18,9 +19,11 @@ use crate::utils::stream::Stream;
 /// 4. Leaf Node (?): If the node takes less than 32 bytes to ecnode, it will be placed inline.
 /// 5. NULL: Represents the empty string "" or <>.
 pub struct RLPItemFixedSize {
-    pub data: [u8; 32],
+    pub data: [u8; MAX_RLP_ITEM_SIZE],
     pub len: usize,
 }
+
+pub const MAX_MPT_NODE_SIZE: usize = 17;
 
 /// A Merkle Patricia Trie node. The underlying data assumes a fixed size of up to 17 fixed size rlp
 /// items.
@@ -31,7 +34,7 @@ pub struct RLPItemFixedSize {
 /// 2. Leaf Node: A 2-item node [encodedPath, value]
 /// 3. Extension Node: A 2-item node [encodedPath, key]
 pub struct MPTNodeFixedSize {
-    pub data: [RLPItemFixedSize; 17],
+    pub data: [RLPItemFixedSize; MAX_MPT_NODE_SIZE],
     pub len: usize,
 }
 
@@ -39,6 +42,7 @@ pub struct MPTNodeFixedSize {
 // rlp_item.to_fixed_size();
 // rlp_item.to_mpt_node_fixed_size();
 
+// We'll delete this since this is almost identical to the decoder from decode.rs
 // pub fn rlp_decode_mpt_node(input: &[u8]) -> Vec<Vec<u8>> {
 //     info!("input {:?}", Bytes::from(input.to_vec()).to_string());
 //     let prefix = input[0];
@@ -97,65 +101,75 @@ pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
     encoded: &[u8],
     len: usize,
     finish: bool,
-) -> (Vec<Vec<u8>>, Vec<usize>, usize) {
-    assert_eq!(encoded.len(), ENCODING_LEN);
-    assert!(len <= ENCODING_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
-    assert!(LIST_LEN == 2 || LIST_LEN == 17); // Right now we only support decoding lists of length 2 or 17
+) -> MPTNodeFixedSize {
+    //assert!(node.len <= ENCODING_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
+    //assert!(node.len == LIST_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
+    //assert!(LIST_LEN == 2 || LIST_LEN == 17); // Right now we only support decoding lists of length 2 or 17
 
-    let mut decoded_node_fixed_size = vec![vec![0u8; MAX_STRING_SIZE]; LIST_LEN];
-    let mut decoded_node_lens = vec![0usize; LIST_LEN];
-    let decoded_list_len = 0;
-    if finish {
-        // terminate early
-        return (decoded_node_fixed_size, decoded_node_lens, decoded_list_len);
-    }
-    let decoded_node = rlp_decode_mpt_node(&encoded[..len]);
-    for (i, string) in decoded_node.iter().enumerate() {
-        let len: usize = string.len();
-        assert!(
-            len <= MAX_STRING_SIZE,
-            "The decoded string should have length <= {MAX_STRING_SIZE}!"
-        );
-        decoded_node_fixed_size[i][..len].copy_from_slice(string);
-        decoded_node_lens[i] = len;
-    }
-    (
-        decoded_node_fixed_size,
-        decoded_node_lens,
-        decoded_node.len(),
-    )
+    //
+    //let mut decoded_node =
+    //let mut decoded_node_fixed_size = vec![vec![0u8; MAX_STRING_SIZE]; LIST_LEN];
+    //let mut decoded_node_lens = vec![0usize; LIST_LEN];
+    //let decoded_list_len = 0;
+    //if finish {
+    //    // terminate early
+    //    return (decoded_node_fixed_size, decoded_node_lens, decoded_list_len);
+    //}
+
+    // 1. Convert the input into vec<u8>
+
+    // 2. We're deleting rlp_decode_mpt_node
+    // So use the nwe decoder.
+    //let decoded_node = rlp_decode_mpt_node(&encoded[..len]);
+    //for (i, string) in decoded_node.iter().enumerate() {
+    //    let len: usize = string.len();
+    //    assert!(
+    //        len <= MAX_STRING_SIZE,
+    //        "The decoded string should have length <= {MAX_STRING_SIZE}!"
+    //    );
+    //    decoded_node_fixed_size[i][..len].copy_from_slice(string);
+    //    decoded_node_lens[i] = len;
+    //}
+    // 3. Conver the RLPItem into a MPTNodeFixedSize.
+    //(
+    //    decoded_node_fixed_size,
+    //    decoded_node_lens,
+    //    decoded_node.len(),
+    //)
+    todo!();
 }
 
 /// This calculates the prefix and the length of the encoding that we would get if we were to encode
 /// the given string. More specifically, the first return value is the prefix of
 /// rlp_encode(padded_string[..len]). The second return value is
 /// rlp_encode(padded_string[..len]).len().
-fn calculate_rlp_encode_metadata(padded_string: FixedSizeString, len: usize) -> (u32, u32) {
-    if len == 0 {
+fn calculate_rlp_encode_metadata(padded_string: RLPItemFixedSize) -> (u32, u32) {
+    if padded_string.len == 0 {
         // While it may be counterintutive, rlp_encode(the empty string) = 0x80.
         (0x80, 1)
-    } else if len == 1 {
-        if padded_string[0] < 0x80 {
+    } else if padded_string.len == 1 {
+        if padded_string.data[0] < 0x80 {
             // A single byte less than 0x80 is its own RLP encoding.
-            (padded_string[0] as u32, 1)
+            (padded_string.data[0] as u32, 1)
         } else {
             // A single byte greater than 0x80 is encoded as 0x81 + the byte.
             (0x81, 2)
         }
-    } else if len <= 55 {
+    } else if padded_string.len <= 55 {
         // A string of length <= 55 is encoded as (0x80 + length of the string) followed by the
         // string.
-        (len as u32 + 0x80, len as u32 + 1)
+        (
+            padded_string.len as u32 + 0x80,
+            padded_string.len as u32 + 1,
+        )
     } else {
-        panic!("Invalid length {}", len)
+        panic!("Invalid length {}", padded_string.len)
     }
 }
 
 // This is the vanilla implementation of the RLC trick for verifying the decoded_list
 pub fn verify_decoded_list<const M: usize>(
-    node: FixedSizeMPTNode,
-    lens: FixedSizeStringLengths,
-    node_len: usize,
+    node: MPTNodeFixedSize,
     encoding: [u8; M],
     encoding_len: usize,
 ) {
@@ -178,17 +192,17 @@ pub fn verify_decoded_list<const M: usize>(
 
     let mut sum_of_rlp_encoding_length: u32 = 0;
     let mut claim_poly = BigInt::default();
-    for i in 0..MAX_NODE_SIZE {
+    for i in 0..MAX_MPT_NODE_SIZE {
         // Calculate the prefix and the length of the encoding of the _current_ string.
-        let (prefix_byte, rlp_encoding_length) = calculate_rlp_encode_metadata(node[i], lens[i]);
+        let (prefix_byte, rlp_encoding_length) = calculate_rlp_encode_metadata(node.data[i]);
         let mut poly = prefix_byte.to_bigint().unwrap() * random.pow(sum_of_rlp_encoding_length);
-        for j in 0..MAX_STRING_SIZE {
-            poly += node[i][j] as u32
+        for j in 0..MAX_RLP_ITEM_SIZE {
+            poly += node.data[i].data[j] as u32
                 * (random.pow(1 + sum_of_rlp_encoding_length + j as u32))
-                * ((j < lens[i]) as u32);
+                * ((j < node.data[i].len) as u32);
         }
-        sum_of_rlp_encoding_length += rlp_encoding_length * ((i < node_len) as u32);
-        claim_poly += poly * ((i < node_len) as u32);
+        sum_of_rlp_encoding_length += rlp_encoding_length * ((i < node.len) as u32);
+        claim_poly += poly * ((i < node.len) as u32);
     }
 
     // Based on what we've seen, we calculate the prefix of the whole encoding.
@@ -223,12 +237,7 @@ mod tests {
     use crate::utils::bytes;
 
     const MAX_SIZE_SHORT_ENCODING: usize = 2 * 32 + 20;
-    fn set_up_short_encoding() -> (
-        Vec<u8>,
-        [u8; MAX_SIZE_SHORT_ENCODING],
-        FixedSizeMPTNode,
-        FixedSizeStringLengths,
-    ) {
+    fn set_up_short_encoding() -> (Vec<u8>, [u8; MAX_SIZE_SHORT_ENCODING], MPTNodeFixedSize) {
         // This is a RLP-encoded list of an extension node. The 00 in 0x006f indicates that the path
         // length is even, and the path is 6 -> f. This extension node points to a leaf node with
         // the hash starting with 0x188d11.  ["0x006f",
@@ -238,73 +247,66 @@ mod tests {
         let mut encoding_fixed_size = [0u8; MAX_SIZE_SHORT_ENCODING];
         encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
 
-        let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_STRING_SIZE]; MAX_NODE_SIZE];
-        let mut string_lengths_fixed_size: FixedSizeStringLengths = [0; 17];
+        //  MPTNodeFixedSize
+        todo!();
+        // let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_RLP_ITEM_SIZE]; MAX_NODE_SIZE];
+        // let mut string_lengths_fixed_size: FixedSizeStringLengths = [0; 17];
 
-        decoded_node_fixed_size[0][..2].copy_from_slice(rlp_encoding[2..4].as_ref());
-        string_lengths_fixed_size[0] = 2;
+        // decoded_node_fixed_size[0][..2].copy_from_slice(rlp_encoding[2..4].as_ref());
+        // string_lengths_fixed_size[0] = 2;
 
-        decoded_node_fixed_size[1][..32].copy_from_slice(rlp_encoding[5..].as_ref());
-        string_lengths_fixed_size[1] = 32;
-        (
-            rlp_encoding,
-            encoding_fixed_size,
-            decoded_node_fixed_size,
-            string_lengths_fixed_size,
-        )
+        // decoded_node_fixed_size[1][..32].copy_from_slice(rlp_encoding[5..].as_ref());
+        // string_lengths_fixed_size[1] = 32;
+        // (
+        //     rlp_encoding,
+        //     encoding_fixed_size,
+        //     decoded_node_fixed_size,
+        // )
     }
 
     #[test]
     fn test_rlp_decode_mpt_node_short_encoding() {
-        let (rlp_encoding, _, decoded_node_fixed_size, string_lengths_fixed_size) =
-            set_up_short_encoding();
+        let (rlp_encoding, _, decoded_node_fixed_size) = set_up_short_encoding();
 
-        let decoded_node = rlp_decode_mpt_node(&rlp_encoding);
-        assert_eq!(decoded_node.len(), 2);
-        for i in 0..2 {
-            assert_eq!(
-                decoded_node[i].as_slice(),
-                &decoded_node_fixed_size[i][..string_lengths_fixed_size[i]]
-            );
-        }
+        // overall it makes sense, but delete rlp_decode_mpt_node
+        // let decoded_node = rlp_decode_mpt_node(&rlp_encoding);
+        // assert_eq!(decoded_node.len(), 2);
+        // for i in 0..2 {
+        //     assert_eq!(
+        //         decoded_node[i].as_slice(),
+        //         &decoded_node_fixed_size[i][..string_lengths_fixed_size[i]]
+        //     );
+        // }
     }
 
     #[test]
     fn test_verify_decode_list_short_encoding() {
-        let (rlp_encoding, encoding_fixed_size, decoded_node_fixed_size, string_lengths_fixed_size) =
-            set_up_short_encoding();
+        let (rlp_encoding, encoding_fixed_size, decoded_node_fixed_size) = set_up_short_encoding();
 
-        verify_decoded_list::<MAX_SIZE_SHORT_ENCODING>(
-            decoded_node_fixed_size,
-            string_lengths_fixed_size,
-            2,
-            encoding_fixed_size,
-            rlp_encoding.len(),
-        );
+        // Fix this.
+        // verify_decoded_list::<MAX_SIZE_SHORT_ENCODING>(
+        //     node,
+        //     rlp_encoding_fixed_size,
+        //     rlp_encoding.len(),
+        // );
     }
 
     #[test]
     fn test_verify_decode_list_short_encoding_wrong_prefix() {
-        let (
-            rlp_encoding,
-            mut encoding_fixed_size,
-            decoded_node_fixed_size,
-            string_lengths_fixed_size,
-        ) = set_up_short_encoding();
+        // Fix this.
+        // let (rlp_encoding, _, decoded_node_fixed_size) = set_up_short_encoding();
 
-        encoding_fixed_size[0] = 0x80;
+        // encoding_fixed_size[0] = 0x80;
 
-        // We expect the verifier to fail as the encoding is incorrect.
-        let result = std::panic::catch_unwind(|| {
-            verify_decoded_list::<MAX_SIZE_SHORT_ENCODING>(
-                decoded_node_fixed_size,
-                string_lengths_fixed_size,
-                17,
-                encoding_fixed_size,
-                rlp_encoding.len(),
-            );
-        });
-        assert!(result.is_err());
+        // // We expect the verifier to fail as the encoding is incorrect.
+        // let result = std::panic::catch_unwind(|| {
+        //     verify_decoded_list::<MAX_SIZE_SHORT_ENCODING>(
+        //         node,
+        //         rlp_encoding_fixed_size,
+        //         rlp_encoding.len(),
+        //     );
+        // });
+        // assert!(result.is_err());
     }
 
     #[test]
@@ -314,28 +316,29 @@ mod tests {
         let mut encoding_fixed_size = [0u8; MAX_SIZE];
         encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
 
-        let decoded_list = rlp_decode_mpt_node(&rlp_encoding);
-        assert!(decoded_list.len() == 17);
-        let string_lengths = decoded_list
-            .iter()
-            .map(|item| item.len() as u8)
-            .collect::<Vec<u8>>();
-
-        let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_STRING_SIZE]; MAX_NODE_SIZE];
-        let mut string_lengths_fixed_size: FixedSizeStringLengths = [0; 17];
-        for (i, item) in decoded_list.iter().enumerate() {
-            let len = item.len();
-            assert!(len <= 32, "The nested vector is longer than 32 bytes!");
-            decoded_node_fixed_size[i][..len].copy_from_slice(item);
-            string_lengths_fixed_size[i] = string_lengths[i] as usize;
-        }
-
-        verify_decoded_list::<MAX_SIZE>(
-            decoded_node_fixed_size,
-            string_lengths_fixed_size,
-            17,
-            encoding_fixed_size,
-            rlp_encoding.len(),
-        );
+        // rlp_decode_mpt_node will be deleted, this should be replaced by the new decoder.
+        //        let decoded_list = rlp_decode_mpt_node(&rlp_encoding);
+        //        assert!(decoded_list.len() == 17);
+        //        let string_lengths = decoded_list
+        //            .iter()
+        //            .map(|item| item.len() as u8)
+        //            .collect::<Vec<u8>>();
+        //
+        //        let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_RLP_ITEM_SIZE]; MAX_NODE_SIZE];
+        //        let mut string_lengths_fixed_size: FixedSizeStringLengths = [0; 17];
+        //        for (i, item) in decoded_list.iter().enumerate() {
+        //            let len = item.len();
+        //            assert!(len <= 32, "The nested vector is longer than 32 bytes!");
+        //            decoded_node_fixed_size[i][..len].copy_from_slice(item);
+        //            string_lengths_fixed_size[i] = string_lengths[i] as usize;
+        //        }
+        // This is good.
+        //        verify_decoded_list::<MAX_SIZE>(
+        //            decoded_node_fixed_size,
+        //            string_lengths_fixed_size,
+        //            17,
+        //            encoding_fixed_size,
+        //            rlp_encoding.len(),
+        //        );
     }
 }

@@ -1,7 +1,8 @@
 use ethers::types::H256;
 use ethers::utils::keccak256;
 
-use crate::frontend::eth::rlp::utils::{rlp_decode_mpt_node, rlp_decode_next_string};
+use crate::frontend::eth::rlp::decoder::decode;
+// TODO: take the decoder from decoder.rs
 
 const TREE_RADIX: usize = 16;
 const BRANCH_NODE_LENGTH: usize = 17;
@@ -29,8 +30,8 @@ pub fn assert_bytes_equal(a: &[u8], b: &[u8]) {
     }
 }
 
-// Based off of the following Solidity implementation:
-// https://github.com/ethereum-optimism/optimism/blob/6e041bcd9d678a0ea2bb92cfddf9716f8ae2336c/packages/contracts-bedrock/src/libraries/trie/MerkleTrie.sol
+/// Based off of the following Solidity implementation:
+/// https://github.com/ethereum-optimism/optimism/blob/6e041bcd9d678a0ea2bb92cfddf9716f8ae2336c/packages/contracts-bedrock/src/libraries/trie/MerkleTrie.sol
 #[allow(dead_code)] // We allow dead_code since it's used in the tests below
 pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> Vec<u8> {
     let mut current_key_index = 0;
@@ -50,7 +51,7 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> V
         } else {
             assert_bytes_equal(current_node, &current_node_id);
         }
-        let decoded = rlp_decode_mpt_node(current_node);
+        let decoded = decode(current_node);
         match decoded.len() {
             BRANCH_NODE_LENGTH => {
                 if current_key_index == key_path.len() {
@@ -102,7 +103,13 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> V
             if account_proof {
                 return current_node_id;
             } else {
-                return rlp_decode_next_string(&current_node_id[..]).0;
+                todo!();
+                // Okay what are we doing here?
+                //
+                // I don't understand the purpose, but it's clear what I need to do. Juse use the
+                // new decoder and take the next string.
+                // TODO
+                // return rlp_decode_next_string(&current_node_id[..]).0;
             }
         }
     }

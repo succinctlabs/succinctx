@@ -1,3 +1,7 @@
+//! This file implements RLP decoder.
+//!
+//! Reference: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
+
 use crate::utils::stream::Stream;
 
 /// An item is a string (i.e., byte array) or a list of items.
@@ -15,8 +19,6 @@ pub enum RLPItem {
 /// 3. Extension Node (?): If the node takes less than 32 bytes to encode, it will be placed inline.
 /// 4. Leaf Node (?): If the node takes less than 32 bytes to ecnode, it will be placed inline.
 /// 5. NULL: Represents the empty string "" or <>.
-///
-///
 ///
 impl Stream<u8> {
     /// Decodes the next item in the input using RLP.
@@ -56,4 +58,11 @@ impl Stream<u8> {
             todo!()
         }
     }
+}
+// TODO
+// I also need to create a decoder. Use the function above to decode and return the results instead
+// of creating a stream.
+
+pub fn decode(encoded_item: &vec<u8>) -> RLPItem {
+    todo!();
 }
