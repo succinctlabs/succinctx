@@ -27,14 +27,6 @@ pub type FixedSizeMPTNode = [FixedSizeString; MAX_NODE_SIZE];
 /// string.
 pub type FixedSizeStringLengths = [usize; MAX_NODE_SIZE];
 
-pub fn bool_to_u32(b: bool) -> u32 {
-    if b {
-        1
-    } else {
-        0
-    }
-}
-
 /// This decodes the next byte string contained in the input. It also returns the number of bytes we
 /// processed. This is useful for decoding the next string.
 pub fn rlp_decode_next_string(input: &[u8]) -> (Vec<u8>, usize) {
@@ -204,8 +196,7 @@ pub fn verify_decoded_list<const M: usize>(
     let mut encoding_poly = BigInt::default();
 
     for i in 0..M {
-        encoding_poly +=
-            encoding[i] as u32 * (random.pow(i as u32)) * bool_to_u32(i < encoding_len);
+        encoding_poly += encoding[i] as u32 * (random.pow(i as u32)) * ((i < encoding_len) as u32);
     }
 
     // Now, we will calculate the polynomial that represents the node. Here, we will calculate what
@@ -223,10 +214,10 @@ pub fn verify_decoded_list<const M: usize>(
         for j in 0..MAX_STRING_SIZE {
             poly += node[i][j] as u32
                 * (random.pow(1 + sum_of_rlp_encoding_length + j as u32))
-                * bool_to_u32(j < lens[i]);
+                * ((j < lens[i]) as u32);
         }
-        sum_of_rlp_encoding_length += rlp_encoding_length * bool_to_u32(i < node_len);
-        claim_poly += poly * bool_to_u32(i < node_len);
+        sum_of_rlp_encoding_length += rlp_encoding_length * ((i < node_len) as u32);
+        claim_poly += poly * ((i < node_len) as u32);
     }
 
     // Based on what we've seen, we calculate the prefix of the whole encoding.
