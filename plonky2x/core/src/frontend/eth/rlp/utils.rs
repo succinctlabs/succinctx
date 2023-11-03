@@ -1,114 +1,130 @@
-use ethers::types::Bytes;
-use log::info;
+//! This file implements fixed size utilities for RLP and MPT.
+//!
+//! Reference 1: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
+//! Reference 2: https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie
+
 use num::bigint::ToBigInt;
 use num::BigInt;
 
-/// Byte array of at most 32 bytes, potentially padded. This could be a hash, value,
-/// rlp.encode(branch node), rlp.encode(leaf node), or rlp.encode(extension node) under the hood.
-pub const MAX_STRING_SIZE: usize = 32;
-pub type FixedSizeString = [u8; MAX_STRING_SIZE];
+use crate::utils::stream::Stream;
 
-/// This represents a node in a MPT, potentially padded. This could be a null, branch, leaf, or
-/// extension node. Note that a nested list (when a small node is referenced inside node), if any,
-/// isn't decoded.
+/// An item is a string (i.e., byte array) or a list of items. The item assumes a fixed size.
 ///
-/// Why we can use FixdSizeString for the type of each element in FixedSizeMPTNode:
-/// 1. For a branch node, each node is referenced by a 32-byte hash, or the node itself. We use the
-///    node if and only if the len(node) < 32.
-/// 2. For a leaf node, the encodedPath is an an array of up to 32 bytes because a path in Ethereum
-///    is exactly 64 hex character long. Furthermore, the value is guaranteed to be up to 32 bytes.
-/// 3. For an extension node, the encodedPath is the same as the leaf node. The key is keccak256(x),
-///    which is exactly 32 bytes.
-pub const MAX_NODE_SIZE: usize = 17;
-pub type FixedSizeMPTNode = [FixedSizeString; MAX_NODE_SIZE];
-
-/// This represents the length of each string in a node, potentially padded Since each
-/// FixedSizeString in FixedSizeString is padded, we need to keep track of the "true" length of each
-/// string.
-pub type FixedSizeStringLengths = [usize; MAX_NODE_SIZE];
-
-/// This decodes the next byte string contained in the input. It also returns the number of bytes we
-/// processed. This is useful for decoding the next string.
-pub fn rlp_decode_next_string(input: &[u8]) -> (Vec<u8>, usize) {
-    if input.is_empty() {
-        panic!("input cannot be empty")
-    }
-    let prefix = input[0];
-    if prefix <= 0x7F {
-        // The prefix indicateas that the byte is its own RLP encoding.
-        (vec![prefix], 1)
-    } else if prefix == 0x80 {
-        // This is the null value. In other words, the empty string.
-        (vec![], 1)
-    } else if prefix <= 0xB7 {
-        // Prefix indicates short string containing up to 55 bytes.
-        let length = (prefix - 0x80) as usize;
-        let res = &input[1..1 + length];
-        (res.into(), 1 + length)
-    } else if prefix <= 0xBF {
-        // Prefix indicates long string containing more than 55 bytes.
-        let len_of_str_len = (prefix - 0xB7) as usize;
-        let mut str_len_bytes: Vec<u8> = input[1..1 + len_of_str_len].to_vec();
-        str_len_bytes.reverse();
-        let mut str_len = 0;
-        for i in 0..len_of_str_len {
-            str_len += str_len_bytes[i] as usize * 256_usize.pow(i as u32);
-        }
-        return (
-            input[1 + len_of_str_len..1 + len_of_str_len + str_len].into(),
-            1 + len_of_str_len + str_len,
-        );
-    } else {
-        // TODO: In some cases, a MPT node may be a nested list. So, this is not necessarily an
-        // error. "When one node is referenced inside another node, what is included is
-        // H(rlp.encode(x)), where H(x) = keccak256(x) if len(x) >= 32 else x and rlp.encode is the
-        // RLP encoding function."
-        info!("input {:?}", input);
-        panic!("Prefix indicates this is a list, but we expect a string")
-    }
+/// This item can potentially represent the following objects:
+///
+/// 1. Bytes32: Usually the hash of the rlp-encoding of some data that exceeds 32 bytes.
+/// 2. Branch Node (?): If the node takes less than 32 bytes to encode, it will be placed inline.
+/// 3. Extension Node (?): If the node takes less than 32 bytes to encode, it will be placed inline.
+/// 4. Leaf Node (?): If the node takes less than 32 bytes to ecnode, it will be placed inline.
+/// 5. NULL: Represents the empty string "" or <>.
+pub struct RLPItemFixedSize {
+    pub data: [u8; 32],
+    pub len: usize,
 }
 
-pub fn rlp_decode_mpt_node(input: &[u8]) -> Vec<Vec<u8>> {
-    info!("input {:?}", Bytes::from(input.to_vec()).to_string());
-    let prefix = input[0];
+/// A Merkle Patricia Trie node. The underlying data assumes a fixed size of up to 17 fixed size rlp
+/// items.
+///
+/// This node can potentially represent the following objects:
+///
+/// 1. Branch Node: A 17-item node [v0, ..., v15, vt]
+/// 2. Leaf Node: A 2-item node [encodedPath, value]
+/// 3. Extension Node: A 2-item node [encodedPath, key]
+pub struct MPTNodeFixedSize {
+    pub data: [RLPItemFixedSize; 17],
+    pub len: usize,
+}
 
-    if prefix < 0xC0 {
-        panic!("Invalid prefix, MPT node must be a list")
-    } else if prefix <= 0xF7 {
-        // Short list (0-55 bytes total payload)
-        let list_length = (prefix - 0xC0) as usize;
-        // We assert that the input is simply [list_length, list_content...] and not suffixed by anything else
-        assert!(input.len() == 1 + list_length);
-        let (ele_1, increment) = rlp_decode_next_string(&input[1..]);
-        let (ele_2, _) = rlp_decode_next_string(&input[1 + increment..]);
-        vec![ele_1, ele_2]
-    } else {
-        info!("hi in this case");
-        // TODO: check that prefix is bounded within a certain range
-        let len_of_list_length = prefix - 0xF7;
-        // info!("len_of_list_length {:?}", len_of_list_length);
-        // TODO: figure out what to do with len_of_list_length
-        let mut pos = 1 + len_of_list_length as usize;
-        let mut res = vec![];
-        for _ in 0..17 {
-            let (decoded_string, num_bytes_processed) = rlp_decode_next_string(&input[pos..]);
-            info!(
-                "decoded_string {:?}",
-                Bytes::from(decoded_string.clone()).to_string()
-            );
-            info!("{:?} bytes processed", num_bytes_processed);
-            res.push(decoded_string);
-            pos += num_bytes_processed;
-            if pos >= input.len() {
-                break;
+/// An item is a string (i.e., byte array) or a list of items.
+pub enum RLPItem {
+    String(Vec<u8>),
+    List(Vec<RLPItem>),
+}
+
+// rlp_item.to_fixed_size();
+// rlp_item.to_mpt_node_fixed_size();
+
+impl Stream<u8> {
+    /// Decodes the next item in the input using RLP.
+    fn rlp_decode_next_item(&self) -> RLPItem {
+        let prefix = self.read_exact(0)[0];
+        if prefix <= 0x7F {
+            // The prefix indicates that the byte has its own RLP encoding.
+            RLPItem::String(vec![prefix])
+        } else if prefix == 0x80 {
+            // The prefix indicates this is the null value.
+            RLPItem::String(vec![])
+        } else if prefix <= 0xB7 {
+            // The prefix indicates a short string containing up to 55 bytes.
+            let length = (prefix - 0x80) as usize;
+            RLPItem::String(self.read_exact(length).to_vec())
+        } else if prefix <= 0xBF {
+            // The prefix indicates a long string containing more than 55 bytes.
+            let nb_length_bytes = (prefix - 0xB7) as usize;
+            let mut length_bytes = self.read_exact(nb_length_bytes);
+            length_bytes.reverse();
+            let mut length = 0;
+            for i in 0..nb_length_bytes {
+                length += length_bytes[i] as usize * 256_usize.pow(i as u32);
             }
+            RLPItem::String(self.read_exact(length).to_vec())
+        } else if prefix <= 0xF7 {
+            /// The prefix indicates a short list, where the payload is 0-55 bytes.
+            let length = (prefix - 0xC0) as usize;
+            let mut elements = Vec::new();
+            for i in 0..length {
+                elements.push(self.rlp_decode_next_item());
+            }
+            RLPItem::List(elements)
+        } else {
+            // The prefix indicates a longer list.
+            let nb_length_bytes = (prefix - 0xF7) as usize;
+            todo!()
         }
-        assert!(pos == input.len()); // Checks that we have iterated through all the input
-        assert!(res.len() == 17 || res.len() == 2);
-        info!("END");
-        res
     }
 }
+
+// pub fn rlp_decode_mpt_node(input: &[u8]) -> Vec<Vec<u8>> {
+//     info!("input {:?}", Bytes::from(input.to_vec()).to_string());
+//     let prefix = input[0];
+
+//     if prefix < 0xC0 {
+//         panic!("Invalid prefix, MPT node must be a list")
+//     } else if prefix <= 0xF7 {
+//         // Short list (0-55 bytes total payload)
+//         let list_length = (prefix - 0xC0) as usize;
+//         // We assert that the input is simply [list_length, list_content...] and not suffixed by anything else
+//         assert!(input.len() == 1 + list_length);
+//         let (ele_1, increment) = rlp_decode_next_string(&input[1..]);
+//         let (ele_2, _) = rlp_decode_next_string(&input[1 + increment..]);
+//         vec![ele_1, ele_2]
+//     } else {
+//         info!("hi in this case");
+//         // TODO: check that prefix is bounded within a certain range
+//         let len_of_list_length = prefix - 0xF7;
+//         // info!("len_of_list_length {:?}", len_of_list_length);
+//         // TODO: figure out what to do with len_of_list_length
+//         let mut pos = 1 + len_of_list_length as usize;
+//         let mut res = vec![];
+//         for _ in 0..17 {
+//             let (decoded_string, num_bytes_processed) = rlp_decode_next_string(&input[pos..]);
+//             info!(
+//                 "decoded_string {:?}",
+//                 Bytes::from(decoded_string.clone()).to_string()
+//             );
+//             info!("{:?} bytes processed", num_bytes_processed);
+//             res.push(decoded_string);
+//             pos += num_bytes_processed;
+//             if pos >= input.len() {
+//                 break;
+//             }
+//         }
+//         assert!(pos == input.len()); // Checks that we have iterated through all the input
+//         assert!(res.len() == 17 || res.len() == 2);
+//         info!("END");
+//         res
+//     }
+// }
 
 /// Given `encoded` which is a RLP-encoded list, passed in as a byte array of length `M`, with "true length" `len`
 /// This decodes a padded, RLP encoded MPT node.
