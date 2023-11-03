@@ -1,16 +1,7 @@
-use curta::math::field::Field;
-use curta::math::prelude::PrimeField64;
 use ethers::types::Bytes;
 use log::info;
 use num::bigint::ToBigInt;
 use num::BigInt;
-use serde::{Deserialize, Serialize};
-
-use crate::frontend::hint::simple::hint::Hint;
-use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, PlonkParameters, ValueStream,
-    Variable, VariableStream,
-};
 
 /// Byte array of at most 32 bytes, potentially padded. This could be a hash, value,
 /// rlp.encode(branch node), rlp.encode(leaf node), or rlp.encode(extension node) under the hood.
@@ -369,7 +360,7 @@ mod tests {
             .collect::<Vec<u8>>();
 
         let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_STRING_SIZE]; MAX_NODE_SIZE];
-        let mut string_lengths_fixed_size: FixedSizeStringLengths = [0 as usize; 17];
+        let mut string_lengths_fixed_size: FixedSizeStringLengths = [0; 17];
         for (i, item) in decoded_list.iter().enumerate() {
             let len = item.len();
             assert!(len <= 32, "The nested vector is longer than 32 bytes!");
