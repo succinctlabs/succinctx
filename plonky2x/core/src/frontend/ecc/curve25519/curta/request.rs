@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
 use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub enum EcOpRequestType {
     Add,
     ScalarMul,

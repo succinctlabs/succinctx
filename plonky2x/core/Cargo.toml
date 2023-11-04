@@ -14,7 +14,7 @@ ci = []
 
 [dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false }
-curta = { git = "https://github.com/succinctlabs/curta.git", branch = "kevjue/fieldparameters_funcs" }
+curta = { git = "https://github.com/succinctlabs/curta.git", branch = "tamir/scalar_mul_mem" }
 plonky2x-derive = { path = "../derive" }
 
 num = { version = "0.4", default-features = false }

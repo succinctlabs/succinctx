@@ -2,17 +2,12 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 
 use curta::chip::ec::edwards::ed25519::params::Ed25519BaseField;
-use curta::chip::ec::edwards::scalar_mul::air::ScalarMulEd25519;
-use curta::chip::ec::edwards::scalar_mul::generator::{
-    SimpleScalarMulEd25519Generator, SimpleScalarMulEd25519HintGenerator,
-};
 use curta::chip::hash::blake::blake2b::generator::{
     BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
 };
 use curta::machine::hash::sha::sha256::SHA256;
 use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
 use curta::plonky2::cubic::mul_gate::MulCubicGenerator;
-use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
 use plonky2::gadgets::arithmetic_extension::QuotientGeneratorExtension;
@@ -357,17 +352,6 @@ where
         let le_generator_id = LteGenerator::<L, D>::id();
         r.register_simple::<LteGenerator<L, D>>(le_generator_id);
 
-        let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
-            ScalarMulEd25519<L::Field, L::CubicParams>,
-            L::CurtaConfig,
-            D,
-        >::id();
-        r.register_simple::<SimpleStarkWitnessGenerator<
-            ScalarMulEd25519<L::Field, L::CubicParams>,
-            L::CurtaConfig,
-            D,
-        >>(simple_stark_witness_generator_id);
-
         r.register_hint::<BeaconBalanceWitnessHint>();
         r.register_hint::<BeaconExecutionPayloadHint>();
 
@@ -394,13 +378,6 @@ where
 
         let id = NonNativeSubtractionGenerator::<L::Field, D, Ed25519BaseField>::default().id();
         r.register_simple::<NonNativeSubtractionGenerator<L::Field, D, Ed25519BaseField>>(id);
-
-        let id =
-            SimpleScalarMulEd25519Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
-        r.register_simple::<SimpleScalarMulEd25519Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(id);
-
-        let id = "SimpleScalarMulEd25519HintGenerator";
-        r.register_simple::<SimpleScalarMulEd25519HintGenerator<L::Field, D>>(id.to_string());
 
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);

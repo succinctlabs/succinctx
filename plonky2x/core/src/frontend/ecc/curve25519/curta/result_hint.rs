@@ -31,7 +31,7 @@ impl<L: PlonkParameters<D>, const D: usize, FF: FieldParameters> Hint<L, D> for 
             EcOpRequestType::ScalarMul => {
                 let scalar = input_stream.read_value::<NonNativeVariable<FF>>();
                 let point = input_stream.read_value::<AffinePointVariable<Curve>>();
-                result = Some(point.scalar_mul(&scalar));
+                result = Some(point * scalar);
             }
             EcOpRequestType::Decompress => {
                 let compressed_point = input_stream.read_value::<CompressedEdwardsYVariable>();

@@ -13,7 +13,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         accelerator: EcOpAccelerator<FF>,
     ) {
-        // Get all the digest values using the digest hint.
+        // Get all the responses using the request hint.
         for (request, response) in accelerator
             .ec_op_requests
             .iter()
