@@ -63,6 +63,7 @@ fn decode_with_iterator(it: &mut std::slice::Iter<u8>) -> RLPItem {
             let nb_length_bytes = (byte - 0xf7) as usize;
             let length_data = read_exact(it, nb_length_bytes);
 
+            // TODO: Consider update this, this seems error-prone.
             let mut length = 0;
             for i in 0..nb_length_bytes {
                 length += length_data[nb_length_bytes - i] as usize * 256_usize.pow(i as u32);
