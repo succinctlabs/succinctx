@@ -113,6 +113,7 @@ fn decode_with_iterator(it: &mut VecIterator) -> RLPItem {
     }
 }
 
+// Takes an RLP-encoded byte array and returns the decoded item.
 pub fn decode(data: &[u8]) -> RLPItem {
     let mut vec_it = VecIterator::new(data.to_vec());
     decode_with_iterator(&mut vec_it)
