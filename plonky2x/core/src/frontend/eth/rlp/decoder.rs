@@ -1,12 +1,9 @@
 //! This file implements RLP decoder.
 //!
 //! Reference: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
-//!
-//! Implementation inspired by: https://github.com/mquandalle/ethereum-rust/blob/master/src/rlp.rs
-
-#[derive(PartialEq, Debug)]
 
 /// An item is a string (i.e., byte array) or a list of items.
+#[derive(PartialEq, Debug)]
 pub enum RLPItem {
     String(Vec<u8>),
     List(Vec<RLPItem>),
@@ -30,7 +27,7 @@ impl VecIterator {
     }
     pub fn next(&mut self) -> Option<u8> {
         if self.index < self.data.len() {
-            let item = self.data[self.index].clone();
+            let item = self.data[self.index];
             self.index += 1;
             Some(item)
         } else {
@@ -49,7 +46,7 @@ impl VecIterator {
         data
     }
     pub fn next_index(&mut self) -> usize {
-        return self.index;
+        self.index
     }
 }
 
@@ -70,15 +67,19 @@ fn decode_with_iterator(it: &mut VecIterator) -> RLPItem {
             let nb_length_bytes = (byte - 0xB7) as usize;
             let length_data = it.next_chunk(nb_length_bytes);
 
-            let mut length = 0;
-            for i in 0..nb_length_bytes {
-                length += length_data[nb_length_bytes - i - 1] as usize * 256_usize.pow(i as u32);
-            }
+            // Convert the length data to a usize.
+            let length = length_data
+                .iter()
+                .rev()
+                .enumerate()
+                .fold(0, |acc, (i, x)| acc + ((*x as usize) << (8 * i as u32)));
             RLPItem::String(it.next_chunk(length))
         }
         Some(byte) if byte <= 0xF7 => {
             // The byte indicates a short list, where the payload is 0-55 bytes.
             let length = (byte - 0xC0) as usize;
+
+            // Here, we need to process length _bytes_, not length _items_.
             let next_index = it.next_index();
             let mut elements = Vec::new();
             while it.next_index() < next_index + length {
@@ -91,12 +92,14 @@ fn decode_with_iterator(it: &mut VecIterator) -> RLPItem {
             let nb_length_bytes = (byte - 0xf7) as usize;
             let length_data = it.next_chunk(nb_length_bytes);
 
-            // TODO: Consider update this, this seems error-prone.
-            let mut length = 0;
-            for i in 0..nb_length_bytes {
-                length += length_data[nb_length_bytes - i - 1] as usize * 256_usize.pow(i as u32);
-            }
+            // Convert the length data to a usize.
+            let length = length_data
+                .iter()
+                .rev()
+                .enumerate()
+                .fold(0, |acc, (i, x)| acc + ((*x as usize) << (8 * i as u32)));
 
+            // Here, we need to process length _bytes_, not length _items_.
             let next_index = it.next_index();
             let mut elements = Vec::new();
             while it.next_index() < next_index + length {
