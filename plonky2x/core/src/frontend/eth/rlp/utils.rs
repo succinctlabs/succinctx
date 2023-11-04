@@ -6,7 +6,7 @@
 use num::bigint::ToBigInt;
 use num::BigInt;
 
-// use super::decoder::rlp_decode_next_item;
+use super::decoder::RLPItem;
 
 pub const MAX_RLP_ITEM_SIZE: usize = 32;
 /// An item is a string (i.e., byte array) or a list of items. The item assumes a fixed size.
@@ -18,9 +18,31 @@ pub const MAX_RLP_ITEM_SIZE: usize = 32;
 /// 3. Extension Node (?): If the node takes less than 32 bytes to encode, it will be placed inline.
 /// 4. Leaf Node (?): If the node takes less than 32 bytes to ecnode, it will be placed inline.
 /// 5. NULL: Represents the empty string "" or <>.
+#[derive(Copy, Clone)]
 pub struct RLPItemFixedSize {
     pub data: [u8; MAX_RLP_ITEM_SIZE],
     pub len: usize,
+}
+
+impl From<&RLPItem> for RLPItemFixedSize {
+    fn from(item: &RLPItem) -> Self {
+        // Match RLPItem and see if it's a list or a string
+        match item {
+            RLPItem::List(_) => {
+                // This is when a node references another node directly.
+                panic!("not implemented yet")
+            }
+            RLPItem::String(data) => {
+                // Copy data into self.data.
+                // If data.len() > MAX_RLP_ITEM_SIZE, panic.
+                let len = data.len();
+                let mut array = [0; MAX_RLP_ITEM_SIZE];
+                array[..data.len()].copy_from_slice(data);
+
+                return RLPItemFixedSize { data: array, len };
+            }
+        }
+    }
 }
 
 pub const MAX_MPT_NODE_SIZE: usize = 17;
@@ -33,57 +55,39 @@ pub const MAX_MPT_NODE_SIZE: usize = 17;
 /// 1. Branch Node: A 17-item node [v0, ..., v15, vt]
 /// 2. Leaf Node: A 2-item node [encodedPath, value]
 /// 3. Extension Node: A 2-item node [encodedPath, key]
+#[derive(Copy, Clone)]
 pub struct MPTNodeFixedSize {
     pub data: [RLPItemFixedSize; MAX_MPT_NODE_SIZE],
     pub len: usize,
 }
 
+impl From<RLPItem> for MPTNodeFixedSize {
+    fn from(item: RLPItem) -> Self {
+        match item {
+            RLPItem::String(data) => {
+                panic!("a node cannot be a string")
+            }
+            RLPItem::List(ls) => {
+                assert!(ls.len() == 2 || ls.len() == 17);
+                let mut res = [RLPItemFixedSize {
+                    data: [0u8; MAX_RLP_ITEM_SIZE],
+                    len: 0,
+                }; MAX_MPT_NODE_SIZE];
+                for (i, item) in ls.iter().enumerate() {
+                    res[i] = RLPItemFixedSize::from(item);
+                }
+                MPTNodeFixedSize {
+                    data: res,
+                    len: ls.len(),
+                }
+            }
+        }
+    }
+}
+
 // TODO:??
 // rlp_item.to_fixed_size();
 // rlp_item.to_mpt_node_fixed_size();
-
-// We'll delete this since this is almost identical to the decoder from decode.rs
-// pub fn rlp_decode_mpt_node(input: &[u8]) -> Vec<Vec<u8>> {
-//     info!("input {:?}", Bytes::from(input.to_vec()).to_string());
-//     let prefix = input[0];
-
-//     if prefix < 0xC0 {
-//         panic!("Invalid prefix, MPT node must be a list")
-//     } else if prefix <= 0xF7 {
-//         // Short list (0-55 bytes total payload)
-//         let list_length = (prefix - 0xC0) as usize;
-//         // We assert that the input is simply [list_length, list_content...] and not suffixed by anything else
-//         assert!(input.len() == 1 + list_length);
-//         let (ele_1, increment) = rlp_decode_next_string(&input[1..]);
-//         let (ele_2, _) = rlp_decode_next_string(&input[1 + increment..]);
-//         vec![ele_1, ele_2]
-//     } else {
-//         info!("hi in this case");
-//         // TODO: check that prefix is bounded within a certain range
-//         let len_of_list_length = prefix - 0xF7;
-//         // info!("len_of_list_length {:?}", len_of_list_length);
-//         // TODO: figure out what to do with len_of_list_length
-//         let mut pos = 1 + len_of_list_length as usize;
-//         let mut res = vec![];
-//         for _ in 0..17 {
-//             let (decoded_string, num_bytes_processed) = rlp_decode_next_string(&input[pos..]);
-//             info!(
-//                 "decoded_string {:?}",
-//                 Bytes::from(decoded_string.clone()).to_string()
-//             );
-//             info!("{:?} bytes processed", num_bytes_processed);
-//             res.push(decoded_string);
-//             pos += num_bytes_processed;
-//             if pos >= input.len() {
-//                 break;
-//             }
-//         }
-//         assert!(pos == input.len()); // Checks that we have iterated through all the input
-//         assert!(res.len() == 17 || res.len() == 2);
-//         info!("END");
-//         res
-//     }
-// }
 
 /// Given `encoded` which is a RLP-encoded list, passed in as a byte array of length `M`, with "true length" `len`
 /// This decodes a padded, RLP encoded MPT node.
