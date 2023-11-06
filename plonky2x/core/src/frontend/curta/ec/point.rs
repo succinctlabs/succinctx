@@ -54,6 +54,10 @@ impl<E: EllipticCurve> CircuitVariable for AffinePointVariable<E> {
         elements
     }
 
+    fn nb_elements() -> usize {
+        FieldVariable::<E::BaseField>::nb_elements() * 2
+    }
+
     fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
         let len = elements.len();
         assert!(len % 2 == 0);
