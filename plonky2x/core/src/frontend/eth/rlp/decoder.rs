@@ -1,6 +1,29 @@
 //! This file implements RLP decoder.
 //!
 //! Reference: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
+//!
+//! We have a total of 6 different ways of representing Merkle Patricia Tries.
+//! - Encoded versions
+//!     1. Encoded MPT : vec<u8>
+//!     2. Padded Encoded MPT : ([u8; usize], usize)
+//!     3. Circuita Padded Encoded MPT : ArrayVariable<ByteVariable, ENCODING_LEN>
+//! - Decoded versions
+//!     1'. MPT : RLPItem
+//!     2'. Padded MPT : MPTNodeFixedSize
+//!     3'. Circuit Padded MPT : ArrayVariable<ArrayVariable<ByteVariable, 32>, 17>
+//!
+//! We offer three decoding methods:
+//! - decode: 1 -> 1'
+//! - decode_padded: 2 -> 2'
+//! - DecodeHint: 3 -> 3'
+//!
+//! Type converstions can be done as following:
+//! - Converstions between encoded types
+//!     - 1 -> 2: Using the to_fixed_size method
+//!     - 2 -> 3: TODO?
+//! - Converstions between decoded types
+//!     - 3' -> 2': TODO?
+//!     - 2' -> 1': a.iter().take(len).clone().collect()
 
 /// An item is a string (i.e., byte array) or a list of items.
 #[derive(PartialEq, Debug)]
