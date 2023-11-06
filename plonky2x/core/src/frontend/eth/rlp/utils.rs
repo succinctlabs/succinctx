@@ -98,7 +98,6 @@ pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
     finish: bool,
 ) -> MPTNodeFixedSize {
     assert!(len <= ENCODING_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
-    assert!(len == LIST_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
     assert!(LIST_LEN == 2 || LIST_LEN == 17); // Right now we only support decoding lists of length 2 or 17
 
     if finish {
@@ -218,7 +217,6 @@ mod tests {
         let mut encoding_fixed_size = [0u8; MAX_SIZE_SHORT_ENCODING];
         encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
 
-        //  MPTNodeFixedSize
         let mut decoded_node_fixed_size: MPTNodeFixedSize = MPTNodeFixedSize::default();
 
         decoded_node_fixed_size.data[0].data[..2].copy_from_slice(rlp_encoding[2..4].as_ref());
@@ -226,6 +224,9 @@ mod tests {
 
         decoded_node_fixed_size.data[1].data[..32].copy_from_slice(rlp_encoding[5..].as_ref());
         decoded_node_fixed_size.data[1].len = 32;
+
+        decoded_node_fixed_size.len = 2;
+
         (rlp_encoding, encoding_fixed_size, decoded_node_fixed_size)
     }
 
@@ -234,11 +235,10 @@ mod tests {
         let (rlp_encoding, rlp_encoding_fixed_size, decoded_node_fixed_size_exp) =
             set_up_short_encoding();
 
-        let decoded_node_fixed_size_out = decode_padded_mpt_node::<
-            MAX_SIZE_SHORT_ENCODING,
-            MAX_MPT_NODE_SIZE,
-        >(
-            &rlp_encoding_fixed_size, rlp_encoding.len(), false
+        let decoded_node_fixed_size_out = decode_padded_mpt_node::<MAX_SIZE_SHORT_ENCODING, 2>(
+            &rlp_encoding_fixed_size,
+            rlp_encoding.len(),
+            false,
         );
         assert_eq!(decoded_node_fixed_size_out, decoded_node_fixed_size_exp);
     }
