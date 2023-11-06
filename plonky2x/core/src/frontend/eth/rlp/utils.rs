@@ -10,6 +10,7 @@ use super::decoder::RLPItem;
 use crate::frontend::eth::rlp::decoder::decode;
 
 pub const MAX_RLP_ITEM_SIZE: usize = 32;
+
 /// An item is a string (i.e., byte array) or a list of items. The item assumes a fixed size.
 ///
 /// This item can potentially represent the following objects:
