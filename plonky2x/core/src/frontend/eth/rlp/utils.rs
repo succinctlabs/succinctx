@@ -7,6 +7,7 @@ use num::bigint::ToBigInt;
 use num::BigInt;
 
 use super::decoder::RLPItem;
+use crate::frontend::eth::rlp::decoder::decode;
 
 pub const MAX_RLP_ITEM_SIZE: usize = 32;
 /// An item is a string (i.e., byte array) or a list of items. The item assumes a fixed size.
@@ -18,7 +19,7 @@ pub const MAX_RLP_ITEM_SIZE: usize = 32;
 /// 3. Extension Node (?): If the node takes less than 32 bytes to encode, it will be placed inline.
 /// 4. Leaf Node (?): If the node takes less than 32 bytes to ecnode, it will be placed inline.
 /// 5. NULL: Represents the empty string "" or <>.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct RLPItemFixedSize {
     pub data: [u8; MAX_RLP_ITEM_SIZE],
     pub len: usize,
@@ -45,6 +46,30 @@ impl From<&RLPItem> for RLPItemFixedSize {
     }
 }
 
+impl RLPItemFixedSize {
+    /// Returns the prefix and length of rlp-encoding(self.data[..self.len])
+    pub fn metadata_of_encoding(&self) -> (u32, u32) {
+        if self.len == 0 {
+            // While it may be counterintutive, rlp_encode(the empty string) = 0x80.
+            (0x80, 1)
+        } else if self.len == 1 {
+            if self.data[0] < 0x80 {
+                // A single byte less than 0x80 is its own RLP encoding.
+                (self.data[0] as u32, 1)
+            } else {
+                // A single byte greater than 0x80 is encoded as 0x81 + the byte.
+                (0x81, 2)
+            }
+        } else if self.len <= 55 {
+            // A string of length <= 55 is encoded as (0x80 + length of the string) followed by the
+            // string.
+            (self.len as u32 + 0x80, self.len as u32 + 1)
+        } else {
+            panic!("Invalid length {}", self.len)
+        }
+    }
+}
+
 pub const MAX_MPT_NODE_SIZE: usize = 17;
 
 /// A Merkle Patricia Trie node. The underlying data assumes a fixed size of up to 17 fixed size rlp
@@ -55,7 +80,7 @@ pub const MAX_MPT_NODE_SIZE: usize = 17;
 /// 1. Branch Node: A 17-item node [v0, ..., v15, vt]
 /// 2. Leaf Node: A 2-item node [encodedPath, value]
 /// 3. Extension Node: A 2-item node [encodedPath, key]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct MPTNodeFixedSize {
     pub data: [RLPItemFixedSize; MAX_MPT_NODE_SIZE],
     pub len: usize,
@@ -85,62 +110,25 @@ impl From<RLPItem> for MPTNodeFixedSize {
     }
 }
 
-// TODO:??
-// rlp_item.to_fixed_size();
-// rlp_item.to_mpt_node_fixed_size();
-
-/// Given `encoded` which is a RLP-encoded list, passed in as a byte array of length `M`, with "true length" `len`
-/// This decodes a padded, RLP encoded MPT node.
+/// This decodes an padded encoding of MPT node and returns the padded, decoded MPT node.
 ///
 /// The input is a tuple of:
 /// - encoded: padded, RLP-encoded MPT node,
 /// - len: "true length" of `encoded`,
 /// - finish: a boolean indicating whether we should terminate early.
-///
-/// The output is a tuple of:
-/// - Padded decoded node,
-/// - Lengths of each string in the decoded node,
-/// - Length of the decoded node.
 pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
     encoded: &[u8],
     len: usize,
     finish: bool,
 ) -> MPTNodeFixedSize {
-    //assert!(node.len <= ENCODING_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
-    //assert!(node.len == LIST_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
-    //assert!(LIST_LEN == 2 || LIST_LEN == 17); // Right now we only support decoding lists of length 2 or 17
+    assert!(len <= ENCODING_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
+    assert!(len == LIST_LEN); // len is the "true" length of "encoded", which is padded to length `ENCODING_LEN`
+    assert!(LIST_LEN == 2 || LIST_LEN == 17); // Right now we only support decoding lists of length 2 or 17
 
-    //
-    //let mut decoded_node =
-    //let mut decoded_node_fixed_size = vec![vec![0u8; MAX_STRING_SIZE]; LIST_LEN];
-    //let mut decoded_node_lens = vec![0usize; LIST_LEN];
-    //let decoded_list_len = 0;
-    //if finish {
-    //    // terminate early
-    //    return (decoded_node_fixed_size, decoded_node_lens, decoded_list_len);
-    //}
-
-    // 1. Convert the input into vec<u8>
-
-    // 2. We're deleting rlp_decode_mpt_node
-    // So use the nwe decoder.
-    //let decoded_node = rlp_decode_mpt_node(&encoded[..len]);
-    //for (i, string) in decoded_node.iter().enumerate() {
-    //    let len: usize = string.len();
-    //    assert!(
-    //        len <= MAX_STRING_SIZE,
-    //        "The decoded string should have length <= {MAX_STRING_SIZE}!"
-    //    );
-    //    decoded_node_fixed_size[i][..len].copy_from_slice(string);
-    //    decoded_node_lens[i] = len;
-    //}
-    // 3. Conver the RLPItem into a MPTNodeFixedSize.
-    //(
-    //    decoded_node_fixed_size,
-    //    decoded_node_lens,
-    //    decoded_node.len(),
-    //)
-    todo!();
+    if finish {
+        return MPTNodeFixedSize::default();
+    }
+    MPTNodeFixedSize::from(decode(&encoded[0..len]))
 }
 
 /// This calculates the prefix and the length of the encoding that we would get if we were to encode
