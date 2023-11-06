@@ -10,7 +10,6 @@ use crate::prelude::{
     Variable, VariableStream,
 };
 
-/// TODO: Consider removing LIST_LEN and using MAX_RLP_ITEM_SIZE instead.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DecodeHint<const ENCODING_LEN: usize, const LIST_LEN: usize> {}
 impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize, const LIST_LEN: usize>
@@ -19,32 +18,30 @@ impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize, const LIS
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let encoded = input_stream.read_value::<ArrayVariable<ByteVariable, ENCODING_LEN>>();
         let len = input_stream.read_value::<Variable>();
-        let finish = input_stream.read_value::<BoolVariable>(); // TODO: What does this finish do?
+        let finish = input_stream.read_value::<BoolVariable>();
 
-        // 1. Remove the padding
+        let decoded = decode_padded_mpt_node::<ENCODING_LEN, LIST_LEN>(
+            &encoded,
+            len.as_canonical_u64() as usize,
+            finish,
+        );
 
-        // 2. Use rlp_decode_next_item
-
-        // 3. Convert that into a fixed size.
-        // let (decoded_list, decoded_list_lens, len_decoded_list) =
-
-        //     decode_padded_mpt_node::<ENCODING_LEN, LIST_LEN>(
-        //         &encoded,
-        //         len.as_canonical_u64() as usize,
-        //         finish,
-        //     );
-
-        //        output_stream
-        //            .write_value::<ArrayVariable<ArrayVariable<ByteVariable, MAX_RLP_ITEM_SIZE>, LIST_LEN>>(
-        //                decoded_list,
-        //            );
-        //        output_stream.write_value::<ArrayVariable<Variable, LIST_LEN>>(
-        //            decoded_list_lens
-        //                .iter()
-        //                .map(|x| L::Field::from_canonical_usize(*x))
-        //                .collect::<Vec<_>>(),
-        //        );
-        //        output_stream.write_value::<Variable>(L::Field::from_canonical_usize(len_decoded_list));
+        output_stream
+            .write_value::<ArrayVariable<ArrayVariable<ByteVariable, MAX_RLP_ITEM_SIZE>, LIST_LEN>>(
+                decoded
+                    .data
+                    .iter()
+                    .map(|x| x.data.to_vec())
+                    .collect::<Vec<_>>(),
+            );
+        output_stream.write_value::<ArrayVariable<Variable, LIST_LEN>>(
+            decoded
+                .data
+                .iter()
+                .map(|x| L::Field::from_canonical_usize(x.len))
+                .collect::<Vec<_>>(),
+        );
+        output_stream.write_value::<Variable>(L::Field::from_canonical_usize(decoded.len));
     }
 }
 
