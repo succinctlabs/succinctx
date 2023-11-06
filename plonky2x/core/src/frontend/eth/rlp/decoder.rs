@@ -6,11 +6,11 @@
 //! - Encoded versions
 //!     1. Encoded MPT : vec<u8>
 //!     2. Padded Encoded MPT : ([u8; usize], usize)
-//!     3. Circuita Padded Encoded MPT : ArrayVariable<ByteVariable, ENCODING_LEN>
+//!     3. Circuit Padded Encoded MPT : (ArrayVariable<ByteVariable, ENCODING_LEN>, Variable)
 //! - Decoded versions
 //!     1'. MPT : RLPItem
 //!     2'. Padded MPT : MPTNodeFixedSize
-//!     3'. Circuit Padded MPT : ArrayVariable<ArrayVariable<ByteVariable, 32>, 17>
+//!     3'. Circuit Padded MPT : (ArrayVariable<ArrayVariable<ByteVariable, 32>, 17>, Variable)
 //!
 //! We offer three decoding methods:
 //! - decode: 1 -> 1'
