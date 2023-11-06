@@ -13,12 +13,11 @@ pub const MAX_RLP_ITEM_SIZE: usize = 32;
 
 /// An item is a string (i.e., byte array) or a list of items. The item assumes a fixed size.
 ///
-/// This item can potentially represent the following objects:
+/// Each item can potentially represent the following objects:
 ///
-/// 1. Bytes32: Usually the hash of the rlp-encoding of some data that exceeds 32 bytes.
-/// 2. Branch Node (?): If the node takes less than 32 bytes to encode, it will be placed inline.
-/// 3. Extension Node (?): If the node takes less than 32 bytes to encode, it will be placed inline.
-/// 4. Leaf Node (?): If the node takes less than 32 bytes to ecnode, it will be placed inline.
+/// 1. Bytes32: Usually the hash of the rlp-encoding of some data that is at least 32 bytes.
+/// 2. {Branch, Extension, Leaf} Node: If the node is smaller than 32 bytes, it will be placed
+///    inline.
 /// 5. NULL: Represents the empty string "" or <>.
 #[derive(Copy, Clone, Default, Debug, PartialEq)]
 pub struct RLPItemFixedSize {
@@ -71,17 +70,12 @@ impl From<RLPItem> for MPTNodeFixedSize {
             }
             RLPItem::List(ls) => {
                 assert!(ls.len() == 2 || ls.len() == 17);
-                let mut res = [RLPItemFixedSize {
-                    data: [0u8; MAX_RLP_ITEM_SIZE],
-                    len: 0,
-                }; MAX_MPT_NODE_SIZE];
+                let mut res = MPTNodeFixedSize::default();
                 for (i, item) in ls.iter().enumerate() {
-                    res[i] = RLPItemFixedSize::from(item);
+                    res.data[i] = RLPItemFixedSize::from(item);
                 }
-                MPTNodeFixedSize {
-                    data: res,
-                    len: ls.len(),
-                }
+                res.len = ls.len();
+                res
             }
         }
     }
@@ -90,9 +84,9 @@ impl From<RLPItem> for MPTNodeFixedSize {
 /// This decodes an padded encoding of MPT node and returns the padded, decoded MPT node.
 ///
 /// The input is a tuple of:
-/// - encoded: padded, RLP-encoded MPT node,
-/// - len: "true length" of `encoded`,
-/// - finish: a boolean indicating whether we should terminate early.
+/// - `encoded`: padded, RLP-encoded MPT node,
+/// - `len`: "true length" of `encoded`,
+/// - `finish`: a boolean indicating whether we should terminate early.
 pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
     encoded: &[u8],
     len: usize,
@@ -104,16 +98,16 @@ pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
     if finish {
         return MPTNodeFixedSize::default();
     }
-    MPTNodeFixedSize::from(decode(&encoded[0..len]))
+    MPTNodeFixedSize::from(decode(&encoded[..len]))
 }
 
 /// This calculates the prefix and the length of the encoding that we would get if we were to encode
 /// the given string.
 ///
-/// More specifically, the first return value is the prefix of rlp_encode(padded_string[..len]). The
-/// econd return value is rlp_encode(padded_string[..len]).len(). This function is intentionally
-/// kept separate from RLPItemFixedSize to make the verification code easier to convert to the
-/// circuit language.
+/// More specifically, the first return value is the prefix of `rlp_encode(padded_string[..len])`.
+/// The econd return value is `rlp_encode(padded_string[..len]).len()`. This function is
+/// intentionally kept separate from `RLPItemFixedSize` to make the verification code easier to
+/// convert to the circuit language.
 fn calculate_rlp_encode_metadata(padded_string: &RLPItemFixedSize) -> (u32, u32) {
     if padded_string.len == 0 {
         // While it may be counterintutive, rlp_encode(the empty string) = 0x80.
@@ -138,7 +132,7 @@ fn calculate_rlp_encode_metadata(padded_string: &RLPItemFixedSize) -> (u32, u32)
     }
 }
 
-/// This is the vanilla implementation of the RLC trick for verifying the decoded_list
+/// This is the vanilla implementation of the RLC trick for verifying the decoded node.
 pub fn verify_decoded_list<const M: usize>(
     node: MPTNodeFixedSize,
     encoding: [u8; M],
@@ -209,7 +203,7 @@ mod tests {
 
     const MAX_SIZE_SHORT_ENCODING: usize = 2 * 32 + 20;
     fn set_up_short_encoding() -> (Vec<u8>, [u8; MAX_SIZE_SHORT_ENCODING], MPTNodeFixedSize) {
-        // This is a RLP-encoded list of an extension node. The 00 in 0x006f indicates that the path
+        // This is an RLP-encoded list of an extension node. The 00 in 0x006f indicates that the path
         // length is even, and the path is 6 -> f. This extension node points to a leaf node with
         // the hash starting with 0x188d11.  ["0x006f",
         // "0x188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6"]

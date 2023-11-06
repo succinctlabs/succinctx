@@ -11,6 +11,7 @@
 //!     1'. MPT : RLPItem
 //!     2'. Padded MPT : MPTNodeFixedSize
 //!     3'. Circuit Padded MPT : (ArrayVariable<ArrayVariable<ByteVariable, 32>, 17>, Variable)
+//!         TODO: This will be a new type called MPTFixedSizeVariable.
 //!
 //! We offer three decoding methods:
 //! - decode: 1 -> 1'
@@ -18,11 +19,9 @@
 //! - DecodeHint: 3 -> 3'
 //!
 //! Type converstions can be done as following:
-//! - Converstions between encoded types
+//! - Conversions between encoded types
 //!     - 1 -> 2: Using the to_fixed_size method
-//!     - 2 -> 3: TODO?
-//! - Converstions between decoded types
-//!     - 3' -> 2': TODO?
+//! - Conversions between decoded types
 //!     - 2' -> 1': a.iter().take(len).clone().collect()
 //!
 //! 1 and 1' are in this file, decoder.rs. 2 and 2' are in utils.rs. Finally, 3 and 3' are in
@@ -91,7 +90,7 @@ fn decode_with_stream(st: &mut Stream<u8>) -> RLPItem {
     }
 }
 
-// Takes an RLP-encoded byte array and returns the decoded item.
+/// Takes an RLP-encoded byte array and returns the decoded item.
 pub fn decode(data: &[u8]) -> RLPItem {
     let mut st = Stream::new(data.to_vec());
     decode_with_stream(&mut st)

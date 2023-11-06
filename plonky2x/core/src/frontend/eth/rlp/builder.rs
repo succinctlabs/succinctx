@@ -13,10 +13,10 @@ use crate::prelude::{
 /// A Hint structure to decode an RLP-encoded string.
 ///
 /// The RLP-encoded string is expected to be padded to a fixed size. The fixed size should equal
-/// ENCODING_LEN and is specified as a type parameter. The "true" length of the encoding is given
-/// in the stream. LIST_LEN specifies the node size. (e.g., 2 for extension/leaf nodes, 17 for
+/// `ENCODING_LEN` and is specified as a type parameter. The "true" length of the encoding is given
+/// in the stream. `LIST_LEN` specifies the node size. (e.g., 2 for extension/leaf nodes, 17 for
 /// branch nodes.) The decoded string is returned as a padded 2-dimensional byte array
-/// (MAX_RLP_ITEM_SIZE x LIST_LEN).
+/// (`MAX_RLP_ITEM_SIZE` x `LIST_LEN`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DecodeHint<const ENCODING_LEN: usize, const LIST_LEN: usize> {}
 impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize, const LIST_LEN: usize>
