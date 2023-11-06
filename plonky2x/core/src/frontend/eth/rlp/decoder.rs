@@ -24,6 +24,9 @@
 //! - Converstions between decoded types
 //!     - 3' -> 2': TODO?
 //!     - 2' -> 1': a.iter().take(len).clone().collect()
+//!
+//! 1 and 1' are in this file, decoder.rs. 2 and 2' are in utils.rs. Finally, 3 and 3' are in
+//! builder.rs.
 
 /// An item is a string (i.e., byte array) or a list of items.
 #[derive(PartialEq, Debug)]
