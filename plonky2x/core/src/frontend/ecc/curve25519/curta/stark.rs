@@ -1,4 +1,3 @@
-use curta::air;
 use curta::chip::builder::AirBuilder;
 use curta::chip::ec::edwards::ed25519::gadget::{CompressedPointGadget, CompressedPointWriter};
 use curta::chip::ec::edwards::ed25519::instruction::Ed25519FpInstruction;
@@ -13,7 +12,6 @@ use curta::chip::trace::writer::TraceWriter;
 use curta::chip::{AirParameters, Chip};
 use curta::machine::builder::Builder;
 use curta::machine::ec::builder::EllipticCurveBuilder;
-use curta::maybe_rayon::*;
 use curta::plonky2::stark::config::StarkyConfig;
 use curta::plonky2::stark::proof::StarkProof;
 use curta::plonky2::stark::prover::StarkyProver;
@@ -26,9 +24,10 @@ use num_bigint::BigUint;
 
 use super::air_parameters::Ed25519AirParameters;
 use super::request::EcOpRequestType;
-use super::Curve;
+use super::{Curve, ScalarField};
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
 use crate::frontend::curta::proof::StarkProofVariable;
+use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
 use crate::prelude::*;
 
 pub enum Ed25519CurtaOp {
@@ -53,7 +52,7 @@ pub enum Ed25519OpVariable {
         AffinePointVariable<Curve>,
     ),
     ScalarMul(
-        BigUint,
+        NonNativeVariable<ScalarField>,
         AffinePointVariable<Curve>,
         AffinePointVariable<Curve>,
     ),
@@ -230,6 +229,17 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
         _ec_ops: &[Ed25519OpVariable],
     ) {
         builder.verify_stark_proof(&self.config, &self.stark, proof, public_inputs)
+    }
+
+    pub fn read_proof_with_public_input(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+        output_stream: &OutputVariableStream<L, D>,
+    ) -> (StarkProofVariable<D>, Vec<Variable>) {
+        let proof = output_stream.read_stark_proof(builder, &self.stark, &self.config);
+        let public_inputs = output_stream.read_vec(builder, self.trace_data.num_public_inputs);
+
+        (proof, public_inputs)
     }
 }
 

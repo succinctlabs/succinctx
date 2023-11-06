@@ -1,8 +1,10 @@
 use curta::chip::field::parameters::FieldParameters;
 
 use super::accelerator::EcOpAccelerator;
+use super::proof_hint::EcOpProofHint;
 use super::request::EcOpRequest;
 use super::result_hint::EcOpResultHint;
+use super::stark::Ed25519Stark;
 use super::Curve;
 use crate::frontend::curta::ec::point::AffinePointVariable;
 use crate::prelude::{CircuitBuilder, PlonkParameters, VariableStream};
@@ -54,5 +56,45 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 EcOpRequest::IsValid(_) => {}
             }
         }
+
+        let mut input_stream = VariableStream::new();
+
+        let mut requests = Vec::new();
+        for (request, response) in accelerator
+            .ec_op_requests
+            .iter()
+            .zip(accelerator.ec_op_responses.iter())
+        {
+            requests.push(request.req_type());
+            match &request {
+                EcOpRequest::Add(a, b) => {
+                    let response = response.as_ref().unwrap();
+                    input_stream.write(&**a);
+                    input_stream.write(&**b);
+                    input_stream.write(response);
+                }
+                EcOpRequest::ScalarMul(scalar, point) => {
+                    let response = response.as_ref().unwrap();
+                    input_stream.write(&**scalar);
+                    input_stream.write(&**point);
+                    input_stream.write(response);
+                }
+                EcOpRequest::Decompress(compressed_point) => {
+                    let point = response.as_ref().unwrap();
+                    input_stream.write(&**compressed_point);
+                    input_stream.write(point);
+                }
+                EcOpRequest::IsValid(point) => {
+                    input_stream.write(&**point);
+                }
+            }
+        }
+
+        let proof_hint = EcOpProofHint::new(&requests);
+        let output_stream = self.hint(input_stream, proof_hint);
+
+        let stark = Ed25519Stark::<L, D>::new(&requests);
+        let (proof, public_inputs) = stark.read_proof_with_public_input(self, &output_stream);
+        stark.verify_proof(self, proof, &public_inputs, &[])
     }
 }
