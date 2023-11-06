@@ -46,30 +46,6 @@ impl From<&RLPItem> for RLPItemFixedSize {
     }
 }
 
-impl RLPItemFixedSize {
-    /// Returns the prefix and length of rlp-encoding(self.data[..self.len])
-    pub fn metadata_of_encoding(&self) -> (u32, u32) {
-        if self.len == 0 {
-            // While it may be counterintutive, rlp_encode(the empty string) = 0x80.
-            (0x80, 1)
-        } else if self.len == 1 {
-            if self.data[0] < 0x80 {
-                // A single byte less than 0x80 is its own RLP encoding.
-                (self.data[0] as u32, 1)
-            } else {
-                // A single byte greater than 0x80 is encoded as 0x81 + the byte.
-                (0x81, 2)
-            }
-        } else if self.len <= 55 {
-            // A string of length <= 55 is encoded as (0x80 + length of the string) followed by the
-            // string.
-            (self.len as u32 + 0x80, self.len as u32 + 1)
-        } else {
-            panic!("Invalid length {}", self.len)
-        }
-    }
-}
-
 pub const MAX_MPT_NODE_SIZE: usize = 17;
 
 /// A Merkle Patricia Trie node. The underlying data assumes a fixed size of up to 17 fixed size rlp
@@ -132,9 +108,12 @@ pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
 }
 
 /// This calculates the prefix and the length of the encoding that we would get if we were to encode
-/// the given string. More specifically, the first return value is the prefix of
-/// rlp_encode(padded_string[..len]). The second return value is
-/// rlp_encode(padded_string[..len]).len().
+/// the given string.
+///
+/// More specifically, the first return value is the prefix of rlp_encode(padded_string[..len]). The
+/// econd return value is rlp_encode(padded_string[..len]).len(). This function is intentionally
+/// kept separate from RLPItemFixedSize to make the verification code easier to convert to the
+/// circuit language.
 fn calculate_rlp_encode_metadata(padded_string: &RLPItemFixedSize) -> (u32, u32) {
     if padded_string.len == 0 {
         // While it may be counterintutive, rlp_encode(the empty string) = 0x80.
