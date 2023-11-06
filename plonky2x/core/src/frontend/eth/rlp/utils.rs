@@ -66,7 +66,7 @@ pub struct MPTNodeFixedSize {
 impl From<RLPItem> for MPTNodeFixedSize {
     fn from(item: RLPItem) -> Self {
         match item {
-            RLPItem::String(data) => {
+            RLPItem::String(_data) => {
                 panic!("a node cannot be a string")
             }
             RLPItem::List(ls) => {

@@ -90,9 +90,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-
-    use futures::channel::mpsc;
-
     use super::*;
     use crate::backend::circuit::DefaultParameters;
     use crate::prelude::{DefaultBuilder, GoldilocksField};

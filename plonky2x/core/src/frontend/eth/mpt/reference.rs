@@ -1,4 +1,3 @@
-use curta::chip::trace::data;
 use ethers::types::H256;
 use ethers::utils::keccak256;
 
@@ -78,7 +77,7 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> V
                 LEAF_OR_EXTENSION_NODE_LENGTH => {
                     let path: Vec<u8>;
                     if let RLPItem::String(data) = &decoded[0] {
-                        path = to_nibbles(&data);
+                        path = to_nibbles(data);
                     } else {
                         panic!("direct node reference not supported yet");
                     }
