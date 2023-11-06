@@ -131,7 +131,7 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> V
                 // Okay what are we doing here?
                 //
                 // I don't understand the purpose, but I think we can just get away with a regular
-                // decoding function here? Decode current_node_id and return the first string?
+                // decoding function here? Decode cur
                 // TODO
                 // return rlp_decode_next_string(&current_node_id[..]).0;
             }

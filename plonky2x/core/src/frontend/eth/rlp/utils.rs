@@ -19,7 +19,7 @@ pub const MAX_RLP_ITEM_SIZE: usize = 32;
 /// 3. Extension Node (?): If the node takes less than 32 bytes to encode, it will be placed inline.
 /// 4. Leaf Node (?): If the node takes less than 32 bytes to ecnode, it will be placed inline.
 /// 5. NULL: Represents the empty string "" or <>.
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Debug, PartialEq)]
 pub struct RLPItemFixedSize {
     pub data: [u8; MAX_RLP_ITEM_SIZE],
     pub len: usize,
@@ -40,7 +40,7 @@ impl From<&RLPItem> for RLPItemFixedSize {
                 let mut array = [0; MAX_RLP_ITEM_SIZE];
                 array[..data.len()].copy_from_slice(data);
 
-                return RLPItemFixedSize { data: array, len };
+                RLPItemFixedSize { data: array, len }
             }
         }
     }
@@ -56,7 +56,7 @@ pub const MAX_MPT_NODE_SIZE: usize = 17;
 /// 1. Branch Node: A 17-item node [v0, ..., v15, vt]
 /// 2. Leaf Node: A 2-item node [encodedPath, value]
 /// 3. Extension Node: A 2-item node [encodedPath, key]
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Debug, PartialEq)]
 pub struct MPTNodeFixedSize {
     pub data: [RLPItemFixedSize; MAX_MPT_NODE_SIZE],
     pub len: usize,
@@ -138,7 +138,7 @@ fn calculate_rlp_encode_metadata(padded_string: &RLPItemFixedSize) -> (u32, u32)
     }
 }
 
-// This is the vanilla implementation of the RLC trick for verifying the decoded_list
+/// This is the vanilla implementation of the RLC trick for verifying the decoded_list
 pub fn verify_decoded_list<const M: usize>(
     node: MPTNodeFixedSize,
     encoding: [u8; M],
@@ -219,35 +219,28 @@ mod tests {
         encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
 
         //  MPTNodeFixedSize
-        todo!();
-        // let mut decoded_node_fixed_size: FixedSizeMPTNode = [[0u8; MAX_RLP_ITEM_SIZE]; MAX_NODE_SIZE];
-        // let mut string_lengths_fixed_size: FixedSizeStringLengths = [0; 17];
+        let mut decoded_node_fixed_size: MPTNodeFixedSize = MPTNodeFixedSize::default();
 
-        // decoded_node_fixed_size[0][..2].copy_from_slice(rlp_encoding[2..4].as_ref());
-        // string_lengths_fixed_size[0] = 2;
+        decoded_node_fixed_size.data[0].data[..2].copy_from_slice(rlp_encoding[2..4].as_ref());
+        decoded_node_fixed_size.data[0].len = 2;
 
-        // decoded_node_fixed_size[1][..32].copy_from_slice(rlp_encoding[5..].as_ref());
-        // string_lengths_fixed_size[1] = 32;
-        // (
-        //     rlp_encoding,
-        //     encoding_fixed_size,
-        //     decoded_node_fixed_size,
-        // )
+        decoded_node_fixed_size.data[1].data[..32].copy_from_slice(rlp_encoding[5..].as_ref());
+        decoded_node_fixed_size.data[1].len = 32;
+        (rlp_encoding, encoding_fixed_size, decoded_node_fixed_size)
     }
 
     #[test]
     fn test_rlp_decode_mpt_node_short_encoding() {
-        let (rlp_encoding, _, decoded_node_fixed_size) = set_up_short_encoding();
+        let (rlp_encoding, rlp_encoding_fixed_size, decoded_node_fixed_size_exp) =
+            set_up_short_encoding();
 
-        // overall it makes sense, but delete rlp_decode_mpt_node
-        // let decoded_node = rlp_decode_mpt_node(&rlp_encoding);
-        // assert_eq!(decoded_node.len(), 2);
-        // for i in 0..2 {
-        //     assert_eq!(
-        //         decoded_node[i].as_slice(),
-        //         &decoded_node_fixed_size[i][..string_lengths_fixed_size[i]]
-        //     );
-        // }
+        let decoded_node_fixed_size_out = decode_padded_mpt_node::<
+            MAX_SIZE_SHORT_ENCODING,
+            MAX_MPT_NODE_SIZE,
+        >(
+            &rlp_encoding_fixed_size, rlp_encoding.len(), false
+        );
+        assert_eq!(decoded_node_fixed_size_out, decoded_node_fixed_size_exp);
     }
 
     #[test]

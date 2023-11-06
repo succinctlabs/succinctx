@@ -14,7 +14,7 @@
 //!
 //! We offer three decoding methods:
 //! - decode: 1 -> 1'
-//! - decode_padded: 2 -> 2'
+//! - decode_padded_mpt_node: 2 -> 2'
 //! - DecodeHint: 3 -> 3'
 //!
 //! Type converstions can be done as following:
