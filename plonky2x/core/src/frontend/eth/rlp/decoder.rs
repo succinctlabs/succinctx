@@ -28,6 +28,8 @@
 //! 1 and 1' are in this file, decoder.rs. 2 and 2' are in utils.rs. Finally, 3 and 3' are in
 //! builder.rs.
 
+use crate::utils::stream::Stream;
+
 /// An item is a string (i.e., byte array) or a list of items.
 #[derive(PartialEq, Debug)]
 pub enum RLPItem {
@@ -35,114 +37,64 @@ pub enum RLPItem {
     List(Vec<RLPItem>),
 }
 
-/// Private helper struct to iterate over a vector.
-///
-/// This struct is used to read the next item in the RLP encoding. This is very similar to a regular
-/// built-in iterator, but it also keeps track of the current index. Unfortunately, it appears that
-/// there is no built-in Rust class that returns the next item and also returns the index of the
-/// item. The index of the item is crucial when reading the elements of a list as we only know
-/// how many _bytes_ to read, but not how many _items_ to read.
-struct VecIterator {
-    data: Vec<u8>,
-    index: usize,
+/// Private helper method to convert a byte array in big endian to a usize.
+fn be_conversion(ls: &[u8]) -> usize {
+    ls.iter()
+        .rev()
+        .enumerate()
+        .fold(0, |acc, (i, x)| acc + ((*x as usize) << (8 * i as u32)))
 }
 
-impl VecIterator {
-    pub fn new(data: Vec<u8>) -> Self {
-        VecIterator { data, index: 0 }
-    }
-    pub fn next(&mut self) -> Option<u8> {
-        if self.index < self.data.len() {
-            let item = self.data[self.index];
-            self.index += 1;
-            Some(item)
-        } else {
-            None
-        }
-    }
-    pub fn next_chunk(&mut self, length: usize) -> Vec<u8> {
-        let mut data = vec![0; length];
-        for i in 0..length {
-            if let Some(next) = self.next() {
-                data[i] = next;
-            } else {
-                panic!("Not enough bytes to read");
-            }
-        }
-        data
-    }
-    pub fn next_index(&mut self) -> usize {
-        self.index
-    }
-}
+/// Private helper method to decode an RLP-encoded byte array in a stream.
+fn decode_with_stream(st: &mut Stream<u8>) -> RLPItem {
+    let next_byte = st.read_exact(1)[0];
+    if next_byte < 0x7f {
+        // The prefix indicates that the byte has its own RLP encoding.
+        RLPItem::String(vec![next_byte])
+    } else if next_byte <= 0xB7 {
+        // The byte indicates a short string containing up to 55 bytes.
+        let length = (next_byte - 0x80) as usize;
+        RLPItem::String(st.read_exact(length).to_vec())
+    } else if next_byte <= 0xBF {
+        // The byte indicates a long string containing more than 55 bytes.
+        let nb_length_bytes = (next_byte - 0xB7) as usize;
+        let length_data = st.read_exact(nb_length_bytes);
 
-/// Private helper method to read the next item.
-fn decode_with_iterator(it: &mut VecIterator) -> RLPItem {
-    match it.next() {
-        Some(byte) if byte < 0x7f => {
-            // The prefix indicates that the byte has its own RLP encoding.
-            RLPItem::String(vec![byte])
-        }
-        Some(byte) if byte <= 0xB7 => {
-            // The byte indicates a short string containing up to 55 bytes.
-            let length = (byte - 0x80) as usize;
-            RLPItem::String(it.next_chunk(length))
-        }
-        Some(byte) if byte <= 0xBF => {
-            // The byte indicates a long string containing more than 55 bytes.
-            let nb_length_bytes = (byte - 0xB7) as usize;
-            let length_data = it.next_chunk(nb_length_bytes);
+        let length = be_conversion(length_data);
+        RLPItem::String(st.read_exact(length).to_vec())
+    } else if next_byte <= 0xF7 {
+        // The byte indicates a short list, where the payload is 0-55 bytes.
+        let length = (next_byte - 0xC0) as usize;
 
-            // Convert the length data to a usize.
-            let length = length_data
-                .iter()
-                .rev()
-                .enumerate()
-                .fold(0, |acc, (i, x)| acc + ((*x as usize) << (8 * i as u32)));
-            RLPItem::String(it.next_chunk(length))
+        // Here, we need to process length _bytes_, not length _items_.
+        let pos = st.position();
+        let mut elements = Vec::new();
+        while st.position() < pos + length {
+            elements.push(decode_with_stream(st));
         }
-        Some(byte) if byte <= 0xF7 => {
-            // The byte indicates a short list, where the payload is 0-55 bytes.
-            let length = (byte - 0xC0) as usize;
+        RLPItem::List(elements)
+    } else {
+        // The byte indicates a longer list.
+        let nb_length_bytes = (next_byte - 0xf7) as usize;
+        let length_data = st.read_exact(nb_length_bytes);
 
-            // Here, we need to process length _bytes_, not length _items_.
-            let next_index = it.next_index();
-            let mut elements = Vec::new();
-            while it.next_index() < next_index + length {
-                elements.push(decode_with_iterator(it));
-            }
-            RLPItem::List(elements)
-        }
-        Some(byte) => {
-            // The byte indicates a longer list.
-            let nb_length_bytes = (byte - 0xf7) as usize;
-            let length_data = it.next_chunk(nb_length_bytes);
+        // Convert the length data to a usize.
+        let length = be_conversion(length_data);
 
-            // Convert the length data to a usize.
-            let length = length_data
-                .iter()
-                .rev()
-                .enumerate()
-                .fold(0, |acc, (i, x)| acc + ((*x as usize) << (8 * i as u32)));
-
-            // Here, we need to process length _bytes_, not length _items_.
-            let next_index = it.next_index();
-            let mut elements = Vec::new();
-            while it.next_index() < next_index + length {
-                elements.push(decode_with_iterator(it));
-            }
-            RLPItem::List(elements)
+        // Here, we need to process length _bytes_, not length _items_.
+        let next_index = st.position();
+        let mut elements = Vec::new();
+        while st.position() < next_index + length {
+            elements.push(decode_with_stream(st));
         }
-        None => {
-            panic!("unexpectedly ran out of bytes to read")
-        }
+        RLPItem::List(elements)
     }
 }
 
 // Takes an RLP-encoded byte array and returns the decoded item.
 pub fn decode(data: &[u8]) -> RLPItem {
-    let mut vec_it = VecIterator::new(data.to_vec());
-    decode_with_iterator(&mut vec_it)
+    let mut st = Stream::new(data.to_vec());
+    decode_with_stream(&mut st)
 }
 
 #[cfg(test)]
