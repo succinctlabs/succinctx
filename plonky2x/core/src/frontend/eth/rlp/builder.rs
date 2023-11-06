@@ -221,25 +221,23 @@ mod tests {
         let decoded_element_lens_out = output.read::<ArrayVariable<Variable, LIST_LEN>>();
         let len_decoded_list_out = output.read::<Variable>();
 
-        // let mpt_node = decode_padded_mpt_node::<ENCODING_LEN, LIST_LEN>(
-        //     &encoding_fixed_size,
-        //     rlp_encoding.len(),
-        //     finish,
-        // );
-        // TODO: Reevaulate if this test is necessary.
-        //        assert_eq!(
-        //            len_decoded_list_out,
-        //            F::from_canonical_usize(len_decoded_list_exp)
-        //        );
-        //        assert_eq!(decoded_list_out.len(), LIST_LEN);
-        //        assert_eq!(len_decoded_list_out, F::from_canonical_usize(LIST_LEN));
-        //
-        //        for i in 0..LIST_LEN {
-        //            assert_eq!(decoded_list_out[i], decoded_list_exp[i]);
-        //            assert_eq!(
-        //                decoded_element_lens_out[i],
-        //                F::from_canonical_usize(decoded_list_lens_exp[i])
-        //            );
-        //        }
+        let mpt_node_exp = decode_padded_mpt_node::<ENCODING_LEN, LIST_LEN>(
+            &encoding_fixed_size,
+            rlp_encoding.len(),
+            finish,
+        );
+        assert_eq!(len_decoded_list_out, F::from_canonical_usize(LIST_LEN));
+        assert_eq!(decoded_list_out.len(), LIST_LEN);
+
+        for i in 0..LIST_LEN {
+            assert_eq!(
+                decoded_element_lens_out[i],
+                F::from_canonical_usize(mpt_node_exp.data[i].len)
+            );
+
+            for j in 0..mpt_node_exp.data[i].len {
+                assert_eq!(decoded_list_out[i][j], mpt_node_exp.data[i].data[j]);
+            }
+        }
     }
 }
