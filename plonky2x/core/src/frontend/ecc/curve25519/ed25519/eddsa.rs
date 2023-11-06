@@ -215,7 +215,7 @@ mod tests {
         utils::setup_logger();
 
         const MAX_MSG_LEN_BYTES: usize = 192;
-        const NUM_SIGS: usize = 1;
+        const NUM_SIGS: usize = 128;
         type FF = Ed25519ScalarField;
         let mut builder = DefaultBuilder::new();
 

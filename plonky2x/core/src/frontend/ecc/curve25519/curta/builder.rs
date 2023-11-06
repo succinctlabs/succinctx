@@ -7,6 +7,7 @@ use super::result_hint::EcOpResultHint;
 use super::stark::Ed25519Stark;
 use super::Curve;
 use crate::frontend::curta::ec::point::AffinePointVariable;
+use crate::frontend::hint::synchronous::Async;
 use crate::prelude::{CircuitBuilder, PlonkParameters, VariableStream};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
@@ -91,7 +92,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let proof_hint = EcOpProofHint::new(&requests);
-        let output_stream = self.hint(input_stream, proof_hint);
+        let output_stream = self.async_hint(input_stream, Async(proof_hint));
 
         let stark = Ed25519Stark::<L, D>::new(&requests);
         let (proof, public_inputs) = stark.read_proof_with_public_input(self, &output_stream);
