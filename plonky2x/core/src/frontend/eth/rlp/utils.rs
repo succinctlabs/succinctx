@@ -245,14 +245,14 @@ mod tests {
 
     #[test]
     fn test_verify_decode_list_short_encoding() {
-        let (rlp_encoding, encoding_fixed_size, decoded_node_fixed_size) = set_up_short_encoding();
+        let (rlp_encoding, rlp_encoding_fixed_size, decoded_node_fixed_size_exp) =
+            set_up_short_encoding();
 
-        // Fix this.
-        // verify_decoded_list::<MAX_SIZE_SHORT_ENCODING>(
-        //     node,
-        //     rlp_encoding_fixed_size,
-        //     rlp_encoding.len(),
-        // );
+        verify_decoded_list::<MAX_SIZE_SHORT_ENCODING>(
+            decoded_node_fixed_size_exp,
+            rlp_encoding_fixed_size,
+            rlp_encoding.len(),
+        );
     }
 
     #[test]
