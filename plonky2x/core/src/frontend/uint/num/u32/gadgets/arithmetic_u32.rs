@@ -12,11 +12,11 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
-use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGate;
-use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGate;
-use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGate;
-use crate::frontend::num::u32::serialization::{ReadU32, WriteU32};
-use crate::frontend::num::u32::witness::GeneratedValuesU32;
+use crate::frontend::uint::num::u32::gates::add_many_u32::U32AddManyGate;
+use crate::frontend::uint::num::u32::gates::arithmetic_u32::U32ArithmeticGate;
+use crate::frontend::uint::num::u32::gates::subtraction_u32::U32SubtractionGate;
+use crate::frontend::uint::num::u32::serialization::{ReadU32, WriteU32};
+use crate::frontend::uint::num::u32::witness::GeneratedValuesU32;
 use crate::prelude::U32Variable;
 
 #[derive(Clone, Copy, Debug, Default)]

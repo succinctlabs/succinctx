@@ -23,11 +23,10 @@ use plonky2::util::timing::TimingTree;
 
 use super::air_parameters::Ed25519AirParameters;
 use super::request::EcOpRequestType;
-use super::{Curve, ScalarField};
+use super::Curve;
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
 use crate::frontend::curta::field::variable::FieldVariable;
 use crate::frontend::curta::proof::EmulatedStarkProofVariable;
-use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
 use crate::prelude::*;
 
 pub enum Ed25519CurtaOp {
@@ -52,7 +51,7 @@ pub enum Ed25519OpVariable {
         AffinePointVariable<Curve>,
     ),
     ScalarMul(
-        NonNativeVariable<ScalarField>,
+        U256Variable,
         AffinePointVariable<Curve>,
         AffinePointVariable<Curve>,
     ),
@@ -281,12 +280,12 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
     fn assert_scalar_equal(
         builder: &mut CircuitBuilder<L, D>,
         s: &ECScalarRegister<Curve>,
-        s_var: &NonNativeVariable<ScalarField>,
+        s_var: &U256Variable,
         public_inputs: &[Variable],
     ) {
-        for (limb, var_limb) in s.limbs.iter().zip(s_var.value.limbs.iter()) {
+        for (limb, var_limb) in s.limbs.iter().zip(s_var.limbs.iter()) {
             let limb = limb.read_from_slice(public_inputs);
-            builder.api.connect(limb.0, var_limb.target);
+            builder.assert_is_equal(limb, var_limb.variable);
         }
     }
 

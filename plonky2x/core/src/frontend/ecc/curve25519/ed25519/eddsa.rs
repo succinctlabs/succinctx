@@ -2,27 +2,28 @@ use core::fmt::Debug;
 
 use ::curta::chip::ec::edwards::ed25519::params::Ed25519ScalarField;
 use ::curta::chip::field::parameters::FieldParameters;
+use array_macro::array;
 use curta::chip::ec::edwards::ed25519::params::Ed25519Parameters;
 use curta::chip::ec::edwards::EdwardsParameters;
 use curta::chip::ec::point::AffinePoint;
 use curve25519_dalek::edwards::CompressedEdwardsY;
-use num_bigint::BigUint;
+use ethers::types::{U256, U512};
 use plonky2::hash::hash_types::RichField;
 
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
-use crate::frontend::num::biguint::biguint_from_bytes_variable;
-use crate::frontend::num::nonnative::nonnative::{CircuitBuilderNonNative, NonNativeVariable};
+use crate::frontend::uint::num::biguint::biguint_from_bytes_variable;
+use crate::frontend::uint::uint512::U512Variable;
 use crate::prelude::{
     ArrayVariable, BoolVariable, BytesVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
-    U32Variable, Variable,
+    U256Variable, U32Variable, Variable,
 };
 
 const MAX_NUM_SIGS: usize = 256;
 
 #[derive(Clone, Debug, CircuitVariable)]
-pub struct EDDSASignatureVariable<FF: FieldParameters> {
+pub struct EDDSASignatureVariable {
     pub r: CompressedEdwardsYVariable,
-    pub s: NonNativeVariable<FF>,
+    pub s: U256Variable,
 }
 
 // DUMMY_PRIVATE_KEY is [1u8; 32].
@@ -47,7 +48,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
     ) -> (
         CompressedEdwardsYVariable,
-        EDDSASignatureVariable<Ed25519ScalarField>,
+        EDDSASignatureVariable,
         BytesVariable<MAX_MSG_BYTE_LENGTH>,
         U32Variable,
     ) {
@@ -57,7 +58,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             self,
             EDDSASignatureVariableValue {
                 r: CompressedEdwardsY(DUMMY_SIGNATURE[0..32].try_into().unwrap()),
-                s: BigUint::from_bytes_le(&DUMMY_SIGNATURE[32..64]),
+                s: U256::from_little_endian(&DUMMY_SIGNATURE[32..64]),
             },
         );
         let message = self.zero::<BytesVariable<MAX_MSG_BYTE_LENGTH>>();
@@ -78,7 +79,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         is_active: ArrayVariable<BoolVariable, NUM_SIGS>,
         message_byte_lengths: Option<ArrayVariable<U32Variable, NUM_SIGS>>,
         messages: ArrayVariable<BytesVariable<MAX_MSG_LENGTH_BYTES>, NUM_SIGS>,
-        signatures: ArrayVariable<EDDSASignatureVariable<Ed25519ScalarField>, NUM_SIGS>,
+        signatures: ArrayVariable<EDDSASignatureVariable, NUM_SIGS>,
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
         assert!(NUM_SIGS > 0 && NUM_SIGS <= MAX_NUM_SIGS);
@@ -110,8 +111,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let msg_array =
             ArrayVariable::<BytesVariable<MAX_MSG_LENGTH_BYTES>, NUM_SIGS>::from(msg_vec);
         let msg_len_array = ArrayVariable::<U32Variable, NUM_SIGS>::from(msg_len_vec);
-        let sig_array =
-            ArrayVariable::<EDDSASignatureVariable<Ed25519ScalarField>, NUM_SIGS>::from(sig_vec);
+        let sig_array = ArrayVariable::<EDDSASignatureVariable, NUM_SIGS>::from(sig_vec);
         let pub_key_array =
             ArrayVariable::<CompressedEdwardsYVariable, NUM_SIGS>::from(pub_key_vec);
 
@@ -137,7 +137,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         messages: ArrayVariable<BytesVariable<MAX_MSG_LENGTH_BYTES>, NUM_SIGS>,
         message_byte_lengths: Option<ArrayVariable<U32Variable, NUM_SIGS>>,
-        signatures: ArrayVariable<EDDSASignatureVariable<Ed25519ScalarField>, NUM_SIGS>,
+        signatures: ArrayVariable<EDDSASignatureVariable, NUM_SIGS>,
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
         assert!(NUM_SIGS > 0 && NUM_SIGS <= MAX_NUM_SIGS);
@@ -151,6 +151,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let (generator_x, generator_y) = Ed25519Parameters::generator();
         let generator_affine = AffinePoint::new(generator_x, generator_y);
         let generator_var = AffinePointVariable::constant(self, generator_affine);
+
+        let scalar_modulus_value =
+            U512::from_little_endian(&Ed25519ScalarField::modulus().to_bytes_le());
+        let scalar_modulus = self.constant::<U512Variable>(scalar_modulus_value);
 
         for i in 0..NUM_SIGS {
             // Create a new BytesVariable that will contain the message to be hashed.
@@ -169,10 +173,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 digest = self.curta_sha512(&message_bytes);
             }
 
-            let h_biguint = biguint_from_bytes_variable(self, digest);
-            let h_scalar = self.api.reduce::<Ed25519ScalarField>(&h_biguint);
+            let h_limbs = biguint_from_bytes_variable(self, digest)
+                .limbs
+                .into_iter()
+                .map(|x| x.target)
+                .collect::<Vec<_>>();
+            let h_int = U512Variable::from_targets(&h_limbs);
+            let h_scalar_512_limbs = self.rem(h_int, scalar_modulus).limbs;
+            let h_scalar = U256Variable {
+                limbs: array![i => h_scalar_512_limbs[i]; 8],
+            };
 
-            let p1 = self.curta_25519_scalar_mul(signatures[i].s.clone(), generator_var.clone());
+            let p1 = self.curta_25519_scalar_mul(signatures[i].s, generator_var.clone());
             let pubkey_affine = self.curta_25519_decompress(pubkeys[i].clone());
             self.curta_25519_is_valid(pubkey_affine.clone());
             let mut p2 = self.curta_25519_scalar_mul(h_scalar, pubkey_affine);
@@ -187,10 +199,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use curta::chip::ec::edwards::ed25519::params::Ed25519ScalarField;
     use curve25519_dalek::edwards::CompressedEdwardsY;
     use ed25519_dalek::{Signer, SigningKey};
-    use num::BigUint;
+    use ethers::types::U256;
     use rand::rngs::OsRng;
     use rand::Rng;
 
@@ -202,11 +213,13 @@ mod tests {
     use crate::utils;
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_curta_eddsa_verify_sigs_constant_msg_len() {
         test_curta_eddsa_verify_sigs(false);
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_curta_eddsa_verify_sigs_variable_msg_len() {
         test_curta_eddsa_verify_sigs(true);
     }
@@ -216,11 +229,10 @@ mod tests {
 
         const MAX_MSG_LEN_BYTES: usize = 192;
         const NUM_SIGS: usize = 3;
-        type FF = Ed25519ScalarField;
         let mut builder = DefaultBuilder::new();
 
         let pkeys = builder.read::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>();
-        let signatures = builder.read::<ArrayVariable<EDDSASignatureVariable<FF>, NUM_SIGS>>();
+        let signatures = builder.read::<ArrayVariable<EDDSASignatureVariable, NUM_SIGS>>();
         let messages = builder.read::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>();
         if variable_msg_len {
             let message_lens = builder.read::<ArrayVariable<U32Variable, NUM_SIGS>>();
@@ -261,13 +273,13 @@ mod tests {
             test_pub_keys.push(CompressedEdwardsY(test_pub_key.to_bytes()));
             test_signatures.push(EDDSASignatureVariableValue {
                 r: CompressedEdwardsY(*test_signature.r_bytes()),
-                s: BigUint::from_bytes_le(test_signature.s_bytes()),
+                s: U256::from_little_endian(test_signature.s_bytes()),
             });
         }
 
         let mut input = circuit.input();
         input.write::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>(test_pub_keys.clone());
-        input.write::<ArrayVariable<EDDSASignatureVariable<FF>, NUM_SIGS>>(test_signatures.clone());
+        input.write::<ArrayVariable<EDDSASignatureVariable, NUM_SIGS>>(test_signatures.clone());
         input.write::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>(
             test_messages.clone(),
         );

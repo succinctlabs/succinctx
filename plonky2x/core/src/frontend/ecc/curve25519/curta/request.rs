@@ -1,9 +1,8 @@
 use curta::chip::ec::EllipticCurve;
-use curta::chip::field::parameters::FieldParameters;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
-use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
+use crate::prelude::U256Variable;
 
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
 pub enum EcOpRequestType {
@@ -15,18 +14,18 @@ pub enum EcOpRequestType {
 
 /// A request for a EC OP computation.
 #[derive(Debug, Clone)]
-pub enum EcOpRequest<E: EllipticCurve, FF: FieldParameters> {
+pub enum EcOpRequest<E: EllipticCurve> {
     /// Add
     Add(Box<AffinePointVariable<E>>, Box<AffinePointVariable<E>>),
     /// Scalar Mul
-    ScalarMul(Box<NonNativeVariable<FF>>, Box<AffinePointVariable<E>>),
+    ScalarMul(Box<U256Variable>, Box<AffinePointVariable<E>>),
     /// Decompress
     Decompress(Box<CompressedEdwardsYVariable>),
     /// IsValid
     IsValid(Box<AffinePointVariable<E>>),
 }
 
-impl<E: EllipticCurve, FF: FieldParameters> EcOpRequest<E, FF> {
+impl<E: EllipticCurve> EcOpRequest<E> {
     /// Returns the type of the request.
     pub const fn req_type(&self) -> EcOpRequestType {
         match self {

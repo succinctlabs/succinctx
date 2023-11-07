@@ -1,10 +1,9 @@
-use curta::chip::ec::edwards::ed25519::params::{Ed25519, Ed25519ScalarField};
+use curta::chip::ec::edwards::ed25519::params::Ed25519;
 
 use super::curta::accelerator::EcOpAccelerator;
 use super::curta::request::{EcOpRequest, EcOpRequestType};
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
-use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
-use crate::prelude::{CircuitBuilder, PlonkParameters};
+use crate::prelude::{CircuitBuilder, PlonkParameters, U256Variable};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Add two points on the curve.
@@ -20,7 +19,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Multiply a point on the curve by a scalar.
     pub fn curta_25519_scalar_mul(
         &mut self,
-        scalar: NonNativeVariable<Ed25519ScalarField>,
+        scalar: U256Variable,
         point: AffinePointVariable<Ed25519>,
     ) -> AffinePointVariable<Ed25519> {
         let request = EcOpRequest::ScalarMul(Box::new(scalar), Box::new(point));
@@ -45,10 +44,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Add an EC operation request to the accelerator.
     fn add_ec_25519_ops_request(
         &mut self,
-        request: EcOpRequest<Ed25519, Ed25519ScalarField>,
+        request: EcOpRequest<Ed25519>,
     ) -> Option<AffinePointVariable<Ed25519>> {
         if self.ec_25519_ops_accelerator.is_none() {
-            self.ec_25519_ops_accelerator = Some(EcOpAccelerator::<Ed25519ScalarField> {
+            self.ec_25519_ops_accelerator = Some(EcOpAccelerator {
                 ec_op_requests: Vec::new(),
                 ec_op_responses: Vec::new(),
             });

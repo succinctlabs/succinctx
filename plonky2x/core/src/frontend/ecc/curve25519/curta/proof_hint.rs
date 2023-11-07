@@ -1,12 +1,13 @@
+use num::BigUint;
 use serde::{Deserialize, Serialize};
 
 use super::request::EcOpRequestType;
 use super::stark::{Ed25519CurtaOpValue, Ed25519Stark};
-use super::{Curve, ScalarField};
+use super::Curve;
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
 use crate::frontend::hint::simple::hint::Hint;
-use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
-use crate::prelude::{PlonkParameters, ValueStream};
+use crate::frontend::uint::Uint;
+use crate::prelude::{PlonkParameters, U256Variable, ValueStream};
 
 /// Provides a STARK proof for a set of EC operations.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -37,7 +38,12 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for EcOpProofHint {
                     Ed25519CurtaOpValue::Add(a, b, result)
                 }
                 EcOpRequestType::ScalarMul => {
-                    let scalar = input_stream.read_value::<NonNativeVariable<ScalarField>>();
+                    let scalar = BigUint::new(
+                        input_stream
+                            .read_value::<U256Variable>()
+                            .to_u32_limbs()
+                            .to_vec(),
+                    );
                     let point = input_stream.read_value::<AffinePointVariable<Curve>>();
                     let result = input_stream.read_value::<AffinePointVariable<Curve>>();
                     Ed25519CurtaOpValue::ScalarMul(scalar, point, result)

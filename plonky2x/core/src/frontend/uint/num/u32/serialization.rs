@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
-use crate::frontend::num::u32::gadgets::arithmetic_u32::U32Target;
+use crate::frontend::uint::num::u32::gadgets::arithmetic_u32::U32Target;
 
 pub trait WriteU32 {
     fn write_target_u32(&mut self, x: U32Target) -> IoResult<()>;

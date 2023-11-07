@@ -7,7 +7,7 @@ use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use super::arithmetic_u32::U32Target;
-use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGate;
+use crate::frontend::uint::num::u32::gates::range_check_u32::U32RangeCheckGate;
 
 pub fn range_check_u32_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,

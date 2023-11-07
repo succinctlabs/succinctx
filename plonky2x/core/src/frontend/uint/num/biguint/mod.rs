@@ -14,9 +14,9 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use super::u32::gadgets::range_check::range_check_u32_circuit;
 use super::u32::serialization::{ReadU32, WriteU32};
-use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
-use crate::frontend::num::u32::gadgets::multiple_comparison::list_le_u32_circuit;
-use crate::frontend::num::u32::witness::{GeneratedValuesU32, WitnessU32};
+use crate::frontend::uint::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use crate::frontend::uint::num::u32::gadgets::multiple_comparison::list_le_u32_circuit;
+use crate::frontend::uint::num::u32::witness::{GeneratedValuesU32, WitnessU32};
 use crate::prelude::{BytesVariable, CircuitBuilder as Plonky2xCircuitBuilder, PlonkParameters};
 
 #[derive(Clone, Debug, Default)]

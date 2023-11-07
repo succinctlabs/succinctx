@@ -8,7 +8,7 @@ use itertools::Itertools;
 use num::One;
 use num_bigint::BigUint;
 
-use crate::frontend::num::u32::gadgets::multiple_comparison::list_lte_circuit;
+use crate::frontend::uint::num::u32::gadgets::multiple_comparison::list_lte_circuit;
 use crate::prelude::*;
 
 #[derive(Debug, Clone)]

@@ -3,21 +3,21 @@ use super::proof_hint::EcOpProofHint;
 use super::request::EcOpRequest;
 use super::result_hint::EcOpResultHint;
 use super::stark::{Ed25519OpVariable, Ed25519Stark};
-use super::{Curve, ScalarField};
+use super::Curve;
 use crate::frontend::curta::ec::point::AffinePointVariable;
 use crate::frontend::hint::synchronous::Async;
 use crate::prelude::{CircuitBuilder, PlonkParameters, VariableStream};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The constraints for an accelerated EC Ops computation using Curta.
-    pub(crate) fn curta_constrain_ec_op(&mut self, accelerator: EcOpAccelerator<ScalarField>) {
+    pub(crate) fn curta_constrain_ec_op(&mut self, accelerator: EcOpAccelerator) {
         // Get all the responses using the request hint.
         for (request, response) in accelerator
             .ec_op_requests
             .iter()
             .zip(accelerator.ec_op_responses.iter())
         {
-            let result_hint = EcOpResultHint::<ScalarField>::new(request.req_type());
+            let result_hint = EcOpResultHint::new(request.req_type());
             let mut input_stream = VariableStream::new();
 
             match &request {

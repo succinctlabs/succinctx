@@ -1,7 +1,6 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use curta::chip::ec::edwards::ed25519::params::Ed25519BaseField;
 use curta::chip::hash::blake::blake2b::generator::{
     BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
 };
@@ -57,7 +56,6 @@ use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
 use crate::frontend::hash::blake2::curta::MAX_NUM_CURTA_CHUNKS;
-use crate::frontend::hash::deprecated::bit_operations::XOR3Generator;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::hash::sha::curta::digest_hint::SHADigestHint;
 use crate::frontend::hash::sha::curta::proof_hint::SHAProofHint;
@@ -67,16 +65,12 @@ use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
 use crate::frontend::hint::synchronous::Async;
-use crate::frontend::num::biguint::BigUintDivRemGenerator;
-use crate::frontend::num::nonnative::nonnative::{
-    NonNativeAdditionGenerator, NonNativeMultipleAddsGenerator, NonNativeMultiplicationGenerator,
-    NonNativeSubtractionGenerator,
-};
-use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGenerator;
-use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
-use crate::frontend::num::u32::gates::comparison::ComparisonGenerator;
-use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
-use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
+use crate::frontend::uint::num::biguint::BigUintDivRemGenerator;
+use crate::frontend::uint::num::u32::gates::add_many_u32::U32AddManyGenerator;
+use crate::frontend::uint::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
+use crate::frontend::uint::num::u32::gates::comparison::ComparisonGenerator;
+use crate::frontend::uint::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
+use crate::frontend::uint::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
 use crate::prelude::{ArrayVariable, BoolVariable, U32Variable, Variable};
@@ -346,9 +340,6 @@ where
         let comparison_generator_id = ComparisonGenerator::<L::Field, D>::id();
         r.register_simple::<ComparisonGenerator<L::Field, D>>(comparison_generator_id);
 
-        let xor3_generator_id = XOR3Generator::<L::Field, D>::id();
-        r.register_simple::<XOR3Generator<L::Field, D>>(xor3_generator_id);
-
         let le_generator_id = LteGenerator::<L, D>::id();
         r.register_simple::<LteGenerator<L, D>>(le_generator_id);
 
@@ -367,17 +358,6 @@ where
         register_powers_of_two!(r, BeaconValidatorBatchHint);
         register_powers_of_two!(r, BeaconPartialValidatorsHint);
         register_powers_of_two!(r, CompressedBeaconValidatorBatchHint);
-        let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519BaseField>::default().id();
-        r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519BaseField>>(id);
-
-        let id = NonNativeMultipleAddsGenerator::<L::Field, D, Ed25519BaseField>::default().id();
-        r.register_simple::<NonNativeMultipleAddsGenerator<L::Field, D, Ed25519BaseField>>(id);
-
-        let id = NonNativeMultiplicationGenerator::<L::Field, D, Ed25519BaseField>::default().id();
-        r.register_simple::<NonNativeMultiplicationGenerator<L::Field, D, Ed25519BaseField>>(id);
-
-        let id = NonNativeSubtractionGenerator::<L::Field, D, Ed25519BaseField>::default().id();
-        r.register_simple::<NonNativeSubtractionGenerator<L::Field, D, Ed25519BaseField>>(id);
 
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);

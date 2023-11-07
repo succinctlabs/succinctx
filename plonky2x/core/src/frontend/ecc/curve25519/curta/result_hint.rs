@@ -1,25 +1,22 @@
-use core::marker::PhantomData;
-
 use curta::chip::ec::edwards::ed25519::decompress::decompress;
 use curta::chip::ec::point::AffinePoint;
-use curta::chip::field::parameters::FieldParameters;
+use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
 use super::request::EcOpRequestType;
 use super::Curve;
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
 use crate::frontend::hint::simple::hint::Hint;
-use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
-use crate::prelude::{PlonkParameters, ValueStream};
+use crate::frontend::uint::Uint;
+use crate::prelude::{PlonkParameters, U256Variable, ValueStream};
 
 /// Provides the result of a EC operation.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct EcOpResultHint<FF: FieldParameters> {
+pub struct EcOpResultHint {
     ec_op: EcOpRequestType,
-    _marker: PhantomData<FF>,
 }
 
-impl<L: PlonkParameters<D>, const D: usize, FF: FieldParameters> Hint<L, D> for EcOpResultHint<FF> {
+impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for EcOpResultHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let mut result: Option<AffinePoint<Curve>> = None;
         match &self.ec_op {
@@ -29,7 +26,12 @@ impl<L: PlonkParameters<D>, const D: usize, FF: FieldParameters> Hint<L, D> for 
                 result = Some(a + b);
             }
             EcOpRequestType::ScalarMul => {
-                let scalar = input_stream.read_value::<NonNativeVariable<FF>>();
+                let scalar = BigUint::new(
+                    input_stream
+                        .read_value::<U256Variable>()
+                        .to_u32_limbs()
+                        .to_vec(),
+                );
                 let point = input_stream.read_value::<AffinePointVariable<Curve>>();
                 result = Some(point * scalar);
             }
@@ -46,11 +48,8 @@ impl<L: PlonkParameters<D>, const D: usize, FF: FieldParameters> Hint<L, D> for 
     }
 }
 
-impl<FF: FieldParameters> EcOpResultHint<FF> {
+impl EcOpResultHint {
     pub fn new(ec_op: EcOpRequestType) -> Self {
-        Self {
-            ec_op,
-            _marker: PhantomData,
-        }
+        Self { ec_op }
     }
 }

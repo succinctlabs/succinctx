@@ -7,7 +7,6 @@ pub mod hash;
 pub mod hint;
 pub mod mapreduce;
 pub mod merkle;
-pub mod num;
 pub mod ops;
 pub mod recursion;
 pub mod uint;

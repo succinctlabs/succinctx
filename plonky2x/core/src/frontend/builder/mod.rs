@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use std::env;
 
 use backtrace::Backtrace;
-use curta::chip::ec::edwards::ed25519::params::Ed25519ScalarField;
 use curta::machine::hash::sha::sha256::SHA256;
 use curta::machine::hash::sha::sha512::SHA512;
 use ethers::providers::{Http, Middleware, Provider};
@@ -52,7 +51,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
     pub sha256_accelerator: Option<SHA256Accelerator>,
     pub sha512_accelerator: Option<SHA512Accelerator>,
-    pub ec_25519_ops_accelerator: Option<EcOpAccelerator<Ed25519ScalarField>>,
+    pub ec_25519_ops_accelerator: Option<EcOpAccelerator>,
 }
 
 /// The universal api for building circuits using `plonky2x` with default parameters.
