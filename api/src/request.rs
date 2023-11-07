@@ -18,6 +18,7 @@ pub struct OffchainInput {
     input: Bytes,
 }
 
+/// Submit an offchain request to the platform API.
 pub async fn submit_platform_request(data: OffchainInput, request_url: &str) {
     // Serialize the data to JSON.
     let serialized_data = serde_json::to_string(&data).unwrap();
