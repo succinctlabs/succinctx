@@ -3,9 +3,6 @@ use ethers::utils::keccak256;
 
 use crate::frontend::eth::rlp::decoder::{decode, RLPItem};
 
-// use crate::frontend::eth::rlp::decoder::decode;
-// TODO: take the decoder from decoder.rs
-
 const TREE_RADIX: usize = 16;
 const BRANCH_NODE_LENGTH: usize = 17;
 const LEAF_OR_EXTENSION_NODE_LENGTH: usize = 2;

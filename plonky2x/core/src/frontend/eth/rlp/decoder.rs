@@ -18,7 +18,7 @@
 //! - decode_padded_mpt_node: 2 -> 2'
 //! - DecodeHint: 3 -> 3'
 //!
-//! Type converstions can be done as following:
+//! Type conversions can be done as following:
 //! - Conversions between encoded types
 //!     - 1 -> 2: Using the to_fixed_size method
 //! - Conversions between decoded types

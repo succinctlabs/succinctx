@@ -105,12 +105,12 @@ pub fn decode_padded_mpt_node<const ENCODING_LEN: usize, const LIST_LEN: usize>(
 /// the given string.
 ///
 /// More specifically, the first return value is the prefix of `rlp_encode(padded_string[..len])`.
-/// The econd return value is `rlp_encode(padded_string[..len]).len()`. This function is
+/// The second return value is `rlp_encode(padded_string[..len]).len()`. This function is
 /// intentionally kept separate from `RLPItemFixedSize` to make the verification code easier to
 /// convert to the circuit language.
 fn calculate_rlp_encode_metadata(padded_string: &RLPItemFixedSize) -> (u32, u32) {
     if padded_string.len == 0 {
-        // While it may be counterintutive, rlp_encode(the empty string) = 0x80.
+        // While it may be counterintuitive, rlp_encode(the empty string) = 0x80.
         (0x80, 1)
     } else if padded_string.len == 1 {
         if padded_string.data[0] < 0x80 {
