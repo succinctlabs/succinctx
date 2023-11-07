@@ -27,11 +27,8 @@ impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize, const LIS
         let len = input_stream.read_value::<Variable>();
         let skip_computation = input_stream.read_value::<BoolVariable>();
 
-        let decoded = decode_padded_mpt_node::<ENCODING_LEN, LIST_LEN>(
-            &encoded,
-            len.as_canonical_u64() as usize,
-            skip_computation,
-        );
+        let decoded =
+            decode_padded_mpt_node(&encoded, len.as_canonical_u64() as usize, skip_computation);
 
         output_stream
             .write_value::<ArrayVariable<ArrayVariable<ByteVariable, MAX_RLP_ITEM_SIZE>, LIST_LEN>>(
@@ -146,11 +143,8 @@ mod tests {
         let decoded_element_lens_out = output.read::<ArrayVariable<Variable, LIST_LEN>>();
         let len_decoded_list_out = output.read::<Variable>();
 
-        let mpt_node = decode_padded_mpt_node::<ENCODING_LEN, LIST_LEN>(
-            &encoding_fixed_size,
-            rlp_encoding.len(),
-            skip_computation,
-        );
+        let mpt_node =
+            decode_padded_mpt_node(&encoding_fixed_size, rlp_encoding.len(), skip_computation);
 
         assert_eq!(len_decoded_list_out, F::from_canonical_usize(mpt_node.len));
         assert_eq!(decoded_list_out.len(), LIST_LEN);
@@ -218,11 +212,8 @@ mod tests {
         let decoded_element_lens_out = output.read::<ArrayVariable<Variable, LIST_LEN>>();
         let len_decoded_list_out = output.read::<Variable>();
 
-        let mpt_node_exp = decode_padded_mpt_node::<ENCODING_LEN, LIST_LEN>(
-            &encoding_fixed_size,
-            rlp_encoding.len(),
-            skip_computation,
-        );
+        let mpt_node_exp =
+            decode_padded_mpt_node(&encoding_fixed_size, rlp_encoding.len(), skip_computation);
         assert_eq!(len_decoded_list_out, F::from_canonical_usize(LIST_LEN));
         assert_eq!(decoded_list_out.len(), LIST_LEN);
 
