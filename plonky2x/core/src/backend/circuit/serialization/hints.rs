@@ -339,9 +339,6 @@ where
         let comparison_generator_id = ComparisonGenerator::<L::Field, D>::id();
         r.register_simple::<ComparisonGenerator<L::Field, D>>(comparison_generator_id);
 
-        let le_generator_id = LteGenerator::<L, D>::id();
-        r.register_simple::<LteGenerator<L, D>>(le_generator_id);
-
         r.register_hint::<BeaconBalanceWitnessHint>();
         r.register_hint::<BeaconExecutionPayloadHint>();
 

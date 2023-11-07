@@ -205,21 +205,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use curta::math::field::Field;
     use log::debug;
 
     use super::super::utils::{read_fixture, EIP1186ProofResponse};
     use super::*;
     use crate::frontend::eth::utils::u256_to_h256_be;
-    use crate::prelude::{DefaultBuilder, GoldilocksField};
+    use crate::prelude::DefaultBuilder;
     use crate::utils;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_mpt_circuit() {
         utils::setup_logger();
-        type F = GoldilocksField;
-
         let storage_result: EIP1186ProofResponse =
             read_fixture("./src/frontend/eth/mpt/fixtures/example.json");
 
@@ -242,16 +239,16 @@ mod tests {
 
         let (proof_as_fixed, lengths_as_fixed) =
             transform_proof_to_padded::<ENCODING_LEN, PROOF_LEN>(storage_proof);
-        let len_nodes_field_elements = lengths_as_fixed
+        let len_nodes_value = lengths_as_fixed
             .iter()
-            .map(|x| F::from_canonical_usize(*x))
-            .collect::<Vec<F>>();
+            .map(|x| *x as u32)
+            .collect::<Vec<_>>();
 
         let mut builder = DefaultBuilder::new();
         let key_variable = builder.read::<Bytes32Variable>();
         let proof_variable =
             builder.read::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>();
-        let len_nodes = builder.read::<ArrayVariable<Variable, PROOF_LEN>>();
+        let len_nodes = builder.read::<ArrayVariable<U32Variable, PROOF_LEN>>();
         let root_variable = builder.read::<Bytes32Variable>();
         let value_variable = builder.read::<Bytes32Variable>();
         builder.verify_mpt_proof::<ENCODING_LEN, PROOF_LEN>(
@@ -268,7 +265,7 @@ mod tests {
         input.write::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>(
             proof_as_fixed,
         );
-        input.write::<ArrayVariable<Variable, PROOF_LEN>>(len_nodes_field_elements);
+        input.write::<ArrayVariable<U32Variable, PROOF_LEN>>(len_nodes_value);
         input.write::<Bytes32Variable>(root);
         input.write::<Bytes32Variable>(value_as_h256);
 
