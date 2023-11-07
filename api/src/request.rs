@@ -5,25 +5,24 @@ use serde::{Deserialize, Serialize};
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
-/// Struct to hold the data to be sent to the platform API.
-/// chainId: The chain id of the chain to be used.
-/// to: The address of the contract to call.
-/// data: The calldata to be used in the contract call.
-/// functionId: The Succinct X function id to be called.
-/// input: The input to be used in the Succinct X function call.
+/// Data to be sent to the platform API with an offchain request.
 pub struct OffchainInput {
+    /// The chain id of the network to be used.
     chainId: u32,
+    /// The address of the contract to call.
     to: Bytes,
+    /// The calldata to be used in the contract call.
     data: Bytes,
+    /// The Succinct X function id to be called.
     functionId: Bytes,
+    /// The input to be used in the Succinct X function call.
     input: Bytes,
 }
 
 /// Client to interact with the platform API.
-/// client: The reqwest client to be used.
-/// base_url: The base url of the platform API. (ex. https://alpha.succinct.xyz/api)
 pub struct PlatformClient {
     client: Client,
+    /// The base url for the platform API. (ex. https://alpha.succinct.xyz/api)
     base_url: String,
 }
 
