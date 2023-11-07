@@ -111,9 +111,11 @@ impl ProofService {
         O: DeserializeOwned,
     {
         let endpoint = format!("{}{}", self.base_url, route);
+        let token = env::var("PROOF_SERVICE_API_KEY").unwrap_or("".to_string());
         trace!("sending get request: url={}", endpoint);
         self.client
             .get(endpoint)
+            .bearer_auth(token)
             .timeout(Duration::from_secs(300))
             .send()?
             .json()
@@ -127,10 +129,12 @@ impl ProofService {
         O: DeserializeOwned,
     {
         let endpoint = format!("{}{}", self.base_url, route);
+        let token = env::var("PROOF_SERVICE_API_KEY").unwrap_or("".to_string());
         trace!("sending post request: url={}, input={:?}", endpoint, input);
         let response = self
             .client
             .post(endpoint)
+            .bearer_auth(token)
             .timeout(Duration::from_secs(300))
             .json(&input)
             .send()?;

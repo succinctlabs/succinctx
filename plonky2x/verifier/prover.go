@@ -20,7 +20,7 @@ import (
 	gnark_verifier_types "github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 
-	"github.com/succinctlabs/sdk/gnarkx/types"
+	"github.com/succinctlabs/succinctx/gnarkx/types"
 )
 
 func LoadProverData(path string) (constraint.ConstraintSystem, plonk.ProvingKey, error) {

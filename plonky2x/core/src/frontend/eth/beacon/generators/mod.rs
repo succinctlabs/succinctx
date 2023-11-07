@@ -24,7 +24,10 @@ pub use eth1_block::{BeaconExecutionPayloadHint, Eth1BlockToSlotHint};
 pub use graffiti::BeaconGraffitiHint;
 pub use header::BeaconHeaderHint;
 pub use headers::BeaconHeadersFromOffsetRangeHint;
-pub use historical::BeaconHistoricalBlockGenerator;
+pub use historical::{
+    BeaconHistoricalBlockHint, CLOSE_SLOT_BLOCK_ROOT_DEPTH, FAR_SLOT_BLOCK_ROOT_DEPTH,
+    FAR_SLOT_HISTORICAL_SUMMARY_DEPTH,
+};
 pub use partial_balances::BeaconPartialBalancesHint;
 pub use partial_validators::BeaconPartialValidatorsHint;
 pub use validator::BeaconValidatorGenerator;

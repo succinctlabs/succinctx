@@ -9,11 +9,11 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/succinctlabs/sdk/gnarkx/builder"
-	"github.com/succinctlabs/sdk/gnarkx/hash/sha256"
-	"github.com/succinctlabs/sdk/gnarkx/types"
-	"github.com/succinctlabs/sdk/gnarkx/utils/sha256utils"
-	"github.com/succinctlabs/sdk/gnarkx/vars"
+	"github.com/succinctlabs/succinctx/gnarkx/builder"
+	"github.com/succinctlabs/succinctx/gnarkx/hash/sha256"
+	"github.com/succinctlabs/succinctx/gnarkx/types"
+	"github.com/succinctlabs/succinctx/gnarkx/utils/sha256utils"
+	"github.com/succinctlabs/succinctx/gnarkx/vars"
 )
 
 // Circuit functions are circuits that want to be deployed as onchain functions.
@@ -131,7 +131,7 @@ func (f *CircuitFunction) Prove(inputBytes []byte, build *CircuitBuild) (*types.
 	return output, nil
 }
 
-// Generates a JSON fixture for use in Solidity tests with MockFunctionGateway.sol.
+// Generates a JSON fixture for use in Solidity tests with MockSuccinctGateway.sol.
 func (f *CircuitFunction) GenerateFixture(inputBytes []byte) (types.Fixture, error) {
 	f.SetWitness(inputBytes)
 	fixture := types.Fixture{

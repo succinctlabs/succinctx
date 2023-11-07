@@ -5,10 +5,11 @@ use super::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
     BeaconExecutionPayloadHint, BeaconGraffitiHint, BeaconHeaderHint,
-    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint, BeaconPartialBalancesHint,
     BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsHint, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
-    CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
+    CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint, CLOSE_SLOT_BLOCK_ROOT_DEPTH,
+    FAR_SLOT_BLOCK_ROOT_DEPTH, FAR_SLOT_HISTORICAL_SUMMARY_DEPTH,
 };
 use super::vars::{
     BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
@@ -130,7 +131,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ) -> BeaconValidatorsVariable {
         let mut input_stream = VariableStream::new();
         input_stream.write(&block_root);
-        let hint = BeaconValidatorsHint::new(self.beacon_client.clone().unwrap());
+        let hint = BeaconValidatorsHint::new();
         let output_stream = self.async_hint(input_stream, hint);
 
         let validators_root = output_stream.read::<Bytes32Variable>(self);
@@ -420,7 +421,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut withdrawals_hint_input = VariableStream::new();
         withdrawals_hint_input.write(&block_root);
         let withdrawals_hint_output =
-            self.hint(withdrawals_hint_input, BeaconAllWithdrawalsHint {});
+            self.async_hint(withdrawals_hint_input, BeaconAllWithdrawalsHint {});
 
         let withdrawals = withdrawals_hint_output
             .read::<ArrayVariable<BeaconWithdrawalVariable, MAX_WITHDRAWALS_PER_PAYLOAD>>(self);
@@ -469,7 +470,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn beacon_get_block_header(&mut self, block_root: Bytes32Variable) -> BeaconHeaderVariable {
         let mut slot_hint_input = VariableStream::new();
         slot_hint_input.write(&block_root);
-        let slot_hint_output = self.hint(slot_hint_input, BeaconHeaderHint {});
+        let slot_hint_output = self.async_hint(slot_hint_input, BeaconHeaderHint {});
         let header = slot_hint_output.read::<BeaconHeaderVariable>(self);
 
         let restored_root = self.ssz_hash_tree_root(header);
@@ -478,32 +479,32 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         header
     }
 
-    /// Get beacon block hash from eth1 block number, then prove from source block root.
+    /// Get beacon block hash and slot from eth1 block number, then prove from source block root.
     pub fn beacon_get_block_from_eth1_block_number(
         &mut self,
         source_beacon_block_root: Bytes32Variable,
+        source_slot: U64Variable,
         eth1_block_number: U256Variable,
-    ) -> Bytes32Variable {
+    ) -> (Bytes32Variable, U64Variable) {
         // Witness the slot number from the eth1 block number
         let mut block_to_slot_input = VariableStream::new();
         block_to_slot_input.write(&eth1_block_number);
-        let block_to_slot_output = self.hint(block_to_slot_input, Eth1BlockToSlotHint {});
+        let block_to_slot_output = self.async_hint(block_to_slot_input, Eth1BlockToSlotHint {});
         let slot = block_to_slot_output.read::<U64Variable>(self);
 
         // Prove source block root -> witnessed beacon block
-        let target_root = self.beacon_get_historical_block(source_beacon_block_root, slot);
+        let target_root =
+            self.beacon_get_historical_block(source_beacon_block_root, source_slot, slot);
 
         // Witness SSZ proof for target block root -> beacon body -> execution payload -> eth1 block number
         let mut beacon_block_to_eth1_number_input = VariableStream::new();
         beacon_block_to_eth1_number_input.write(&target_root);
-        beacon_block_to_eth1_number_input.write(&eth1_block_number);
         let beacon_block_to_eth1_number_output = self.hint(
             beacon_block_to_eth1_number_input,
             BeaconExecutionPayloadHint {},
         );
         let proof =
             beacon_block_to_eth1_number_output.read::<ArrayVariable<Bytes32Variable, 11>>(self);
-        let eth1_block_number = beacon_block_to_eth1_number_output.read::<U256Variable>(self);
 
         // Convert eth1 block number to leaf
         let eth1_block_number_leaf = eth1_block_number.hash_tree_root(self);
@@ -516,26 +517,31 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             EXECUTION_PAYLOAD_BLOCK_NUMBER_GINDEX,
         );
 
-        target_root
+        (target_root, slot)
     }
 
     /// Get a historical block root using state.block_roots for close slots and historical_summaries for slots > 8192 slots away.
     pub fn beacon_get_historical_block(
         &mut self,
         block_root: Bytes32Variable,
+        source_slot: U64Variable,
         target_slot: U64Variable,
     ) -> Bytes32Variable {
-        // TODO: Need to constrain generator results?
-        let generator = BeaconHistoricalBlockGenerator::new(
-            self,
-            self.beacon_client.clone().unwrap(),
-            block_root,
-            target_slot,
-        );
-        self.add_simple_generator(generator.clone());
+        let mut hint_input = VariableStream::new();
+        hint_input.write(&block_root);
+        hint_input.write(&target_slot);
+        let hint_output = self.async_hint(hint_input, BeaconHistoricalBlockHint {});
+
+        let target_block_root = hint_output.read::<Bytes32Variable>(self);
+        let close_slot_block_root_proof =
+            hint_output.read::<ArrayVariable<Bytes32Variable, CLOSE_SLOT_BLOCK_ROOT_DEPTH>>(self);
+        let far_slot_block_root_proof =
+            hint_output.read::<ArrayVariable<Bytes32Variable, FAR_SLOT_BLOCK_ROOT_DEPTH>>(self);
+        let far_slot_historical_summary_root = hint_output.read::<Bytes32Variable>(self);
+        let far_slot_historical_summary_proof = hint_output
+            .read::<ArrayVariable<Bytes32Variable, FAR_SLOT_HISTORICAL_SUMMARY_DEPTH>>(self);
 
         // Use close slot logic if (source - target) < 8192
-        let source_slot = self.beacon_get_block_header(block_root).slot;
         let source_sub_target = self.sub(source_slot, target_slot);
         let slots_per_historical = self.constant::<U64Variable>(SLOTS_PER_HISTORICAL_ROOT as u64);
         let one_u64 = self.constant::<U64Variable>(1);
@@ -550,8 +556,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         close_slot_block_root_gindex =
             self.add(close_slot_block_root_gindex, block_roots_array_index);
         let restored_close_slot_block_root = self.ssz_restore_merkle_root(
-            generator.target_block_root,
-            &generator.close_slot_block_root_proof,
+            target_block_root,
+            &close_slot_block_root_proof.as_vec(),
             close_slot_block_root_gindex,
         );
         let valid_close_slot = self.is_equal(restored_close_slot_block_root, block_root);
@@ -565,8 +571,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         historical_summary_gindex =
             self.add(historical_summary_gindex, historical_summary_array_index);
         let restored_far_slot_block_root = self.ssz_restore_merkle_root(
-            generator.far_slot_historical_summary_root,
-            &generator.far_slot_historical_summary_proof,
+            far_slot_historical_summary_root,
+            &far_slot_historical_summary_proof.as_vec(),
             historical_summary_gindex,
         );
         let valid_far_slot_block_root = self.is_equal(restored_far_slot_block_root, block_root);
@@ -575,13 +581,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             self.constant::<U64Variable>(HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX);
         far_slot_block_root_gindex = self.add(far_slot_block_root_gindex, block_roots_array_index);
         let restored_far_slot_historical_root = self.ssz_restore_merkle_root(
-            generator.target_block_root,
-            &generator.far_slot_block_root_proof,
+            target_block_root,
+            &far_slot_block_root_proof.as_vec(),
             far_slot_block_root_gindex,
         );
         let valid_far_slot_historical_root = self.is_equal(
             restored_far_slot_historical_root,
-            generator.far_slot_historical_summary_root,
+            far_slot_historical_summary_root,
         );
         let valid_far_slot = self.and(valid_far_slot_block_root, valid_far_slot_historical_root);
 
@@ -590,7 +596,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let true_bool = self.constant::<BoolVariable>(true);
         self.assert_is_equal(valid, true_bool);
 
-        generator.target_block_root
+        target_block_root
     }
 
     pub fn beacon_get_block_roots(
@@ -1055,7 +1061,8 @@ pub(crate) mod tests {
 
         let block_root = builder.constant::<Bytes32Variable>(bytes32!(latest_block_root));
         let idx = builder.constant::<U64Variable>(slot - 100);
-        let historical_block = builder.beacon_get_historical_block(block_root, idx);
+        let slot_var = builder.constant::<U64Variable>(slot);
+        let historical_block = builder.beacon_get_historical_block(block_root, slot_var, idx);
         builder.watch(&historical_block, "historical_block");
 
         let circuit = builder.build();

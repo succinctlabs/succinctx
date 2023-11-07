@@ -7,9 +7,9 @@ use plonky2::iop::target::BoolTarget;
 use super::uint64::U64Variable;
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
-use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
-use crate::frontend::num::u32::gadgets::multiple_comparison::list_lte_circuit;
+use crate::frontend::uint::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
+use crate::frontend::uint::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use crate::frontend::uint::num::u32::gadgets::multiple_comparison::list_lte_circuit;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
 use crate::prelude::*;
 
@@ -172,6 +172,24 @@ impl<L: PlonkParameters<D>, const D: usize> Mul<L, D> for U32Variable {
     }
 }
 
+impl<L: PlonkParameters<D>, const D: usize> Div<L, D> for U32Variable {
+    type Output = Self;
+
+    fn div(self, rhs: U32Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        let self_biguint = BigUintTarget {
+            limbs: vec![self.into()],
+        };
+        let rhs_biguint = BigUintTarget {
+            limbs: vec![rhs.into()],
+        };
+
+        let quotient_biguint = builder.api.div_biguint(&self_biguint, &rhs_biguint);
+
+        // Get the least significant u32 limb.
+        quotient_biguint.limbs[0].into()
+    }
+}
+
 impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for U32Variable {
     type Output = Self;
 
@@ -263,9 +281,23 @@ mod tests {
     use crate::backend::circuit::DefaultParameters;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
+    use crate::utils::setup_logger;
 
     type L = DefaultParameters;
     const D: usize = 2;
+
+    #[test]
+    fn test_to_u64() {
+        setup_logger();
+        let mut builder = CircuitBuilder::<L, D>::new();
+        let var = U32Variable::constant(&mut builder, 0x12345678);
+        let var_u64 = var.to_u64(&mut builder);
+        builder.watch(&var_u64, "var_u64");
+        let circuit = builder.build();
+        let pw = PartialWitness::new();
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
 
     #[test]
     fn test_u32_evm() {

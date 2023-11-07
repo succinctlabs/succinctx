@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import {IFeeVault} from "src/payments/interfaces/IFeeVault.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IFeeVault} from "./interfaces/IFeeVault.sol";
+import {TimelockedUpgradeable} from "../upgrades/TimelockedUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title SuccinctFeeVault
 /// @author Succinct Labs
@@ -17,24 +18,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 ///         Any overspent fees will be used for future requests, so it may be more suitable to
 ///         make a bulk deposit.
 /// @dev Address(0) is used to represent native currency in places where token address is specified.
-contract SuccinctFeeVault is IFeeVault, Ownable {
+contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
+    using SafeERC20 for IERC20;
+
     /// @notice Tracks the amount of active balance that an account has for Succinct services.
     /// @dev balances[token][account] returns the amount of balance for token the account has. To
     ///      check native currency balance, use address(0) as the token address.
     mapping(address => mapping(address => uint256)) public balances;
     /// @notice The allowed senders for the deduct functions.
     mapping(address => bool) public allowedDeductors;
-
-    event Received(address indexed account, address indexed token, uint256 amount);
-    event Deducted(address indexed account, address indexed token, uint256 amount);
-    event Collected(address indexed to, address indexed token, uint256 amount);
-
-    error InvalidAccount(address account);
-    error InvalidToken(address token);
-    error InsufficentAllowance(address token, uint256 amount);
-    error InsufficientBalance(address token, uint256 amount);
-    error FailedToSendNative(uint256 amount);
-    error OnlyDeductor(address sender);
 
     modifier onlyDeductor() {
         if (!allowedDeductors[msg.sender]) {
@@ -43,19 +35,22 @@ contract SuccinctFeeVault is IFeeVault, Ownable {
         _;
     }
 
-    constructor(address _owner) {
-        transferOwnership(_owner);
+    /// @dev Initializes the contract.
+    /// @param _timelock The address of the timelock contract.
+    /// @param _guardian The address of the guardian.
+    function initialize(address _timelock, address _guardian) external initializer {
+        __TimelockedUpgradeable_init(_timelock, _guardian);
     }
 
     /// @notice Add the specified deductor.
     /// @param _deductor The address of the deductor to add.
-    function addDeductor(address _deductor) external onlyOwner {
+    function addDeductor(address _deductor) external onlyGuardian {
         allowedDeductors[_deductor] = true;
     }
 
     /// @notice Remove the specified deductor.
     /// @param _deductor The address of the deductor to remove.
-    function removeDeductor(address _deductor) external onlyOwner {
+    function removeDeductor(address _deductor) external onlyGuardian {
         allowedDeductors[_deductor] = false;
     }
 
@@ -91,7 +86,7 @@ contract SuccinctFeeVault is IFeeVault, Ownable {
             revert InsufficentAllowance(_token, _amount);
         }
 
-        token.transferFrom(msg.sender, address(this), _amount);
+        token.safeTransferFrom(msg.sender, address(this), _amount);
         balances[_token][_account] += _amount;
 
         emit Received(_account, _token, _amount);
@@ -136,7 +131,7 @@ contract SuccinctFeeVault is IFeeVault, Ownable {
     /// @notice Collect the specified amount of native currency.
     /// @param _to The address to send the collected native currency to.
     /// @param _amount The amount of native currency to collect.
-    function collectNative(address _to, uint256 _amount) external onlyOwner {
+    function collectNative(address _to, uint256 _amount) external onlyGuardian {
         if (address(this).balance < _amount) {
             revert InsufficientBalance(address(0), _amount);
         }
@@ -153,7 +148,7 @@ contract SuccinctFeeVault is IFeeVault, Ownable {
     /// @param _to The address to send the collected tokens to.
     /// @param _token The address of the token to collect.
     /// @param _amount The amount of the token to collect.
-    function collect(address _to, address _token, uint256 _amount) external onlyOwner {
+    function collect(address _to, address _token, uint256 _amount) external onlyGuardian {
         if (_token == address(0)) {
             revert InvalidToken(_token);
         }
@@ -165,4 +160,8 @@ contract SuccinctFeeVault is IFeeVault, Ownable {
 
         emit Collected(_to, _token, _amount);
     }
+
+    /// @dev This empty reserved space to add new variables without shifting down storage.
+    ///      See: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    uint256[50] private __gap;
 }

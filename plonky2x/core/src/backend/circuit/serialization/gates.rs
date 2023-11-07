@@ -28,12 +28,11 @@ use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, Read, Write
 
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;
-use crate::frontend::hash::deprecated::bit_operations::XOR3Gate;
-use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGate;
-use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGate;
-use crate::frontend::num::u32::gates::comparison::ComparisonGate;
-use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGate;
-use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGate;
+use crate::frontend::uint::num::u32::gates::add_many_u32::U32AddManyGate;
+use crate::frontend::uint::num::u32::gates::arithmetic_u32::U32ArithmeticGate;
+use crate::frontend::uint::num::u32::gates::comparison::ComparisonGate;
+use crate::frontend::uint::num::u32::gates::range_check_u32::U32RangeCheckGate;
+use crate::frontend::uint::num::u32::gates::subtraction_u32::U32SubtractionGate;
 
 /// A registry to store serializers for gates.
 ///
@@ -99,7 +98,6 @@ impl<L: PlonkParameters<D>, const D: usize> GateRegistry<L, D> {
         r.register::<RandomAccessGate<L::Field, D>>();
         r.register::<ReducingExtensionGate<D>>();
         r.register::<ReducingGate<D>>();
-        r.register::<XOR3Gate>();
         r.register::<ComparisonGate<L::Field, D>>();
         r.register::<U32AddManyGate<L::Field, D>>();
         r.register::<U32ArithmeticGate<L::Field, D>>();

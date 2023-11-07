@@ -2,7 +2,7 @@
 pragma solidity ^0.8.16;
 
 import "forge-std/console.sol";
-import {BaseScript} from "script/misc/Base.s.sol";
+import {BaseScript} from "../misc/Base.s.sol";
 import {Safe} from "@safe/Safe.sol";
 import {SafeProxyFactory} from "@safe/proxies/SafeProxyFactory.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";

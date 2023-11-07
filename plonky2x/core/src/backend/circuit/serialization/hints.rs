@@ -1,19 +1,12 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use curta::chip::ec::edwards::scalar_mul::air::ScalarMulEd25519;
-use curta::chip::ec::edwards::scalar_mul::generator::{
-    SimpleScalarMulEd25519Generator, SimpleScalarMulEd25519HintGenerator,
-};
 use curta::chip::hash::blake::blake2b::generator::{
     BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
 };
-use curta::chip::hash::sha::sha256::generator::{
-    SHA256AirParameters, SHA256Generator, SHA256HintGenerator,
-};
+use curta::machine::hash::sha::sha256::SHA256;
 use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
 use curta::plonky2::cubic::mul_gate::MulCubicGenerator;
-use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
 use plonky2::gadgets::arithmetic_extension::QuotientGeneratorExtension;
@@ -45,13 +38,11 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSeria
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
-use crate::frontend::curta::hash::sha::sha256::hint::Sha256ProofHint;
-use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
     BeaconExecutionPayloadHint, BeaconGraffitiHint, BeaconHeaderHint,
-    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockGenerator, BeaconPartialBalancesHint,
+    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint, BeaconPartialBalancesHint,
     BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
     BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
     BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
@@ -64,24 +55,21 @@ use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
 use crate::frontend::hash::blake2::curta::MAX_NUM_CURTA_CHUNKS;
-use crate::frontend::hash::deprecated::bit_operations::XOR3Generator;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
+use crate::frontend::hash::sha::curta::digest_hint::SHADigestHint;
+use crate::frontend::hash::sha::curta::proof_hint::SHAProofHint;
 use crate::frontend::hint::asynchronous::generator::{AsyncHintDataRef, AsyncHintRef};
 use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
 use crate::frontend::hint::synchronous::Async;
-use crate::frontend::num::biguint::BigUintDivRemGenerator;
-use crate::frontend::num::nonnative::nonnative::{
-    NonNativeAdditionGenerator, NonNativeInverseGenerator, NonNativeMultipleAddsGenerator,
-    NonNativeMultiplicationGenerator, NonNativeSubtractionGenerator,
-};
-use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGenerator;
-use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
-use crate::frontend::num::u32::gates::comparison::ComparisonGenerator;
-use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
-use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
+use crate::frontend::uint::num::biguint::BigUintDivRemGenerator;
+use crate::frontend::uint::num::u32::gates::add_many_u32::U32AddManyGenerator;
+use crate::frontend::uint::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
+use crate::frontend::uint::num::u32::gates::comparison::ComparisonGenerator;
+use crate::frontend::uint::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
+use crate::frontend::uint::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
 use crate::prelude::{ArrayVariable, BoolVariable, U32Variable, Variable};
@@ -336,12 +324,6 @@ where
         let beacon_withdrawals_generator_id = BeaconWithdrawalsGenerator::<L, D>::id();
         r.register_simple::<BeaconWithdrawalsGenerator<L, D>>(beacon_withdrawals_generator_id);
 
-        let beacon_historical_block_generator_id =
-            BeaconHistoricalBlockGenerator::<L::Field, D>::id();
-        r.register_simple::<BeaconHistoricalBlockGenerator<L::Field, D>>(
-            beacon_historical_block_generator_id,
-        );
-
         let big_uint_div_rem_generator_id = BigUintDivRemGenerator::<L::Field, D>::id();
         r.register_simple::<BigUintDivRemGenerator<L::Field, D>>(big_uint_div_rem_generator_id);
 
@@ -357,77 +339,24 @@ where
         let comparison_generator_id = ComparisonGenerator::<L::Field, D>::id();
         r.register_simple::<ComparisonGenerator<L::Field, D>>(comparison_generator_id);
 
-        let xor3_generator_id = XOR3Generator::<L::Field, D>::id();
-        r.register_simple::<XOR3Generator<L::Field, D>>(xor3_generator_id);
-
-        let sha256_hint_generator_id = SHA256HintGenerator::id();
-        r.register_simple::<SHA256HintGenerator>(sha256_hint_generator_id);
-
-        let sha256_generator_id =
-            SHA256Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
-        r.register_simple::<SHA256Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(
-            sha256_generator_id,
-        );
-
-        let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
-            ScalarMulEd25519<L::Field, L::CubicParams>,
-            L::CurtaConfig,
-            D,
-        >::id();
-        r.register_simple::<SimpleStarkWitnessGenerator<
-            ScalarMulEd25519<L::Field, L::CubicParams>,
-            L::CurtaConfig,
-            D,
-        >>(simple_stark_witness_generator_id);
-
-        let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
-            SHA256AirParameters<L::Field, L::CubicParams>,
-            L::CurtaConfig,
-            D,
-        >::id();
-        r.register_simple::<SimpleStarkWitnessGenerator<
-            SHA256AirParameters<L::Field, L::CubicParams>,
-            L::CurtaConfig,
-            D,
-        >>(simple_stark_witness_generator_id);
+        let le_generator_id = LteGenerator::<L, D>::id();
+        r.register_simple::<LteGenerator<L, D>>(le_generator_id);
 
         r.register_hint::<BeaconBalanceWitnessHint>();
-        r.register_hint::<Eth1BlockToSlotHint>();
         r.register_hint::<BeaconExecutionPayloadHint>();
-        r.register_hint::<BeaconHeaderHint>();
-        r.register_hint::<BeaconAllWithdrawalsHint>();
-        r.register_hint::<Sha256ProofHint<L, D>>();
 
+        r.register_async_hint::<BeaconAllWithdrawalsHint>();
+        r.register_async_hint::<BeaconHeaderHint>();
+        r.register_async_hint::<Eth1BlockToSlotHint>();
+        r.register_async_hint::<BeaconHistoricalBlockHint>();
         r.register_async_hint::<EthStorageProofHint<L, D>>();
         r.register_async_hint::<BeaconValidatorsHint>();
-        r.register_async_hint::<Async<Sha256ProofHint<L, D>>>();
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
         register_powers_of_two!(r, BeaconPartialBalancesHint);
         register_powers_of_two!(r, BeaconValidatorBatchHint);
         register_powers_of_two!(r, BeaconPartialValidatorsHint);
         register_powers_of_two!(r, CompressedBeaconValidatorBatchHint);
-        let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id = NonNativeInverseGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeInverseGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id = NonNativeMultipleAddsGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeMultipleAddsGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id = NonNativeMultiplicationGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeMultiplicationGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id = NonNativeSubtractionGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeSubtractionGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id =
-            SimpleScalarMulEd25519Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
-        r.register_simple::<SimpleScalarMulEd25519Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(id);
-
-        let id = "SimpleScalarMulEd25519HintGenerator";
-        r.register_simple::<SimpleScalarMulEd25519HintGenerator<L::Field, D>>(id.to_string());
 
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
@@ -463,6 +392,12 @@ where
         r.register_hint::<BeaconBlockRootsHint>();
 
         r.register_hint::<BeaconGraffitiHint>();
+
+        r.register_hint::<SHADigestHint<SHA256, 64>>();
+        r.register_async_hint::<Async<SHADigestHint<SHA256, 64>>>();
+
+        r.register_hint::<SHAProofHint<SHA256, 64>>();
+        r.register_async_hint::<Async<SHAProofHint<SHA256, 64>>>();
 
         register_powers_of_two!(r, BeaconHeadersFromOffsetRangeHint);
 

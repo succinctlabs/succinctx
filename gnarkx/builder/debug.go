@@ -2,7 +2,7 @@ package builder
 
 import (
 	"github.com/consensys/gnark/frontend"
-	"github.com/succinctlabs/sdk/gnarkx/vars"
+	"github.com/succinctlabs/succinctx/gnarkx/vars"
 )
 
 func (a *API) PrintVarBytes(vars []vars.Byte) {

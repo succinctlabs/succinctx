@@ -6,7 +6,7 @@ use itertools::Itertools;
 use log::{debug, info};
 use num::BigInt;
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use serde_with::serde_as;
 
@@ -15,7 +15,7 @@ use crate::utils::reqwest::ReqwestClient;
 use crate::utils::serde::deserialize_bigint;
 
 /// A client used for connecting and querying a beacon node.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct BeaconClient {
     rpc_url: String,
     client: ReqwestClient,
@@ -607,9 +607,17 @@ impl BeaconClient {
     pub fn get_withdrawals(&self, beacon_id: String) -> Result<GetBeaconWithdrawals> {
         let endpoint = format!("{}/api/beacon/proof/withdrawal/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(120, 0)).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconWithdrawals> = response.json()?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    pub async fn get_withdrawals_async(&self, beacon_id: String) -> Result<GetBeaconWithdrawals> {
+        let endpoint = format!("{}/api/beacon/proof/withdrawal/{}", self.rpc_url, beacon_id);
+        info!("{}", endpoint);
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<GetBeaconWithdrawals> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
@@ -625,7 +633,7 @@ impl BeaconClient {
         Ok(response.result)
     }
 
-    pub fn get_historical_block(
+    pub async fn get_historical_block(
         &self,
         beacon_id: String,
         offset: u64,
@@ -635,9 +643,8 @@ impl BeaconClient {
             self.rpc_url, beacon_id, offset
         );
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(240, 0)).send()?;
-        let response: CustomResponse<GetBeaconHistoricalBlock> = response.json()?;
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<GetBeaconHistoricalBlock> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
@@ -668,11 +675,11 @@ impl BeaconClient {
     }
 
     /// Gets the block header at the given `beacon_id`.
-    pub fn get_header(&self, beacon_id: String) -> Result<BeaconHeader> {
+    pub async fn get_header(&self, beacon_id: String) -> Result<BeaconHeader> {
         let endpoint = format!("{}/eth/v1/beacon/headers/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
-        let response = self.client.fetch(&endpoint)?;
-        let parsed: BeaconData<BeaconHeaderContainer> = response.json()?;
+        let response = self.client.fetch_async(&endpoint).await?;
+        let parsed: BeaconData<BeaconHeaderContainer> = response.json().await?;
 
         Ok(parsed.data.header.message)
     }
@@ -680,8 +687,7 @@ impl BeaconClient {
     pub fn get_block_roots(&self, beacon_id: String) -> Result<GetBeaconBlockRoots> {
         let endpoint = format!("{}/api/beacon/proof/blockRoots/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(60, 0)).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconBlockRoots> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -690,8 +696,7 @@ impl BeaconClient {
     pub fn get_graffiti(&self, beacon_id: String) -> Result<GetBeaconGraffiti> {
         let endpoint = format!("{}/api/beacon/proof/graffiti/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(60, 0)).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconGraffiti> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -708,8 +713,7 @@ impl BeaconClient {
             self.rpc_url, beacon_id, start_offset, end_offset
         );
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(60, 0)).send()?;
+        let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconHeadersFromOffsetRange> = response.json()?;
         assert!(response.success);
         Ok(response.result)
@@ -804,18 +808,6 @@ mod tests {
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_block_roots(slot.to_string())?;
-        debug!("{:?}", result);
-        Ok(())
-    }
-
-    #[cfg_attr(feature = "ci", ignore)]
-    #[test]
-    fn test_get_graffiti() -> Result<()> {
-        utils::setup_logger();
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
-        let client = BeaconClient::new(rpc.to_string());
-        let slot = 7052735;
-        let result = client.get_graffiti(slot.to_string())?;
         debug!("{:?}", result);
         Ok(())
     }

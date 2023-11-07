@@ -93,6 +93,16 @@ impl<const N: usize> Index<Range<usize>> for BytesVariable<N> {
     }
 }
 
+impl<const N: usize> BytesVariable<N> {
+    pub fn len(&self) -> usize {
+        N
+    }
+
+    pub fn is_empty(&self) -> bool {
+        N == 0
+    }
+}
+
 impl<const N: usize> EvmVariable for BytesVariable<N> {
     fn encode<L: PlonkParameters<D>, const D: usize>(
         &self,

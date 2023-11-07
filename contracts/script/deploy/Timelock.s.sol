@@ -2,8 +2,8 @@
 pragma solidity ^0.8.16;
 
 import "forge-std/console.sol";
-import {BaseScript} from "script/misc/Base.s.sol";
-import {Timelock} from "src/upgrades/Timelock.sol";
+import {BaseScript} from "../misc/Base.s.sol";
+import {Timelock} from "../../src/upgrades/Timelock.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract DeployTimelock is BaseScript {
