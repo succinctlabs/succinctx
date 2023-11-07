@@ -1,5 +1,6 @@
 use ethers::types::Bytes;
 use log::{error, info};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 #[allow(non_snake_case)]
@@ -18,25 +19,43 @@ pub struct OffchainInput {
     input: Bytes,
 }
 
-/// Submit an offchain request to the platform API.
-pub async fn submit_platform_request(data: OffchainInput, request_url: &str) {
-    // Serialize the data to JSON.
-    let serialized_data = serde_json::to_string(&data).unwrap();
+/// Client to interact with the platform API.
+/// client: The reqwest client to be used.
+/// base_url: The base url of the platform API. (ex. https://alpha.succinct.xyz/api)
+pub struct PlatformClient {
+    client: Client,
+    base_url: String,
+}
 
-    // Submit POST request to platform API.
-    let client = reqwest::Client::new();
-    let res = client
-        .post(request_url)
-        .header("Content-Type", "application/json")
-        .body(serialized_data)
-        .send()
-        .await
-        .unwrap();
+impl PlatformClient {
+    pub fn new(base_url: String) -> Self {
+        Self {
+            client: Client::new(),
+            base_url,
+        }
+    }
 
-    // Check if the request was successful.
-    if res.status().is_success() {
-        info!("Request successful!");
-    } else {
-        error!("Request failed!");
+    /// Submit an offchain request to the platform API.
+    pub async fn submit_platform_request(&self, data: OffchainInput) {
+        // Serialize the data to JSON.
+        let serialized_data = serde_json::to_string(&data).unwrap();
+
+        // Submit POST request to platform API.
+        let request_url = format!("{}{}", self.base_url, "/request/new");
+        let res = self
+            .client
+            .post(request_url)
+            .header("Content-Type", "application/json")
+            .body(serialized_data)
+            .send()
+            .await
+            .unwrap();
+
+        // Check if the request was successful.
+        if res.status().is_success() {
+            info!("Request successful!");
+        } else {
+            error!("Request failed!");
+        }
     }
 }
