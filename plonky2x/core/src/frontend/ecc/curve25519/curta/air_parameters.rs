@@ -16,6 +16,6 @@ impl<L: PlonkParameters<D>, const D: usize> AirParameters for Ed25519AirParamete
     type Instruction = Ed25519FpInstruction;
 
     const NUM_ARITHMETIC_COLUMNS: usize = 1632;
-    const NUM_FREE_COLUMNS: usize = 21;
-    const EXTENDED_COLUMNS: usize = 2508;
+    const NUM_FREE_COLUMNS: usize = 20;
+    const EXTENDED_COLUMNS: usize = 2502;
 }

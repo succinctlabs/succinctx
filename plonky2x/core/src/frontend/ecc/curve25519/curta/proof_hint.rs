@@ -61,7 +61,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for EcOpProofHint {
         let (proof, public_inputs) = stark.prove(&input);
 
         // Write outputs.
-        output_stream.write_stark_proof(proof);
+        output_stream.write_emulated_stark_proof(proof);
         output_stream.write_slice(&public_inputs)
     }
 }

@@ -5,28 +5,25 @@ use curta::chip::ec::edwards::ed25519::point::CompressedPointRegister;
 use curta::chip::ec::gadget::EllipticCurveWriter;
 use curta::chip::ec::point::{AffinePoint, AffinePointRegister};
 use curta::chip::ec::scalar::ECScalarRegister;
-use curta::chip::ec::EllipticCurveAir;
-use curta::chip::trace::data::AirTraceData;
-use curta::chip::trace::generator::ArithmeticGenerator;
-use curta::chip::trace::writer::TraceWriter;
-use curta::chip::{AirParameters, Chip};
+use curta::chip::trace::writer::{InnerWriterData, TraceWriter};
+use curta::chip::AirParameters;
 use curta::machine::builder::Builder;
 use curta::machine::ec::builder::EllipticCurveBuilder;
-use curta::plonky2::stark::config::StarkyConfig;
-use curta::plonky2::stark::proof::StarkProof;
-use curta::plonky2::stark::prover::StarkyProver;
-use curta::plonky2::stark::verifier::StarkyVerifier;
-use curta::plonky2::stark::Starky;
+use curta::machine::emulated::builder::EmulatedBuilder;
+use curta::machine::emulated::proof::EmulatedStarkProof;
+use curta::machine::emulated::stark::EmulatedStark;
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use itertools::Itertools;
 use log::debug;
 use num_bigint::BigUint;
+use plonky2::util::log2_ceil;
+use plonky2::util::timing::TimingTree;
 
 use super::air_parameters::Ed25519AirParameters;
 use super::request::EcOpRequestType;
 use super::{Curve, ScalarField};
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
-use crate::frontend::curta::proof::StarkProofVariable;
+use crate::frontend::curta::proof::EmulatedStarkProofVariable;
 use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
 use crate::prelude::*;
 
@@ -68,24 +65,22 @@ pub enum Ed25519CurtaOpValue {
 }
 
 pub struct Ed25519Stark<L: PlonkParameters<D>, const D: usize> {
-    config: StarkyConfig<L::CurtaConfig, D>,
-    stark: Starky<Chip<Ed25519AirParameters<L, D>>>,
-    trace_data: AirTraceData<Ed25519AirParameters<L, D>>,
+    stark: EmulatedStark<Ed25519AirParameters<L, D>, L::CurtaConfig, D>,
     operations: Vec<Ed25519CurtaOp>,
+    degree: usize,
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
     pub fn new(request_data: &[EcOpRequestType]) -> Self {
-        let mut builder = AirBuilder::<Ed25519AirParameters<L, D>>::new();
-        builder.init_local_memory();
+        let mut builder = EmulatedBuilder::<Ed25519AirParameters<L, D>>::new();
 
         let mut scalars = vec![];
         let mut scalar_mul_points = vec![];
         let mut scalar_mul_results = vec![];
-        let mut operations = request_data
+        let operations = request_data
             .iter()
             .map(|kind| {
-                let air_op = Ed25519CurtaOp::new(&mut builder, kind);
+                let air_op = Ed25519CurtaOp::new(&mut builder.api, kind);
                 if let Ed25519CurtaOp::ScalarMul(scalar, point, result) = &air_op {
                     scalars.push(*scalar);
                     scalar_mul_points.push(*point);
@@ -96,44 +91,17 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
             .collect::<Vec<_>>();
 
         let num_scalar_muls = scalars.len();
-        assert!(
-            num_scalar_muls <= 256,
-            "too many scalar mul requests for a single stark"
-        );
-
-        if num_scalar_muls < 256 {
-            // Add a dummy scalar mul to make the number of scalar muls equals to 256.
-            let generator = Curve::ec_generator_air(&mut builder);
-            let mut one = vec![L::Field::ONE];
-            one.resize(8, L::Field::ZERO);
-            let dummy_scalar = ECScalarRegister::new(builder.constant_array(&one));
-            let dummy_point = generator;
-            let dummy_result = generator;
-            for _ in num_scalar_muls..256 {
-                operations.push(Ed25519CurtaOp::ScalarMul(
-                    dummy_scalar,
-                    dummy_point,
-                    dummy_result,
-                ));
-                scalars.push(dummy_scalar);
-                scalar_mul_points.push(dummy_point);
-                scalar_mul_results.push(dummy_result);
-            }
-        }
-
+        let degree_log = log2_ceil(num_scalar_muls * 256);
+        let degree = 1 << degree_log;
         // Constrain the scalar mul operations.
         builder.scalar_mul_batch(&scalar_mul_points, &scalars, &scalar_mul_results);
 
-        let (air, trace_data) = builder.build();
-
-        let stark = Starky::new(air);
-        let config = StarkyConfig::standard_fast_config(1 << 16);
+        let stark = builder.build::<L::CurtaConfig, D>(degree);
 
         Ed25519Stark {
-            config,
             stark,
-            trace_data,
             operations,
+            degree,
         }
     }
 
@@ -186,36 +154,34 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
     pub fn prove(
         &self,
         input: &[Ed25519CurtaOpValue],
-    ) -> (StarkProof<L::Field, L::CurtaConfig, D>, Vec<L::Field>) {
-        let num_rows = 1 << 16;
-        let generator = ArithmeticGenerator::<Ed25519AirParameters<L, D>>::new(
-            self.trace_data.clone(),
-            num_rows,
-        );
-        let writer = generator.new_writer();
+    ) -> (
+        EmulatedStarkProof<L::Field, L::CurtaConfig, D>,
+        Vec<L::Field>,
+    ) {
+        let num_rows = self.degree;
+        let writer = TraceWriter::new(&self.stark.air_data, num_rows);
 
         debug!("Writing EC stark input");
         self.write_input(&writer, input);
 
         debug!("Writing EC execusion trace");
-        writer.write_global_instructions(&generator.air_data);
+        writer.write_global_instructions(&self.stark.air_data);
         for i in 0..num_rows {
-            writer.write_row_instructions(&generator.air_data, i);
+            writer.write_row_instructions(&self.stark.air_data, i);
         }
 
         let public_inputs: Vec<L::Field> = writer.public().unwrap().clone();
 
         debug!("EC stark proof generation");
-        let proof = StarkyProver::<L::Field, L::CurtaConfig, D>::prove(
-            &self.config,
-            &self.stark,
-            &generator,
-            &public_inputs,
-        )
-        .unwrap();
+        let InnerWriterData { trace, public, .. } = writer.into_inner().unwrap();
+        let proof = self
+            .stark
+            .prove(&trace, &public, &mut TimingTree::default())
+            .unwrap();
 
         // Verify the proof as a stark
-        StarkyVerifier::verify(&self.config, &self.stark, proof.clone(), &public_inputs).unwrap();
+        self.stark.verify(proof.clone(), &public).unwrap();
+
         debug!("EC stark proof verified");
 
         (proof, public_inputs)
@@ -224,20 +190,20 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
     pub fn verify_proof(
         &self,
         builder: &mut CircuitBuilder<L, D>,
-        proof: StarkProofVariable<D>,
+        proof: EmulatedStarkProofVariable<D>,
         public_inputs: &[Variable],
         _ec_ops: &[Ed25519OpVariable],
     ) {
-        builder.verify_stark_proof(&self.config, &self.stark, proof, public_inputs)
+        builder.verify_emulated_stark_proof(&self.stark, proof, public_inputs)
     }
 
     pub fn read_proof_with_public_input(
         &self,
         builder: &mut CircuitBuilder<L, D>,
         output_stream: &OutputVariableStream<L, D>,
-    ) -> (StarkProofVariable<D>, Vec<Variable>) {
-        let proof = output_stream.read_stark_proof(builder, &self.stark, &self.config);
-        let public_inputs = output_stream.read_vec(builder, self.trace_data.num_public_inputs);
+    ) -> (EmulatedStarkProofVariable<D>, Vec<Variable>) {
+        let proof = output_stream.read_emulated_stark_proof(builder, &self.stark);
+        let public_inputs = output_stream.read_vec(builder, self.stark.air_data.num_public_inputs);
 
         (proof, public_inputs)
     }
