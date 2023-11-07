@@ -37,6 +37,16 @@ For example, to deploy SuccinctFeeVault and then SuccinctGateway on Chains 5, 42
 
 Note: `CREATE2_SALT` **MUST** stay the same between the entire deployment.
 
+## Verification
+
+Contract verification will be automatically applied during deployment. However, there may be times where verifiation fails due to general flakiness. In these cases, you can manually verify the contracts by running `./script/verify.sh <contract> <chain_ids> <is_proxy> <constructor_args>`.
+
+For example, to verify both the proxy and implementation contract of SuccinctGateway (both of which have no `constructor_args`) on Chains 5, 420, 84531, and 421613, you would run:
+
+```sh
+./script/verify.sh "SuccinctGateway" "5 420 84531 421613" "true" 
+```
+
 ## Upgrading
 
 ### Upgrades via EOA
