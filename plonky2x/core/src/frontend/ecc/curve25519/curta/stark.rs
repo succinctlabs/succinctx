@@ -66,6 +66,13 @@ pub enum Ed25519CurtaOpValue {
     IsValid(AffinePoint<Curve>),
 }
 
+/// A Curta stark for proving EC operations.
+///
+/// The Curta stark consists of a range check table to prove elements are between 0 and 2^16 - 1.
+/// These range checks are used to constrain EC operations in the following way:
+///    - EC Add, decompress, and is_valid operations are done on public inputs and using the AIR
+///      table only for range checks.
+///    - Scalar mul operations are done in the AIR table, with each scalae mul taking 256 rows.
 pub struct Ed25519Stark<L: PlonkParameters<D>, const D: usize> {
     stark: EmulatedStark<Ed25519AirParameters<L, D>, L::CurtaConfig, D>,
     operations: Vec<Ed25519CurtaOp>,
