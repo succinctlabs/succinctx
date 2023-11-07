@@ -13,7 +13,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @notice Registers a function, using a pre-deployed verifier.
     /// @param _owner The owner of the function.
     /// @param _verifier The address of the verifier.
-    /// @param _salt The salt to use for calculatingthe function ID.
+    /// @param _salt The salt to use for calculating the function ID.
     function registerFunction(address _owner, address _verifier, bytes32 _salt)
         external
         returns (bytes32 functionId)
@@ -34,7 +34,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @notice Registers a function, using CREATE2 to deploy the verifier.
     /// @param _owner The owner of the function.
     /// @param _bytecode The bytecode of the verifier.
-    /// @param _salt The salt to use for calculatingthe function ID.
+    /// @param _salt The salt to use for calculating the function ID.
     function deployAndRegisterFunction(address _owner, bytes memory _bytecode, bytes32 _salt)
         external
         returns (bytes32 functionId, address verifier)
@@ -94,7 +94,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
 
     /// @notice Returns the functionId for a given owner and function name.
     /// @param _owner The owner of the function.
-    /// @param _salt The name of the function.
+    /// @param _salt The salt to use.
     function getFunctionId(address _owner, bytes32 _salt)
         public
         pure
