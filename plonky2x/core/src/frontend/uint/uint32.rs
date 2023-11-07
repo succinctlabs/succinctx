@@ -7,9 +7,9 @@ use plonky2::iop::target::BoolTarget;
 use super::uint64::U64Variable;
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
-use crate::frontend::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
-use crate::frontend::num::u32::gadgets::multiple_comparison::list_lte_circuit;
+use crate::frontend::uint::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
+use crate::frontend::uint::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use crate::frontend::uint::num::u32::gadgets::multiple_comparison::list_lte_circuit;
 use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
 use crate::prelude::*;
 

@@ -23,9 +23,8 @@ pub use variable::*;
 
 pub use super::uint::uint256::*;
 pub use super::uint::uint32::*;
-use crate::backend::circuit::{DefaultParameters, PlonkParameters};
+use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::utils;
 
 pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     /// The underlying type of the variable if it were not in a circuit.
@@ -114,15 +113,7 @@ pub trait CircuitVariable: Debug + Clone + Sized + Sync + Send + 'static {
     }
 
     /// The number of field elements it takes to represent this variable.
-    fn nb_elements() -> usize {
-        type L = DefaultParameters;
-        const D: usize = 2;
-        utils::disable_logging();
-        let mut builder = CircuitBuilder::<L, D>::new();
-        let variable = builder.init_unsafe::<Self>();
-        utils::enable_logging();
-        variable.variables().len()
-    }
+    fn nb_elements() -> usize;
 
     /// Serializes the value type to a list of field elements.
     fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F>;
