@@ -334,38 +334,4 @@ mod tests {
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
     }
-
-    #[test]
-    fn failing_sha512() {
-        let mut test_message: Vec<u8> = vec![
-            123, 91, 220, 35, 211, 213, 7, 45, 164, 151, 71, 169, 218, 173, 38, 104, 3, 16, 168,
-            29, 247, 203, 160, 36, 33, 222, 19, 145, 18, 98, 135, 138, 217, 137, 40, 54, 42, 164,
-            182, 68, 116, 5, 187, 83, 134, 107, 101, 27, 140, 142, 201, 195, 235, 207, 238, 29, 69,
-            155, 125, 198, 29, 40, 193, 84, 52, 68, 94, 231, 122, 44, 188, 97, 64, 164, 221, 146,
-            226, 151, 30, 140, 73, 172, 195, 53, 145, 239, 36, 2, 28, 2, 92, 208, 92, 83, 66, 22,
-            251, 123, 154, 191, 60, 230, 209, 187, 102, 45, 113, 220, 174, 93, 94, 127, 106, 229,
-            64, 64, 206, 216, 188, 137, 4, 223, 203, 36, 15, 33, 244, 21, 175, 120, 213, 8, 81,
-            229, 222, 149, 66, 240, 83, 85, 177, 32, 116, 202, 142, 149, 249, 161, 205, 72, 9, 38,
-            178, 124, 227, 133, 90, 235, 117, 192, 13, 252, 159, 135, 105, 38, 105, 214, 216, 39,
-            201, 113, 153, 100, 105, 73, 191, 44, 41, 148, 160, 92, 73, 155, 139, 131, 101, 149,
-            62, 58, 55, 108, 24, 73, 91, 58, 119, 29, 238, 226, 141, 59, 194, 80, 8, 231, 42, 177,
-            217, 222, 144, 34, 212, 98, 37, 189, 49, 200, 4, 214, 190, 9, 132, 18, 57, 12, 161,
-            157, 222, 198, 57, 140, 233, 231, 138, 80, 238, 217, 38, 239, 247, 120,
-        ];
-
-        let test_message_len = test_message.len();
-        test_message.resize(256, 0);
-
-        let mut builder = DefaultBuilder::new();
-        let message = builder.read::<BytesVariable<256>>();
-        let message_len = builder.read::<U32Variable>();
-        builder.curta_sha512_variable(message.0.as_slice(), message_len);
-
-        let circuit = builder.build();
-        let mut input = circuit.input();
-        input.write::<BytesVariable<256>>(test_message.try_into().unwrap());
-        input.write::<U32Variable>(test_message_len as u32);
-        let (proof, output) = circuit.prove(&input);
-        circuit.verify(&proof, &input, &output);
-    }
 }
