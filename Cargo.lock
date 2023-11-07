@@ -883,7 +883,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=tamir/scalar_mul_mem#328680b5534e2324a755acbbb09671da33460d5e"
+source = "git+https://github.com/succinctlabs/curta.git#86723feac21731c3f7acd8827abafe16609d47c4"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1227,9 +1227,9 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "errno"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac3e13f66a2f95e32a39eaa81f6b95d42878ca0e1db0c7543723dfe12557e860"
+checksum = "7c18ee0ed65a5f1f81cac6b1d213b69c35fa47d4252ad41f1486dbd8226fe36e"
 dependencies = [
  "libc",
  "windows-sys",
@@ -2903,7 +2903,7 @@ checksum = "14e6ab3f592e6fb464fc9712d8d6e6912de6473954635fd76a589d832cffcbb0"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/mir-protocol/plonky2.git#19178072b4b6115daeadc8106361960fc2d4600a"
+source = "git+https://github.com/mir-protocol/plonky2.git#605932d149eeba4558b404b52180e9ac20daca87"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2927,7 +2927,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#19178072b4b6115daeadc8106361960fc2d4600a"
+source = "git+https://github.com/mir-protocol/plonky2.git#605932d149eeba4558b404b52180e9ac20daca87"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2951,7 +2951,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#19178072b4b6115daeadc8106361960fc2d4600a"
+source = "git+https://github.com/mir-protocol/plonky2.git#605932d149eeba4558b404b52180e9ac20daca87"
 dependencies = [
  "rayon",
 ]
@@ -2959,7 +2959,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#19178072b4b6115daeadc8106361960fc2d4600a"
+source = "git+https://github.com/mir-protocol/plonky2.git#605932d149eeba4558b404b52180e9ac20daca87"
 
 [[package]]
 name = "plonky2x"
@@ -3687,18 +3687,18 @@ checksum = "cd0b0ec5f1c1ca621c432a25813d8d60c88abe6d3e08a3eb9cf37d97a0fe3d73"
 
 [[package]]
 name = "serde"
-version = "1.0.191"
+version = "1.0.192"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a834c4821019838224821468552240d4d95d14e751986442c816572d39a080c9"
+checksum = "bca2a08484b285dcb282d0f67b26cadc0df8b19f8c12502c13d966bf9482f001"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.191"
+version = "1.0.192"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46fa52d5646bce91b680189fe5b1c049d2ea38dabb4e2e7c8d00ca12cfbfbcfd"
+checksum = "d6c7207fbec9faa48073f3e3074cbe553af6ea512d7c21ba46e434e70ea9fbc1"
 dependencies = [
  "proc-macro2",
  "quote",
