@@ -1,4 +1,4 @@
-use ethers::types::Bytes;
+use ethers::types::{Address, Bytes, H256};
 use log::{error, info};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -8,25 +8,25 @@ use serde::{Deserialize, Serialize};
 /// Data to be sent to the platform API with an offchain request.
 pub struct OffchainInput {
     /// The chain id of the network to be used.
-    chainId: u32,
+    pub chainId: u32,
     /// The address of the contract to call.
     to: Bytes,
     /// The calldata to be used in the contract call.
     data: Bytes,
     /// The Succinct X function id to be called.
     functionId: Bytes,
-    /// The input to be used in the Succinct X function call.
+    /// The input to be used in the SuccinctX function call.
     input: Bytes,
 }
 
-/// Client to interact with the platform API.
-pub struct PlatformClient {
+/// Client to interact with the SuccinctX API.
+pub struct SuccinctClient {
     client: Client,
-    /// The base url for the platform API. (ex. https://alpha.succinct.xyz/api)
+    /// The base url for the SuccinctX API. (ex. https://alpha.succinct.xyz/api)
     base_url: String,
 }
 
-impl PlatformClient {
+impl SuccinctClient {
     pub fn new(base_url: String) -> Self {
         Self {
             client: Client::new(),
@@ -34,12 +34,27 @@ impl PlatformClient {
         }
     }
 
-    /// Submit an offchain request to the platform API.
-    pub async fn submit_platform_request(&self, data: OffchainInput) {
+    /// Submit an offchain request to the Succinct X API.
+    pub async fn submit_platform_request(
+        &self,
+        chain_id: u32,
+        to: Address,
+        calldata: Bytes,
+        function_id: H256,
+        input: Bytes,
+    ) {
+        let data = OffchainInput {
+            chainId: chain_id,
+            to: Bytes::from(to.as_fixed_bytes()),
+            data: calldata,
+            functionId: Bytes::from(function_id.as_fixed_bytes()),
+            input,
+        };
+
         // Serialize the data to JSON.
         let serialized_data = serde_json::to_string(&data).unwrap();
 
-        // Submit POST request to platform API.
+        // Make off-chain request.
         let request_url = format!("{}{}", self.base_url, "/request/new");
         let res = self
             .client
