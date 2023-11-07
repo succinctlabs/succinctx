@@ -1,28 +1,35 @@
-use ethers::types::{Address, Bytes, H256};
+use alloy_primitives::{Address, Bytes, FixedBytes};
+use anyhow::{Error, Result};
 use log::{error, info};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
-/// Data to be sent to the platform API with an offchain request.
-pub struct OffchainInput {
+/// Data to be sent to the Succinct X API with an offchain request.
+struct OffchainInput {
     /// The chain id of the network to be used.
-    pub chainId: u32,
+    chainId: u32,
     /// The address of the contract to call.
-    to: Bytes,
+    to: Address,
     /// The calldata to be used in the contract call.
     data: Bytes,
     /// The Succinct X function id to be called.
-    functionId: Bytes,
-    /// The input to be used in the SuccinctX function call.
+    functionId: FixedBytes<32>,
+    /// The input to be used in the Succinct X function call.
     input: Bytes,
 }
 
-/// Client to interact with the SuccinctX API.
+#[derive(Serialize, Deserialize)]
+/// Data received from the Succinct X API from an offchain request.
+struct OffchainRequestResponse {
+    request_id: String,
+}
+
+/// Client to interact with the Succinct X API.
 pub struct SuccinctClient {
     client: Client,
-    /// The base url for the SuccinctX API. (ex. https://alpha.succinct.xyz/api)
+    /// The base url for the Succinct X API. (ex. https://alpha.succinct.xyz/api)
     base_url: String,
 }
 
@@ -40,14 +47,14 @@ impl SuccinctClient {
         chain_id: u32,
         to: Address,
         calldata: Bytes,
-        function_id: H256,
+        function_id: FixedBytes<32>,
         input: Bytes,
-    ) {
+    ) -> Result<String> {
         let data = OffchainInput {
             chainId: chain_id,
-            to: Bytes::from(to.as_fixed_bytes()),
+            to,
             data: calldata,
-            functionId: Bytes::from(function_id.as_fixed_bytes()),
+            functionId: function_id,
             input,
         };
 
@@ -68,8 +75,11 @@ impl SuccinctClient {
         // Check if the request was successful.
         if res.status().is_success() {
             info!("Request successful!");
+            let response: OffchainRequestResponse = res.json().await.unwrap();
+            Ok(response.request_id)
         } else {
             error!("Request failed!");
+            Err(Error::msg("Failed to submit request to Succinct X API."))
         }
     }
 }
