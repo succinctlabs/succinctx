@@ -5,6 +5,7 @@ use curta::chip::ec::edwards::ed25519::point::CompressedPointRegister;
 use curta::chip::ec::gadget::EllipticCurveWriter;
 use curta::chip::ec::point::{AffinePoint, AffinePointRegister};
 use curta::chip::ec::scalar::ECScalarRegister;
+use curta::chip::register::Register;
 use curta::chip::trace::writer::{InnerWriterData, TraceWriter};
 use curta::chip::AirParameters;
 use curta::machine::builder::Builder;
@@ -16,6 +17,7 @@ use curve25519_dalek::edwards::CompressedEdwardsY;
 use itertools::Itertools;
 use log::debug;
 use num_bigint::BigUint;
+use plonky2::iop::target::BoolTarget;
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 
@@ -23,6 +25,7 @@ use super::air_parameters::Ed25519AirParameters;
 use super::request::EcOpRequestType;
 use super::{Curve, ScalarField};
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
+use crate::frontend::curta::field::variable::FieldVariable;
 use crate::frontend::curta::proof::EmulatedStarkProofVariable;
 use crate::frontend::num::nonnative::nonnative::NonNativeVariable;
 use crate::prelude::*;
@@ -192,9 +195,113 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
         builder: &mut CircuitBuilder<L, D>,
         proof: EmulatedStarkProofVariable<D>,
         public_inputs: &[Variable],
-        _ec_ops: &[Ed25519OpVariable],
+        ec_ops: &[Ed25519OpVariable],
     ) {
-        builder.verify_emulated_stark_proof(&self.stark, proof, public_inputs)
+        // Verify the stark proof in the circuit.
+        builder.verify_emulated_stark_proof(&self.stark, proof, public_inputs);
+
+        // Assert consistency between the public inputs to the stark and the circuit data.
+
+        for (curta_op, op) in self.operations.iter().zip_eq(ec_ops.iter()) {
+            match (curta_op, op) {
+                (
+                    Ed25519CurtaOp::Add(a, b, result),
+                    Ed25519OpVariable::Add(a_var, b_var, result_var),
+                ) => {
+                    Self::assert_point_equal(builder, a, a_var, public_inputs);
+                    Self::assert_point_equal(builder, b, b_var, public_inputs);
+                    Self::assert_point_equal(builder, result, result_var, public_inputs);
+                }
+                (
+                    Ed25519CurtaOp::ScalarMul(scalar, point, result),
+                    Ed25519OpVariable::ScalarMul(scalar_var, point_var, result_var),
+                ) => {
+                    Self::assert_scalar_equal(builder, scalar, scalar_var, public_inputs);
+                    Self::assert_point_equal(builder, point, point_var, public_inputs);
+                    Self::assert_point_equal(builder, result, result_var, public_inputs);
+                }
+                (
+                    Ed25519CurtaOp::Decompress(compressed_point, result),
+                    Ed25519OpVariable::Decompress(compressed_point_var, result_var),
+                ) => {
+                    Self::assert_compressed_point_equal(
+                        builder,
+                        compressed_point,
+                        compressed_point_var,
+                        public_inputs,
+                    );
+                    Self::assert_point_equal(builder, result, result_var, public_inputs);
+                }
+                (Ed25519CurtaOp::IsValid(point), Ed25519OpVariable::IsValid(point_var)) => {
+                    Self::assert_point_equal(builder, point, point_var, public_inputs);
+                }
+                _ => panic!("invalid operation"),
+            }
+        }
+    }
+
+    fn assert_compressed_point_equal(
+        builder: &mut CircuitBuilder<L, D>,
+        c: &CompressedPointRegister,
+        c_var: &CompressedEdwardsYVariable,
+        public_inputs: &[Variable],
+    ) {
+        let sign = c.sign.read_from_slice(public_inputs);
+        let y = c.y.read_from_slice(public_inputs);
+
+        let c_bytes = c_var.0.as_bytes();
+        let sign_var = c_var.0.as_bytes()[31].as_le_bits().last().copied().unwrap();
+        builder.assert_is_equal(sign, sign_var.variable);
+
+        let mut y_bytes = c_bytes;
+        // And with 255 because `ByteVariable` is internally big endian.
+        let b_255 = builder.constant::<ByteVariable>(0b01111111);
+        y_bytes[31] = builder.and(y_bytes[31], b_255);
+
+        let y_var_bits = y_bytes
+            .into_iter()
+            .flat_map(|b| b.as_le_bits())
+            .collect::<Vec<_>>();
+
+        let y_var_limbs = y_var_bits
+            .chunks_exact(16)
+            .map(|chunk| {
+                let le_targets = chunk
+                    .iter()
+                    .map(|x| BoolTarget::new_unsafe(x.variables()[0].0));
+                Variable::from(builder.api.le_sum(le_targets))
+            })
+            .collect::<Vec<_>>();
+
+        for (limb, var_limb) in y.coefficients().iter().zip(y_var_limbs) {
+            builder.assert_is_equal(*limb, var_limb);
+        }
+    }
+
+    fn assert_scalar_equal(
+        builder: &mut CircuitBuilder<L, D>,
+        s: &ECScalarRegister<Curve>,
+        s_var: &NonNativeVariable<ScalarField>,
+        public_inputs: &[Variable],
+    ) {
+        for (limb, var_limb) in s.limbs.iter().zip(s_var.value.limbs.iter()) {
+            let limb = limb.read_from_slice(public_inputs);
+            builder.api.connect(limb.0, var_limb.target);
+        }
+    }
+
+    fn assert_point_equal(
+        builder: &mut CircuitBuilder<L, D>,
+        a: &AffinePointRegister<Curve>,
+        a_var: &AffinePointVariable<Curve>,
+        public_inputs: &[Variable],
+    ) {
+        let a_x =
+            FieldVariable::from_variables_unsafe(a.x.read_from_slice(public_inputs).coefficients());
+        builder.assert_is_equal(a_x, a_var.x.clone());
+        let a_y =
+            FieldVariable::from_variables_unsafe(a.y.read_from_slice(public_inputs).coefficients());
+        builder.assert_is_equal(a_y, a_var.y.clone());
     }
 
     pub fn read_proof_with_public_input(

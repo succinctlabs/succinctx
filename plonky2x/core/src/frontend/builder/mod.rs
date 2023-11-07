@@ -164,7 +164,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let ec_ops_accelerator = self.ec_25519_ops_accelerator.clone();
         if let Some(accelerator) = ec_ops_accelerator {
-            self.curta_constrain_ec_op::<Ed25519ScalarField>(accelerator);
+            self.curta_constrain_ec_op(accelerator);
         }
 
         for (index, gen_ref) in self
