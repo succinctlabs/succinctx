@@ -3,6 +3,8 @@ use core::iter::once;
 use curta::chip::{AirParameters, Chip};
 use curta::machine::bytes::proof::{ByteStarkProof, ByteStarkProofTarget};
 use curta::machine::bytes::stark::ByteStark;
+use curta::machine::emulated::proof::{EmulatedStarkProof, EmulatedStarkProofTarget};
+use curta::machine::emulated::stark::EmulatedStark;
 use curta::plonky2::stark::config::{CurtaConfig, StarkyConfig};
 use curta::plonky2::stark::proof::{
     AirProof, AirProofTarget, StarkOpeningSet, StarkOpeningSetTarget, StarkProof, StarkProofTarget,
@@ -31,6 +33,13 @@ pub struct StarkProofVariable<const D: usize> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ByteStarkProofVariable<const D: usize> {
+    pub(crate) main_proof: AirProofVariable<D>,
+    pub(crate) lookup_proof: AirProofVariable<D>,
+    pub(crate) global_values: Vec<Variable>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmulatedStarkProofVariable<const D: usize> {
     pub(crate) main_proof: AirProofVariable<D>,
     pub(crate) lookup_proof: AirProofVariable<D>,
     pub(crate) global_values: Vec<Variable>,
@@ -130,6 +139,32 @@ impl VariableStream {
         }
     }
 
+    pub fn read_emulated_stark_proof<F, P, C, const D: usize>(
+        &mut self,
+        emulated_stark: &EmulatedStark<P, C, D>,
+    ) -> EmulatedStarkProofVariable<D>
+    where
+        F: RichField + Extendable<D>,
+        P: AirParameters<Field = F>,
+        C: CurtaConfig<D, F = F, FE = F::Extension>,
+        Chip<P>: Plonky2Air<F, D>,
+    {
+        let main_proof = self.read_air_proof(emulated_stark.stark(), emulated_stark.config());
+        let lookup_proof = self.read_air_proof(
+            emulated_stark.lookup_stark(),
+            emulated_stark.lookup_config(),
+        );
+
+        let num_global_values = emulated_stark.stark().air().num_global_values;
+        let global_values = self.read_exact(num_global_values).to_vec();
+
+        EmulatedStarkProofVariable {
+            main_proof,
+            lookup_proof,
+            global_values,
+        }
+    }
+
     pub fn read_stark_opening_set<
         F: RichField + Extendable<D>,
         A: Plonky2Air<F, D>,
@@ -178,6 +213,21 @@ impl VariableStream {
 
     pub fn write_byte_stark_proof<const D: usize>(&mut self, proof: &ByteStarkProofVariable<D>) {
         let ByteStarkProofVariable {
+            main_proof,
+            lookup_proof,
+            global_values,
+        } = proof;
+
+        self.write_air_proof(main_proof);
+        self.write_air_proof(lookup_proof);
+        self.write_slice(global_values);
+    }
+
+    pub fn write_emulated_stark_proof<const D: usize>(
+        &mut self,
+        proof: &EmulatedStarkProofVariable<D>,
+    ) {
+        let EmulatedStarkProofVariable {
             main_proof,
             lookup_proof,
             global_values,
@@ -292,6 +342,34 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
         }
     }
 
+    pub fn read_emulated_stark_proof<P, C>(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+        emulated_stark: &EmulatedStark<P, C, D>,
+    ) -> EmulatedStarkProofVariable<D>
+    where
+        P: AirParameters<Field = L::Field, CubicParams = L::CubicParams>,
+        C: CurtaConfig<D, F = L::Field, FE = <L::Field as Extendable<D>>::Extension>,
+        Chip<P>: Plonky2Air<L::Field, D>,
+    {
+        let main_proof =
+            self.read_air_proof(builder, emulated_stark.stark(), emulated_stark.config());
+        let lookup_proof = self.read_air_proof(
+            builder,
+            emulated_stark.lookup_stark(),
+            emulated_stark.lookup_config(),
+        );
+
+        let num_global_values = emulated_stark.stark().air().num_global_values;
+        let global_values = self.read_exact(builder, num_global_values).to_vec();
+
+        EmulatedStarkProofVariable {
+            main_proof,
+            lookup_proof,
+            global_values,
+        }
+    }
+
     pub fn read_stark_opening_set<A: Plonky2Air<L::Field, D>, C: CurtaConfig<D, F = L::Field>>(
         &self,
         builder: &mut CircuitBuilder<L, D>,
@@ -394,6 +472,31 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         }
     }
 
+    pub fn read_emulated_stark_proof<P, C>(
+        &mut self,
+        emulated_stark: &EmulatedStark<P, C, D>,
+    ) -> EmulatedStarkProof<L::Field, C, D>
+    where
+        P: AirParameters<Field = L::Field, CubicParams = L::CubicParams>,
+        C: CurtaConfig<D, F = L::Field, FE = <L::Field as Extendable<D>>::Extension>,
+        Chip<P>: Plonky2Air<L::Field, D>,
+    {
+        let main_proof = self.read_air_proof(emulated_stark.stark(), emulated_stark.config());
+        let lookup_proof = self.read_air_proof(
+            emulated_stark.lookup_stark(),
+            emulated_stark.lookup_config(),
+        );
+
+        let num_global_values = emulated_stark.stark().air().num_global_values;
+        let global_values = self.read_exact(num_global_values).to_vec();
+
+        EmulatedStarkProof {
+            main_proof,
+            lookup_proof,
+            global_values,
+        }
+    }
+
     pub fn read_stark_opening_set<A, C>(
         &mut self,
         stark: &Starky<A>,
@@ -449,6 +552,21 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         proof: ByteStarkProof<L::Field, C, D>,
     ) {
         let ByteStarkProof {
+            main_proof,
+            lookup_proof,
+            global_values,
+        } = proof;
+
+        self.write_air_proof(main_proof);
+        self.write_air_proof(lookup_proof);
+        self.write_slice(&global_values);
+    }
+
+    pub fn write_emulated_stark_proof<C: CurtaConfig<D, F = L::Field>>(
+        &mut self,
+        proof: EmulatedStarkProof<L::Field, C, D>,
+    ) {
+        let EmulatedStarkProof {
             main_proof,
             lookup_proof,
             global_values,
@@ -565,6 +683,32 @@ impl<const D: usize> From<ByteStarkProofVariable<D>> for ByteStarkProofTarget<D>
 
 impl<const D: usize> From<ByteStarkProofTarget<D>> for ByteStarkProofVariable<D> {
     fn from(value: ByteStarkProofTarget<D>) -> Self {
+        let main_proof = value.main_proof.into();
+        let lookup_proof = value.lookup_proof.into();
+        let global_values = value.global_values.into_iter().map(|v| v.into()).collect();
+        Self {
+            main_proof,
+            lookup_proof,
+            global_values,
+        }
+    }
+}
+
+impl<const D: usize> From<EmulatedStarkProofVariable<D>> for EmulatedStarkProofTarget<D> {
+    fn from(value: EmulatedStarkProofVariable<D>) -> Self {
+        let main_proof = value.main_proof.into();
+        let lookup_proof = value.lookup_proof.into();
+        let global_values = value.global_values.into_iter().map(|v| v.0).collect();
+        Self {
+            main_proof,
+            lookup_proof,
+            global_values,
+        }
+    }
+}
+
+impl<const D: usize> From<EmulatedStarkProofTarget<D>> for EmulatedStarkProofVariable<D> {
+    fn from(value: EmulatedStarkProofTarget<D>) -> Self {
         let main_proof = value.main_proof.into();
         let lookup_proof = value.lookup_proof.into();
         let global_values = value.global_values.into_iter().map(|v| v.into()).collect();
