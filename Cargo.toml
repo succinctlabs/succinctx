@@ -1,5 +1,5 @@
 [workspace]
-members = ["plonky2x/core", "plonky2x/derive", "rustx"]
+members = ["plonky2x/core", "plonky2x/derive", "rustx", "api"]
 resolver = "2"
 
 [profile.release]
