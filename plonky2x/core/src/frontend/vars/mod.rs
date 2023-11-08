@@ -4,6 +4,7 @@ mod byte;
 mod bytes;
 mod bytes32;
 mod collections;
+mod mpt;
 
 mod stream;
 mod variable;
