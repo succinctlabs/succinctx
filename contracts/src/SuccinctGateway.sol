@@ -8,28 +8,28 @@ import {TimelockedUpgradeable} from "./upgrades/TimelockedUpgradeable.sol";
 import {IFeeVault} from "./payments/interfaces/IFeeVault.sol";
 
 contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgradeable {
-    /// @dev The address of the fee vault.
+    /// @notice The address of the fee vault.
     address public feeVault;
 
-    /// @dev A nonce for keeping track of requests.
+    /// @notice A nonce for keeping track of requests.
     uint32 public nonce;
 
-    /// @dev A mapping from request nonces to request hashes.
+    /// @notice A mapping from request nonces to request hashes.
     mapping(uint32 => bytes32) public requests;
 
-    /// @dev The currently verified function identifier.
+    /// @notice The currently verified function identifier.
     bytes32 public verifiedFunctionId;
 
-    /// @dev The currently verified function input hash.
+    /// @notice The currently verified function input hash.
     bytes32 public verifiedInputHash;
 
-    /// @dev The currently verified function output.
+    /// @notice The currently verified function output.
     bytes public verifiedOutput;
 
-    /// @dev A flag that indicates whether the contract is currently making a callback.
+    /// @notice A flag that indicates whether the contract is currently making a callback.
     bool public isCallback;
 
-    /// @dev The allowed provers that can fulfill requests.
+    /// @notice The allowed provers that can fulfill requests.
     mapping(address => bool) public allowedProvers;
 
     /// @dev Protects functions from being re-entered during a fullfil call.
