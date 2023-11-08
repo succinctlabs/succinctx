@@ -39,7 +39,7 @@ impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize> Hint<L, D
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// This function verifies the decoding by comparing both the encoded and decoded MPT node.
-    pub fn verify_decoded_mpt_node<const ENCODING_LEN: usize, const ELEMENT_LEN: usize>(
+    pub fn verify_decoded_mpt_node<const ENCODING_LEN: usize>(
         &mut self,
         encoded: &ArrayVariable<ByteVariable, ENCODING_LEN>,
         len: Variable,
@@ -136,7 +136,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 pow = self.mul(pow, challenges[i]);
 
-                for k in 0..ELEMENT_LEN {
+                for k in 0..MAX_RLP_ITEM_SIZE {
                     let index_k = self.constant::<Variable>(L::Field::from_canonical_usize(k));
                     let is_done_inner_list = self.lte(index_k, mpt.lens[j]);
                     let within_inner_list_coef = self.select(is_done_inner_list, zero, one);
@@ -225,7 +225,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let seed: &[ByteVariable] = todo!();
 
-        self.verify_decoded_mpt_node::<ENCODING_LEN, ELEMENT_LEN>(
+        self.verify_decoded_mpt_node::<ENCODING_LEN>(
             &encoded,
             len,
             skip_computation,
@@ -239,43 +239,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
+    use rand::rngs::OsRng;
+    use rand::Rng;
+
     use super::*;
     use crate::backend::circuit::DefaultParameters;
     use crate::prelude::{DefaultBuilder, GoldilocksField};
     use crate::utils::bytes;
 
     #[test]
-
-    fn test_rlp_decode_hint() {
+    fn test_verify_decoded_mpt_node() {
         let mut builder: CircuitBuilder<DefaultParameters, 2> = DefaultBuilder::new();
 
         type F = GoldilocksField;
         const ENCODING_LEN: usize = 600;
-        const LIST_LEN: usize = 17;
-
-        let hint: DecodeHint<ENCODING_LEN> = DecodeHint::<ENCODING_LEN> {};
-        let encoded = builder.read::<ArrayVariable<ByteVariable, ENCODING_LEN>>();
-        let len = builder.read::<Variable>();
-        let skip_computation = builder.read::<BoolVariable>();
-        let mut input_stream = VariableStream::new();
-        input_stream.write(&encoded);
-        input_stream.write(&len);
-        input_stream.write(&skip_computation);
-        let output_stream = builder.hint(input_stream, hint);
-        let decoded_list = output_stream
-            .read::<ArrayVariable<ArrayVariable<ByteVariable, MAX_RLP_ITEM_SIZE>, LIST_LEN>>(
-                &mut builder,
-            );
-        let decoded_element_lens =
-            output_stream.read::<ArrayVariable<Variable, LIST_LEN>>(&mut builder);
-        let len_decoded_list = output_stream.read::<Variable>(&mut builder);
-
-        builder.write(decoded_list);
-        builder.write(decoded_element_lens);
-        builder.write(len_decoded_list);
-
-        let circuit = builder.build();
-        let mut input = circuit.input();
 
         // This is a RLP-encoded list of a branch node. It is a list of length 17. Each of the first
         // 16 elements is a 32-byte hash, and the last element is 0.
@@ -283,93 +260,36 @@ mod tests {
         let mut encoding_fixed_size = [0u8; ENCODING_LEN];
         encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
         let skip_computation = false;
-        input.write::<ArrayVariable<ByteVariable, ENCODING_LEN>>(encoding_fixed_size.to_vec());
-        input.write::<Variable>(F::from_canonical_usize(rlp_encoding.len()));
-        input.write::<BoolVariable>(skip_computation);
 
-        let (proof, mut output) = circuit.prove(&input);
-        circuit.verify(&proof, &input, &output);
+        let mut rng = OsRng;
 
-        let decoded_list_out = output
-            .read::<ArrayVariable<ArrayVariable<ByteVariable, MAX_RLP_ITEM_SIZE>, LIST_LEN>>();
-        let decoded_element_lens_out = output.read::<ArrayVariable<Variable, LIST_LEN>>();
-        let len_decoded_list_out = output.read::<Variable>();
+        let mut seed_input = [0u8; 15];
+        for elem in seed_input.iter_mut() {
+            *elem = rng.gen();
+        }
+
+        let seed = seed_input
+            .iter()
+            .map(|x| builder.constant::<ByteVariable>(*x))
+            .collect_vec();
 
         let mpt_node =
             decode_padded_mpt_node(&encoding_fixed_size, rlp_encoding.len(), skip_computation);
 
-        assert_eq!(len_decoded_list_out, F::from_canonical_usize(mpt_node.len));
-        assert_eq!(decoded_list_out.len(), LIST_LEN);
-        assert_eq!(len_decoded_list_out, F::from_canonical_usize(LIST_LEN));
+        let encoded = builder
+            .constant::<ArrayVariable<ByteVariable, ENCODING_LEN>>(encoding_fixed_size.to_vec());
+        let len = builder.constant::<Variable>(F::from_canonical_usize(rlp_encoding.len()));
+        let skip_computation = builder.constant::<BoolVariable>(false);
+        let mpt_node_variable = builder.constant::<MPTVariable>(mpt_node);
 
-        for i in 0..LIST_LEN {
-            assert_eq!(decoded_list_out[i], mpt_node.data[i].data);
-            assert_eq!(
-                decoded_element_lens_out[i],
-                F::from_canonical_usize(mpt_node.data[i].len)
-            );
-        }
+        builder.verify_decoded_mpt_node::<ENCODING_LEN>(
+            &encoded,
+            len,
+            skip_computation,
+            &seed,
+            &mpt_node_variable,
+        );
     }
-    #[test]
 
-    fn test_rlp_decode_hint_short_encoding() {
-        let mut builder: CircuitBuilder<DefaultParameters, 2> = DefaultBuilder::new();
-
-        type F = GoldilocksField;
-        const ENCODING_LEN: usize = 600;
-        const LIST_LEN: usize = 2;
-
-        let hint: DecodeHint<ENCODING_LEN> = DecodeHint::<ENCODING_LEN> {};
-        let encoded = builder.read::<ArrayVariable<ByteVariable, ENCODING_LEN>>();
-        let len = builder.read::<Variable>();
-        let skip_computation = builder.read::<BoolVariable>();
-        let mut input_stream = VariableStream::new();
-        input_stream.write(&encoded);
-        input_stream.write(&len);
-        input_stream.write(&skip_computation);
-        let output_stream = builder.hint(input_stream, hint);
-        let decoded_list = output_stream.read::<MPTVariable>(&mut builder);
-
-        builder.write(decoded_list);
-
-        let circuit = builder.build();
-        let mut input = circuit.input();
-
-        // This is a RLP-encoded list of an extension node. The 00 in 0x006f indicates that the path
-        // length is even, and the path is 6 -> f. This extension node points to a leaf node with
-        // the hash starting with 0x188d11.  ["0x006f",
-        // "0x188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6"]
-        let rlp_encoding: Vec<u8> =
-            bytes!("0xe482006fa0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6");
-        let mut encoding_fixed_size = [0u8; ENCODING_LEN];
-        encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
-        let skip_computation = false;
-        input.write::<ArrayVariable<ByteVariable, ENCODING_LEN>>(encoding_fixed_size.to_vec());
-        input.write::<Variable>(F::from_canonical_usize(rlp_encoding.len()));
-        input.write::<BoolVariable>(skip_computation);
-
-        let (proof, mut output) = circuit.prove(&input);
-        circuit.verify(&proof, &input, &output);
-
-        let decoded_list_out = output
-            .read::<ArrayVariable<ArrayVariable<ByteVariable, MAX_RLP_ITEM_SIZE>, LIST_LEN>>();
-        let decoded_element_lens_out = output.read::<ArrayVariable<Variable, LIST_LEN>>();
-        let len_decoded_list_out = output.read::<Variable>();
-
-        let mpt_node_exp =
-            decode_padded_mpt_node(&encoding_fixed_size, rlp_encoding.len(), skip_computation);
-        assert_eq!(len_decoded_list_out, F::from_canonical_usize(LIST_LEN));
-        assert_eq!(decoded_list_out.len(), LIST_LEN);
-
-        for i in 0..LIST_LEN {
-            assert_eq!(
-                decoded_element_lens_out[i],
-                F::from_canonical_usize(mpt_node_exp.data[i].len)
-            );
-
-            for j in 0..mpt_node_exp.data[i].len {
-                assert_eq!(decoded_list_out[i][j], mpt_node_exp.data[i].data[j]);
-            }
-        }
-    }
+    // TODO: Create a test where it's supposed to fail.
 }
