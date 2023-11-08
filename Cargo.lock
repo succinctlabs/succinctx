@@ -4003,7 +4003,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "succinctx-client"
+name = "succinct-client"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
