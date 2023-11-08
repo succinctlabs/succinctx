@@ -135,17 +135,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 self.assert_is_equal(checked_equality, t);
             }
 
-            let (decoded_list, decoded_element_lens, len_decoded_list) = self
-                .decode_element_as_list::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
-                    current_node,
-                    len_nodes[i],
-                    finished,
-                );
+            let mpt_node = self.decode_element_as_list::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
+                current_node,
+                len_nodes[i],
+                finished,
+            );
 
-            let is_branch = self.is_equal(len_decoded_list, branch_node_length);
-            let is_leaf = self.is_equal(len_decoded_list, leaf_or_extension_node_length);
+            let is_branch = self.is_equal(mpt_node.len, branch_node_length);
+            let is_leaf = self.is_equal(mpt_node.len, leaf_or_extension_node_length);
             let key_terminated = self.is_equal(current_key_idx, const_64);
-            let path = decoded_list[0].as_slice().to_vec().to_nibbles(self);
+            let path = mpt_node.data[0].as_slice().to_vec().to_nibbles(self);
             let prefix = path[0];
             let prefix_leaf_even = self.is_equal(prefix, prefix_leaf_even);
             let prefix_leaf_odd = self.is_equal(prefix, prefix_leaf_odd);
@@ -173,7 +172,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let updated_current_node_id_idx = self.add(c, case_3_value); // TODO: make this more concise
 
             let updated_current_node_id =
-                self.select_array(decoded_list.as_slice(), updated_current_node_id_idx);
+                self.select_array(mpt_node.data.as_slice(), updated_current_node_id_idx);
             // If finished == 1, then we should not update the current_node_id
             current_node_id = self.select_array(
                 &[updated_current_node_id, current_node_id],
@@ -185,7 +184,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let d = self.or(prefix_extension_even, prefix_extension_odd);
             do_path_remainder_check = self.and(do_path_remainder_check, d);
 
-            let e = self.mul(decoded_element_lens[0], two);
+            let e = self.mul(mpt_node.lens[0], two);
             let f = self.mul(offset, do_path_remainder_check.variable);
             let mut check_length = self.sub(e, f);
             check_length = self.mul(check_length, do_path_remainder_check.variable);

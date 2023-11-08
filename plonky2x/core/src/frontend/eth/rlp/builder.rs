@@ -9,8 +9,8 @@ use super::utils::decode_padded_mpt_node;
 use crate::frontend::eth::rlp::utils::MAX_RLP_ITEM_SIZE;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, PlonkParameters, ValueStream,
-    Variable, VariableStream,
+    ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, MPTVariable, PlonkParameters,
+    ValueStream, Variable, VariableStream,
 };
 
 /// A Hint structure to decode an RLP-encoded string.
@@ -33,24 +33,7 @@ impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize, const LIS
         let decoded =
             decode_padded_mpt_node(&encoded, len.as_canonical_u64() as usize, skip_computation);
 
-        output_stream
-            .write_value::<ArrayVariable<ArrayVariable<ByteVariable, MAX_RLP_ITEM_SIZE>, LIST_LEN>>(
-                decoded
-                    .data
-                    .iter()
-                    .map(|x| x.data.to_vec())
-                    .take(LIST_LEN)
-                    .collect::<Vec<_>>(),
-            );
-        output_stream.write_value::<ArrayVariable<Variable, LIST_LEN>>(
-            decoded
-                .data
-                .iter()
-                .map(|x| L::Field::from_canonical_usize(x.len))
-                .take(LIST_LEN)
-                .collect::<Vec<_>>(),
-        );
-        output_stream.write_value::<Variable>(L::Field::from_canonical_usize(decoded.len));
+        output_stream.write_value::<MPTVariable>(decoded);
     }
 }
 
@@ -64,11 +47,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         encoded: ArrayVariable<ByteVariable, ENCODING_LEN>,
         len: Variable,
         skip_computation: BoolVariable,
-    ) -> (
-        ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>,
-        ArrayVariable<Variable, LIST_LEN>,
-        Variable,
-    ) {
+    ) -> MPTVariable {
         let mut input_stream = VariableStream::new();
         input_stream.write(&encoded);
         input_stream.write(&len);
@@ -77,14 +56,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let hint = DecodeHint::<ENCODING_LEN, LIST_LEN> {};
 
         let output_stream = self.hint(input_stream, hint);
-        let decoded_list = output_stream
-            .read::<ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>>(self);
-        let decoded_element_lens = output_stream.read::<ArrayVariable<Variable, LIST_LEN>>(self);
-        let len_decoded_list = output_stream.read::<Variable>(self);
+        let decoded_node = output_stream.read::<MPTVariable>(self);
 
         // TODO: here add verification logic constraints using `builder` to check that the decoded list is correct
-
-        (decoded_list, decoded_element_lens, len_decoded_list)
+        decoded_node
     }
     pub fn decode_mpt_node<
         const ENCODING_LEN: usize,

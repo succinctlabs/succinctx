@@ -16,6 +16,7 @@ pub use byte::*;
 pub use bytes::*;
 pub use bytes32::*;
 use itertools::Itertools;
+pub use mpt::*;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{Witness, WitnessWrite};

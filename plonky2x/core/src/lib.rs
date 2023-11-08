@@ -33,7 +33,7 @@ pub mod prelude {
     pub use crate::frontend::uint::uint64::U64Variable;
     pub use crate::frontend::vars::{
         ArrayVariable, BoolVariable, ByteVariable, Bytes32Variable, BytesVariable, CircuitVariable,
-        OutputVariableStream, U32Variable, ValueStream, Variable, VariableStream,
+        MPTVariable, OutputVariableStream, U32Variable, ValueStream, Variable, VariableStream,
     };
     pub use crate::utils::{address, bytes, bytes32, hex};
 }
