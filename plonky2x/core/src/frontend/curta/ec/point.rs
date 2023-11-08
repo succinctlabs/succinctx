@@ -1,7 +1,7 @@
 use curta::chip::ec::point::{AffinePoint, AffinePointRegister};
 use curta::chip::ec::EllipticCurve;
 use curta::chip::register::Register;
-use curve25519_dalek::edwards::CompressedEdwardsY;
+pub use curve25519_dalek::edwards::CompressedEdwardsY;
 
 use crate::frontend::curta::field::variable::FieldVariable;
 use crate::prelude::*;
