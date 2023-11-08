@@ -1,5 +1,8 @@
 use curta::math::field::Field;
 use curta::math::prelude::PrimeField64;
+use itertools::Itertools;
+use plonky2::hash::poseidon::PoseidonHash;
+use plonky2::iop::challenger::RecursiveChallenger;
 use serde::{Deserialize, Serialize};
 
 use super::utils::decode_padded_mpt_node;
@@ -80,6 +83,196 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let len_decoded_list = output_stream.read::<Variable>(self);
 
         // TODO: here add verification logic constraints using `builder` to check that the decoded list is correct
+
+        (decoded_list, decoded_element_lens, len_decoded_list)
+    }
+    pub fn decode_mpt_node<
+        const ENCODING_LEN: usize,
+        const LIST_LEN: usize,
+        const ELEMENT_LEN: usize,
+    >(
+        &mut self,
+        encoded: &ArrayVariable<ByteVariable, ENCODING_LEN>,
+        len: Variable,
+        finish: BoolVariable,
+        seed: &[ByteVariable],
+    ) -> (
+        ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>,
+        ArrayVariable<Variable, LIST_LEN>,
+        Variable,
+    ) {
+        // TODO: Seed with 120 bits. Check if this is enough bits of security.
+        const MIN_SEED_BITS: usize = 120;
+
+        let mut input_stream = VariableStream::new();
+        input_stream.write(encoded);
+        input_stream.write(&len);
+        input_stream.write(&finish);
+
+        let hint = DecodeHint::<ENCODING_LEN, LIST_LEN> {};
+
+        let output_stream = self.hint(input_stream, hint);
+        let decoded_list = output_stream
+            .read::<ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>>(self);
+        let decoded_element_lens = output_stream.read::<ArrayVariable<Variable, LIST_LEN>>(self);
+        let len_decoded_list = output_stream.read::<Variable>(self);
+
+        let mut seed_targets = Vec::new();
+        let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
+        // TODO: Must understand the math behind this, for now, I'm just copying and pasting this from the codebase.
+        // Need to get chunks of 7 since the max value of F is slightly less then 64 bits.
+
+        let mut seed_bit_len = 0;
+        for seed_chunk in seed.to_vec().chunks(7) {
+            let seed_element_bits = seed_chunk
+                .iter()
+                .flat_map(|x| x.as_bool_targets())
+                .collect_vec();
+            let seed_element = self.api.le_sum(seed_element_bits.iter());
+            seed_bit_len += seed_element_bits.len();
+            seed_targets.push(seed_element);
+        }
+
+        assert!(seed_bit_len >= MIN_SEED_BITS);
+
+        challenger.observe_elements(seed_targets.as_slice());
+
+        const NUM_LOOPS: usize = 3;
+
+        let challenges = challenger
+            .get_n_challenges(&mut self.api, NUM_LOOPS)
+            .iter()
+            .map(|x| Variable::from(*x))
+            .collect_vec();
+
+        // TODO: here add verification logic constraints using `builder` to check that the decoded list is correct
+
+        let one = self.one();
+        let zero = self.zero();
+        let cons256 = self.constant::<Variable>(L::Field::from_canonical_u64(256));
+        let cons55 = self.constant::<Variable>(L::Field::from_canonical_u64(55));
+        let cons65536 = self.constant::<Variable>(L::Field::from_canonical_u64(65536));
+        let true_v = self.constant::<BoolVariable>(true);
+        for i in 0..NUM_LOOPS {
+            let mut encoding_poly = self.zero::<Variable>();
+            let mut pow = self.one();
+
+            for j in 0..ENCODING_LEN {
+                let tmp0 = self.byte_to_variable(encoded[j]);
+                let tmp1 = self.mul(tmp0, pow);
+                encoding_poly = self.add(encoding_poly, tmp1);
+
+                let index = self.constant::<Variable>(L::Field::from_canonical_usize(j));
+                let is_done = self.lte(index, len);
+                let is_done_coef = self.select(is_done, one, zero);
+                pow = self.mul(pow, challenges[i]);
+                // As soon as we have i = ENCODING_LEN, pow becomes 0 for the rest of the loop.
+                pow = self.mul(pow, is_done_coef);
+            }
+
+            let mut sum_of_rlp_encoding_length = self.zero::<Variable>();
+            let mut claim_poly = self.zero::<Variable>();
+            pow = self.one();
+
+            for j in 0..LIST_LEN {
+                let index = self.constant::<Variable>(L::Field::from_canonical_usize(j));
+                let is_done_outer_list = self.lte(index, len);
+                let within_outer_list_coef = self.select(is_done_outer_list, zero, one);
+
+                // There are 4 cases:
+                // - len = 0                       ===> (0x80, 1)
+                // - len = 1 && decoded[0] < 0x80  ===> (decoded[0], 1)
+                // - len = 1 && decoded[0] >= 0x80 ===> (0x81, 2)
+                // - len <= 55                     ===> (0x80 + len, 1 + len)
+
+                let pref1 = self.constant::<Variable>(L::Field::from_canonical_u64(0x80));
+                let len1 = one;
+                let pref2 = self.byte_to_variable(decoded_list[j][i]);
+                let len2 = one;
+                let pref3 = self.constant::<Variable>(L::Field::from_canonical_u64(0x81));
+                let len3 = self.constant::<Variable>(L::Field::from_canonical_u64(2));
+                let pref4 = self.add(pref1, len);
+                let len4 = self.add(one, len);
+
+                // Correctly pick the right len and pref
+
+                let prefix_byte = self.constant::<ByteVariable>(0x80);
+                let mut prefix_byte_as_variable = self.byte_to_variable(prefix_byte);
+                prefix_byte_as_variable = self.mul(prefix_byte_as_variable, pow);
+                prefix_byte_as_variable = self.mul(prefix_byte_as_variable, within_outer_list_coef);
+
+                claim_poly = self.add(claim_poly, prefix_byte_as_variable);
+
+                pow = self.mul(pow, challenges[i]);
+
+                for k in 0..ELEMENT_LEN {
+                    let index_k = self.constant::<Variable>(L::Field::from_canonical_usize(k));
+                    let is_done_inner_list = self.lte(index_k, decoded_element_lens[j]);
+                    let within_inner_list_coef = self.select(is_done_inner_list, zero, one);
+
+                    let val = decoded_list[j][k];
+                    let mut val_as_var = self.byte_to_variable(val);
+                    val_as_var = self.mul(val_as_var, pow);
+                    val_as_var = self.mul(val_as_var, within_inner_list_coef);
+                    val_as_var = self.mul(val_as_var, within_outer_list_coef);
+
+                    claim_poly = self.add(claim_poly, val_as_var);
+
+                    // pow = pow * challenges[i] only if j < LIST_LEN & k < ELEMENT_LEN
+                    let mut pow_multiplier = self.select(is_done_inner_list, one, challenges[i]);
+                    pow_multiplier = self.select(is_done_outer_list, one, pow_multiplier);
+                    pow = self.mul(pow, pow_multiplier);
+                }
+
+                let mut rlp_encoding_length =
+                    self.constant::<Variable>(L::Field::from_canonical_usize(5));
+                rlp_encoding_length = self.mul(rlp_encoding_length, within_outer_list_coef);
+                sum_of_rlp_encoding_length =
+                    self.add(sum_of_rlp_encoding_length, rlp_encoding_length);
+
+                // Based on what we've seen, we calculate the prefix of the whole encoding.
+                // This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
+                let mut short_list_prefix =
+                    self.constant::<Variable>(L::Field::from_canonical_u64(192)); // 0xc0
+                short_list_prefix = self.add(short_list_prefix, sum_of_rlp_encoding_length);
+                let short_list_shift = challenges[i];
+
+                // Assert that sum_of_rlp_encoding_length is less than 256^2 = 65536 bits. A
+                // well-formed MPT should never need that many bytes.
+                let valid_length = self.lt(sum_of_rlp_encoding_length, cons65536);
+                self.assert_is_equal(true_v, valid_length);
+
+                // The remaining case is when we need exactly two bytes to encode the length. 0xf9 =
+                // 0xf7 + 2.
+                let mut long_list_prefix =
+                    self.constant::<Variable>(L::Field::from_canonical_u64(249));
+
+                // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder.
+                let mut long_list_shift = challenges[i];
+                long_list_shift = self.mul(long_list_shift, challenges[i]);
+                long_list_shift = self.mul(long_list_shift, challenges[i]);
+
+                let mut div = self.div(sum_of_rlp_encoding_length, cons256);
+                let mut rem = sum_of_rlp_encoding_length;
+                let subtract = self.mul(div, cons256);
+                rem = self.sub(rem, subtract);
+
+                div = self.mul(div, challenges[i]);
+                rem = self.mul(rem, challenges[i]);
+                rem = self.mul(rem, challenges[i]);
+                long_list_prefix = self.add(long_list_prefix, div);
+                long_list_prefix = self.add(long_list_prefix, rem);
+
+                let is_short = self.lte(sum_of_rlp_encoding_length, cons55);
+
+                let correct_prefix = self.select(is_short, short_list_prefix, long_list_prefix);
+                let correct_shift = self.select(is_short, short_list_shift, long_list_shift);
+
+                claim_poly = self.mul(claim_poly, correct_shift);
+                claim_poly = self.add(claim_poly, correct_prefix);
+            }
+            self.assert_is_equal(claim_poly, encoding_poly);
+        }
 
         (decoded_list, decoded_element_lens, len_decoded_list)
     }
