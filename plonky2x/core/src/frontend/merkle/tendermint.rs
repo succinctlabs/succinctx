@@ -1,5 +1,6 @@
 use ethers::types::H256;
 use itertools::Itertools;
+use num::pow;
 
 use super::tree::MerkleInclusionProofVariable;
 use crate::backend::circuit::PlonkParameters;
@@ -135,7 +136,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let empty_bytes = Bytes32Variable::constant(self, H256::from_slice(&[0u8; 32]));
 
         // Extend leaf_hashes and leaves_enabled to be a power of 2.
-        let padded_nb_leaves = log2_ceil_usize(NB_LEAVES);
+        let padded_nb_leaves = pow(2, log2_ceil_usize(NB_LEAVES));
         assert!(padded_nb_leaves >= NB_LEAVES && padded_nb_leaves.is_power_of_two());
 
         // Hash each of the validators to get their corresponding leaf hash.
