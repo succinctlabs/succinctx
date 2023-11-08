@@ -1,4 +1,4 @@
-use alloy_primitives::{Address, Bytes, FixedBytes};
+use alloy_primitives::{Address, Bytes, B256};
 use anyhow::{Error, Result};
 use log::{error, info};
 use reqwest::Client;
@@ -15,7 +15,7 @@ struct OffchainInput {
     /// The calldata to be used in the contract call.
     data: Bytes,
     /// The Succinct X function id to be called.
-    functionId: FixedBytes<32>,
+    functionId: B256,
     /// The input to be used in the Succinct X function call.
     input: Bytes,
 }
@@ -47,7 +47,7 @@ impl SuccinctClient {
         chain_id: u32,
         to: Address,
         calldata: Bytes,
-        function_id: FixedBytes<32>,
+        function_id: B256,
         input: Bytes,
     ) -> Result<String> {
         let data = OffchainInput {
