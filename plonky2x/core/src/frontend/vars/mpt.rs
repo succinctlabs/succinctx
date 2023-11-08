@@ -12,7 +12,14 @@ use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::rlp::utils::{MPTNodeFixedSize, MAX_MPT_NODE_SIZE, MAX_RLP_ITEM_SIZE};
 use crate::frontend::ops::{BitAnd, BitOr, BitXor, Not};
 
-/// A variable in the circuit representing a boolean value.
+/// A variable in the circuit representing an MPT node.
+///
+/// The MPT node is represented as a tuple of `(data, lens, len)`, where:
+/// - `data` is an array of bytes representing the data of the node.
+/// - `lens` is an array of `Variable`s representing the true length of each element in `data`.
+/// - `len` is a `Variable` representing the true length of `data`.
+///
+/// The vast majority of time, a node is a branch node.
 #[derive(Debug, Clone)]
 #[allow(clippy::manual_non_exhaustive)]
 pub struct MPTVariable {

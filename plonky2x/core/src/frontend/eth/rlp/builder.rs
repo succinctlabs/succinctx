@@ -21,9 +21,9 @@ use crate::prelude::{
 /// branch nodes.) The decoded string is returned as a padded 2-dimensional byte array
 /// (`MAX_RLP_ITEM_SIZE` x `LIST_LEN`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct DecodeHint<const ENCODING_LEN: usize, const LIST_LEN: usize> {}
-impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize, const LIST_LEN: usize>
-    Hint<L, D> for DecodeHint<ENCODING_LEN, LIST_LEN>
+struct DecodeHint<const ENCODING_LEN: usize> {}
+impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize> Hint<L, D>
+    for DecodeHint<ENCODING_LEN>
 {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let encoded = input_stream.read_value::<ArrayVariable<ByteVariable, ENCODING_LEN>>();
@@ -39,11 +39,7 @@ impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize, const LIS
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// This function verifies the decoding by comparing both the encoded and decoded MPT node.
-    pub fn verify_decoded_mpt_node<
-        const ENCODING_LEN: usize,
-        const LIST_LEN: usize,
-        const ELEMENT_LEN: usize,
-    >(
+    pub fn verify_decoded_mpt_node<const ENCODING_LEN: usize, const ELEMENT_LEN: usize>(
         &mut self,
         encoded: &ArrayVariable<ByteVariable, ENCODING_LEN>,
         len: Variable,
@@ -109,7 +105,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let mut claim_poly = self.zero::<Variable>();
             pow = self.one();
 
-            for j in 0..LIST_LEN {
+            for j in 0..17 {
                 let index = self.constant::<Variable>(L::Field::from_canonical_usize(j));
                 let is_done_outer_list = self.lte(index, len);
                 let within_outer_list_coef = self.select(is_done_outer_list, zero, one);
@@ -211,11 +207,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
     }
 
-    pub fn decode_mpt_node<
-        const ENCODING_LEN: usize,
-        const LIST_LEN: usize,
-        const ELEMENT_LEN: usize,
-    >(
+    pub fn decode_mpt_node<const ENCODING_LEN: usize, const ELEMENT_LEN: usize>(
         &mut self,
         encoded: ArrayVariable<ByteVariable, ENCODING_LEN>,
         len: Variable,
@@ -226,14 +218,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input_stream.write(&len);
         input_stream.write(&skip_computation);
 
-        let hint = DecodeHint::<ENCODING_LEN, LIST_LEN> {};
+        let hint = DecodeHint::<ENCODING_LEN> {};
 
         let output_stream = self.hint(input_stream, hint);
         let decoded_node = output_stream.read::<MPTVariable>(self);
 
         let seed: &[ByteVariable] = todo!();
 
-        self.verify_decoded_mpt_node::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
+        self.verify_decoded_mpt_node::<ENCODING_LEN, ELEMENT_LEN>(
             &encoded,
             len,
             skip_computation,
@@ -261,7 +253,7 @@ mod tests {
         const ENCODING_LEN: usize = 600;
         const LIST_LEN: usize = 17;
 
-        let hint: DecodeHint<ENCODING_LEN, LIST_LEN> = DecodeHint::<ENCODING_LEN, LIST_LEN> {};
+        let hint: DecodeHint<ENCODING_LEN> = DecodeHint::<ENCODING_LEN> {};
         let encoded = builder.read::<ArrayVariable<ByteVariable, ENCODING_LEN>>();
         let len = builder.read::<Variable>();
         let skip_computation = builder.read::<BoolVariable>();
@@ -327,7 +319,7 @@ mod tests {
         const ENCODING_LEN: usize = 600;
         const LIST_LEN: usize = 2;
 
-        let hint: DecodeHint<ENCODING_LEN, LIST_LEN> = DecodeHint::<ENCODING_LEN, LIST_LEN> {};
+        let hint: DecodeHint<ENCODING_LEN> = DecodeHint::<ENCODING_LEN> {};
         let encoded = builder.read::<ArrayVariable<ByteVariable, ENCODING_LEN>>();
         let len = builder.read::<Variable>();
         let skip_computation = builder.read::<BoolVariable>();
@@ -336,17 +328,9 @@ mod tests {
         input_stream.write(&len);
         input_stream.write(&skip_computation);
         let output_stream = builder.hint(input_stream, hint);
-        let decoded_list = output_stream
-            .read::<ArrayVariable<ArrayVariable<ByteVariable, MAX_RLP_ITEM_SIZE>, LIST_LEN>>(
-                &mut builder,
-            );
-        let decoded_element_lens =
-            output_stream.read::<ArrayVariable<Variable, LIST_LEN>>(&mut builder);
-        let len_decoded_list = output_stream.read::<Variable>(&mut builder);
+        let decoded_list = output_stream.read::<MPTVariable>(&mut builder);
 
         builder.write(decoded_list);
-        builder.write(decoded_element_lens);
-        builder.write(len_decoded_list);
 
         let circuit = builder.build();
         let mut input = circuit.input();

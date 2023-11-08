@@ -78,7 +78,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         value: Bytes32Variable,
     ) {
         const ELEMENT_LEN: usize = 32; // Maximum size of list element
-        const LIST_LEN: usize = 17; // Maximum length of the list for each proof element
 
         let tree_radix = self.constant::<Variable>(L::Field::from_canonical_u8(16u8));
         let branch_node_length = self.constant::<Variable>(L::Field::from_canonical_u8(17u8));
@@ -135,7 +134,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 self.assert_is_equal(checked_equality, t);
             }
 
-            let mpt_node = self.decode_mpt_node::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
+            let mpt_node = self.decode_mpt_node::<ENCODING_LEN, ELEMENT_LEN>(
                 current_node,
                 len_nodes[i],
                 finished,
