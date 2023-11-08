@@ -135,7 +135,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 self.assert_is_equal(checked_equality, t);
             }
 
-            let mpt_node = self.decode_element_as_list::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
+            let mpt_node = self.decode_mpt_node::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
                 current_node,
                 len_nodes[i],
                 finished,

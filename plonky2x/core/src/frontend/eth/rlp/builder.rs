@@ -38,30 +38,8 @@ impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize, const LIS
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn decode_element_as_list<
-        const ENCODING_LEN: usize,
-        const LIST_LEN: usize,
-        const ELEMENT_LEN: usize,
-    >(
-        &mut self,
-        encoded: ArrayVariable<ByteVariable, ENCODING_LEN>,
-        len: Variable,
-        skip_computation: BoolVariable,
-    ) -> MPTVariable {
-        let mut input_stream = VariableStream::new();
-        input_stream.write(&encoded);
-        input_stream.write(&len);
-        input_stream.write(&skip_computation);
-
-        let hint = DecodeHint::<ENCODING_LEN, LIST_LEN> {};
-
-        let output_stream = self.hint(input_stream, hint);
-        let decoded_node = output_stream.read::<MPTVariable>(self);
-
-        // TODO: here add verification logic constraints using `builder` to check that the decoded list is correct
-        decoded_node
-    }
-    pub fn decode_mpt_node<
+    /// This function verifies the decoding by comparing both the encoded and decoded MPT node.
+    pub fn verify_decoded_mpt_node<
         const ENCODING_LEN: usize,
         const LIST_LEN: usize,
         const ELEMENT_LEN: usize,
@@ -69,28 +47,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         encoded: &ArrayVariable<ByteVariable, ENCODING_LEN>,
         len: Variable,
-        finish: BoolVariable,
+        skip_computation: BoolVariable,
         seed: &[ByteVariable],
-    ) -> (
-        ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>,
-        ArrayVariable<Variable, LIST_LEN>,
-        Variable,
+        mpt: &MPTVariable,
     ) {
         // TODO: Seed with 120 bits. Check if this is enough bits of security.
         const MIN_SEED_BITS: usize = 120;
-
-        let mut input_stream = VariableStream::new();
-        input_stream.write(encoded);
-        input_stream.write(&len);
-        input_stream.write(&finish);
-
-        let hint = DecodeHint::<ENCODING_LEN, LIST_LEN> {};
-
-        let output_stream = self.hint(input_stream, hint);
-        let decoded_list = output_stream
-            .read::<ArrayVariable<ArrayVariable<ByteVariable, ELEMENT_LEN>, LIST_LEN>>(self);
-        let decoded_element_lens = output_stream.read::<ArrayVariable<Variable, LIST_LEN>>(self);
-        let len_decoded_list = output_stream.read::<Variable>(self);
 
         let mut seed_targets = Vec::new();
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
@@ -119,8 +81,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .iter()
             .map(|x| Variable::from(*x))
             .collect_vec();
-
-        // TODO: here add verification logic constraints using `builder` to check that the decoded list is correct
 
         let one = self.one();
         let zero = self.zero();
@@ -162,14 +122,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 let pref1 = self.constant::<Variable>(L::Field::from_canonical_u64(0x80));
                 let len1 = one;
-                let pref2 = self.byte_to_variable(decoded_list[j][i]);
+                let pref2 = self.byte_to_variable(mpt.data[j][i]);
                 let len2 = one;
                 let pref3 = self.constant::<Variable>(L::Field::from_canonical_u64(0x81));
                 let len3 = self.constant::<Variable>(L::Field::from_canonical_u64(2));
                 let pref4 = self.add(pref1, len);
                 let len4 = self.add(one, len);
 
-                // Correctly pick the right len and pref
+                // TODO: Correctly pick the right len and pref
 
                 let prefix_byte = self.constant::<ByteVariable>(0x80);
                 let mut prefix_byte_as_variable = self.byte_to_variable(prefix_byte);
@@ -182,11 +142,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 for k in 0..ELEMENT_LEN {
                     let index_k = self.constant::<Variable>(L::Field::from_canonical_usize(k));
-                    let is_done_inner_list = self.lte(index_k, decoded_element_lens[j]);
+                    let is_done_inner_list = self.lte(index_k, mpt.lens[j]);
                     let within_inner_list_coef = self.select(is_done_inner_list, zero, one);
 
-                    let val = decoded_list[j][k];
-                    let mut val_as_var = self.byte_to_variable(val);
+                    let mut val_as_var = self.byte_to_variable(mpt.data[j][k]);
                     val_as_var = self.mul(val_as_var, pow);
                     val_as_var = self.mul(val_as_var, within_inner_list_coef);
                     val_as_var = self.mul(val_as_var, within_outer_list_coef);
@@ -246,10 +205,43 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 claim_poly = self.mul(claim_poly, correct_shift);
                 claim_poly = self.add(claim_poly, correct_prefix);
             }
-            self.assert_is_equal(claim_poly, encoding_poly);
+            let claim_poly_equals_encoding_poly = self.is_equal(claim_poly, encoding_poly);
+            let result = self.or(skip_computation, claim_poly_equals_encoding_poly);
+            self.assert_is_equal(result, true_v);
         }
+    }
 
-        (decoded_list, decoded_element_lens, len_decoded_list)
+    pub fn decode_mpt_node<
+        const ENCODING_LEN: usize,
+        const LIST_LEN: usize,
+        const ELEMENT_LEN: usize,
+    >(
+        &mut self,
+        encoded: ArrayVariable<ByteVariable, ENCODING_LEN>,
+        len: Variable,
+        skip_computation: BoolVariable,
+    ) -> MPTVariable {
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&encoded);
+        input_stream.write(&len);
+        input_stream.write(&skip_computation);
+
+        let hint = DecodeHint::<ENCODING_LEN, LIST_LEN> {};
+
+        let output_stream = self.hint(input_stream, hint);
+        let decoded_node = output_stream.read::<MPTVariable>(self);
+
+        let seed: &[ByteVariable] = todo!();
+
+        self.verify_decoded_mpt_node::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
+            &encoded,
+            len,
+            skip_computation,
+            seed,
+            &decoded_node,
+        );
+
+        decoded_node
     }
 }
 
