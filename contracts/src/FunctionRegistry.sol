@@ -92,7 +92,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
         emit FunctionVerifierUpdated(functionId, verifier);
     }
 
-    /// @notice Returns the functionId for a given owner and function name.
+    /// @notice Returns the function ID for a given owner and salt.
     /// @param _owner The owner of the function.
     /// @param _salt The salt to use.
     function getFunctionId(address _owner, bytes32 _salt)
