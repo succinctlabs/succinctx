@@ -78,7 +78,18 @@ impl CircuitVariable for MPTVariable {
     }
 
     fn elements<F: RichField>(value: Self::ValueType<F>) -> Vec<F> {
-        todo!()
+        value
+            .data
+            .into_iter()
+            .take(value.len)
+            .flat_map(|v| {
+                v.data
+                    .into_iter()
+                    .map(F::from_canonical_u8)
+                    .take(v.len)
+                    .collect_vec()
+            })
+            .collect()
     }
 }
 
@@ -99,10 +110,27 @@ impl Into<MPTNodeFixedSize> for MPTVariable {
 mod tests {
     use super::MPTVariable;
     use crate::backend::circuit::DefaultParameters;
+    use crate::frontend::eth::rlp::utils::MPTNodeFixedSize;
     use crate::prelude::*;
 
     type L = DefaultParameters;
     const D: usize = 2;
+
+    #[test]
+    fn test_elements() {
+        let mut mpt = MPTNodeFixedSize::default();
+        mpt.len = 2;
+        let mut exp: Vec<GoldilocksField> = vec![];
+        for i in 0..2 {
+            mpt.data[i].len = 3;
+            for j in 0..3 {
+                let v = 10 * i + j;
+                mpt.data[i].data[j] = v as u8;
+                exp.push(GoldilocksField::from_canonical_usize(v));
+            }
+        }
+        assert_eq!(MPTVariable::elements::<GoldilocksField>(mpt), exp);
+    }
 
     #[test]
     fn test_mpt() {
