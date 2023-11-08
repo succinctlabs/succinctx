@@ -1,9 +1,11 @@
 use plonky2::iop::target::BoolTarget;
+use plonky2::util::ceil_div_usize;
 
 use crate::prelude::*;
 
 pub const SELECT_CHUNK_SIZE_64: usize = 64;
 pub const LENGTH_BITS_128: usize = 128;
+pub const SHA512_CHUNK_SIZE_BYTES_128: usize = 128;
 pub const CHUNK_BITS_1024: usize = 1024;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
@@ -57,18 +59,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.div(total_length, chunk_size)
     }
 
-    // Should be a multiple of CHUNK_BITS_1024
+    /// Pads the input according to the SHA512 specification.
     pub(crate) fn pad_sha512_variable_length(
         &mut self,
         input: &[ByteVariable],
         input_byte_length: U32Variable,
     ) -> Vec<ByteVariable> {
-        let max_num_chunks = input.len() / LENGTH_BITS_128;
-        assert_eq!(input.len() % LENGTH_BITS_128, 0);
-
         let last_chunk = self.compute_sha512_last_chunk(input_byte_length);
 
-        let message = input
+        // Extend input to size max_num_chunks * 128 before padding.
+        let max_num_chunks = ceil_div_usize(input.len(), SHA512_CHUNK_SIZE_BYTES_128);
+        let mut padded_input = input.to_vec();
+        padded_input.resize(max_num_chunks * SHA512_CHUNK_SIZE_BYTES_128, self.zero());
+
+        let message = padded_input
             .iter()
             .flat_map(|b| b.as_bool_targets().to_vec())
             .collect::<Vec<_>>();
