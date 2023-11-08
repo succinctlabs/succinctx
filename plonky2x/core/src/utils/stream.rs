@@ -36,4 +36,8 @@ impl<T> Stream<T> {
     {
         self.data.extend_from_slice(slice);
     }
+
+    pub fn position(&self) -> usize {
+        self.position
+    }
 }
