@@ -63,7 +63,7 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
     pub fn read_unsafe<V: CircuitVariable>(&self, builder: &mut CircuitBuilder<L, D>) -> V {
         let variables = self.read_exact(builder, V::nb_elements());
 
-        V::from_variables(builder, &variables)
+        V::from_variables_unsafe(&variables)
     }
 
     pub fn read_vec<V: CircuitVariable>(
