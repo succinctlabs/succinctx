@@ -1,5 +1,6 @@
 use std::arch::is_aarch64_feature_detected;
 
+use curta::chip::uint::operations::add::ByteArrayAdd;
 use curta::math::field::Field;
 use curta::math::prelude::PrimeField64;
 use itertools::Itertools;
@@ -73,6 +74,32 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ) -> Variable {
         let a_lt_b = self.lt(a, b);
         self.select(a_lt_b, c, d)
+    }
+
+    /// Evaluate the polynomial constructed from seeing RLP-encode(byte_array) as a vector of
+    /// coefficients and x = pow.
+    ///
+    /// Mathematically speaking, we define a function `f(E : RLP-encoding) -> F` such that
+    /// `f(E) = \sigma_{i = 0}^{len(E) - 1} [byte_to_field_element(coefficients[i]) * pow^(i)]`.
+    ///
+    /// This function returns:
+    /// 1. `f(RLP-encoding(E))`,
+    /// 2. `pow^len(RLP-encoding(E))`, which can be seen as the "next" power,
+    /// 3. `len(RLP-encoding(coefficients))`, which is necessary for calculating the prefix byte for
+    ///    `RLP-encoding(mpt)`.
+    ///
+    /// Note that, as specified in the function name, we don't actually calculate
+    /// `RLP-encoding(byte_array)`.
+    fn calculate_polynomial_emulating_rlp_encoding<const ARRAY_LENGTH: usize>(
+        &mut self,
+        byte_array: &ArrayVariable<ByteVariable, ARRAY_LENGTH>,
+        len: Variable,
+        pow: Variable,
+    ) -> (Variable, Variable, Variable) {
+        let poly = len;
+        let next_pow = pow;
+        let len = len;
+        (poly, next_pow, len)
     }
 
     /// This handles the term in the claim polynomial corresponding to the prefix byte.
@@ -231,41 +258,25 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             for i in 0..MAX_MPT_NODE_SIZE {
                 let index_i = self.constant::<Variable>(L::Field::from_canonical_usize(i));
-                let within_outer_list_coef = self.if_less_than_else(index_i, mpt.len, one, zero);
 
-                // TODO: Correctly pick the right len and pref
+                let (mut poly, mut next_pow, mut encoding_len) = self
+                    .calculate_polynomial_emulating_rlp_encoding(
+                        &mpt.data[i],
+                        mpt.lens[i],
+                        challenges[loop_index],
+                    );
 
-                let (mut prefix_byte, mut encoding_length) =
-                    self.encoding_metadata_calculator(mpt.data[loop_index][i], mpt.lens[i]);
+                poly = self.if_less_than_else(index_i, mpt.len, poly, zero);
+                poly = self.mul(poly, pow);
+                claim_poly = self.add(claim_poly, poly);
 
-                encoding_length = self.mul(encoding_length, within_outer_list_coef);
-                sum_of_rlp_encoding_length = self.add(sum_of_rlp_encoding_length, encoding_length);
+                next_pow = self.if_less_than_else(index_i, mpt.len, next_pow, one);
+                pow = self.mul(pow, next_pow);
 
-                prefix_byte = self.mul(prefix_byte, pow);
-                prefix_byte = self.mul(prefix_byte, within_outer_list_coef);
-
-                claim_poly = self.add(claim_poly, prefix_byte);
-
-                pow = self.mul(pow, challenges[loop_index]);
-
-                for j in 0..MAX_RLP_ITEM_SIZE {
-                    let index_j = self.constant::<Variable>(L::Field::from_canonical_usize(j));
-                    let inclusion_indicator =
-                        self.if_less_than_else(index_j, mpt.lens[i], within_outer_list_coef, zero);
-
-                    let mut val_as_var = self.byte_to_variable(mpt.data[i][j]);
-                    val_as_var = self.mul(val_as_var, pow);
-                    val_as_var = self.mul(val_as_var, inclusion_indicator);
-
-                    claim_poly = self.add(claim_poly, val_as_var);
-
-                    // pow = pow * challenges[i] only if j < LIST_LEN & k < ELEMENT_LEN
-                    let mut pow_multiplier = challenges[loop_index];
-                    pow_multiplier =
-                        self.if_less_than_else(index_j, mpt.lens[i], pow_multiplier, one);
-                    pow = self.mul(pow, pow_multiplier);
-                }
+                encoding_len = self.if_less_than_else(index_i, mpt.len, encoding_len, zero);
+                sum_of_rlp_encoding_length = self.add(sum_of_rlp_encoding_length, encoding_len);
             }
+
             // Based on what we've seen, we calculate the prefix of the whole encoding.
             // This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
             let mut short_list_prefix =
@@ -432,4 +443,6 @@ mod tests {
     }
 
     // TODO: Create a test where it's supposed to fail.
+
+    // TODO: Create a test with a list containing a single-byte element of various values.
 }
