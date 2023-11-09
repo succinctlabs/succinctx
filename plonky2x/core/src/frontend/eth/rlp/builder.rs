@@ -5,13 +5,36 @@ use plonky2::hash::poseidon::PoseidonHash;
 use plonky2::iop::challenger::RecursiveChallenger;
 use serde::{Deserialize, Serialize};
 
-use super::utils::decode_padded_mpt_node;
-use crate::frontend::eth::rlp::utils::MAX_RLP_ITEM_SIZE;
+use super::utils::{decode_padded_mpt_node, MPTNodeFixedSize};
+use crate::frontend::eth::rlp::utils::{MAX_MPT_NODE_SIZE, MAX_RLP_ITEM_SIZE};
 use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::{
-    ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, MPTVariable, PlonkParameters,
-    ValueStream, Variable, VariableStream,
+    ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
+    RichField, ValueStream, Variable, VariableStream,
 };
+
+#[derive(Clone, Debug, CircuitVariable)]
+#[value_name(MPTValueType)]
+pub struct MPTVariable {
+    pub data: ArrayVariable<ArrayVariable<ByteVariable, MAX_RLP_ITEM_SIZE>, MAX_MPT_NODE_SIZE>,
+    pub lens: ArrayVariable<Variable, MAX_MPT_NODE_SIZE>,
+    pub len: Variable,
+}
+
+impl MPTNodeFixedSize {
+    /// Convert `MPTNodeFixedSize` into `MPTValueType<F>`
+    fn to_value_type<F: RichField>(&self) -> MPTValueType<F> {
+        MPTValueType::<F> {
+            data: self.data.iter().map(|x| x.data.to_vec()).collect_vec(),
+            lens: self
+                .data
+                .iter()
+                .map(|x| F::from_canonical_usize(x.len))
+                .collect_vec(),
+            len: F::from_canonical_usize(self.len),
+        }
+    }
+}
 
 /// A Hint structure to decode an RLP-encoded string.
 ///
@@ -33,7 +56,7 @@ impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize> Hint<L, D
         let decoded =
             decode_padded_mpt_node(&encoded, len.as_canonical_u64() as usize, skip_computation);
 
-        output_stream.write_value::<MPTVariable>(decoded);
+        output_stream.write_value::<MPTVariable>(decoded.to_value_type());
     }
 }
 
@@ -280,7 +303,7 @@ mod tests {
             .constant::<ArrayVariable<ByteVariable, ENCODING_LEN>>(encoding_fixed_size.to_vec());
         let len = builder.constant::<Variable>(F::from_canonical_usize(rlp_encoding.len()));
         let skip_computation = builder.constant::<BoolVariable>(false);
-        let mpt_node_variable = builder.constant::<MPTVariable>(mpt_node);
+        let mpt_node_variable = builder.constant::<MPTVariable>(mpt_node.to_value_type());
 
         builder.verify_decoded_mpt_node::<ENCODING_LEN>(
             &encoded,
