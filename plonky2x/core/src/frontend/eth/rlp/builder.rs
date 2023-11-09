@@ -264,8 +264,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 claim_poly = self.mul(claim_poly, correct_shift);
                 claim_poly = self.add(claim_poly, correct_prefix);
             }
-            self.watch(&claim_poly, "my claim_poly's final value");
-            self.watch(&encoding_poly, "my encoding_poly's final value");
+            self.watch(&claim_poly, "claim_poly");
+            self.watch(&encoding_poly, "encoding_poly");
+            self.watch(&sum_of_rlp_encoding_length, "sum_of_rlp_encoding_length");
             let claim_poly_equals_encoding_poly = self.is_equal(claim_poly, encoding_poly);
             let result = self.or(skip_computation, claim_poly_equals_encoding_poly);
             // TODO: uncomment this once the values seem to match.
