@@ -75,8 +75,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.select(a_lt_b, c, d)
     }
 
-    /// This calculates the prefix byte and the encoding length of the RLP encoding of a byte array
-    /// that starts with `first_byte` and with the length `len`.
+    /// This handles the term in the claim polynomial corresponding to the prefix byte.
     ///
     /// You can uniquely determine the length of the RLP encoding of a byte array by looking at the
     /// first byte and also the length of the byte array. This function returns the prefix byte and
@@ -260,51 +259,50 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                     // pow = pow * challenges[i] only if j < LIST_LEN & k < ELEMENT_LEN
                     let mut pow_multiplier = challenges[loop_index];
-                    pow_multiplier = self.mul(pow_multiplier, inclusion_indicator);
+                    pow_multiplier =
+                        self.if_less_than_else(index_j, mpt.lens[i], pow_multiplier, one);
                     pow = self.mul(pow, pow_multiplier);
                 }
-
-                // Based on what we've seen, we calculate the prefix of the whole encoding.
-                // This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
-                let mut short_list_prefix =
-                    self.constant::<Variable>(L::Field::from_canonical_u64(192)); // 0xc0
-                short_list_prefix = self.add(short_list_prefix, sum_of_rlp_encoding_length);
-                let short_list_shift = challenges[loop_index];
-
-                // Assert that sum_of_rlp_encoding_length is less than 256^2 = 65536 bits. A
-                // well-formed MPT should never need that many bytes.
-                let valid_length = self.lt(sum_of_rlp_encoding_length, cons65536);
-                self.assert_is_equal(true_v, valid_length);
-
-                // The remaining case is when we need exactly two bytes to encode the length. 0xf9 =
-                // 0xf7 + 2.
-                let mut long_list_prefix =
-                    self.constant::<Variable>(L::Field::from_canonical_u64(249));
-
-                // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder.
-                let mut long_list_shift = challenges[loop_index];
-                long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
-                long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
-
-                let mut div = self.div(sum_of_rlp_encoding_length, cons256);
-                let mut rem = sum_of_rlp_encoding_length;
-                let subtract = self.mul(div, cons256);
-                rem = self.sub(rem, subtract);
-
-                div = self.mul(div, challenges[loop_index]);
-                rem = self.mul(rem, challenges[loop_index]);
-                rem = self.mul(rem, challenges[loop_index]);
-                long_list_prefix = self.add(long_list_prefix, div);
-                long_list_prefix = self.add(long_list_prefix, rem);
-
-                let is_short = self.lte(sum_of_rlp_encoding_length, cons55);
-
-                let correct_prefix = self.select(is_short, short_list_prefix, long_list_prefix);
-                let correct_shift = self.select(is_short, short_list_shift, long_list_shift);
-
-                claim_poly = self.mul(claim_poly, correct_shift);
-                claim_poly = self.add(claim_poly, correct_prefix);
             }
+            // Based on what we've seen, we calculate the prefix of the whole encoding.
+            // This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
+            let mut short_list_prefix =
+                self.constant::<Variable>(L::Field::from_canonical_u64(192)); // 0xc0
+            short_list_prefix = self.add(short_list_prefix, sum_of_rlp_encoding_length);
+            let short_list_shift = challenges[loop_index];
+
+            // Assert that sum_of_rlp_encoding_length is less than 256^2 = 65536 bits. A
+            // well-formed MPT should never need that many bytes.
+            let valid_length = self.lt(sum_of_rlp_encoding_length, cons65536);
+            self.assert_is_equal(true_v, valid_length);
+
+            // The remaining case is when we need exactly two bytes to encode the length. 0xf9 =
+            // 0xf7 + 2.
+            let mut long_list_prefix = self.constant::<Variable>(L::Field::from_canonical_u64(249));
+
+            // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder.
+            let mut long_list_shift = challenges[loop_index];
+            long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
+            long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
+
+            let mut div = self.div(sum_of_rlp_encoding_length, cons256);
+            let mut rem = sum_of_rlp_encoding_length;
+            let subtract = self.mul(div, cons256);
+            rem = self.sub(rem, subtract);
+
+            div = self.mul(div, challenges[loop_index]);
+            rem = self.mul(rem, challenges[loop_index]);
+            rem = self.mul(rem, challenges[loop_index]);
+            long_list_prefix = self.add(long_list_prefix, div);
+            long_list_prefix = self.add(long_list_prefix, rem);
+
+            let is_short = self.lte(sum_of_rlp_encoding_length, cons55);
+
+            let correct_prefix = self.select(is_short, short_list_prefix, long_list_prefix);
+            let correct_shift = self.select(is_short, short_list_shift, long_list_shift);
+
+            claim_poly = self.mul(claim_poly, correct_shift);
+            claim_poly = self.add(claim_poly, correct_prefix);
             self.watch(&claim_poly, "claim_poly");
             self.watch(&encoding_poly, "encoding_poly");
             self.watch(&sum_of_rlp_encoding_length, "sum_of_rlp_encoding_length");
@@ -408,16 +406,6 @@ mod tests {
     }
 
     #[test]
-    fn test_verify_decoded_mpt_node_branch_node() {
-        const ENCODING_LEN: usize = 600;
-
-        // This is a RLP-encoded list of a branch node. It is a list of length 17. Each of the first
-        // 16 elements is a 32-byte hash, and the last element is 0.
-        let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0215ead887d4da139eba306f76d765f5c4bfb03f6118ac1eb05eec3a92e1b0076a03eb28e7b61c689fae945b279f873cfdddf4e66db0be0efead563ea08bc4a269fa03025e2cce6f9c1ff09c8da516d938199c809a7f94dcd61211974aebdb85a4e56a0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6a0b281bb20061318a515afbdd02954740f069ebc75e700fde24dfbdf8c76d57119a0d8d77d917f5b7577e7e644bbc7a933632271a8daadd06a8e7e322f12dd828217a00f301190681b368db4308d1d1aa1794f85df08d4f4f646ecc4967c58fd9bd77ba0206598a4356dd50c70cfb1f0285bdb1402b7d65b61c851c095a7535bec230d5aa000959956c2148c82c207272af1ae129403d42e8173aedf44a190e85ee5fef8c3a0c88307e92c80a76e057e82755d9d67934ae040a6ec402bc156ad58dbcd2bcbc4a0e40a8e323d0b0b19d37ab6a3d110de577307c6f8efed15097dfb5551955fc770a02da2c6b12eedab6030b55d4f7df2fb52dab0ef4db292cb9b9789fa170256a11fa0d00e11cde7531fb79a315b4d81ea656b3b452fe3fe7e50af48a1ac7bf4aa6343a066625c0eb2f6609471f20857b97598ae4dfc197666ff72fe47b94e4124900683a0ace3aa5d35ba3ebbdc0abde8add5896876b25261717c0a415c92642c7889ec66a03a4931a67ae8ebc1eca9ffa711c16599b86d5286504182618d9c2da7b83f5ef780");
-        test_verify_decoded_mpt_node::<ENCODING_LEN>(rlp_encoding);
-    }
-
-    #[test]
     fn test_verify_decoded_mpt_node_extension_node() {
         const ENCODING_LEN: usize = 2 * 32 + 20;
 
@@ -428,6 +416,16 @@ mod tests {
         let rlp_encoding: Vec<u8> =
             bytes!("0xe482006fa0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6");
 
+        test_verify_decoded_mpt_node::<ENCODING_LEN>(rlp_encoding);
+    }
+
+    #[test]
+    fn test_verify_decoded_mpt_node_branch_node() {
+        const ENCODING_LEN: usize = 600;
+
+        // This is a RLP-encoded list of a branch node. It is a list of length 17. Each of the first
+        // 16 elements is a 32-byte hash, and the last element is 0.
+        let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0215ead887d4da139eba306f76d765f5c4bfb03f6118ac1eb05eec3a92e1b0076a03eb28e7b61c689fae945b279f873cfdddf4e66db0be0efead563ea08bc4a269fa03025e2cce6f9c1ff09c8da516d938199c809a7f94dcd61211974aebdb85a4e56a0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6a0b281bb20061318a515afbdd02954740f069ebc75e700fde24dfbdf8c76d57119a0d8d77d917f5b7577e7e644bbc7a933632271a8daadd06a8e7e322f12dd828217a00f301190681b368db4308d1d1aa1794f85df08d4f4f646ecc4967c58fd9bd77ba0206598a4356dd50c70cfb1f0285bdb1402b7d65b61c851c095a7535bec230d5aa000959956c2148c82c207272af1ae129403d42e8173aedf44a190e85ee5fef8c3a0c88307e92c80a76e057e82755d9d67934ae040a6ec402bc156ad58dbcd2bcbc4a0e40a8e323d0b0b19d37ab6a3d110de577307c6f8efed15097dfb5551955fc770a02da2c6b12eedab6030b55d4f7df2fb52dab0ef4db292cb9b9789fa170256a11fa0d00e11cde7531fb79a315b4d81ea656b3b452fe3fe7e50af48a1ac7bf4aa6343a066625c0eb2f6609471f20857b97598ae4dfc197666ff72fe47b94e4124900683a0ace3aa5d35ba3ebbdc0abde8add5896876b25261717c0a415c92642c7889ec66a03a4931a67ae8ebc1eca9ffa711c16599b86d5286504182618d9c2da7b83f5ef780");
         test_verify_decoded_mpt_node::<ENCODING_LEN>(rlp_encoding);
     }
 
