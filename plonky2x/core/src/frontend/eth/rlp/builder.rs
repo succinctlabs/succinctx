@@ -1,3 +1,5 @@
+use std::arch::is_aarch64_feature_detected;
+
 use curta::math::field::Field;
 use curta::math::prelude::PrimeField64;
 use itertools::Itertools;
@@ -61,6 +63,61 @@ impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize> Hint<L, D
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    /// This calculates the prefix byte and the encoding length of the RLP encoding of a byte array
+    /// that starts with `first_byte` and with the length `len`.
+    ///
+    /// You can uniquely determine the length of the RLP encoding of a byte array by looking at the
+    /// first byte and also the length of the byte array. This function returns the prefix byte and
+    /// the encoding length of the RLP, which is useful for performing the "polynomial trick."
+    fn encoding_metadata_calculator(
+        &mut self,
+        first_byte_as_byte_variable: ByteVariable,
+        len: Variable,
+    ) -> (Variable, Variable) {
+        // There are 4 cases:
+        // - len = 0                       ===> (0x80, 1)
+        // - len = 1 && decoded[0] < 0x80  ===> (decoded[0], 1)
+        // - len = 1 && decoded[0] >= 0x80 ===> (0x81, 2)
+        // - len <= 55                     ===> (0x80 + len, 1 + len)
+
+        let first_byte = self.byte_to_variable(first_byte_as_byte_variable);
+        let one: Variable = self.one();
+        let zero: Variable = self.zero();
+        let cons0x80 = self.constant::<Variable>(L::Field::from_canonical_u8(0x80));
+        let cons0x55 = self.constant::<Variable>(L::Field::from_canonical_u8(0x55));
+        let true_v = self.constant::<BoolVariable>(true);
+
+        let pref1 = cons0x80;
+        let len1 = one;
+        let pref2 = first_byte;
+        let len2 = one;
+        let pref3 = self.constant::<Variable>(L::Field::from_canonical_u64(0x81));
+        let len3 = self.constant::<Variable>(L::Field::from_canonical_u64(2));
+        let pref4 = self.add(pref1, len);
+        let len4 = self.add(one, len);
+
+        let is_len_one = self.is_equal(len, one);
+        let is_first_byte_less_than_0x80 = self.lt(first_byte, cons0x80);
+        let is_first_byte_ge_0x80 = self.not(is_first_byte_less_than_0x80);
+        let is_len_lte_55 = self.lte(len, cons0x55);
+        self.assert_is_equal(is_len_lte_55, true_v);
+
+        let is_case1 = self.is_equal(len, zero);
+        let is_case2 = self.and(is_len_one, is_first_byte_less_than_0x80);
+        let is_case3 = self.and(is_len_one, is_first_byte_ge_0x80);
+        let mut ans_pref = pref4;
+        let mut ans_len = len4;
+        ans_pref = self.select(is_case3, pref3, ans_pref);
+        ans_pref = self.select(is_case2, pref2, ans_pref);
+        ans_pref = self.select(is_case1, pref1, ans_pref);
+
+        ans_len = self.select(is_case3, len3, ans_len);
+        ans_len = self.select(is_case2, len2, ans_len);
+        ans_len = self.select(is_case1, len1, ans_len);
+
+        return (ans_pref, ans_len);
+    }
+
     /// This function verifies the decoding by comparing both the encoded and decoded MPT node.
     pub fn verify_decoded_mpt_node<const ENCODING_LEN: usize>(
         &mut self,
@@ -133,29 +190,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let is_done_outer_list = self.lte(index, len);
                 let within_outer_list_coef = self.select(is_done_outer_list, zero, one);
 
-                // There are 4 cases:
-                // - len = 0                       ===> (0x80, 1)
-                // - len = 1 && decoded[0] < 0x80  ===> (decoded[0], 1)
-                // - len = 1 && decoded[0] >= 0x80 ===> (0x81, 2)
-                // - len <= 55                     ===> (0x80 + len, 1 + len)
-
-                let pref1 = self.constant::<Variable>(L::Field::from_canonical_u64(0x80));
-                let len1 = one;
-                let pref2 = self.byte_to_variable(mpt.data[j][i]);
-                let len2 = one;
-                let pref3 = self.constant::<Variable>(L::Field::from_canonical_u64(0x81));
-                let len3 = self.constant::<Variable>(L::Field::from_canonical_u64(2));
-                let pref4 = self.add(pref1, len);
-                let len4 = self.add(one, len);
-
                 // TODO: Correctly pick the right len and pref
 
-                let prefix_byte = self.constant::<ByteVariable>(0x80);
-                let mut prefix_byte_as_variable = self.byte_to_variable(prefix_byte);
-                prefix_byte_as_variable = self.mul(prefix_byte_as_variable, pow);
-                prefix_byte_as_variable = self.mul(prefix_byte_as_variable, within_outer_list_coef);
+                let (prefix_byte, encoding_length) =
+                    self.encoding_metadata_calculator(mpt.data[i][j], mpt.lens[i]);
 
-                claim_poly = self.add(claim_poly, prefix_byte_as_variable);
+                claim_poly = self.add(claim_poly, prefix_byte);
 
                 pow = self.mul(pow, challenges[i]);
 
@@ -177,8 +217,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     pow = self.mul(pow, pow_multiplier);
                 }
 
-                let mut rlp_encoding_length =
-                    self.constant::<Variable>(L::Field::from_canonical_usize(5));
+                let mut rlp_encoding_length = encoding_length;
                 rlp_encoding_length = self.mul(rlp_encoding_length, within_outer_list_coef);
                 sum_of_rlp_encoding_length =
                     self.add(sum_of_rlp_encoding_length, rlp_encoding_length);
@@ -224,6 +263,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 claim_poly = self.mul(claim_poly, correct_shift);
                 claim_poly = self.add(claim_poly, correct_prefix);
             }
+            println!("Claim poly: {:?}", claim_poly);
+            println!("encoding poly: {:?}", encoding_poly);
             let claim_poly_equals_encoding_poly = self.is_equal(claim_poly, encoding_poly);
             let result = self.or(skip_computation, claim_poly_equals_encoding_poly);
             self.assert_is_equal(result, true_v);
