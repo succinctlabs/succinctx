@@ -130,7 +130,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             res_case_2 = self.add(res_case_2, current_term);
 
-            let pow_multiplier = self.if_less_than_else(index, len, next_pow, one);
+            let pow_multiplier = self.if_less_than_else(index, len, pow, one);
             next_pow = self.mul(next_pow, pow_multiplier);
         }
 
@@ -144,6 +144,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         self.watch(&res, "res");
         self.watch(&res_pow, "res_pow");
+        self.watch(&pow, "pow");
         self.watch(&res_len, "res_len");
 
         (res, res_pow, res_len)
@@ -273,7 +274,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         // #############################################################
         // #############################################################
         // #############################################################
-        challenges[0] = self.constant::<Variable>(L::Field::from_canonical_u64(1));
 
         let one = self.one();
         let zero = self.zero();
@@ -463,6 +463,27 @@ mod tests {
         let input = circuit.input();
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    fn test_verify_decoded_mpt_node_debugging() {
+        const ENCODING_LEN: usize = 2 * 32 + 20;
+
+        // This is an RLP-encoded list of an extension node. The 00 in 0x006f indicates that the path
+        // length is even, and the path is 6 -> f. This extension node points to a leaf node with
+        // the hash starting with 0x188d11.  ["0x006f",
+        // "0x188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6"]
+        // 0xc9018710101010101010
+        // {0xc9, 0x01, 0x87, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10}
+        // 0xc9 = 201
+        // 0x01 = 1
+        // 0x87 = 135
+        // 0x10 = 16
+        // 0x10 = 16
+
+        let rlp_encoding: Vec<u8> = bytes!("0xc9018710101010101010");
+
+        test_verify_decoded_mpt_node::<ENCODING_LEN>(rlp_encoding);
     }
 
     #[test]
