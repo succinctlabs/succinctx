@@ -96,10 +96,49 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         len: Variable,
         pow: Variable,
     ) -> (Variable, Variable, Variable) {
-        let poly = len;
-        let next_pow = pow;
-        let len = len;
-        (poly, next_pow, len)
+        let true_v = self.constant::<BoolVariable>(true);
+        let one = self.one();
+        let cons55 = self.constant::<Variable>(L::Field::from_canonical_u64(55));
+
+        // TODO: It's likely that we'll need to implement the case when the given byte string is
+        // >= 56 bytes. (e.g., account state) However, for the first iteration, we will only worry
+        // about the case when the byte string is <= 55 bytes.
+        let len_lte_55 = self.lte(len, cons55);
+        self.assert_is_equal(len_lte_55, true_v);
+
+        // There are 2 possible outcomes of encode(byte_array):
+        //
+        // 1. len = 1 && byte_array[0] <  0x80  =>  {byte_array[0]}
+        // 2. else                              =>  {0x80 + len, byte_array[0], byte_array[1], ...}
+
+        let cons0x80 = self.constant::<Variable>(L::Field::from_canonical_u64(0x80));
+
+        let first_byte_as_variable = self.byte_to_variable(byte_array[0]);
+        let res_case_1 = first_byte_as_variable;
+        let len1 = one;
+
+        let res_case_2 = self.add(cons0x80, len);
+        let len2 = self.add(len, one);
+
+        let mut next_pow = pow;
+        for i in 0..ARRAY_LENGTH {
+            let index = self.constant::<Variable>(L::Field::from_canonical_usize(i));
+            let mut current_term = self.byte_to_variable(byte_array[i]);
+            current_term = self.mul(current_term, next_pow);
+
+            let pow_multiplier = self.if_less_than_else(index, len, pow, one);
+            next_pow = self.mul(next_pow, pow_multiplier);
+        }
+
+        let is_len_1 = self.is_equal(len, one);
+        let is_first_variable_less_than_0x80 = self.lt(first_byte_as_variable, cons0x80);
+        let is_case_1 = self.and(is_len_1, is_first_variable_less_than_0x80);
+
+        let mut res_len = self.select(is_case_1, len1, len2);
+        let mut res_pow = self.select(is_case_1, pow, next_pow);
+        let mut res = self.select(is_case_1, res_case_1, res_case_2);
+
+        (res, res_pow, res_len)
     }
 
     /// This handles the term in the claim polynomial corresponding to the prefix byte.
