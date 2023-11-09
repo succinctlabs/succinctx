@@ -97,6 +97,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         pow: Variable,
     ) -> (Variable, Variable, Variable) {
         let true_v = self.constant::<BoolVariable>(true);
+        let zero = self.zero();
         let one = self.one();
         let cons55 = self.constant::<Variable>(L::Field::from_canonical_u64(55));
 
@@ -117,7 +118,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let res_case_1 = first_byte_as_variable;
         let len1 = one;
 
-        let res_case_2 = self.add(cons0x80, len);
+        let mut res_case_2 = self.add(cons0x80, len);
         let len2 = self.add(len, one);
 
         let mut next_pow = pow;
@@ -125,8 +126,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let index = self.constant::<Variable>(L::Field::from_canonical_usize(i));
             let mut current_term = self.byte_to_variable(byte_array[i]);
             current_term = self.mul(current_term, next_pow);
+            current_term = self.if_less_than_else(index, len, current_term, zero);
 
-            let pow_multiplier = self.if_less_than_else(index, len, pow, one);
+            res_case_2 = self.add(res_case_2, current_term);
+
+            let pow_multiplier = self.if_less_than_else(index, len, next_pow, one);
             next_pow = self.mul(next_pow, pow_multiplier);
         }
 
@@ -134,9 +138,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let is_first_variable_less_than_0x80 = self.lt(first_byte_as_variable, cons0x80);
         let is_case_1 = self.and(is_len_1, is_first_variable_less_than_0x80);
 
-        let mut res_len = self.select(is_case_1, len1, len2);
-        let mut res_pow = self.select(is_case_1, pow, next_pow);
-        let mut res = self.select(is_case_1, res_case_1, res_case_2);
+        let res_len = self.select(is_case_1, len1, len2);
+        let res_pow = self.select(is_case_1, pow, next_pow);
+        let res = self.select(is_case_1, res_case_1, res_case_2);
+
+        self.watch(&res, "res");
+        self.watch(&res_pow, "res_pow");
+        self.watch(&res_len, "res_len");
 
         (res, res_pow, res_len)
     }
