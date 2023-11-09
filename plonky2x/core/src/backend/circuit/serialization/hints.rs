@@ -5,6 +5,7 @@ use curta::chip::hash::blake::blake2b::generator::{
     BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
 };
 use curta::machine::hash::sha::sha256::SHA256;
+use curta::machine::hash::sha::sha512::SHA512;
 use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
 use curta::plonky2::cubic::mul_gate::MulCubicGenerator;
 use plonky2::field::extension::Extendable;
@@ -38,6 +39,8 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSeria
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
+use crate::frontend::ecc::curve25519::curta::proof_hint::EcOpProofHint;
+use crate::frontend::ecc::curve25519::curta::result_hint::EcOpResultHint;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
@@ -395,6 +398,18 @@ where
 
         r.register_hint::<SHAProofHint<SHA256, 64>>();
         r.register_async_hint::<Async<SHAProofHint<SHA256, 64>>>();
+
+        r.register_hint::<SHADigestHint<SHA512, 80>>();
+        r.register_async_hint::<Async<SHADigestHint<SHA512, 80>>>();
+
+        r.register_hint::<SHAProofHint<SHA512, 80>>();
+        r.register_async_hint::<Async<SHAProofHint<SHA512, 80>>>();
+
+        r.register_hint::<EcOpProofHint>();
+        r.register_async_hint::<Async<EcOpProofHint>>();
+
+        r.register_hint::<EcOpResultHint>();
+        r.register_async_hint::<Async<EcOpResultHint>>();
 
         register_powers_of_two!(r, BeaconHeadersFromOffsetRangeHint);
 

@@ -1,7 +1,10 @@
+use ethers::types::H256;
 use itertools::Itertools;
+use num::pow;
 
 use super::tree::MerkleInclusionProofVariable;
 use crate::backend::circuit::PlonkParameters;
+use crate::frontend::merkle::utils::log2_ceil_usize;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, BytesVariable, CircuitBuilder, CircuitVariable,
@@ -127,17 +130,26 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         leaf_hashes: Vec<Bytes32Variable>,
         leaves_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable {
-        assert!(NB_LEAVES.is_power_of_two());
         assert!(leaf_hashes.len() == NB_LEAVES);
         assert!(leaves_enabled.len() == NB_LEAVES);
 
+        let empty_bytes = Bytes32Variable::constant(self, H256::from_slice(&[0u8; 32]));
+
+        // Extend leaf_hashes and leaves_enabled to be a power of 2.
+        let padded_nb_leaves = pow(2, log2_ceil_usize(NB_LEAVES));
+        assert!(padded_nb_leaves >= NB_LEAVES && padded_nb_leaves.is_power_of_two());
+
         // Hash each of the validators to get their corresponding leaf hash.
+        // Pad the leaves to be a power of 2.
         let mut current_nodes = leaf_hashes.clone();
+        current_nodes.resize(padded_nb_leaves, empty_bytes);
 
         // Whether to treat the validator as empty.
+        // Pad the enabled array to be a power of 2.
         let mut current_node_enabled = leaves_enabled.clone();
+        current_node_enabled.resize(padded_nb_leaves, self._false());
 
-        let mut merkle_layer_size = NB_LEAVES;
+        let mut merkle_layer_size = padded_nb_leaves;
 
         // Hash each layer of nodes to get the root according to the Tendermint spec, starting from the leaves.
         while merkle_layer_size > 1 {

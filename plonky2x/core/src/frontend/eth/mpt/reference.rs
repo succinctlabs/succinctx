@@ -1,7 +1,7 @@
 use ethers::types::H256;
 use ethers::utils::keccak256;
 
-use crate::frontend::eth::rlp::builder::{rlp_decode_bytes, rlp_decode_list_2_or_17};
+use crate::frontend::eth::rlp::decoder::{decode, RLPItem};
 
 const TREE_RADIX: usize = 16;
 const BRANCH_NODE_LENGTH: usize = 17;
@@ -29,8 +29,8 @@ pub fn assert_bytes_equal(a: &[u8], b: &[u8]) {
     }
 }
 
-// Based off of the following Solidity implementation:
-// https://github.com/ethereum-optimism/optimism/blob/6e041bcd9d678a0ea2bb92cfddf9716f8ae2336c/packages/contracts-bedrock/src/libraries/trie/MerkleTrie.sol
+/// Based off of the following Solidity implementation:
+/// https://github.com/ethereum-optimism/optimism/blob/6e041bcd9d678a0ea2bb92cfddf9716f8ae2336c/packages/contracts-bedrock/src/libraries/trie/MerkleTrie.sol
 #[allow(dead_code)] // We allow dead_code since it's used in the tests below
 pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> Vec<u8> {
     let mut current_key_index = 0;
@@ -50,63 +50,92 @@ pub fn get(key: H256, proof: Vec<Vec<u8>>, root: H256, account_proof: bool) -> V
         } else {
             assert_bytes_equal(current_node, &current_node_id);
         }
-        let decoded = rlp_decode_list_2_or_17(current_node);
-        match decoded.len() {
-            BRANCH_NODE_LENGTH => {
-                if current_key_index == key_path.len() {
-                    // We have traversed all nibbles of the key, so we return the value in the branch node
-                    finish = true;
-                    current_node_id = decoded[TREE_RADIX].clone();
-                } else {
-                    let branch_key = key_path[current_key_index];
-                    current_node_id = decoded[usize::from(branch_key)].clone();
-                    current_key_index += 1;
-                }
-            }
-            LEAF_OR_EXTENSION_NODE_LENGTH => {
-                current_node_id = decoded[1].clone().clone();
-                let path = to_nibbles(&decoded[0]);
-                let prefix = path[0];
-                match usize::from(prefix) {
-                    PREFIX_LEAF_EVEN | PREFIX_LEAF_ODD => {
-                        // TODO there are some other checks here around length of the return value and also the path matching the key
+        if let RLPItem::List(decoded) = decode(current_node) {
+            match decoded.len() {
+                BRANCH_NODE_LENGTH => {
+                    if current_key_index == key_path.len() {
+                        // We have traversed all nibbles of the key, so we return the value in the branch node
                         finish = true;
+                        if let RLPItem::String(data) = &decoded[TREE_RADIX] {
+                            current_node_id = data.clone();
+                        } else {
+                            panic!("Invalid branch node");
+                        }
+                    } else {
+                        let branch_key = key_path[current_key_index];
+                        if let RLPItem::String(data) = &decoded[branch_key as usize] {
+                            current_node_id = data.clone();
+                        } else {
+                            panic!("direct node reference not supported yet");
+                        }
+                        current_key_index += 1;
                     }
-                    PREFIX_EXTENSION_EVEN => {
-                        // If prefix_extension_even, then the offset for the path is 2
-                        let path_remainder = &path[2..];
-                        assert_bytes_equal(
-                            path_remainder,
-                            &key_path[current_key_index..current_key_index + path_remainder.len()],
-                        );
-                        current_key_index += path_remainder.len();
+                }
+                LEAF_OR_EXTENSION_NODE_LENGTH => {
+                    let path: Vec<u8>;
+                    if let RLPItem::String(data) = &decoded[0] {
+                        path = to_nibbles(data);
+                    } else {
+                        panic!("direct node reference not supported yet");
                     }
-                    PREFIX_EXTENSION_ODD => {
-                        // If prefix_extension_odd, then the offset for the path is 1
-                        let path_remainder = &path[1..];
-                        assert_bytes_equal(
-                            path_remainder,
-                            &key_path[current_key_index..current_key_index + path_remainder.len()],
-                        );
-                        current_key_index += path_remainder.len();
+                    if let RLPItem::String(data) = &decoded[1] {
+                        current_node_id = data.clone();
+                    } else {
+                        panic!("direct node reference not supported yet");
                     }
-                    _ => panic!("Invalid prefix for leaf or extension node"),
+                    let prefix = path[0];
+                    match usize::from(prefix) {
+                        PREFIX_LEAF_EVEN | PREFIX_LEAF_ODD => {
+                            // TODO there are some other checks here around length of the return value and also the path matching the key
+                            finish = true;
+                        }
+                        PREFIX_EXTENSION_EVEN => {
+                            // If prefix_extension_even, then the offset for the path is 2
+                            let path_remainder = &path[2..];
+                            assert_bytes_equal(
+                                path_remainder,
+                                &key_path
+                                    [current_key_index..current_key_index + path_remainder.len()],
+                            );
+                            current_key_index += path_remainder.len();
+                        }
+                        PREFIX_EXTENSION_ODD => {
+                            // If prefix_extension_odd, then the offset for the path is 1
+                            let path_remainder = &path[1..];
+                            assert_bytes_equal(
+                                path_remainder,
+                                &key_path
+                                    [current_key_index..current_key_index + path_remainder.len()],
+                            );
+                            current_key_index += path_remainder.len();
+                        }
+                        _ => panic!("Invalid prefix for leaf or extension node"),
+                    }
+                }
+                _ => {
+                    panic!("Invalid decoded length");
                 }
             }
-            _ => {
-                panic!("Invalid decoded length");
-            }
+        } else {
+            panic!("MPT must be a list");
         }
 
         if finish {
             if account_proof {
                 return current_node_id;
             } else {
-                return rlp_decode_bytes(&current_node_id[..]).0;
+                let decoded = decode(&current_node_id);
+                match decoded {
+                    RLPItem::String(data) => {
+                        return data;
+                    }
+                    _ => {
+                        panic!("expected the account string");
+                    }
+                }
             }
         }
     }
-
     panic!("Invalid proof");
 }
 

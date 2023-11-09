@@ -167,6 +167,7 @@ mod tests {
     use super::*;
     use crate::utils;
     #[tokio::test]
+    #[cfg_attr(feature = "ci", ignore)]
     async fn test_lido_metadata() {
         utils::setup_logger();
         let rpc_url = "https://eth.llamarpc.com";

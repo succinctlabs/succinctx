@@ -54,7 +54,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         root: Bytes32Variable,
         value: Bytes32Variable,
     ) {
-        const ELEMENT_LEN: usize = 34; // Maximum size of list element
+        const ELEMENT_LEN: usize = 32; // Maximum size of list element
         const LIST_LEN: usize = 17; // Maximum length of the list for each proof element
 
         let tree_radix = self.constant::<Variable>(L::Field::from_canonical_u8(16u8));
