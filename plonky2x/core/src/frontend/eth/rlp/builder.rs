@@ -312,6 +312,10 @@ mod tests {
             &seed,
             &mpt_node_variable,
         );
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
     }
 
     // TODO: Create a test where it's supposed to fail.
