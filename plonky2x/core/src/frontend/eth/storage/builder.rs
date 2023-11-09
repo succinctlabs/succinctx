@@ -16,14 +16,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         mapping_location: U256Variable,
         map_key: Bytes32Variable,
     ) -> Bytes32Variable {
-        // TODO: Need to constrain generator result?
         let generator = EthStorageKeyGenerator::new(self, mapping_location, map_key);
         let value = generator.value;
+        self.assert_is_valid(value);
         self.add_simple_generator(generator);
         value
     }
 
-    #[allow(non_snake_case)]
     pub fn eth_get_storage_at(
         &mut self,
         block_hash: Bytes32Variable,
@@ -35,19 +34,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input_stream.write(&address);
         input_stream.write(&storage_key);
 
-        // TODO: Need to constrain generator result?
         let hint = EthStorageProofHint::new(self);
         let output_stream = self.async_hint(input_stream, hint);
 
-        output_stream.read::<Bytes32Variable>(self)
+        let result = output_stream.read::<Bytes32Variable>(self);
+        self.assert_is_valid(result);
+
+        result
     }
 
-    #[allow(non_snake_case)]
     pub fn eth_get_block_by_hash(&mut self, block_hash: Bytes32Variable) -> EthHeaderVariable {
-        // TODO: Need to constrain generator result
         let generator = EthBlockGenerator::new(self, block_hash);
         let value = generator.value;
         self.add_simple_generator(generator);
+        self.assert_is_valid(value);
         value
     }
 
@@ -60,17 +60,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         todo!()
     }
 
-    #[allow(non_snake_case)]
     pub fn eth_get_transaction_log(
         &mut self,
         transaction_hash: Bytes32Variable,
         block_hash: Bytes32Variable,
         log_index: u64,
     ) -> EthLogVariable {
-        // TODO: Need to constrain generator result?
         let generator = EthLogGenerator::new(self, transaction_hash, block_hash, log_index);
         let value = generator.clone().value;
         self.add_simple_generator(generator);
+        self.assert_is_valid(value.clone());
         value
     }
 }

@@ -361,7 +361,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input_stream.write(&balances.block_root);
         input_stream.write(&index);
 
-        // TODO: Need to constrain generator result?
         let hint = BeaconBalanceWitnessHint {};
         let output_stream = self.hint(input_stream, hint);
         output_stream.read::<U64Variable>(self)
@@ -376,7 +375,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut input_stream = VariableStream::new();
         input_stream.write(&balances.block_root);
         input_stream.write(&start_idx);
-        // TODO: Need to constrain generator result?
         let hint = BeaconBalanceBatchWitnessHint::<B> {};
         let output_stream = self.hint(input_stream, hint);
         output_stream.read::<ArrayVariable<U64Variable, B>>(self)
@@ -638,7 +636,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input.write(&end_block_root);
         input.write(&start_offset);
         input.write(&end_offset);
-        // TODO: Need to constrain generator result?
         let output = self.hint(input, BeaconHeadersFromOffsetRangeHint::<B> {});
         output.read::<ArrayVariable<Bytes32Variable, B>>(self)
     }
