@@ -13,7 +13,7 @@ use crate::frontend::eth::rlp::utils::{MAX_MPT_NODE_SIZE, MAX_RLP_ITEM_SIZE};
 use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
-    RichField, ValueStream, Variable, VariableStream,
+    RichField, U32Variable, ValueStream, Variable, VariableStream,
 };
 
 #[derive(Clone, Debug, CircuitVariable)]
@@ -142,11 +142,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let res_pow = self.select(is_case_1, pow, next_pow);
         let res = self.select(is_case_1, res_case_1, res_case_2);
 
-        self.watch(&res, "res");
-        self.watch(&res_pow, "res_pow");
-        self.watch(&pow, "pow");
-        self.watch(&res_len, "res_len");
-
         (res, res_pow, res_len)
     }
 
@@ -201,11 +196,36 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         ans_len = self.select(is_case2, len2, ans_len);
         ans_len = self.select(is_case1, len1, ans_len);
 
-        self.watch(&len, "len");
-        self.watch(&first_byte_as_byte_variable, "first_byte_as_byte_variable");
-        self.watch(&ans_pref, "prefix of the encoding");
-        self.watch(&ans_len, "length of the encoding");
         (ans_pref, ans_len)
+    }
+
+    /// Given `a`, returns `floor(a / 256)` and `a % 256`.
+    ///
+    /// This only works if `floor(a / 256)` is `<= 5`. This might seem limiting, but in an MPT the
+    /// encoding cannot be that long. A branch node with 16 hashes has 512 bytes, and a leaf node's
+    /// path is up to 32 bytes. Even with a pessimistic assumption of having a 1000-byte value in a
+    /// leaf node, the encoding is still less than 1280 bytes.
+    pub fn div_rem_256(&mut self, a: Variable) -> (Variable, Variable) {
+        let mut rem = a;
+        let zero = self.zero();
+        let one = self.one();
+        let cons256 = self.constant::<Variable>(L::Field::from_canonical_u64(256));
+        let mut div = zero;
+
+        for _ in 0..5 {
+            let can_still_subtract = self.gte(rem, cons256);
+            let subtract = self.select(can_still_subtract, cons256, zero);
+            let add = self.select(can_still_subtract, one, zero);
+
+            rem = self.sub(rem, subtract);
+            div = self.add(div, add);
+        }
+
+        let done = self.lt(rem, cons256);
+        let true_v = self.constant::<BoolVariable>(true);
+        self.assert_is_equal(done, true_v);
+
+        (div, rem)
     }
 
     /// This function verifies the decoding by comparing both the encoded and decoded MPT node.
@@ -256,24 +276,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         challenger.observe_elements(seed_targets.as_slice());
 
-        // TODO: This was originally 3. For debugging purposes, I changed it to 1. 1 is almost
-        // certainly insufficient.
-        const NUM_LOOPS: usize = 1;
+        const NUM_LOOPS: usize = 3;
 
         let mut challenges = challenger
             .get_n_challenges(&mut self.api, NUM_LOOPS)
             .iter()
             .map(|x| Variable::from(*x))
             .collect_vec();
-
-        // #############################################################
-        // #############################################################
-        // #############################################################
-        // TODO: This is obviously wrong. However, this makes debugging so much easier. We *MUST*
-        // remove this line.
-        // #############################################################
-        // #############################################################
-        // #############################################################
 
         let one = self.one();
         let zero = self.zero();
@@ -285,7 +294,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let mut encoding_poly = self.zero::<Variable>();
             let mut pow = self.one();
 
-            self.watch(&challenges[loop_index], "challenges");
+            // self.watch(&challenges[loop_index], "challenges");
             for i in 0..ENCODING_LEN {
                 let tmp0 = self.byte_to_variable(encoded[i]);
                 let tmp1 = self.mul(tmp0, pow);
@@ -345,10 +354,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
             long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
 
-            let mut div = self.div(sum_of_rlp_encoding_length, cons256);
-            let mut rem = sum_of_rlp_encoding_length;
-            let subtract = self.mul(div, cons256);
-            rem = self.sub(rem, subtract);
+            // Convert sum_of_rlp_encoding_length to a U32Variable.
+
+            let (mut div, mut rem) = self.div_rem_256(sum_of_rlp_encoding_length);
 
             div = self.mul(div, challenges[loop_index]);
             rem = self.mul(rem, challenges[loop_index]);
@@ -365,19 +373,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             claim_poly = self.add(claim_poly, correct_prefix);
             self.watch(&claim_poly, "claim_poly");
             self.watch(&encoding_poly, "encoding_poly");
-            self.watch(&sum_of_rlp_encoding_length, "sum_of_rlp_encoding_length");
             let claim_poly_equals_encoding_poly = self.is_equal(claim_poly, encoding_poly);
             let result = self.or(skip_computation, claim_poly_equals_encoding_poly);
 
-            // #############################################################
-            // #############################################################
-            // #############################################################
-            // TODO: uncomment this once the values seem to match.
-            // #############################################################
-            // #############################################################
-            // #############################################################
-            //
-            //            self.assert_is_equal(result, true_v);
+            self.assert_is_equal(result, true_v);
         }
     }
 
