@@ -39,7 +39,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             }
 
             let output_stream = self.hint(input_stream, digest_hint);
-            let digest = output_stream.read::<[S::IntVariable; 8]>(self);
+            let digest = output_stream.read_unsafe::<[S::IntVariable; 8]>(self);
             self.assert_is_equal(digest, *response);
         }
 

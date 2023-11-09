@@ -11,19 +11,18 @@ use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::vars::{Bytes32Variable, VariableStream};
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn get_storage_key_at(
+    pub fn get_storage_key_at_witness(
         &mut self,
         mapping_location: U256Variable,
         map_key: Bytes32Variable,
     ) -> Bytes32Variable {
         let generator = EthStorageKeyGenerator::new(self, mapping_location, map_key);
         let value = generator.value;
-        self.assert_is_valid(value);
         self.add_simple_generator(generator);
         value
     }
 
-    pub fn eth_get_storage_at(
+    pub fn eth_get_storage_at_witness(
         &mut self,
         block_hash: Bytes32Variable,
         address: AddressVariable,
@@ -37,21 +36,19 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let hint = EthStorageProofHint::new(self);
         let output_stream = self.async_hint(input_stream, hint);
 
-        let result = output_stream.read::<Bytes32Variable>(self);
-        self.assert_is_valid(result);
-
-        result
+        output_stream.read::<Bytes32Variable>(self)
     }
 
-    pub fn eth_get_block_by_hash(&mut self, block_hash: Bytes32Variable) -> EthHeaderVariable {
+    pub fn eth_get_block_by_hash_witness(
+        &mut self,
+        block_hash: Bytes32Variable,
+    ) -> EthHeaderVariable {
         let generator = EthBlockGenerator::new(self, block_hash);
         let value = generator.value;
         self.add_simple_generator(generator);
-        self.assert_is_valid(value);
         value
     }
 
-    #[allow(non_snake_case)]
     pub fn eth_get_account(
         &mut self,
         _address: Address,
@@ -60,7 +57,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         todo!()
     }
 
-    pub fn eth_get_transaction_log(
+    pub fn eth_get_transaction_log_witness(
         &mut self,
         transaction_hash: Bytes32Variable,
         block_hash: Bytes32Variable,
@@ -69,7 +66,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let generator = EthLogGenerator::new(self, transaction_hash, block_hash, log_index);
         let value = generator.clone().value;
         self.add_simple_generator(generator);
-        self.assert_is_valid(value.clone());
         value
     }
 }
@@ -95,7 +91,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
-    fn test_eth_get_storage_at() {
+    fn test_eth_get_storage_at_witness() {
         utils::setup_logger();
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
@@ -107,7 +103,7 @@ mod tests {
         let block_hash = builder.evm_read::<Bytes32Variable>();
         let address = builder.evm_read::<AddressVariable>();
         let location = builder.evm_read::<Bytes32Variable>();
-        let value = builder.eth_get_storage_at(block_hash, address, location);
+        let value = builder.eth_get_storage_at_witness(block_hash, address, location);
         builder.evm_write(value);
 
         // Build your circuit.
@@ -163,7 +159,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
-    fn test_many_eth_get_storage_at() {
+    fn test_many_eth_get_storage_at_witness() {
         utils::setup_logger();
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
@@ -179,7 +175,7 @@ mod tests {
             let block_hash = builder.evm_read::<Bytes32Variable>();
             let address = builder.evm_read::<AddressVariable>();
             let location = builder.evm_read::<Bytes32Variable>();
-            let value = builder.eth_get_storage_at(block_hash, address, location);
+            let value = builder.eth_get_storage_at_witness(block_hash, address, location);
             builder.evm_write(value);
         }
 
@@ -232,7 +228,7 @@ mod tests {
         let mapping_location = builder.read::<U256Variable>();
         let map_key = builder.read::<Bytes32Variable>();
 
-        let value = builder.get_storage_key_at(mapping_location, map_key);
+        let value = builder.get_storage_key_at_witness(mapping_location, map_key);
         builder.write(value);
 
         // Build your circuit.
@@ -281,7 +277,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
-    fn test_eth_get_block_by_hash() {
+    fn test_eth_get_block_by_hash_witness() {
         utils::setup_logger();
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
@@ -292,7 +288,7 @@ mod tests {
         builder.set_execution_client(provider);
         let block_hash = builder.read::<Bytes32Variable>();
 
-        let value = builder.eth_get_block_by_hash(block_hash);
+        let value = builder.eth_get_block_by_hash_witness(block_hash);
         builder.write(value);
 
         // Build your circuit.
@@ -355,7 +351,7 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     #[allow(non_snake_case)]
-    fn test_eth_get_transaction_log() {
+    fn test_eth_get_transaction_log_witness() {
         utils::setup_logger();
         dotenv::dotenv().ok();
         let rpc_url = env::var("RPC_1").unwrap();
@@ -368,7 +364,8 @@ mod tests {
         let block_hash = builder.read::<Bytes32Variable>();
         let log_index = 0u64;
 
-        let value = builder.eth_get_transaction_log(transaction_hash, block_hash, log_index);
+        let value =
+            builder.eth_get_transaction_log_witness(transaction_hash, block_hash, log_index);
         builder.write::<EthLogVariable>(value);
 
         // Build your circuit.
