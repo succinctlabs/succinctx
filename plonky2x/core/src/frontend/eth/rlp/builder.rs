@@ -244,6 +244,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 prefix_byte = self.mul(prefix_byte, pow);
                 prefix_byte = self.mul(prefix_byte, within_outer_list_coef);
 
+                claim_poly = self.add(claim_poly, prefix_byte);
+
                 pow = self.mul(pow, challenges[loop_index]);
 
                 for j in 0..MAX_RLP_ITEM_SIZE {
