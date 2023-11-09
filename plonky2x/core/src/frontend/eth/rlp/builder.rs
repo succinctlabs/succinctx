@@ -145,60 +145,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         (res, res_pow, res_len)
     }
 
-    /// This handles the term in the claim polynomial corresponding to the prefix byte.
-    ///
-    /// You can uniquely determine the length of the RLP encoding of a byte array by looking at the
-    /// first byte and also the length of the byte array. This function returns the prefix byte and
-    /// the encoding length of the RLP, which is useful for performing the "polynomial trick."
-    fn encoding_metadata_calculator(
-        &mut self,
-        first_byte_as_byte_variable: ByteVariable,
-        len: Variable,
-    ) -> (Variable, Variable) {
-        // There are 4 cases:
-        // - len = 0                       ===> (0x80, 1)
-        // - len = 1 && decoded[0] < 0x80  ===> (decoded[0], 1)
-        // - len = 1 && decoded[0] >= 0x80 ===> (0x81, 2)
-        // - len <= 55                     ===> (0x80 + len, 1 + len)
-
-        let first_byte = self.byte_to_variable(first_byte_as_byte_variable);
-        let one: Variable = self.one();
-        let zero: Variable = self.zero();
-        let cons0x80 = self.constant::<Variable>(L::Field::from_canonical_u8(0x80));
-        let cons0x55 = self.constant::<Variable>(L::Field::from_canonical_u8(0x55));
-        let true_v = self.constant::<BoolVariable>(true);
-
-        let pref1 = cons0x80;
-        let len1 = one;
-        let pref2 = first_byte;
-        let len2 = one;
-        let pref3 = self.constant::<Variable>(L::Field::from_canonical_u64(0x81));
-        let len3 = self.constant::<Variable>(L::Field::from_canonical_u64(2));
-        let pref4 = self.add(pref1, len);
-        let len4 = self.add(one, len);
-
-        let is_len_one = self.is_equal(len, one);
-        let is_first_byte_less_than_0x80 = self.lt(first_byte, cons0x80);
-        let is_first_byte_ge_0x80 = self.not(is_first_byte_less_than_0x80);
-        let is_len_lte_55 = self.lte(len, cons0x55);
-        self.assert_is_equal(is_len_lte_55, true_v);
-
-        let is_case1 = self.is_equal(len, zero);
-        let is_case2 = self.and(is_len_one, is_first_byte_less_than_0x80);
-        let is_case3 = self.and(is_len_one, is_first_byte_ge_0x80);
-        let mut ans_pref = pref4;
-        let mut ans_len = len4;
-        ans_pref = self.select(is_case3, pref3, ans_pref);
-        ans_pref = self.select(is_case2, pref2, ans_pref);
-        ans_pref = self.select(is_case1, pref1, ans_pref);
-
-        ans_len = self.select(is_case3, len3, ans_len);
-        ans_len = self.select(is_case2, len2, ans_len);
-        ans_len = self.select(is_case1, len1, ans_len);
-
-        (ans_pref, ans_len)
-    }
-
     /// Given `a`, returns `floor(a / 256)` and `a % 256`.
     ///
     /// This only works if `floor(a / 256)` is `<= 5`. This might seem limiting, but in an MPT the
@@ -278,7 +224,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         const NUM_LOOPS: usize = 3;
 
-        let mut challenges = challenger
+        let challenges = challenger
             .get_n_challenges(&mut self.api, NUM_LOOPS)
             .iter()
             .map(|x| Variable::from(*x))
@@ -286,7 +232,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let one = self.one();
         let zero = self.zero();
-        let cons256 = self.constant::<Variable>(L::Field::from_canonical_u64(256));
         let cons55 = self.constant::<Variable>(L::Field::from_canonical_u64(55));
         let cons65536 = self.constant::<Variable>(L::Field::from_canonical_u64(65536));
         let true_v = self.constant::<BoolVariable>(true);
@@ -412,6 +357,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
+    use std::panic;
+
     use rand::rngs::OsRng;
     use rand::Rng;
 
@@ -420,7 +367,16 @@ mod tests {
     use crate::prelude::{DefaultBuilder, GoldilocksField};
     use crate::utils::{bytes, setup_logger};
 
-    fn test_verify_decoded_mpt_node<const ENCODING_LEN: usize>(rlp_encoding: Vec<u8>) {
+    /// Passes `verify_decode_mpt_node` the given rlp-encoded string and their decoded values.
+    ///
+    /// `fuzzer` modifies the input to `verify_decoded_mpt_node`. If you want to test a "happy path"
+    /// , simply set `fuzzer` to the identity function. If `fuzzer` modifies any meaningful value
+    /// (i.e., anything other than padded 0's), the test is expected to fail. Use `#[should_panic]`
+    /// to tell Rust that it's expected to fail.
+    fn test_verify_decoded_mpt_node<const ENCODING_LEN: usize, F>(rlp_encoding: Vec<u8>, fuzzer: F)
+    where
+        F: Fn([u8; ENCODING_LEN]) -> [u8; ENCODING_LEN],
+    {
         setup_logger();
 
         let mut builder: CircuitBuilder<DefaultParameters, 2> = DefaultBuilder::new();
@@ -445,8 +401,9 @@ mod tests {
         let mpt_node =
             decode_padded_mpt_node(&encoding_fixed_size, rlp_encoding.len(), skip_computation);
 
-        let encoded = builder
-            .constant::<ArrayVariable<ByteVariable, ENCODING_LEN>>(encoding_fixed_size.to_vec());
+        let encoded = builder.constant::<ArrayVariable<ByteVariable, ENCODING_LEN>>(
+            fuzzer(encoding_fixed_size).to_vec(),
+        );
         let len = builder.constant::<Variable>(F::from_canonical_usize(rlp_encoding.len()));
         let skip_computation = builder.constant::<BoolVariable>(false);
         let mpt_node_variable = builder.constant::<MPTVariable>(mpt_node.to_value_type());
@@ -465,27 +422,6 @@ mod tests {
     }
 
     #[test]
-    fn test_verify_decoded_mpt_node_debugging() {
-        const ENCODING_LEN: usize = 2 * 32 + 20;
-
-        // This is an RLP-encoded list of an extension node. The 00 in 0x006f indicates that the path
-        // length is even, and the path is 6 -> f. This extension node points to a leaf node with
-        // the hash starting with 0x188d11.  ["0x006f",
-        // "0x188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6"]
-        // 0xc9018710101010101010
-        // {0xc9, 0x01, 0x87, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10}
-        // 0xc9 = 201
-        // 0x01 = 1
-        // 0x87 = 135
-        // 0x10 = 16
-        // 0x10 = 16
-
-        let rlp_encoding: Vec<u8> = bytes!("0xc9018710101010101010");
-
-        test_verify_decoded_mpt_node::<ENCODING_LEN>(rlp_encoding);
-    }
-
-    #[test]
     fn test_verify_decoded_mpt_node_extension_node() {
         const ENCODING_LEN: usize = 2 * 32 + 20;
 
@@ -496,7 +432,7 @@ mod tests {
         let rlp_encoding: Vec<u8> =
             bytes!("0xe482006fa0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6");
 
-        test_verify_decoded_mpt_node::<ENCODING_LEN>(rlp_encoding);
+        test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, |x| x);
     }
 
     #[test]
@@ -506,10 +442,42 @@ mod tests {
         // This is a RLP-encoded list of a branch node. It is a list of length 17. Each of the first
         // 16 elements is a 32-byte hash, and the last element is 0.
         let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0215ead887d4da139eba306f76d765f5c4bfb03f6118ac1eb05eec3a92e1b0076a03eb28e7b61c689fae945b279f873cfdddf4e66db0be0efead563ea08bc4a269fa03025e2cce6f9c1ff09c8da516d938199c809a7f94dcd61211974aebdb85a4e56a0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6a0b281bb20061318a515afbdd02954740f069ebc75e700fde24dfbdf8c76d57119a0d8d77d917f5b7577e7e644bbc7a933632271a8daadd06a8e7e322f12dd828217a00f301190681b368db4308d1d1aa1794f85df08d4f4f646ecc4967c58fd9bd77ba0206598a4356dd50c70cfb1f0285bdb1402b7d65b61c851c095a7535bec230d5aa000959956c2148c82c207272af1ae129403d42e8173aedf44a190e85ee5fef8c3a0c88307e92c80a76e057e82755d9d67934ae040a6ec402bc156ad58dbcd2bcbc4a0e40a8e323d0b0b19d37ab6a3d110de577307c6f8efed15097dfb5551955fc770a02da2c6b12eedab6030b55d4f7df2fb52dab0ef4db292cb9b9789fa170256a11fa0d00e11cde7531fb79a315b4d81ea656b3b452fe3fe7e50af48a1ac7bf4aa6343a066625c0eb2f6609471f20857b97598ae4dfc197666ff72fe47b94e4124900683a0ace3aa5d35ba3ebbdc0abde8add5896876b25261717c0a415c92642c7889ec66a03a4931a67ae8ebc1eca9ffa711c16599b86d5286504182618d9c2da7b83f5ef780");
-        test_verify_decoded_mpt_node::<ENCODING_LEN>(rlp_encoding);
+        test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, |x| x);
     }
 
     // TODO: Create a test where it's supposed to fail.
+
+    #[test]
+    #[should_panic]
+    fn test_verify_decoded_mpt_node_branch_node_fuzzed_prefix() {
+        const ENCODING_LEN: usize = 600;
+
+        // This is a RLP-encoded list of a branch node. It is a list of length 17. Each of the first
+        // 16 elements is a 32-byte hash, and the last element is 0.
+        let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0215ead887d4da139eba306f76d765f5c4bfb03f6118ac1eb05eec3a92e1b0076a03eb28e7b61c689fae945b279f873cfdddf4e66db0be0efead563ea08bc4a269fa03025e2cce6f9c1ff09c8da516d938199c809a7f94dcd61211974aebdb85a4e56a0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6a0b281bb20061318a515afbdd02954740f069ebc75e700fde24dfbdf8c76d57119a0d8d77d917f5b7577e7e644bbc7a933632271a8daadd06a8e7e322f12dd828217a00f301190681b368db4308d1d1aa1794f85df08d4f4f646ecc4967c58fd9bd77ba0206598a4356dd50c70cfb1f0285bdb1402b7d65b61c851c095a7535bec230d5aa000959956c2148c82c207272af1ae129403d42e8173aedf44a190e85ee5fef8c3a0c88307e92c80a76e057e82755d9d67934ae040a6ec402bc156ad58dbcd2bcbc4a0e40a8e323d0b0b19d37ab6a3d110de577307c6f8efed15097dfb5551955fc770a02da2c6b12eedab6030b55d4f7df2fb52dab0ef4db292cb9b9789fa170256a11fa0d00e11cde7531fb79a315b4d81ea656b3b452fe3fe7e50af48a1ac7bf4aa6343a066625c0eb2f6609471f20857b97598ae4dfc197666ff72fe47b94e4124900683a0ace3aa5d35ba3ebbdc0abde8add5896876b25261717c0a415c92642c7889ec66a03a4931a67ae8ebc1eca9ffa711c16599b86d5286504182618d9c2da7b83f5ef780");
+        let fuzz = |x: [u8; ENCODING_LEN]| {
+            let mut y = x.clone();
+            y[0] = 0xe;
+            y
+        };
+        test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, fuzz);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_verify_decoded_mpt_node_branch_node_fuzzed_body() {
+        const ENCODING_LEN: usize = 600;
+
+        // This is a RLP-encoded list of a branch node. It is a list of length 17. Each of the first
+        // 16 elements is a 32-byte hash, and the last element is 0.
+        let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0215ead887d4da139eba306f76d765f5c4bfb03f6118ac1eb05eec3a92e1b0076a03eb28e7b61c689fae945b279f873cfdddf4e66db0be0efead563ea08bc4a269fa03025e2cce6f9c1ff09c8da516d938199c809a7f94dcd61211974aebdb85a4e56a0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6a0b281bb20061318a515afbdd02954740f069ebc75e700fde24dfbdf8c76d57119a0d8d77d917f5b7577e7e644bbc7a933632271a8daadd06a8e7e322f12dd828217a00f301190681b368db4308d1d1aa1794f85df08d4f4f646ecc4967c58fd9bd77ba0206598a4356dd50c70cfb1f0285bdb1402b7d65b61c851c095a7535bec230d5aa000959956c2148c82c207272af1ae129403d42e8173aedf44a190e85ee5fef8c3a0c88307e92c80a76e057e82755d9d67934ae040a6ec402bc156ad58dbcd2bcbc4a0e40a8e323d0b0b19d37ab6a3d110de577307c6f8efed15097dfb5551955fc770a02da2c6b12eedab6030b55d4f7df2fb52dab0ef4db292cb9b9789fa170256a11fa0d00e11cde7531fb79a315b4d81ea656b3b452fe3fe7e50af48a1ac7bf4aa6343a066625c0eb2f6609471f20857b97598ae4dfc197666ff72fe47b94e4124900683a0ace3aa5d35ba3ebbdc0abde8add5896876b25261717c0a415c92642c7889ec66a03a4931a67ae8ebc1eca9ffa711c16599b86d5286504182618d9c2da7b83f5ef780");
+        let fuzz = |x: [u8; ENCODING_LEN]| {
+            let mut y = x.clone();
+            y[100] += 1;
+            y
+        };
+        test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, fuzz);
+    }
 
     // TODO: Create a test with a list containing a single-byte element of various values.
 }
