@@ -63,6 +63,18 @@ impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize> Hint<L, D
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    /// Helper function. Equivalent to `(a < b) ? c : d`.
+    fn if_less_than_else(
+        &mut self,
+        a: Variable,
+        b: Variable,
+        c: Variable,
+        d: Variable,
+    ) -> Variable {
+        let a_lt_b = self.lt(a, b);
+        self.select(a_lt_b, c, d)
+    }
+
     /// This calculates the prefix byte and the encoding length of the RLP encoding of a byte array
     /// that starts with `first_byte` and with the length `len`.
     ///
@@ -115,6 +127,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         ans_len = self.select(is_case2, len2, ans_len);
         ans_len = self.select(is_case1, len1, ans_len);
 
+        self.watch(&ans_pref, "prefix of the encoding");
+        self.watch(&ans_len, "length of the encoding");
         return (ans_pref, ans_len);
     }
 
@@ -150,13 +164,19 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         challenger.observe_elements(seed_targets.as_slice());
 
-        const NUM_LOOPS: usize = 3;
+        // TODO: This was originally 3. For debugging purposes, I changed it to 1. 1 is almost
+        // certainly insufficient.
+        const NUM_LOOPS: usize = 1;
 
-        let challenges = challenger
+        let mut challenges = challenger
             .get_n_challenges(&mut self.api, NUM_LOOPS)
             .iter()
             .map(|x| Variable::from(*x))
             .collect_vec();
+
+        // TODO: This is obviously wrong. However, this makes debugging so much easier. We *MUST*
+        // remove this line.
+        challenges[0] = self.constant::<Variable>(L::Field::from_canonical_u64(1));
 
         let one = self.one();
         let zero = self.zero();
@@ -186,15 +206,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let mut claim_poly = self.zero::<Variable>();
             pow = self.one();
 
-            for j in 0..17 {
+            for j in 0..MAX_MPT_NODE_SIZE {
                 let index = self.constant::<Variable>(L::Field::from_canonical_usize(j));
-                let is_done_outer_list = self.lte(index, len);
-                let within_outer_list_coef = self.select(is_done_outer_list, zero, one);
+                let within_outer_list_coef = self.if_less_than_else(index, len, one, zero);
 
                 // TODO: Correctly pick the right len and pref
 
-                let (prefix_byte, encoding_length) =
+                let (prefix_byte, mut encoding_length) =
                     self.encoding_metadata_calculator(mpt.data[i][j], mpt.lens[i]);
+
+                encoding_length = self.mul(encoding_length, within_outer_list_coef);
+                sum_of_rlp_encoding_length = self.add(sum_of_rlp_encoding_length, encoding_length);
 
                 claim_poly = self.add(claim_poly, prefix_byte);
 
@@ -202,26 +224,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 for k in 0..MAX_RLP_ITEM_SIZE {
                     let index_k = self.constant::<Variable>(L::Field::from_canonical_usize(k));
-                    let is_done_inner_list = self.lte(index_k, mpt.lens[j]);
-                    let within_inner_list_coef = self.select(is_done_inner_list, zero, one);
+                    let inclusion_indicator =
+                        self.if_less_than_else(index_k, mpt.lens[j], within_outer_list_coef, zero);
 
                     let mut val_as_var = self.byte_to_variable(mpt.data[j][k]);
                     val_as_var = self.mul(val_as_var, pow);
-                    val_as_var = self.mul(val_as_var, within_inner_list_coef);
-                    val_as_var = self.mul(val_as_var, within_outer_list_coef);
+                    val_as_var = self.mul(val_as_var, inclusion_indicator);
 
                     claim_poly = self.add(claim_poly, val_as_var);
 
                     // pow = pow * challenges[i] only if j < LIST_LEN & k < ELEMENT_LEN
-                    let mut pow_multiplier = self.select(is_done_inner_list, one, challenges[i]);
-                    pow_multiplier = self.select(is_done_outer_list, one, pow_multiplier);
+                    let mut pow_multiplier = challenges[i];
+                    pow_multiplier = self.mul(pow_multiplier, inclusion_indicator);
                     pow = self.mul(pow, pow_multiplier);
                 }
-
-                let mut rlp_encoding_length = encoding_length;
-                rlp_encoding_length = self.mul(rlp_encoding_length, within_outer_list_coef);
-                sum_of_rlp_encoding_length =
-                    self.add(sum_of_rlp_encoding_length, rlp_encoding_length);
 
                 // Based on what we've seen, we calculate the prefix of the whole encoding.
                 // This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
