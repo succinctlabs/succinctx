@@ -3,6 +3,7 @@
 //! Reference 1: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
 //! Reference 2: https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie
 
+use log::debug;
 use num::bigint::ToBigInt;
 use num::BigInt;
 
@@ -135,7 +136,14 @@ pub fn verify_decoded_list<const M: usize>(
     encoding: [u8; M],
     encoding_len: usize,
 ) {
-    let random = 1000_i32.to_bigint().unwrap();
+    // #############################################################
+    // #############################################################
+    // #############################################################
+    // TODO: I changed this to 1 to debugging. We *MUST* revert this back to 1000.
+    // #############################################################
+    // #############################################################
+    // #############################################################
+    let random = 1_i32.to_bigint().unwrap();
 
     // First, we'll calculate the polynomial that represents the given encoding. encoding_poly is
     // \sigma_{i = 0}^{encoding_len - 1} encoding[i] * random^i.
@@ -190,16 +198,22 @@ pub fn verify_decoded_list<const M: usize>(
         claim_poly += (sum_of_rlp_encoding_length % 256) * random.pow(2);
     }
 
+    debug!(
+        "claim_poly = {}, encoding_poly (exp val)= {}",
+        claim_poly, encoding_poly
+    );
     assert!(claim_poly == encoding_poly);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::bytes;
+    use crate::utils::{bytes, setup_logger};
 
     const MAX_SIZE_SHORT_ENCODING: usize = 2 * 32 + 20;
     fn set_up_short_encoding() -> (Vec<u8>, [u8; MAX_SIZE_SHORT_ENCODING], MPTNodeFixedSize) {
+        setup_logger();
+
         // This is an RLP-encoded list of an extension node. The 00 in 0x006f indicates that the path
         // length is even, and the path is 6 -> f. This extension node points to a leaf node with
         // the hash starting with 0x188d11.  ["0x006f",
