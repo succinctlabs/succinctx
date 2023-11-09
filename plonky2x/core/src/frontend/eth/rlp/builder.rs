@@ -174,10 +174,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         (div, rem)
     }
 
-    /// This function verifies the decoding by comparing both the encoded and decoded MPT node.
+    /// This function verifies the decoding by comparing the encoded and decoded MPT node.
     ///
     /// Mathematically speaking, we define a function `f(E : RLP-encoding) -> F` such that
-    /// `f(E) = \sigma_{i = 0}^{len(E) - 1} [byte_to_field_element(E[i]) * challenger^(i)]`.
+    /// `f(E) = \sigma_{i = 0}^{len(E) - 1} [byte_to_field_element(E[i]) * challenger^i]`.
     ///
     /// `verify_decoded_mpt_node` then verifies that `encoded[..len] = rlp-encode(mpt)` by checking
     /// `f(encoded[..len]) = f(rlp-encode(mpt))`.
@@ -189,7 +189,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// - `f(the prefix byte(s) of rlp-encode(mpt))`,
     ///
     /// and combining them using the appropriate power of `challenger`. Of course, we don't
-    /// explicitly calculate `rlp-encode(i-th item in mpt)` either. Instead, we calculate it by
+    /// explicitly calculate `rlp-encode(i-th item in mpt)`, either. Instead, we calculate it by
     /// looking at the length and first byte of the `i-th item in mpt`.
     pub fn verify_decoded_mpt_node<const ENCODING_LEN: usize>(
         &mut self,
@@ -239,18 +239,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let mut encoding_poly = self.zero::<Variable>();
             let mut pow = self.one();
 
-            // self.watch(&challenges[loop_index], "challenges");
             for i in 0..ENCODING_LEN {
-                let tmp0 = self.byte_to_variable(encoded[i]);
-                let tmp1 = self.mul(tmp0, pow);
-                encoding_poly = self.add(encoding_poly, tmp1);
+                let mut current_term = self.byte_to_variable(encoded[i]);
+                current_term = self.mul(current_term, pow);
+                // It's okay to simply add current_term as pow becomes 0 once i = ENCODING_LEN.
+                encoding_poly = self.add(encoding_poly, current_term);
 
                 let index = self.constant::<Variable>(L::Field::from_canonical_usize(i));
-                let is_done = self.lte(index, len);
-                let is_done_coef = self.select(is_done, one, zero);
-                pow = self.mul(pow, challenges[loop_index]);
-                // As soon as we have i = ENCODING_LEN, pow becomes 0 for the rest of the loop.
-                pow = self.mul(pow, is_done_coef);
+                let pow_multiplier =
+                    self.if_less_than_else(index, len, challenges[loop_index], zero);
+                pow = self.mul(pow, pow_multiplier);
             }
 
             let mut sum_of_rlp_encoding_length = zero;
@@ -267,6 +265,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                         challenges[loop_index],
                     );
 
+                // Shift the `poly` value by the appropriate power of `challenger`, and also check
+                // if we should even include this.
                 poly = self.if_less_than_else(index_i, mpt.len, poly, zero);
                 poly = self.mul(poly, pow);
                 claim_poly = self.add(claim_poly, poly);
@@ -277,11 +277,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 encoding_len = self.if_less_than_else(index_i, mpt.len, encoding_len, zero);
                 sum_of_rlp_encoding_length = self.add(sum_of_rlp_encoding_length, encoding_len);
             }
-
+            // The RLP-encoding is in the form of `{ prefix, prefix_0, byte_array_0, prefix_1,
+            // byte_array_1, ... }`. And so far, we have calculated the polynomial for {prefix_0,
+            // byte_array_0, prefix_1, byte_array_1, ...}. Now we have to calculate `prefix`, and
+            // also "shift" the current polynomial.
+            //
             // Based on what we've seen, we calculate the prefix of the whole encoding.
-            // This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
+            //
+            // Case 1 = This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
             let mut short_list_prefix =
-                self.constant::<Variable>(L::Field::from_canonical_u64(192)); // 0xc0
+                self.constant::<Variable>(L::Field::from_canonical_u64(0xc0));
             short_list_prefix = self.add(short_list_prefix, sum_of_rlp_encoding_length);
             let short_list_shift = challenges[loop_index];
 
@@ -290,17 +295,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let valid_length = self.lt(sum_of_rlp_encoding_length, cons65536);
             self.assert_is_equal(true_v, valid_length);
 
-            // The remaining case is when we need exactly two bytes to encode the length. 0xf9 =
-            // 0xf7 + 2.
-            let mut long_list_prefix = self.constant::<Variable>(L::Field::from_canonical_u64(249));
+            // Case 2 = We need exactly two bytes to encode the length. 0xf9 = 0xf7 + 2.
+            let mut long_list_prefix =
+                self.constant::<Variable>(L::Field::from_canonical_u64(0xf9));
 
-            // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder.
             let mut long_list_shift = challenges[loop_index];
             long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
             long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
 
-            // Convert sum_of_rlp_encoding_length to a U32Variable.
-
+            // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder.
             let (mut div, mut rem) = self.div_rem_256(sum_of_rlp_encoding_length);
 
             div = self.mul(div, challenges[loop_index]);
