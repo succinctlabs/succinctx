@@ -127,12 +127,30 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         ans_len = self.select(is_case2, len2, ans_len);
         ans_len = self.select(is_case1, len1, ans_len);
 
+        self.watch(&len, "len");
+        self.watch(&first_byte_as_byte_variable, "first_byte_as_byte_variable");
         self.watch(&ans_pref, "prefix of the encoding");
         self.watch(&ans_len, "length of the encoding");
-        return (ans_pref, ans_len);
+        (ans_pref, ans_len)
     }
 
     /// This function verifies the decoding by comparing both the encoded and decoded MPT node.
+    ///
+    /// Mathematically speaking, we define a function `f(E : RLP-encoding) -> F` such that
+    /// `f(E) = \sigma_{i = 0}^{len(E) - 1} [byte_to_field_element(E[i]) * challenger^(i)]`.
+    ///
+    /// `verify_decoded_mpt_node` then verifies that `encoded[..len] = rlp-encode(mpt)` by checking
+    /// `f(encoded[..len]) = f(rlp-encode(mpt))`.
+    ///
+    /// `f(encoded[len])` is straightforward. We calculate `f(rlp-encode(mpt))` without explicitly
+    /// encoding mpt by calculating:
+    ///
+    /// - `f(rlp-encode(i-th item in mpt))`` for all `i = 0..(len(mpt) - 1)``, and
+    /// - `f(the prefix byte(s) of rlp-encode(mpt))`,
+    ///
+    /// and combining them using the appropriate power of `challenger`. Of course, we don't
+    /// explicitly calculate `rlp-encode(i-th item in mpt)` either. Instead, we calculate it by
+    /// looking at the length and first byte of the `i-th item in mpt`.
     pub fn verify_decoded_mpt_node<const ENCODING_LEN: usize>(
         &mut self,
         encoded: &ArrayVariable<ByteVariable, ENCODING_LEN>,
@@ -190,57 +208,58 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let cons55 = self.constant::<Variable>(L::Field::from_canonical_u64(55));
         let cons65536 = self.constant::<Variable>(L::Field::from_canonical_u64(65536));
         let true_v = self.constant::<BoolVariable>(true);
-        for i in 0..NUM_LOOPS {
+        for loop_index in 0..NUM_LOOPS {
             let mut encoding_poly = self.zero::<Variable>();
             let mut pow = self.one();
 
-            self.watch(&challenges[i], "challenges");
-            for j in 0..ENCODING_LEN {
-                let tmp0 = self.byte_to_variable(encoded[j]);
+            self.watch(&challenges[loop_index], "challenges");
+            for i in 0..ENCODING_LEN {
+                let tmp0 = self.byte_to_variable(encoded[i]);
                 let tmp1 = self.mul(tmp0, pow);
                 encoding_poly = self.add(encoding_poly, tmp1);
 
-                let index = self.constant::<Variable>(L::Field::from_canonical_usize(j));
+                let index = self.constant::<Variable>(L::Field::from_canonical_usize(i));
                 let is_done = self.lte(index, len);
                 let is_done_coef = self.select(is_done, one, zero);
-                pow = self.mul(pow, challenges[i]);
+                pow = self.mul(pow, challenges[loop_index]);
                 // As soon as we have i = ENCODING_LEN, pow becomes 0 for the rest of the loop.
                 pow = self.mul(pow, is_done_coef);
             }
 
-            let mut sum_of_rlp_encoding_length = self.zero::<Variable>();
-            let mut claim_poly = self.zero::<Variable>();
-            pow = self.one();
+            let mut sum_of_rlp_encoding_length = zero;
+            let mut claim_poly = zero;
+            pow = one;
 
-            for j in 0..MAX_MPT_NODE_SIZE {
-                let index = self.constant::<Variable>(L::Field::from_canonical_usize(j));
-                let within_outer_list_coef = self.if_less_than_else(index, len, one, zero);
+            for i in 0..MAX_MPT_NODE_SIZE {
+                let index_i = self.constant::<Variable>(L::Field::from_canonical_usize(i));
+                let within_outer_list_coef = self.if_less_than_else(index_i, mpt.len, one, zero);
 
                 // TODO: Correctly pick the right len and pref
 
-                let (prefix_byte, mut encoding_length) =
-                    self.encoding_metadata_calculator(mpt.data[i][j], mpt.lens[i]);
+                let (mut prefix_byte, mut encoding_length) =
+                    self.encoding_metadata_calculator(mpt.data[loop_index][i], mpt.lens[i]);
 
                 encoding_length = self.mul(encoding_length, within_outer_list_coef);
                 sum_of_rlp_encoding_length = self.add(sum_of_rlp_encoding_length, encoding_length);
 
-                claim_poly = self.add(claim_poly, prefix_byte);
+                prefix_byte = self.mul(prefix_byte, pow);
+                prefix_byte = self.mul(prefix_byte, within_outer_list_coef);
 
-                pow = self.mul(pow, challenges[i]);
+                pow = self.mul(pow, challenges[loop_index]);
 
-                for k in 0..MAX_RLP_ITEM_SIZE {
-                    let index_k = self.constant::<Variable>(L::Field::from_canonical_usize(k));
+                for j in 0..MAX_RLP_ITEM_SIZE {
+                    let index_j = self.constant::<Variable>(L::Field::from_canonical_usize(j));
                     let inclusion_indicator =
-                        self.if_less_than_else(index_k, mpt.lens[j], within_outer_list_coef, zero);
+                        self.if_less_than_else(index_j, mpt.lens[i], within_outer_list_coef, zero);
 
-                    let mut val_as_var = self.byte_to_variable(mpt.data[j][k]);
+                    let mut val_as_var = self.byte_to_variable(mpt.data[i][j]);
                     val_as_var = self.mul(val_as_var, pow);
                     val_as_var = self.mul(val_as_var, inclusion_indicator);
 
                     claim_poly = self.add(claim_poly, val_as_var);
 
                     // pow = pow * challenges[i] only if j < LIST_LEN & k < ELEMENT_LEN
-                    let mut pow_multiplier = challenges[i];
+                    let mut pow_multiplier = challenges[loop_index];
                     pow_multiplier = self.mul(pow_multiplier, inclusion_indicator);
                     pow = self.mul(pow, pow_multiplier);
                 }
@@ -250,7 +269,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let mut short_list_prefix =
                     self.constant::<Variable>(L::Field::from_canonical_u64(192)); // 0xc0
                 short_list_prefix = self.add(short_list_prefix, sum_of_rlp_encoding_length);
-                let short_list_shift = challenges[i];
+                let short_list_shift = challenges[loop_index];
 
                 // Assert that sum_of_rlp_encoding_length is less than 256^2 = 65536 bits. A
                 // well-formed MPT should never need that many bytes.
@@ -263,18 +282,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     self.constant::<Variable>(L::Field::from_canonical_u64(249));
 
                 // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder.
-                let mut long_list_shift = challenges[i];
-                long_list_shift = self.mul(long_list_shift, challenges[i]);
-                long_list_shift = self.mul(long_list_shift, challenges[i]);
+                let mut long_list_shift = challenges[loop_index];
+                long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
+                long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
 
                 let mut div = self.div(sum_of_rlp_encoding_length, cons256);
                 let mut rem = sum_of_rlp_encoding_length;
                 let subtract = self.mul(div, cons256);
                 rem = self.sub(rem, subtract);
 
-                div = self.mul(div, challenges[i]);
-                rem = self.mul(rem, challenges[i]);
-                rem = self.mul(rem, challenges[i]);
+                div = self.mul(div, challenges[loop_index]);
+                rem = self.mul(rem, challenges[loop_index]);
+                rem = self.mul(rem, challenges[loop_index]);
                 long_list_prefix = self.add(long_list_prefix, div);
                 long_list_prefix = self.add(long_list_prefix, rem);
 
