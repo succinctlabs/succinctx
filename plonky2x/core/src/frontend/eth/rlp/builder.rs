@@ -174,8 +174,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .map(|x| Variable::from(*x))
             .collect_vec();
 
+        // #############################################################
+        // #############################################################
+        // #############################################################
         // TODO: This is obviously wrong. However, this makes debugging so much easier. We *MUST*
         // remove this line.
+        // #############################################################
+        // #############################################################
+        // #############################################################
         challenges[0] = self.constant::<Variable>(L::Field::from_canonical_u64(1));
 
         let one = self.one();
@@ -285,7 +291,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             self.watch(&sum_of_rlp_encoding_length, "sum_of_rlp_encoding_length");
             let claim_poly_equals_encoding_poly = self.is_equal(claim_poly, encoding_poly);
             let result = self.or(skip_computation, claim_poly_equals_encoding_poly);
+
+            // #############################################################
+            // #############################################################
+            // #############################################################
             // TODO: uncomment this once the values seem to match.
+            // #############################################################
+            // #############################################################
+            // #############################################################
+            //
             //            self.assert_is_equal(result, true_v);
         }
     }
