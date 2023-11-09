@@ -79,7 +79,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             padded_root.push(self.constant::<ByteVariable>(0));
         }
         let mut current_node_id = ArrayVariable::<ByteVariable, ELEMENT_LEN>::new(padded_root);
-        let hash_key = self.keccak256(&key.as_bytes());
+        let hash_key = self.keccak256_witness(&key.as_bytes());
         let key_path: ArrayVariable<ByteVariable, 64> = hash_key
             .as_bytes()
             .to_vec()
@@ -90,7 +90,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         for i in 0..PROOF_LEN {
             let current_node = proof[i].clone();
             let current_node_hash =
-                self.keccak256_variable(current_node.as_slice(), len_nodes[i].variable);
+                self.keccak256_variable_witness(current_node.as_slice(), len_nodes[i].variable);
 
             if i == 0 {
                 self.assert_is_equal(current_node_hash, root);

@@ -61,7 +61,7 @@ mod tests {
         let word = builder.constant::<Bytes32Variable>(bytes32!(
             "0x0000000000000000000000000000000000000000000000000000000000000000"
         ));
-        let hash = builder.keccak256(&word.0 .0);
+        let hash = builder.keccak256_witness(&word.0 .0);
         builder.watch(&hash, "hi");
 
         let circuit = builder.build();
