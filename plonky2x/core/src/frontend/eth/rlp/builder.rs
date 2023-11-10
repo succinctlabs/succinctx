@@ -10,7 +10,7 @@ use crate::frontend::eth::rlp::utils::{MAX_MPT_NODE_SIZE, MAX_RLP_ITEM_SIZE};
 use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
-    RichField, ValueStream, Variable, VariableStream,
+    RichField, U32Variable, ValueStream, Variable, VariableStream,
 };
 
 #[derive(Clone, Debug, CircuitVariable)]
@@ -193,7 +193,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         //
         // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder, and we
         // need 0xf9 + div * challenger + rem * (challenger ^ 2) + claim_poly * (challenger ^ 3).
-        let (mut div, mut rem) = self.div_rem_256(sum_of_rlp_encoding_length);
+        let sum_of_rlp_encoding_length_in_u32 =
+            U32Variable::from_variables(self, &[sum_of_rlp_encoding_length]);
+        let cons256_in_u32 = self.constant::<U32Variable>(256);
+        let (div_in_u32, rem_in_u32) =
+            self.div_rem(sum_of_rlp_encoding_length_in_u32, cons256_in_u32);
+        let (mut div, mut rem) = (div_in_u32.variable, rem_in_u32.variable);
+
         let mut case_3 = self.constant::<Variable>(L::Field::from_canonical_u64(0xf9));
 
         div = self.mul(div, challenge);
@@ -213,35 +219,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut res = self.if_less_than_else(sum_of_rlp_encoding_length, cons256, case_2, case_3);
         res = self.if_less_than_else(sum_of_rlp_encoding_length, cons56, case_1, res);
         res
-    }
-
-    /// Given `a`, returns `floor(a / 256)` and `a % 256`.
-    ///
-    /// This only works if `floor(a / 256)` is `<= 5`. This might seem limiting, but in an MPT the
-    /// encoding cannot be that long. A branch node with 16 hashes has 512 bytes, and a leaf node's
-    /// path is up to 32 bytes. Even with a pessimistic assumption of having a 1000-byte value in a
-    /// leaf node, the encoding is still less than 1280 bytes.
-    fn div_rem_256(&mut self, a: Variable) -> (Variable, Variable) {
-        let mut rem = a;
-        let zero = self.zero();
-        let one = self.one();
-        let cons256 = self.constant::<Variable>(L::Field::from_canonical_u64(256));
-        let mut div = zero;
-
-        for _ in 0..5 {
-            let can_still_subtract = self.gte(rem, cons256);
-            let subtract = self.select(can_still_subtract, cons256, zero);
-            let add = self.select(can_still_subtract, one, zero);
-
-            rem = self.sub(rem, subtract);
-            div = self.add(div, add);
-        }
-
-        let done = self.lt(rem, cons256);
-        let true_v = self.constant::<BoolVariable>(true);
-        self.assert_is_equal(done, true_v);
-
-        (div, rem)
     }
 
     /// This function verifies the decoding by comparing the encoded and decoded MPT node.
