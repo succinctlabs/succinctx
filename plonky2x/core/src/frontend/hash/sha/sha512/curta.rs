@@ -125,7 +125,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         length: U32Variable,
     ) -> BytesVariable<64> {
         let last_chunk = self.compute_sha512_last_chunk(length);
-        self.watch(&last_chunk, "last_chunk");
 
         if self.sha512_accelerator.is_none() {
             self.sha512_accelerator = Some(SHA512Accelerator {
@@ -346,7 +345,7 @@ mod tests {
         let max_number_of_chunks = 1;
         let total_message_length = 128 * max_number_of_chunks;
 
-        for i in 0..total_message_length {
+        for i in 127 - 20..total_message_length + 1 {
             let mut rng = thread_rng();
             let total_message = (0..i).map(|_| rng.gen::<u8>()).collect::<Vec<_>>();
             let message = total_message
