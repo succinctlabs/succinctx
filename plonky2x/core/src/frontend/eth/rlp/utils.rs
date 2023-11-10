@@ -136,14 +136,7 @@ pub fn verify_decoded_list<const M: usize>(
     encoding: [u8; M],
     encoding_len: usize,
 ) {
-    // #############################################################
-    // #############################################################
-    // #############################################################
-    // TODO: I changed this to 1 to debugging. We *MUST* revert this back to 1000.
-    // #############################################################
-    // #############################################################
-    // #############################################################
-    let random = 1_i32.to_bigint().unwrap();
+    let random = 1000_i32.to_bigint().unwrap();
 
     // First, we'll calculate the polynomial that represents the given encoding. encoding_poly is
     // \sigma_{i = 0}^{encoding_len - 1} encoding[i] * random^i.
@@ -175,6 +168,9 @@ pub fn verify_decoded_list<const M: usize>(
         claim_poly += poly * ((i < node.len) as u32);
     }
 
+    // TODO: This if-else branch is actually missing the case where the encoding is > 55 bytes but
+    // less than 256 bytes.
+    //
     // Based on what we've seen, we calculate the prefix of the whole encoding.
     if sum_of_rlp_encoding_length <= 55 {
         // If the combined length of the encoded strings is <= 55, then the prefix is simply the
@@ -192,9 +188,9 @@ pub fn verify_decoded_list<const M: usize>(
         claim_poly *= random.pow(3);
         claim_poly += 0xf9;
 
-        // Most signficant byte.
+        // Most significant byte.
         claim_poly += (sum_of_rlp_encoding_length / 256) * random.clone();
-        // Lease siginificant byte.
+        // Lease significant byte.
         claim_poly += (sum_of_rlp_encoding_length % 256) * random.pow(2);
     }
 
