@@ -491,6 +491,15 @@ mod tests {
         test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, |x| x);
     }
 
+    #[test]
+    fn test_verify_decoded_mpt_node_leaf_node_single_bytes() {
+        const ENCODING_LEN: usize = 40;
+
+        // This is a RLP-encoded list of a leaf node, ["0x30", "0xff"]
+        let rlp_encoding: Vec<u8> = bytes!("0xc33081ff");
+        test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, |x| x);
+    }
+
     // TODO: Create a test where it's supposed to fail.
 
     #[test]
@@ -524,6 +533,4 @@ mod tests {
         };
         test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, fuzz);
     }
-
-    // TODO: Create a test with a list containing a single-byte element of various values.
 }
