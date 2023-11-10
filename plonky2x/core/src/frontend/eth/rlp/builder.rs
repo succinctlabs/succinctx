@@ -210,13 +210,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut case_3_poly = self.mul(claim_poly, challenge);
         case_3_poly = self.mul(case_3_poly, challenge);
         case_3_poly = self.mul(case_3_poly, challenge);
-        case_3_poly = self.mul(case_3_poly, challenge);
 
         case_3 = self.add(case_3, case_3_poly);
 
         // Pick the right one.
         let mut res = self.if_less_than_else(sum_of_rlp_encoding_length, cons256, case_2, case_3);
-        res = self.if_less_than_else(sum_of_rlp_encoding_length, cons56, case_1, case_2);
+        res = self.if_less_than_else(sum_of_rlp_encoding_length, cons56, case_1, res);
         res
     }
 
