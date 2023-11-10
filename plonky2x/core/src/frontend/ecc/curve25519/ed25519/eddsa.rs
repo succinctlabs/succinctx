@@ -141,7 +141,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         signatures: ArrayVariable<EDDSASignatureVariable, NUM_SIGS>,
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
-        self.watch(&messages, "messages");
         assert!(NUM_SIGS > 0 && NUM_SIGS <= MAX_NUM_SIGS);
         assert!(messages.len() == NUM_SIGS);
         if let Some(ref msg_lens) = message_byte_lengths {
@@ -168,7 +167,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             let digest: BytesVariable<64>;
             if let Some(ref msg_lens) = message_byte_lengths {
-                self.watch(&msg_lens[i], "msg_len");
                 let const_64 = U32Variable::constant(self, 64);
                 let message_to_hash_len = self.add(msg_lens[i], const_64);
                 digest = self.curta_sha512_variable(&message_bytes, message_to_hash_len);
