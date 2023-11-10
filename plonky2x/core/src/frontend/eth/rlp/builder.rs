@@ -1,4 +1,5 @@
 use std::arch::is_aarch64_feature_detected;
+use std::thread::current;
 
 use curta::chip::uint::operations::add::ByteArrayAdd;
 use curta::math::field::Field;
@@ -160,51 +161,62 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         challenge: Variable,
     ) -> Variable {
         let true_v = self.constant::<BoolVariable>(true);
+        let cons56 = self.constant::<Variable>(L::Field::from_canonical_u64(56));
+        let cons256 = self.constant::<Variable>(L::Field::from_canonical_u64(256));
         let cons65536 = self.constant::<Variable>(L::Field::from_canonical_u64(65536));
-        let cons55 = self.constant::<Variable>(L::Field::from_canonical_u64(55));
-
-        // The main idea is to convert claim_poly into `prefix_term + [appropriate power of
-        // challenger] * claim_poly`. There are three cases that we work on:
-        // 1.        combined length <  56    => prefix = {0xc0 + combined length}
-        // 2.  56 <= combined length <  256   => prefix = {0xf8, combined length}
-        // 3. 256 <= combined length < 65536  => prefix = {0xf9, combined length in 2 bytes}
-        //
-        // RLP technically allows a longer byte string, but we will not implement it, at least, for
-        // now.
-
-        // Case 1 = This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
-        let mut short_list_prefix = self.constant::<Variable>(L::Field::from_canonical_u64(0xc0));
-        short_list_prefix = self.add(short_list_prefix, sum_of_rlp_encoding_length);
-        let short_list_shift = challenge;
+        let cons0xf8 = self.constant::<Variable>(L::Field::from_canonical_u64(0xf8));
 
         // Assert that sum_of_rlp_encoding_length is less than 256^2 = 65536 bits. A
         // well-formed MPT should never need that many bytes.
         let valid_length = self.lt(sum_of_rlp_encoding_length, cons65536);
         self.assert_is_equal(true_v, valid_length);
 
-        // Case 3 = We need exactly two bytes to encode the length. 0xf9 = 0xf7 + 2.
-        let mut long_list_prefix = self.constant::<Variable>(L::Field::from_canonical_u64(0xf9));
+        // The main idea is to convert claim_poly into `prefix_term + [appropriate power of
+        // challenger] * claim_poly`. There are three cases that we work on:
+        // 1.        combined length <  56    => prefix = {0xc0 + combined length}
+        // 2.  56 <= combined length <  256   => prefix = {0xf8, combined length in 1 byte}
+        // 3. 256 <= combined length < 65536  => prefix = {0xf9, combined length in 2 bytes}
+        //
+        // RLP technically allows a longer byte string, but we will not implement it, at least, for
+        // now.
 
-        let mut long_list_shift = challenge;
-        long_list_shift = self.mul(long_list_shift, challenge);
-        long_list_shift = self.mul(long_list_shift, challenge);
+        // Case 1: We need 0xc0 + combined_length + claim_poly * challenge.
+        let mut case_1 = self.constant::<Variable>(L::Field::from_canonical_u64(0xc0));
+        case_1 = self.add(case_1, sum_of_rlp_encoding_length);
+        let case_1_poly = self.mul(claim_poly, challenge);
+        case_1 = self.add(case_1, case_1_poly);
 
-        // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder.
+        // Case 2: We need 0xf8 + combined_length * challenger + claim_poly * (challenge ^ 2).
+        let mut case_2 = self.mul(sum_of_rlp_encoding_length, challenge);
+        case_2 = self.add(case_2, cons0xf8);
+        let mut case_2_poly = self.mul(claim_poly, challenge);
+        case_2_poly = self.mul(case_2_poly, challenge);
+        case_2 = self.add(case_2, case_2_poly);
+
+        // Case 3
+        //
+        // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder, and we
+        // need 0xf9 + div * challenger + rem * (challenger ^ 2) + claim_poly * (challenger ^ 3).
         let (mut div, mut rem) = self.div_rem_256(sum_of_rlp_encoding_length);
+        let mut case_3 = self.constant::<Variable>(L::Field::from_canonical_u64(0xf9));
 
         div = self.mul(div, challenge);
+        case_3 = self.add(case_3, div);
+
         rem = self.mul(rem, challenge);
         rem = self.mul(rem, challenge);
-        long_list_prefix = self.add(long_list_prefix, div);
-        long_list_prefix = self.add(long_list_prefix, rem);
+        case_3 = self.add(case_3, rem);
 
-        let is_short = self.lte(sum_of_rlp_encoding_length, cons55);
+        let mut case_3_poly = self.mul(claim_poly, challenge);
+        case_3_poly = self.mul(case_3_poly, challenge);
+        case_3_poly = self.mul(case_3_poly, challenge);
+        case_3_poly = self.mul(case_3_poly, challenge);
 
-        let correct_prefix = self.select(is_short, short_list_prefix, long_list_prefix);
-        let correct_shift = self.select(is_short, short_list_shift, long_list_shift);
+        case_3 = self.add(case_3, case_3_poly);
 
-        let mut res = self.mul(claim_poly, correct_shift);
-        res = self.add(res, correct_prefix);
+        // Pick the right one.
+        let mut res = self.if_less_than_else(sum_of_rlp_encoding_length, cons256, case_2, case_3);
+        res = self.if_less_than_else(sum_of_rlp_encoding_length, cons56, case_1, case_2);
         res
     }
 
@@ -466,13 +478,13 @@ mod tests {
 
     #[test]
     fn test_verify_decoded_mpt_node_extension_node_mid_length() {
-        const ENCODING_LEN: usize = 2 * 32 + 20;
+        const ENCODING_LEN: usize = 120;
 
-        // This is an RLP-encoded list of an extension node. The first element is 10 bytes, and the
-        // second element is 70 bytes. The whole encoding is 86 bytes, and this is suitable for
-        // testing a list whose length can be represented in 1 byte.
+        // This is an RLP-encoded list of an extension node. Both the first and second elements are
+        // 32 bytes. The whole encoding is 68 bytes, and this is suitable for testing a list whose
+        // length can be represented in 1 byte.
         let rlp_encoding: Vec<u8> =
-            bytes!("0xf8538a00102030405060708090b84600102030405060708090001020304050607080900010203040506070809000102030405060708090001020304050607080900010203040506070809000102030405060708090");
+            bytes!("0xf842a01111111111111111111111111111111111111111111111111111111111111111a01111111111111111111111111111111111111111111111111111111111111111");
 
         test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, |x| x);
     }
