@@ -1,12 +1,14 @@
 use curta::math::field::Field;
 use curta::math::prelude::PrimeField64;
 use itertools::Itertools;
+use plonky2::field::extension::Extendable;
 use plonky2::hash::poseidon::PoseidonHash;
 use plonky2::iop::challenger::RecursiveChallenger;
 use serde::{Deserialize, Serialize};
 
 use super::utils::{decode_padded_mpt_node, MPTNodeFixedSize};
 use crate::frontend::eth::rlp::utils::{MAX_MPT_NODE_SIZE, MAX_RLP_ITEM_SIZE};
+use crate::frontend::extension::CubicExtensionVariable;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
@@ -62,15 +64,9 @@ impl<L: PlonkParameters<D>, const D: usize, const ENCODING_LEN: usize> Hint<L, D
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Helper function. Equivalent to `(a < b) ? c : d`.
-    fn if_less_than_else(
-        &mut self,
-        a: Variable,
-        b: Variable,
-        c: Variable,
-        d: Variable,
-    ) -> Variable {
+    fn if_less_than_else<T: CircuitVariable>(&mut self, a: Variable, b: Variable, c: T, d: T) -> T {
         let a_lt_b = self.lt(a, b);
-        self.select(a_lt_b, c, d)
+        self.select::<T>(a_lt_b, c, d)
     }
 
     /// Evaluate the polynomial constructed from seeing RLP-encode(byte_array) as a vector of
@@ -121,12 +117,93 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut next_pow = pow;
         for i in 0..ARRAY_LENGTH {
             let index = self.constant::<Variable>(L::Field::from_canonical_usize(i));
+
             let mut current_term = self.byte_to_variable(byte_array[i]);
             current_term = self.mul(current_term, next_pow);
             current_term = self.if_less_than_else(index, len, current_term, zero);
 
             res_case_2 = self.add(res_case_2, current_term);
             let pow_multiplier = self.if_less_than_else(index, len, pow, one);
+            next_pow = self.mul(next_pow, pow_multiplier);
+        }
+
+        let is_len_1 = self.is_equal(len, one);
+        let is_first_variable_less_than_0x80 = self.lt(first_byte_as_variable, cons0x80);
+        let is_case_1 = self.and(is_len_1, is_first_variable_less_than_0x80);
+
+        let res_len = self.select(is_case_1, len1, len2);
+        let res_pow = self.select(is_case_1, pow, next_pow);
+        let res = self.select(is_case_1, res_case_1, res_case_2);
+
+        (res, res_pow, res_len)
+    }
+
+    fn constant_cubic(&mut self, x: usize) -> CubicExtensionVariable {
+        CubicExtensionVariable::constant(
+            self,
+            curta::math::extension::cubic::element::CubicElement([
+                L::Field::from_canonical_usize(x),
+                L::Field::from_canonical_usize(0),
+                L::Field::from_canonical_usize(0),
+            ]),
+        )
+    }
+    fn add_var_to_cubic(
+        &mut self,
+        a: CubicExtensionVariable,
+        b: Variable,
+    ) -> CubicExtensionVariable {
+        let b_in_cubic = CubicExtensionVariable::from_variables(self, &[b]);
+        self.add(a, b_in_cubic)
+    }
+
+    fn calculate_polynomial_emulating_rlp_encoding_cubic<const ARRAY_LENGTH: usize>(
+        &mut self,
+        byte_array: &ArrayVariable<ByteVariable, ARRAY_LENGTH>,
+        len: Variable,
+        pow: CubicExtensionVariable,
+    ) -> (CubicExtensionVariable, CubicExtensionVariable, Variable) {
+        let true_v = self.constant::<BoolVariable>(true);
+        let zero_cubic = self.zero::<CubicExtensionVariable>();
+        let one_cubic = self.one::<CubicExtensionVariable>();
+        let one = self.one::<Variable>();
+        let cons55 = self.constant::<Variable>(L::Field::from_canonical_usize(55));
+
+        // TODO: It's likely that we'll need to implement the case when the given byte string is
+        // >= 56 bytes. (e.g., account state) However, for the first iteration, we will only worry
+        // about the case when the byte string is <= 55 bytes.
+        let len_lte_55 = self.lte(len, cons55);
+
+        self.assert_is_equal(len_lte_55, true_v);
+
+        // There are 2 possible outcomes of encode(byte_array):
+        //
+        // 1. len = 1 && byte_array[0] <  0x80  =>  {byte_array[0]}
+        // 2. else                              =>  {0x80 + len, byte_array[0], byte_array[1], ...}
+
+        let cons0x80 = self.constant::<Variable>(L::Field::from_canonical_u32(0x80));
+
+        let first_byte_as_variable = self.byte_to_variable(byte_array[0]);
+        let res_case_1 = CubicExtensionVariable::from_variables(self, &[first_byte_as_variable]);
+        let len1 = one;
+
+        let mut res_case_2 = CubicExtensionVariable::from_variables(self, &[len]);
+        res_case_2 = self.add_var_to_cubic(res_case_2, cons0x80);
+
+        let len2 = self.add(len, one);
+
+        let mut next_pow = pow;
+        for i in 0..ARRAY_LENGTH {
+            let index = self.constant::<Variable>(L::Field::from_canonical_usize(i));
+            let current_term_in_variable = self.byte_to_variable(byte_array[i]);
+            let mut current_term =
+                CubicExtensionVariable::from_variables(self, &[current_term_in_variable]);
+
+            current_term = self.mul(current_term, next_pow);
+            current_term = self.if_less_than_else(index, len, current_term, zero_cubic);
+
+            res_case_2 = self.add(res_case_2, current_term);
+            let pow_multiplier = self.if_less_than_else(index, len, pow, one_cubic);
             next_pow = self.mul(next_pow, pow_multiplier);
         }
 
