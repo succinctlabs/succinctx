@@ -381,11 +381,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         //     &encoded,
         //     len,
         //     skip_computation,
-        //     _seed,
-        //     &_decoded_node,
+        //     seed,
+        //     &decoded_node,
         // );
 
-        // _decoded_node
+        // decoded_node
     }
 }
 
