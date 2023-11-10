@@ -91,6 +91,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         assert!(signatures.len() == NUM_SIGS);
         assert!(pubkeys.len() == NUM_SIGS);
 
+        let max_msg_byte_length = self.constant::<U32Variable>(MAX_MSG_LENGTH_BYTES as u32);
+
         let (dummy_pub_key, dummy_sig, dummy_msg, dummy_msg_byte_length) =
             self.get_dummy_variables::<MAX_MSG_LENGTH_BYTES>();
 
@@ -103,28 +105,27 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             msg_vec.push(self.select(is_active[i], messages[i], dummy_msg));
             if let Some(ref msg_lens) = message_byte_lengths {
                 msg_len_vec.push(self.select(is_active[i], msg_lens[i], dummy_msg_byte_length));
+            } else {
+                msg_len_vec.push(self.select(
+                    is_active[i],
+                    max_msg_byte_length,
+                    dummy_msg_byte_length,
+                ))
             }
             sig_vec.push(self.select(is_active[i], signatures[i].clone(), dummy_sig.clone()));
             pub_key_vec.push(self.select(is_active[i], pubkeys[i].clone(), dummy_pub_key.clone()));
         }
 
+        let msg_len_vec = ArrayVariable::<U32Variable, NUM_SIGS>::from(
+            msg_len_vec.into_iter().collect::<Vec<_>>(),
+        );
         let msg_array =
             ArrayVariable::<BytesVariable<MAX_MSG_LENGTH_BYTES>, NUM_SIGS>::from(msg_vec);
-        let msg_len_array = ArrayVariable::<U32Variable, NUM_SIGS>::from(msg_len_vec);
         let sig_array = ArrayVariable::<EDDSASignatureVariable, NUM_SIGS>::from(sig_vec);
         let pub_key_array =
             ArrayVariable::<CompressedEdwardsYVariable, NUM_SIGS>::from(pub_key_vec);
 
-        self.curta_eddsa_verify_sigs(
-            msg_array,
-            if message_byte_lengths.is_none() {
-                None
-            } else {
-                Some(msg_len_array)
-            },
-            sig_array,
-            pub_key_array,
-        );
+        self.curta_eddsa_verify_sigs(msg_array, Some(msg_len_vec), sig_array, pub_key_array);
     }
 
     /// This function will verify a set of eddsa signatures.   If message_byte_lengths is None, then
@@ -210,11 +211,48 @@ mod tests {
     use crate::frontend::ecc::curve25519::ed25519::eddsa::{
         EDDSASignatureVariable, EDDSASignatureVariableValue,
     };
-    use crate::prelude::{ArrayVariable, BytesVariable, DefaultBuilder, U32Variable};
+    use crate::prelude::{ArrayVariable, BoolVariable, BytesVariable, DefaultBuilder, U32Variable};
     use crate::utils;
 
     const MAX_MSG_LEN_BYTES: usize = 192;
     const NUM_SIGS: usize = 3;
+
+    fn test_curta_eddsa_verify_sigs(
+        test_pub_keys: Vec<CompressedEdwardsY>,
+        test_signatures: Vec<EDDSASignatureVariableValue<GoldilocksField>>,
+        test_messages: Vec<[u8; 192]>,
+        test_message_lens: Vec<u32>,
+        variable_msg_len: bool,
+    ) {
+        utils::setup_logger();
+
+        let mut builder = DefaultBuilder::new();
+
+        let pkeys = builder.read::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>();
+        let signatures = builder.read::<ArrayVariable<EDDSASignatureVariable, NUM_SIGS>>();
+        let messages = builder.read::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>();
+        if variable_msg_len {
+            let message_lens = builder.read::<ArrayVariable<U32Variable, NUM_SIGS>>();
+            builder.curta_eddsa_verify_sigs(messages, Some(message_lens), signatures, pkeys);
+        } else {
+            builder.curta_eddsa_verify_sigs(messages, None, signatures, pkeys);
+        }
+
+        let circuit = builder.build();
+
+        let mut input = circuit.input();
+        input.write::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>(test_pub_keys);
+        input.write::<ArrayVariable<EDDSASignatureVariable, NUM_SIGS>>(test_signatures);
+        input.write::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>(
+            test_messages.to_vec(),
+        );
+        if variable_msg_len {
+            input.write::<ArrayVariable<U32Variable, NUM_SIGS>>(test_message_lens);
+        }
+
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -341,7 +379,8 @@ mod tests {
         );
     }
 
-    fn test_curta_eddsa_verify_sigs(
+    fn test_curta_eddsa_verify_sigs_conditional(
+        test_is_active: Vec<bool>,
         test_pub_keys: Vec<CompressedEdwardsY>,
         test_signatures: Vec<EDDSASignatureVariableValue<GoldilocksField>>,
         test_messages: Vec<[u8; 192]>,
@@ -352,19 +391,28 @@ mod tests {
 
         let mut builder = DefaultBuilder::new();
 
+        let is_active = builder.read::<ArrayVariable<BoolVariable, NUM_SIGS>>();
         let pkeys = builder.read::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>();
         let signatures = builder.read::<ArrayVariable<EDDSASignatureVariable, NUM_SIGS>>();
         let messages = builder.read::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>();
         if variable_msg_len {
             let message_lens = builder.read::<ArrayVariable<U32Variable, NUM_SIGS>>();
-            builder.curta_eddsa_verify_sigs(messages, Some(message_lens), signatures, pkeys);
+            builder.curta_eddsa_verify_sigs_conditional(
+                is_active,
+                Some(message_lens),
+                messages,
+                signatures,
+                pkeys,
+            );
         } else {
-            builder.curta_eddsa_verify_sigs(messages, None, signatures, pkeys);
+            builder
+                .curta_eddsa_verify_sigs_conditional(is_active, None, messages, signatures, pkeys);
         }
 
         let circuit = builder.build();
 
         let mut input = circuit.input();
+        input.write::<ArrayVariable<BoolVariable, NUM_SIGS>>(test_is_active);
         input.write::<ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>>(test_pub_keys);
         input.write::<ArrayVariable<EDDSASignatureVariable, NUM_SIGS>>(test_signatures);
         input.write::<ArrayVariable<BytesVariable<MAX_MSG_LEN_BYTES>, NUM_SIGS>>(
@@ -376,5 +424,48 @@ mod tests {
 
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_curta_eddsa_verify_sigs_constant_msg_len_conditional() {
+        // Generate random messages and private keys
+        let mut test_messages: Vec<[u8; MAX_MSG_LEN_BYTES]> = Vec::new();
+        let test_message_lens = Vec::new();
+        let mut test_is_active = Vec::new();
+        let mut test_pub_keys = Vec::new();
+        let mut test_signatures = Vec::new();
+
+        let mut csprng = OsRng;
+        for _i in 0..NUM_SIGS {
+            // Generate random length
+            let msg_len = MAX_MSG_LEN_BYTES as u32;
+            let mut test_message = Vec::new();
+            for _ in 0..msg_len {
+                test_message.push(rand::thread_rng().gen_range(0..255));
+            }
+
+            let test_signing_key = SigningKey::generate(&mut csprng);
+            let test_pub_key = test_signing_key.verifying_key();
+            let test_signature = test_signing_key.sign(&test_message);
+
+            test_message.resize(MAX_MSG_LEN_BYTES, 0);
+            test_messages.push(test_message.try_into().unwrap());
+            test_is_active.push(false);
+            test_pub_keys.push(CompressedEdwardsY(test_pub_key.to_bytes()));
+            test_signatures.push(EDDSASignatureVariableValue {
+                r: CompressedEdwardsY(*test_signature.r_bytes()),
+                s: U256::from_little_endian(test_signature.s_bytes()),
+            });
+        }
+
+        test_curta_eddsa_verify_sigs_conditional(
+            test_is_active,
+            test_pub_keys,
+            test_signatures,
+            test_messages,
+            test_message_lens,
+            false,
+        );
     }
 }
