@@ -18,6 +18,7 @@ use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
 use plonky2::plonk::circuit_data::CircuitConfig;
+use rand::rngs::OsRng;
 use rand::Rng;
 use tokio::runtime::Runtime;
 
@@ -49,7 +50,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub(crate) async_hints: Vec<AsyncHintDataRef<L, D>>,
     pub(crate) async_hints_indices: Vec<usize>,
 
-    pub random_seeds: Vec<ByteVariable>,
+    pub random_seeds: Vec<u8>,
 
     pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
     pub sha256_accelerator: Option<SHA256Accelerator>,
@@ -101,6 +102,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let client = BeaconchainAPIClient::new(api_url, api_key);
                 builder.set_beaconchain_api_client(client);
             }
+        }
+
+        for _ in 0..15 {
+            builder.random_seeds.push(OsRng.gen());
         }
 
         builder
@@ -186,17 +191,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .map(|h| WitnessGeneratorRef(h))
             .collect::<Vec<_>>();
         self.api.add_generators(generators);
-
-        let mut rng = rand::thread_rng();
-        let mut seed_input = [0u8; 15];
-        for elem in seed_input.iter_mut() {
-            *elem = rng.gen();
-        }
-
-        self.random_seeds = seed_input
-            .iter()
-            .map(|x| self.constant::<ByteVariable>(*x))
-            .collect_vec();
 
         match self.io {
             CircuitIO::Bytes(ref io) => {
@@ -416,6 +410,8 @@ impl<L: PlonkParameters<D>, const D: usize> Default for CircuitBuilder<L, D> {
 #[cfg(test)]
 pub(crate) mod tests {
 
+    use std::collections::HashMap;
+
     use log::debug;
     use plonky2::field::types::Field;
 
@@ -479,5 +475,20 @@ pub(crate) mod tests {
         // Read output.
         let xor = output.evm_read::<ByteVariable>();
         debug!("{}", xor);
+    }
+
+    #[test]
+
+    /// If `random_seeds` are sampled using a cryptographically secure random number generator, then
+    /// the probability that we have 1 / 3 of the seeds being equal is 0.
+    fn test_random_seeds() {
+        utils::setup_logger();
+        let builder = DefaultBuilder::new();
+        let mut counts: HashMap<u8, usize> = HashMap::new();
+        let len = builder.random_seeds.len();
+        for &value in &builder.random_seeds {
+            *counts.entry(value).or_insert(0) += 1;
+            assert!(3 * counts.get(&value).unwrap() <= len);
+        }
     }
 }

@@ -1,3 +1,4 @@
+use base64::decode;
 use curta::math::field::Field;
 use curta::math::prelude::cubic::element::CubicElement;
 use curta::math::prelude::PrimeField64;
@@ -386,19 +387,22 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let hint = DecodeHint::<ENCODING_LEN> {};
 
         let output_stream = self.hint(input_stream, hint);
-        let _decoded_node = output_stream.read::<MPTVariable>(self);
+        let decoded_node = output_stream.read::<MPTVariable>(self);
 
-        todo!();
+        let mut seeds = vec![];
+        for seed in self.random_seeds.clone() {
+            seeds.push(self.constant::<ByteVariable>(seed));
+        }
 
-        // self.verify_decoded_mpt_node::<ENCODING_LEN>(
-        //     &encoded,
-        //     len,
-        //     skip_computation,
-        //     seed,
-        //     &decoded_node,
-        // );
+        self.verify_decoded_mpt_node::<ENCODING_LEN>(
+            &encoded,
+            len,
+            skip_computation,
+            &seeds,
+            &decoded_node,
+        );
 
-        // decoded_node
+        decoded_node
     }
 }
 
