@@ -1,9 +1,6 @@
-use base64::decode;
 use curta::math::field::Field;
-use curta::math::prelude::cubic::element::CubicElement;
 use curta::math::prelude::PrimeField64;
 use itertools::Itertools;
-use plonky2::field::extension::Extendable;
 use plonky2::hash::poseidon::PoseidonHash;
 use plonky2::iop::challenger::RecursiveChallenger;
 use serde::{Deserialize, Serialize};
@@ -277,32 +274,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         encoded: &ArrayVariable<ByteVariable, ENCODING_LEN>,
         len: Variable,
         skip_computation: BoolVariable,
-        seed: &[ByteVariable],
         mpt: &MPTVariable,
     ) {
-        // TODO: Seed with 120 bits. Check if this is enough bits of security.
-        const MIN_SEED_BITS: usize = 120;
-
-        let mut seed_targets = Vec::new();
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
-        // TODO: Must understand the math behind this, for now, I'm just copying and pasting this from the codebase.
-        // Need to get chunks of 7 since the max value of F is slightly less then 64 bits.
-
-        let mut seed_bit_len = 0;
-        for seed_chunk in seed.to_vec().chunks(7) {
-            let seed_element_bits = seed_chunk
-                .iter()
-                .flat_map(|x| x.as_bool_targets())
-                .collect_vec();
-            let seed_element = self.api.le_sum(seed_element_bits.iter());
-            seed_bit_len += seed_element_bits.len();
-            seed_targets.push(seed_element);
-        }
-
-        assert!(seed_bit_len >= MIN_SEED_BITS);
-
-        challenger.observe_elements(seed_targets.as_slice());
-
         const NUM_LOOPS: usize = 3;
 
         let challenges = challenger
@@ -389,16 +363,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let output_stream = self.hint(input_stream, hint);
         let decoded_node = output_stream.read::<MPTVariable>(self);
 
-        let mut seeds = vec![];
-        for seed in self.random_seeds.clone() {
-            seeds.push(self.constant::<ByteVariable>(seed));
-        }
-
         self.verify_decoded_mpt_node::<ENCODING_LEN>(
             &encoded,
             len,
             skip_computation,
-            &seeds,
             &decoded_node,
         );
 
@@ -416,6 +384,44 @@ mod tests {
     use crate::backend::circuit::DefaultParameters;
     use crate::prelude::{DefaultBuilder, GoldilocksField};
     use crate::utils::{bytes, setup_logger};
+
+    #[test]
+    /// Simple test to check that `decode_mpt_node`
+    fn test_decode_mpt_node() {
+        setup_logger();
+        const ENCODING_LEN: usize = 600;
+
+        // This is a RLP-encoded list of a branch node. It is a list of length 17. Each of the first
+        // 16 elements is a 32-byte hash, and the last element is 0.
+        let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0215ead887d4da139eba306f76d765f5c4bfb03f6118ac1eb05eec3a92e1b0076a03eb28e7b61c689fae945b279f873cfdddf4e66db0be0efead563ea08bc4a269fa03025e2cce6f9c1ff09c8da516d938199c809a7f94dcd61211974aebdb85a4e56a0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6a0b281bb20061318a515afbdd02954740f069ebc75e700fde24dfbdf8c76d57119a0d8d77d917f5b7577e7e644bbc7a933632271a8daadd06a8e7e322f12dd828217a00f301190681b368db4308d1d1aa1794f85df08d4f4f646ecc4967c58fd9bd77ba0206598a4356dd50c70cfb1f0285bdb1402b7d65b61c851c095a7535bec230d5aa000959956c2148c82c207272af1ae129403d42e8173aedf44a190e85ee5fef8c3a0c88307e92c80a76e057e82755d9d67934ae040a6ec402bc156ad58dbcd2bcbc4a0e40a8e323d0b0b19d37ab6a3d110de577307c6f8efed15097dfb5551955fc770a02da2c6b12eedab6030b55d4f7df2fb52dab0ef4db292cb9b9789fa170256a11fa0d00e11cde7531fb79a315b4d81ea656b3b452fe3fe7e50af48a1ac7bf4aa6343a066625c0eb2f6609471f20857b97598ae4dfc197666ff72fe47b94e4124900683a0ace3aa5d35ba3ebbdc0abde8add5896876b25261717c0a415c92642c7889ec66a03a4931a67ae8ebc1eca9ffa711c16599b86d5286504182618d9c2da7b83f5ef780");
+
+        let mut builder: CircuitBuilder<DefaultParameters, 2> = DefaultBuilder::new();
+
+        type F = GoldilocksField;
+        let mut encoding_fixed_size = [0u8; ENCODING_LEN];
+        encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
+        let skip_computation = false;
+
+        let mpt_exp: MPTValueType<F> =
+            decode_padded_mpt_node(&encoding_fixed_size, rlp_encoding.len(), skip_computation)
+                .to_value_type();
+
+        let encoded = builder
+            .constant::<ArrayVariable<ByteVariable, ENCODING_LEN>>(encoding_fixed_size.to_vec());
+        let len = builder.constant::<Variable>(F::from_canonical_usize(rlp_encoding.len()));
+        let skip_computation = builder.constant::<BoolVariable>(false);
+
+        let decoded = builder.decode_mpt_node::<ENCODING_LEN, 32>(encoded, len, skip_computation);
+        builder.write(decoded);
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, mut output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        let mpt_got = output.read::<MPTVariable>();
+
+        assert_eq!(mpt_got.len, mpt_exp.len);
+        assert_eq!(mpt_got.data, mpt_exp.data);
+    }
 
     /// Passes `verify_decode_mpt_node` the given rlp-encoded string and their decoded values.
     ///
@@ -436,18 +442,6 @@ mod tests {
         encoding_fixed_size[..rlp_encoding.len()].copy_from_slice(&rlp_encoding);
         let skip_computation = false;
 
-        let mut rng = OsRng;
-
-        let mut seed_input = [0u8; 15];
-        for elem in seed_input.iter_mut() {
-            *elem = rng.gen();
-        }
-
-        let seed = seed_input
-            .iter()
-            .map(|x| builder.constant::<ByteVariable>(*x))
-            .collect_vec();
-
         let mpt_node =
             decode_padded_mpt_node(&encoding_fixed_size, rlp_encoding.len(), skip_computation);
 
@@ -462,7 +456,6 @@ mod tests {
             &encoded,
             len,
             skip_computation,
-            &seed,
             &mpt_node_variable,
         );
         let circuit = builder.build();
