@@ -67,9 +67,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ) -> Vec<ByteVariable> {
         let last_chunk = self.compute_sha512_last_chunk(input_byte_length);
 
-        // Extend input to size max_num_chunks * 128 before padding.
+        // Calculate the number of chunks needed to store the input. 17 is the number of bytes added
+        // by the padding and LE length representation.
         let max_num_chunks = ceil_div_usize(input.len() + 17, SHA512_CHUNK_SIZE_BYTES_128);
 
+        // Extend input to size max_num_chunks * 128 before padding.
         let mut padded_input = input.to_vec();
         padded_input.resize(max_num_chunks * SHA512_CHUNK_SIZE_BYTES_128, self.zero());
 
