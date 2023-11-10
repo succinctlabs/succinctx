@@ -31,13 +31,16 @@ pub struct SuccinctClient {
     client: Client,
     /// The base url for the Succinct X API. (ex. https://alpha.succinct.xyz/api)
     base_url: String,
+    /// API key for the Succinct X API.
+    api_key: String,
 }
 
 impl SuccinctClient {
-    pub fn new(base_url: String) -> Self {
+    pub fn new(base_url: String, api_key: String) -> Self {
         Self {
             client: Client::new(),
             base_url,
+            api_key,
         }
     }
 
@@ -67,6 +70,7 @@ impl SuccinctClient {
             .client
             .post(request_url)
             .header("Content-Type", "application/json")
+            .bearer_auth(self.api_key.clone())
             .body(serialized_data)
             .send()
             .await
