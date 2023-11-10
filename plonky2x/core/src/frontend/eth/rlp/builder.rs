@@ -163,6 +163,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let cons65536 = self.constant::<Variable>(L::Field::from_canonical_u64(65536));
         let cons55 = self.constant::<Variable>(L::Field::from_canonical_u64(55));
 
+        // The main idea is to convert claim_poly into `prefix_term + [appropriate power of
+        // challenger] * claim_poly`. There are three cases that we work on:
+        // 1.        combined length <  56    => prefix = {0xc0 + combined length}
+        // 2.  56 <= combined length <  256   => prefix = {0xf8, combined length}
+        // 3. 256 <= combined length < 65536  => prefix = {0xf9, combined length in 2 bytes}
+        //
+        // RLP technically allows a longer byte string, but we will not implement it, at least, for
+        // now.
+
         // Case 1 = This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
         let mut short_list_prefix = self.constant::<Variable>(L::Field::from_canonical_u64(0xc0));
         short_list_prefix = self.add(short_list_prefix, sum_of_rlp_encoding_length);
@@ -173,7 +182,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let valid_length = self.lt(sum_of_rlp_encoding_length, cons65536);
         self.assert_is_equal(true_v, valid_length);
 
-        // Case 2 = We need exactly two bytes to encode the length. 0xf9 = 0xf7 + 2.
+        // Case 3 = We need exactly two bytes to encode the length. 0xf9 = 0xf7 + 2.
         let mut long_list_prefix = self.constant::<Variable>(L::Field::from_canonical_u64(0xf9));
 
         let mut long_list_shift = challenge;
@@ -451,6 +460,19 @@ mod tests {
         // "0x188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6"]
         let rlp_encoding: Vec<u8> =
             bytes!("0xe482006fa0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6");
+
+        test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, |x| x);
+    }
+
+    #[test]
+    fn test_verify_decoded_mpt_node_extension_node_mid_length() {
+        const ENCODING_LEN: usize = 2 * 32 + 20;
+
+        // This is an RLP-encoded list of an extension node. The first element is 10 bytes, and the
+        // second element is 70 bytes. The whole encoding is 86 bytes, and this is suitable for
+        // testing a list whose length can be represented in 1 byte.
+        let rlp_encoding: Vec<u8> =
+            bytes!("0xf8538a00102030405060708090b84600102030405060708090001020304050607080900010203040506070809000102030405060708090001020304050607080900010203040506070809000102030405060708090");
 
         test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, |x| x);
     }
