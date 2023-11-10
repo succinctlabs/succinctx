@@ -1208,9 +1208,9 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85cdab6a89accf66733ad5a1693a4dcced6aeff64602b634530dd73c1f3ee9f0"
+checksum = "95b3f3e67048839cb0d0781f445682a35113da7121f7c949db0e2be96a4fbece"
 dependencies = [
  "humantime",
  "is-terminal",
@@ -1975,9 +1975,9 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "0.2.9"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd6effc99afb63425aff9b05836f029929e345a6148a14b7ecd5ab67af944482"
+checksum = "f95b9abcae896730d42b78e09c155ed4ddf82c07b4de772c64aee5b2d8b7c150"
 dependencies = [
  "bytes",
  "fnv",
@@ -2906,7 +2906,7 @@ checksum = "14e6ab3f592e6fb464fc9712d8d6e6912de6473954635fd76a589d832cffcbb0"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/mir-protocol/plonky2.git#ec41b754a67ac4e8fe197522ed8376ae20ff4d5f"
+source = "git+https://github.com/mir-protocol/plonky2.git#5c41dc4dacc899921951d852883bb9f2792b3c62"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2930,7 +2930,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#ec41b754a67ac4e8fe197522ed8376ae20ff4d5f"
+source = "git+https://github.com/mir-protocol/plonky2.git#5c41dc4dacc899921951d852883bb9f2792b3c62"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2954,7 +2954,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#ec41b754a67ac4e8fe197522ed8376ae20ff4d5f"
+source = "git+https://github.com/mir-protocol/plonky2.git#5c41dc4dacc899921951d852883bb9f2792b3c62"
 dependencies = [
  "rayon",
 ]
@@ -2962,7 +2962,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#ec41b754a67ac4e8fe197522ed8376ae20ff4d5f"
+source = "git+https://github.com/mir-protocol/plonky2.git#5c41dc4dacc899921951d852883bb9f2792b3c62"
 
 [[package]]
 name = "plonky2x"
@@ -2980,7 +2980,7 @@ dependencies = [
  "digest 0.10.7",
  "dotenv",
  "ed25519-dalek",
- "env_logger 0.10.0",
+ "env_logger 0.10.1",
  "ethers",
  "ff",
  "futures",
@@ -3120,9 +3120,9 @@ dependencies = [
 
 [[package]]
 name = "proptest"
-version = "1.3.1"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c003ac8c77cb07bb74f5f198bce836a689bcd5a42574612bf14d17bfd08c20e"
+checksum = "31b476131c3c86cb68032fdc5cb6d5a1045e3e42d96b69fa599fd77701e1f5bf"
 dependencies = [
  "bit-set",
  "bit-vec",
@@ -3132,7 +3132,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rand_xorshift",
- "regex-syntax 0.7.5",
+ "regex-syntax 0.8.2",
  "rusty-fork",
  "tempfile",
  "unarray",
@@ -3504,7 +3504,7 @@ dependencies = [
  "alloy-sol-types",
  "clap",
  "dotenv",
- "env_logger 0.10.0",
+ "env_logger 0.10.1",
  "ethers",
  "hex",
  "log",
