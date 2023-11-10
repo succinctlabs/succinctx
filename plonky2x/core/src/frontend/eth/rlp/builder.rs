@@ -129,7 +129,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             current_term = self.if_less_than_else(index, len, current_term, zero);
 
             res_case_2 = self.add(res_case_2, current_term);
-
             let pow_multiplier = self.if_less_than_else(index, len, pow, one);
             next_pow = self.mul(next_pow, pow_multiplier);
         }
@@ -145,13 +144,68 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         (res, res_pow, res_len)
     }
 
+    /// Add in the term corresponding to the prefix byte(s) of the RLP-encoding, given the sum of
+    /// the item-wise polynomial.
+    ///
+    /// The RLP-encoding is in the form of `{ prefix, prefix_0, byte_array_0, prefix_1,
+    /// byte_array_1, ... }`. And so far, we have calculated the polynomial for {prefix_0,
+    /// byte_array_0, prefix_1, byte_array_1, ...}. Now we have to calculate `prefix`, and
+    /// also "shift" the current polynomial. This logic isn't necessarily reusable or modular, but
+    /// it's complex logic that blurs out the whole `verify_decoded_mpt_node` function, so this is
+    /// a separate function.
+    fn add_prefix_polynomial_and_shift(
+        &mut self,
+        sum_of_rlp_encoding_length: Variable,
+        claim_poly: Variable,
+        challenge: Variable,
+    ) -> Variable {
+        let true_v = self.constant::<BoolVariable>(true);
+        let cons65536 = self.constant::<Variable>(L::Field::from_canonical_u64(65536));
+        let cons55 = self.constant::<Variable>(L::Field::from_canonical_u64(55));
+
+        // Case 1 = This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
+        let mut short_list_prefix = self.constant::<Variable>(L::Field::from_canonical_u64(0xc0));
+        short_list_prefix = self.add(short_list_prefix, sum_of_rlp_encoding_length);
+        let short_list_shift = challenge;
+
+        // Assert that sum_of_rlp_encoding_length is less than 256^2 = 65536 bits. A
+        // well-formed MPT should never need that many bytes.
+        let valid_length = self.lt(sum_of_rlp_encoding_length, cons65536);
+        self.assert_is_equal(true_v, valid_length);
+
+        // Case 2 = We need exactly two bytes to encode the length. 0xf9 = 0xf7 + 2.
+        let mut long_list_prefix = self.constant::<Variable>(L::Field::from_canonical_u64(0xf9));
+
+        let mut long_list_shift = challenge;
+        long_list_shift = self.mul(long_list_shift, challenge);
+        long_list_shift = self.mul(long_list_shift, challenge);
+
+        // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder.
+        let (mut div, mut rem) = self.div_rem_256(sum_of_rlp_encoding_length);
+
+        div = self.mul(div, challenge);
+        rem = self.mul(rem, challenge);
+        rem = self.mul(rem, challenge);
+        long_list_prefix = self.add(long_list_prefix, div);
+        long_list_prefix = self.add(long_list_prefix, rem);
+
+        let is_short = self.lte(sum_of_rlp_encoding_length, cons55);
+
+        let correct_prefix = self.select(is_short, short_list_prefix, long_list_prefix);
+        let correct_shift = self.select(is_short, short_list_shift, long_list_shift);
+
+        let mut res = self.mul(claim_poly, correct_shift);
+        res = self.add(res, correct_prefix);
+        res
+    }
+
     /// Given `a`, returns `floor(a / 256)` and `a % 256`.
     ///
     /// This only works if `floor(a / 256)` is `<= 5`. This might seem limiting, but in an MPT the
     /// encoding cannot be that long. A branch node with 16 hashes has 512 bytes, and a leaf node's
     /// path is up to 32 bytes. Even with a pessimistic assumption of having a 1000-byte value in a
     /// leaf node, the encoding is still less than 1280 bytes.
-    pub fn div_rem_256(&mut self, a: Variable) -> (Variable, Variable) {
+    fn div_rem_256(&mut self, a: Variable) -> (Variable, Variable) {
         let mut rem = a;
         let zero = self.zero();
         let one = self.one();
@@ -277,48 +331,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 encoding_len = self.if_less_than_else(index_i, mpt.len, encoding_len, zero);
                 sum_of_rlp_encoding_length = self.add(sum_of_rlp_encoding_length, encoding_len);
             }
-            // The RLP-encoding is in the form of `{ prefix, prefix_0, byte_array_0, prefix_1,
-            // byte_array_1, ... }`. And so far, we have calculated the polynomial for {prefix_0,
-            // byte_array_0, prefix_1, byte_array_1, ...}. Now we have to calculate `prefix`, and
-            // also "shift" the current polynomial.
-            //
-            // Based on what we've seen, we calculate the prefix of the whole encoding.
-            //
-            // Case 1 = This is the case when sum_of_rlp_encoding_length is <= 55 bytes (1 byte).
-            let mut short_list_prefix =
-                self.constant::<Variable>(L::Field::from_canonical_u64(0xc0));
-            short_list_prefix = self.add(short_list_prefix, sum_of_rlp_encoding_length);
-            let short_list_shift = challenges[loop_index];
-
-            // Assert that sum_of_rlp_encoding_length is less than 256^2 = 65536 bits. A
-            // well-formed MPT should never need that many bytes.
-            let valid_length = self.lt(sum_of_rlp_encoding_length, cons65536);
-            self.assert_is_equal(true_v, valid_length);
-
-            // Case 2 = We need exactly two bytes to encode the length. 0xf9 = 0xf7 + 2.
-            let mut long_list_prefix =
-                self.constant::<Variable>(L::Field::from_canonical_u64(0xf9));
-
-            let mut long_list_shift = challenges[loop_index];
-            long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
-            long_list_shift = self.mul(long_list_shift, challenges[loop_index]);
-
-            // Divide sum_of_rlp_encoding_length by cons256 and get the quotient and remainder.
-            let (mut div, mut rem) = self.div_rem_256(sum_of_rlp_encoding_length);
-
-            div = self.mul(div, challenges[loop_index]);
-            rem = self.mul(rem, challenges[loop_index]);
-            rem = self.mul(rem, challenges[loop_index]);
-            long_list_prefix = self.add(long_list_prefix, div);
-            long_list_prefix = self.add(long_list_prefix, rem);
-
-            let is_short = self.lte(sum_of_rlp_encoding_length, cons55);
-
-            let correct_prefix = self.select(is_short, short_list_prefix, long_list_prefix);
-            let correct_shift = self.select(is_short, short_list_shift, long_list_shift);
-
-            claim_poly = self.mul(claim_poly, correct_shift);
-            claim_poly = self.add(claim_poly, correct_prefix);
+            claim_poly = self.add_prefix_polynomial_and_shift(
+                sum_of_rlp_encoding_length,
+                claim_poly,
+                challenges[loop_index],
+            );
             self.watch(&claim_poly, "claim_poly");
             self.watch(&encoding_poly, "encoding_poly");
             let claim_poly_equals_encoding_poly = self.is_equal(claim_poly, encoding_poly);
