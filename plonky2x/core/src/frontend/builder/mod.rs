@@ -18,6 +18,7 @@ use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
 use plonky2::plonk::circuit_data::CircuitConfig;
+use rand::Rng;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
@@ -30,7 +31,7 @@ use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
 use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
-use crate::prelude::ArrayVariable;
+use crate::prelude::{ArrayVariable, ByteVariable};
 use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::eth::beaconchain::BeaconchainAPIClient;
 
@@ -47,6 +48,8 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub(crate) hints: Vec<Box<dyn HintGenerator<L, D>>>,
     pub(crate) async_hints: Vec<AsyncHintDataRef<L, D>>,
     pub(crate) async_hints_indices: Vec<usize>,
+
+    pub random_seeds: Vec<ByteVariable>,
 
     pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
     pub sha256_accelerator: Option<SHA256Accelerator>,
@@ -81,6 +84,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             hints: Vec::new(),
             async_hints: Vec::new(),
             async_hints_indices: Vec::new(),
+            random_seeds: Vec::new(),
             blake2b_accelerator: None,
             sha256_accelerator: None,
             sha512_accelerator: None,
@@ -144,7 +148,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.beaconchain_api_client = Some(client);
     }
 
-    /// Adds all the constraints nedded before building the circuit and registering hints.
+    /// Adds all the constraints needed before building the circuit and registering hints.
     fn pre_build(&mut self) {
         let blake2b_accelerator = self.blake2b_accelerator.clone();
         if let Some(accelerator) = blake2b_accelerator {
@@ -182,6 +186,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .map(|h| WitnessGeneratorRef(h))
             .collect::<Vec<_>>();
         self.api.add_generators(generators);
+
+        let mut rng = rand::thread_rng();
+        let mut seed_input = [0u8; 15];
+        for elem in seed_input.iter_mut() {
+            *elem = rng.gen();
+        }
+
+        self.random_seeds = seed_input
+            .iter()
+            .map(|x| self.constant::<ByteVariable>(*x))
+            .collect_vec();
 
         match self.io {
             CircuitIO::Bytes(ref io) => {
