@@ -68,7 +68,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let last_chunk = self.compute_sha512_last_chunk(input_byte_length);
 
         // Extend input to size max_num_chunks * 128 before padding.
-        let max_num_chunks = ceil_div_usize(input.len(), SHA512_CHUNK_SIZE_BYTES_128);
+        let max_num_chunks = ceil_div_usize(input.len() + 17, SHA512_CHUNK_SIZE_BYTES_128);
+
         let mut padded_input = input.to_vec();
         padded_input.resize(max_num_chunks * SHA512_CHUNK_SIZE_BYTES_128, self.zero());
 

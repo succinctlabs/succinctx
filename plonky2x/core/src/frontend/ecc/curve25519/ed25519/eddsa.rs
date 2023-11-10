@@ -141,6 +141,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         signatures: ArrayVariable<EDDSASignatureVariable, NUM_SIGS>,
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
+        self.watch(&messages, "messages");
         assert!(NUM_SIGS > 0 && NUM_SIGS <= MAX_NUM_SIGS);
         assert!(messages.len() == NUM_SIGS);
         if let Some(ref msg_lens) = message_byte_lengths {
@@ -167,6 +168,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             let digest: BytesVariable<64>;
             if let Some(ref msg_lens) = message_byte_lengths {
+                self.watch(&msg_lens[i], "msg_len");
                 let const_64 = U32Variable::constant(self, 64);
                 let message_to_hash_len = self.add(msg_lens[i], const_64);
                 digest = self.curta_sha512_variable(&message_bytes, message_to_hash_len);
@@ -214,13 +216,13 @@ mod tests {
     use crate::prelude::{ArrayVariable, BoolVariable, BytesVariable, DefaultBuilder, U32Variable};
     use crate::utils;
 
-    const MAX_MSG_LEN_BYTES: usize = 192;
+    const MAX_MSG_LEN_BYTES: usize = 174;
     const NUM_SIGS: usize = 3;
 
     fn test_curta_eddsa_verify_sigs(
         test_pub_keys: Vec<CompressedEdwardsY>,
         test_signatures: Vec<EDDSASignatureVariableValue<GoldilocksField>>,
-        test_messages: Vec<[u8; 192]>,
+        test_messages: Vec<[u8; MAX_MSG_LEN_BYTES]>,
         test_message_lens: Vec<u32>,
         variable_msg_len: bool,
     ) {
@@ -383,7 +385,7 @@ mod tests {
         test_is_active: Vec<bool>,
         test_pub_keys: Vec<CompressedEdwardsY>,
         test_signatures: Vec<EDDSASignatureVariableValue<GoldilocksField>>,
-        test_messages: Vec<[u8; 192]>,
+        test_messages: Vec<[u8; MAX_MSG_LEN_BYTES]>,
         test_message_lens: Vec<u32>,
         variable_msg_len: bool,
     ) {
@@ -451,7 +453,7 @@ mod tests {
 
             test_message.resize(MAX_MSG_LEN_BYTES, 0);
             test_messages.push(test_message.try_into().unwrap());
-            test_is_active.push(false);
+            test_is_active.push(true);
             test_pub_keys.push(CompressedEdwardsY(test_pub_key.to_bytes()));
             test_signatures.push(EDDSASignatureVariableValue {
                 r: CompressedEdwardsY(*test_signature.r_bytes()),
