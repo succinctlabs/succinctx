@@ -1,7 +1,3 @@
-use std::arch::is_aarch64_feature_detected;
-use std::thread::current;
-
-use curta::chip::uint::operations::add::ByteArrayAdd;
 use curta::math::field::Field;
 use curta::math::prelude::PrimeField64;
 use itertools::Itertools;
@@ -14,7 +10,7 @@ use crate::frontend::eth::rlp::utils::{MAX_MPT_NODE_SIZE, MAX_RLP_ITEM_SIZE};
 use crate::frontend::hint::simple::hint::Hint;
 use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters,
-    RichField, U32Variable, ValueStream, Variable, VariableStream,
+    RichField, ValueStream, Variable, VariableStream,
 };
 
 #[derive(Clone, Debug, CircuitVariable)]
@@ -27,7 +23,7 @@ pub struct MPTVariable {
 
 impl MPTNodeFixedSize {
     /// Convert `MPTNodeFixedSize` into `MPTValueType<F>`
-    fn to_value_type<F: RichField>(&self) -> MPTValueType<F> {
+    fn to_value_type<F: RichField>(self) -> MPTValueType<F> {
         MPTValueType::<F> {
             data: self.data.iter().map(|x| x.data.to_vec()).collect_vec(),
             lens: self
@@ -306,8 +302,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let one = self.one();
         let zero = self.zero();
-        let cons55 = self.constant::<Variable>(L::Field::from_canonical_u64(55));
-        let cons65536 = self.constant::<Variable>(L::Field::from_canonical_u64(65536));
         let true_v = self.constant::<BoolVariable>(true);
         for loop_index in 0..NUM_LOOPS {
             let mut encoding_poly = self.zero::<Variable>();
@@ -379,25 +373,24 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let hint = DecodeHint::<ENCODING_LEN> {};
 
         let output_stream = self.hint(input_stream, hint);
-        let decoded_node = output_stream.read::<MPTVariable>(self);
+        let _decoded_node = output_stream.read::<MPTVariable>(self);
 
-        let seed: &[ByteVariable] = todo!();
+        todo!();
 
-        self.verify_decoded_mpt_node::<ENCODING_LEN>(
-            &encoded,
-            len,
-            skip_computation,
-            seed,
-            &decoded_node,
-        );
+        // self.verify_decoded_mpt_node::<ENCODING_LEN>(
+        //     &encoded,
+        //     len,
+        //     skip_computation,
+        //     _seed,
+        //     &_decoded_node,
+        // );
 
-        decoded_node
+        // _decoded_node
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::panic;
 
     use rand::rngs::OsRng;
     use rand::Rng;
@@ -509,7 +502,7 @@ mod tests {
         // 16 elements is a 32-byte hash, and the last element is 0.
         let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0215ead887d4da139eba306f76d765f5c4bfb03f6118ac1eb05eec3a92e1b0076a03eb28e7b61c689fae945b279f873cfdddf4e66db0be0efead563ea08bc4a269fa03025e2cce6f9c1ff09c8da516d938199c809a7f94dcd61211974aebdb85a4e56a0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6a0b281bb20061318a515afbdd02954740f069ebc75e700fde24dfbdf8c76d57119a0d8d77d917f5b7577e7e644bbc7a933632271a8daadd06a8e7e322f12dd828217a00f301190681b368db4308d1d1aa1794f85df08d4f4f646ecc4967c58fd9bd77ba0206598a4356dd50c70cfb1f0285bdb1402b7d65b61c851c095a7535bec230d5aa000959956c2148c82c207272af1ae129403d42e8173aedf44a190e85ee5fef8c3a0c88307e92c80a76e057e82755d9d67934ae040a6ec402bc156ad58dbcd2bcbc4a0e40a8e323d0b0b19d37ab6a3d110de577307c6f8efed15097dfb5551955fc770a02da2c6b12eedab6030b55d4f7df2fb52dab0ef4db292cb9b9789fa170256a11fa0d00e11cde7531fb79a315b4d81ea656b3b452fe3fe7e50af48a1ac7bf4aa6343a066625c0eb2f6609471f20857b97598ae4dfc197666ff72fe47b94e4124900683a0ace3aa5d35ba3ebbdc0abde8add5896876b25261717c0a415c92642c7889ec66a03a4931a67ae8ebc1eca9ffa711c16599b86d5286504182618d9c2da7b83f5ef780");
         let fuzz = |x: [u8; ENCODING_LEN]| {
-            let mut y = x.clone();
+            let mut y = x;
             y[0] = 0xe;
             y
         };
@@ -525,7 +518,7 @@ mod tests {
         // 16 elements is a 32-byte hash, and the last element is 0.
         let rlp_encoding: Vec<u8>  = bytes!("0xf90211a0215ead887d4da139eba306f76d765f5c4bfb03f6118ac1eb05eec3a92e1b0076a03eb28e7b61c689fae945b279f873cfdddf4e66db0be0efead563ea08bc4a269fa03025e2cce6f9c1ff09c8da516d938199c809a7f94dcd61211974aebdb85a4e56a0188d1100731419827900267bf4e6ea6d428fa5a67656e021485d1f6c89e69be6a0b281bb20061318a515afbdd02954740f069ebc75e700fde24dfbdf8c76d57119a0d8d77d917f5b7577e7e644bbc7a933632271a8daadd06a8e7e322f12dd828217a00f301190681b368db4308d1d1aa1794f85df08d4f4f646ecc4967c58fd9bd77ba0206598a4356dd50c70cfb1f0285bdb1402b7d65b61c851c095a7535bec230d5aa000959956c2148c82c207272af1ae129403d42e8173aedf44a190e85ee5fef8c3a0c88307e92c80a76e057e82755d9d67934ae040a6ec402bc156ad58dbcd2bcbc4a0e40a8e323d0b0b19d37ab6a3d110de577307c6f8efed15097dfb5551955fc770a02da2c6b12eedab6030b55d4f7df2fb52dab0ef4db292cb9b9789fa170256a11fa0d00e11cde7531fb79a315b4d81ea656b3b452fe3fe7e50af48a1ac7bf4aa6343a066625c0eb2f6609471f20857b97598ae4dfc197666ff72fe47b94e4124900683a0ace3aa5d35ba3ebbdc0abde8add5896876b25261717c0a415c92642c7889ec66a03a4931a67ae8ebc1eca9ffa711c16599b86d5286504182618d9c2da7b83f5ef780");
         let fuzz = |x: [u8; ENCODING_LEN]| {
-            let mut y = x.clone();
+            let mut y = x;
             y[100] += 1;
             y
         };
