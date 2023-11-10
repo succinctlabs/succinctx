@@ -214,7 +214,7 @@ mod tests {
     use crate::utils;
 
     const MAX_MSG_LEN_BYTES: usize = 192;
-    const NUM_SIGS: usize = 3;
+    const NUM_SIGS: usize = 128;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
