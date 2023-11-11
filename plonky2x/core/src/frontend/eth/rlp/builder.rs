@@ -387,7 +387,8 @@ mod tests {
     use crate::utils::{bytes, setup_logger};
 
     #[test]
-    /// Simple test to check that `decode_mpt_node`
+    /// Simple test to check for `decode_mpt_node`, which is just a wrapper for
+    /// `verify_decoded_mpt_node`.
     fn test_decode_mpt_node() {
         setup_logger();
         const ENCODING_LEN: usize = 600;
@@ -422,6 +423,7 @@ mod tests {
 
         assert_eq!(mpt_got.len, mpt_exp.len);
         assert_eq!(mpt_got.data, mpt_exp.data);
+        assert_eq!(mpt_got.lens, mpt_exp.lens);
     }
 
     /// Passes `verify_decode_mpt_node` the given rlp-encoded string and their decoded values.
