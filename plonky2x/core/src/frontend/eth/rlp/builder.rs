@@ -513,8 +513,6 @@ mod tests {
         test_verify_decoded_mpt_node::<ENCODING_LEN, _>(rlp_encoding, |x| x);
     }
 
-    // TODO: Create a test where it's supposed to fail.
-
     #[test]
     #[should_panic]
     fn test_verify_decoded_mpt_node_branch_node_fuzzed_prefix() {
