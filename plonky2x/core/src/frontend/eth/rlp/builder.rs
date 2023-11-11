@@ -68,6 +68,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.select::<T>(a_lt_b, c, d)
     }
 
+    /// Creates a `CubicExtensionVariable` from a `usize`.
     fn constant_cubic(&mut self, x: usize) -> CubicExtensionVariable {
         CubicExtensionVariable::constant(
             self,
@@ -79,18 +80,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         )
     }
 
-    fn to_cubic(&mut self, x: Variable) -> CubicExtensionVariable {
+    /// Converts a `Variable` to the corresponding `CubicExtensionVariable`.
+    fn var_to_cubic(&mut self, x: Variable) -> CubicExtensionVariable {
         let zero = self.zero::<Variable>();
         CubicExtensionVariable::from_variables(self, &[x, zero, zero])
-    }
-
-    fn add_var_to_cubic(
-        &mut self,
-        a: CubicExtensionVariable,
-        b: Variable,
-    ) -> CubicExtensionVariable {
-        let b_in_cubic = self.to_cubic(b);
-        self.add(a, b_in_cubic)
     }
 
     /// Evaluate the polynomial constructed from seeing RLP-encode(byte_array) as a vector of
@@ -134,11 +127,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let cons0x80 = self.constant::<Variable>(L::Field::from_canonical_u32(0x80));
 
         let first_byte_as_variable = self.byte_to_variable(byte_array[0]);
-        let res_case_1 = self.to_cubic(first_byte_as_variable);
+        let res_case_1 = self.var_to_cubic(first_byte_as_variable);
         let len1 = one;
 
-        let mut res_case_2 = self.to_cubic(len);
-        res_case_2 = self.add_var_to_cubic(res_case_2, cons0x80);
+        let mut res_case_2 = self.var_to_cubic(len);
+        let cons0x80_in_cubic = self.var_to_cubic(cons0x80);
+        res_case_2 = self.add(res_case_2, cons0x80_in_cubic);
 
         let len2 = self.add(len, one);
 
@@ -146,7 +140,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         for i in 0..ARRAY_LENGTH {
             let index = self.constant::<Variable>(L::Field::from_canonical_usize(i));
             let current_term_in_variable = self.byte_to_variable(byte_array[i]);
-            let mut current_term = self.to_cubic(current_term_in_variable);
+            let mut current_term = self.var_to_cubic(current_term_in_variable);
 
             current_term = self.mul(current_term, next_pow);
             current_term = self.if_less_than_else(index, len, current_term, zero_cubic);
@@ -187,8 +181,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let cons256 = self.constant::<Variable>(L::Field::from_canonical_u64(256));
         let cons65536 = self.constant::<Variable>(L::Field::from_canonical_u64(65536));
         let cons0xf8 = self.constant::<Variable>(L::Field::from_canonical_u64(0xf8));
-        let cons0xf8_in_cubic = self.to_cubic(cons0xf8);
-        let sum_of_rlp_encoding_length_cubic = self.to_cubic(sum_of_rlp_encoding_length);
+        let cons0xf8_in_cubic = self.var_to_cubic(cons0xf8);
+        let sum_of_rlp_encoding_length_cubic = self.var_to_cubic(sum_of_rlp_encoding_length);
 
         // Assert that sum_of_rlp_encoding_length is less than 256^2 = 65536 bits. A
         // well-formed MPT should never need that many bytes.
@@ -227,8 +221,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let (div_in_u32, rem_in_u32) =
             self.div_rem(sum_of_rlp_encoding_length_in_u32, cons256_in_u32);
         let (mut div, mut rem) = (
-            self.to_cubic(div_in_u32.variable),
-            self.to_cubic(rem_in_u32.variable),
+            self.var_to_cubic(div_in_u32.variable),
+            self.var_to_cubic(rem_in_u32.variable),
         );
 
         let mut case_3 = self.constant_cubic(0xf9);
@@ -307,11 +301,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let true_v = self.constant::<BoolVariable>(true);
         let mut encoding_poly = self.zero::<CubicExtensionVariable>();
         let mut pow = self.one::<CubicExtensionVariable>();
-        self.watch(&challenge, "challenges");
+        self.watch(&challenge, "challenge");
 
         for i in 0..ENCODING_LEN {
             let current_term_in_variable = self.byte_to_variable(encoded[i]);
-            let mut current_term = self.to_cubic(current_term_in_variable);
+            let mut current_term = self.var_to_cubic(current_term_in_variable);
             current_term = self.mul(current_term, pow);
             // It's okay to simply add current_term as pow becomes 0 once i = ENCODING_LEN.
             encoding_poly = self.add(encoding_poly, current_term);
