@@ -279,6 +279,23 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
         const NUM_LOOPS: usize = 3;
 
+        // Give the challenger the encoded string.
+        challenger.observe_elements(&encoded.variables().iter().map(|x| x.0).collect_vec());
+        challenger.observe_elements(&len.variables().iter().map(|x| x.0).collect_vec());
+
+        // Give the challenger the output of the hint which decodes `encoded`. In other words, this
+        // is what we're trying to verify. It is ABSOLUTELY essential that we pass in `mpt` here to
+        // generate challengers as otherwise one can manipulate the polynomial to get 0.
+        challenger.observe_elements(&mpt.variables().iter().map(|x| x.0).collect_vec());
+
+        challenger.observe_elements(
+            &skip_computation
+                .variables()
+                .iter()
+                .map(|x| x.0)
+                .collect_vec(),
+        );
+
         let challenges = challenger
             .get_n_challenges(&mut self.api, NUM_LOOPS)
             .iter()
@@ -293,6 +310,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         for loop_index in 0..NUM_LOOPS {
             let mut encoding_poly = self.zero::<CubicExtensionVariable>();
             let mut pow = self.one::<CubicExtensionVariable>();
+            self.watch(&challenges[loop_index], "challenges");
 
             for i in 0..ENCODING_LEN {
                 let current_term_in_variable = self.byte_to_variable(encoded[i]);
@@ -376,9 +394,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-
-    use rand::rngs::OsRng;
-    use rand::Rng;
 
     use super::*;
     use crate::backend::circuit::DefaultParameters;
