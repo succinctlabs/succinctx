@@ -883,7 +883,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=tamir/new_trace_wr#57676860f43c3659a5ec5408f0255db711bf3a9c"
+source = "git+https://github.com/succinctlabs/curta.git#11f52ddc96a2433d1d983668c484a54afefc1f18"
 dependencies = [
  "anyhow",
  "bincode",
