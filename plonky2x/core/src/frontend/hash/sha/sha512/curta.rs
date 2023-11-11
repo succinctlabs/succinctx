@@ -306,21 +306,53 @@ mod tests {
         setup_logger();
         let mut builder = DefaultBuilder::new();
 
-        let max_number_of_chunks = 20;
+        let max_number_of_chunks = 2;
         let total_message_length = 128 * max_number_of_chunks;
-        let max_len = (total_message_length - 18) / 128;
+        let max_len = total_message_length - 8;
 
         let mut rng = thread_rng();
         let total_message = (0..total_message_length)
             .map(|_| rng.gen::<u8>())
             .collect::<Vec<_>>();
+        let message = total_message
+            .iter()
+            .map(|b| builder.constant::<ByteVariable>(*b))
+            .collect::<Vec<_>>();
         for i in 0..max_len {
-            let message = &total_message[..i];
-            let expected_digest = sha512(message);
+            let expected_digest = sha512(&total_message[..i]);
+
+            let length = builder.constant::<U32Variable>(i as u32);
+
+            let digest = builder.curta_sha512_variable(&message, length);
+            let expected_digest = builder.constant::<BytesVariable<64>>(expected_digest);
+            builder.assert_is_equal(digest, expected_digest);
+        }
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_variable_length_max_size() {
+        // This test checks that sha512_variable_pad works as intended, especially when the max
+        // input length is (length % 128 > 128 - 17).
+        setup_logger();
+        let mut builder = DefaultBuilder::new();
+
+        let max_number_of_chunks = 1;
+        let total_message_length = 128 * max_number_of_chunks;
+
+        for i in 127 - 20..total_message_length + 1 {
+            let mut rng = thread_rng();
+            let total_message = (0..i).map(|_| rng.gen::<u8>()).collect::<Vec<_>>();
             let message = total_message
                 .iter()
                 .map(|b| builder.constant::<ByteVariable>(*b))
                 .collect::<Vec<_>>();
+            let expected_digest = sha512(&total_message);
 
             let length = builder.constant::<U32Variable>(i as u32);
 
