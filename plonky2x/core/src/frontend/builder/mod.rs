@@ -18,8 +18,6 @@ use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
 use plonky2::plonk::circuit_data::CircuitConfig;
-use rand::rngs::OsRng;
-use rand::Rng;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
@@ -32,7 +30,7 @@ use super::vars::EvmVariable;
 use crate::backend::circuit::{CircuitBuild, DefaultParameters, MockCircuitBuild, PlonkParameters};
 use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
-use crate::prelude::{ArrayVariable, ByteVariable};
+use crate::prelude::ArrayVariable;
 use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::eth::beaconchain::BeaconchainAPIClient;
 
@@ -402,8 +400,6 @@ impl<L: PlonkParameters<D>, const D: usize> Default for CircuitBuilder<L, D> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-
-    use std::collections::HashMap;
 
     use log::debug;
     use plonky2::field::types::Field;
