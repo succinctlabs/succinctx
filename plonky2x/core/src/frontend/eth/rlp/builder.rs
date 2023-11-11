@@ -277,7 +277,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         mpt: &MPTVariable,
     ) {
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
-        const NUM_LOOPS: usize = 3;
 
         // Give the challenger the encoded string.
         challenger.observe_elements(&encoded.variables().iter().map(|x| x.0).collect_vec());
@@ -296,73 +295,66 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 .collect_vec(),
         );
 
-        let challenges = challenger
-            .get_n_challenges(&mut self.api, NUM_LOOPS)
-            .iter()
-            .map(|x| Variable::from(*x))
-            .map(|x| self.to_cubic(x))
-            .collect_vec();
+        let challenge = CubicExtensionVariable::new(
+            Variable::from(challenger.get_challenge(&mut self.api)),
+            Variable::from(challenger.get_challenge(&mut self.api)),
+            Variable::from(challenger.get_challenge(&mut self.api)),
+        );
 
         let one = self.one::<CubicExtensionVariable>();
         let zero = self.zero::<CubicExtensionVariable>();
         let zero_var = self.zero::<Variable>();
         let true_v = self.constant::<BoolVariable>(true);
-        for loop_index in 0..NUM_LOOPS {
-            let mut encoding_poly = self.zero::<CubicExtensionVariable>();
-            let mut pow = self.one::<CubicExtensionVariable>();
-            self.watch(&challenges[loop_index], "challenges");
+        let mut encoding_poly = self.zero::<CubicExtensionVariable>();
+        let mut pow = self.one::<CubicExtensionVariable>();
+        self.watch(&challenge, "challenges");
 
-            for i in 0..ENCODING_LEN {
-                let current_term_in_variable = self.byte_to_variable(encoded[i]);
-                let mut current_term = self.to_cubic(current_term_in_variable);
-                current_term = self.mul(current_term, pow);
-                // It's okay to simply add current_term as pow becomes 0 once i = ENCODING_LEN.
-                encoding_poly = self.add(encoding_poly, current_term);
+        for i in 0..ENCODING_LEN {
+            let current_term_in_variable = self.byte_to_variable(encoded[i]);
+            let mut current_term = self.to_cubic(current_term_in_variable);
+            current_term = self.mul(current_term, pow);
+            // It's okay to simply add current_term as pow becomes 0 once i = ENCODING_LEN.
+            encoding_poly = self.add(encoding_poly, current_term);
 
-                let index = self.constant::<Variable>(L::Field::from_canonical_usize(i));
-                let pow_multiplier =
-                    self.if_less_than_else(index, len, challenges[loop_index], zero);
-                pow = self.mul(pow, pow_multiplier);
-            }
-
-            let mut sum_of_rlp_encoding_length = zero_var;
-            let mut claim_poly = zero;
-            pow = one;
-
-            for i in 0..MAX_MPT_NODE_SIZE {
-                let index_i = self.constant::<Variable>(L::Field::from_canonical_usize(i));
-
-                let (mut poly, mut next_pow, mut encoding_len) = self
-                    .calculate_polynomial_emulating_rlp_encoding_cubic(
-                        &mpt.data[i],
-                        mpt.lens[i],
-                        challenges[loop_index],
-                    );
-
-                // Shift the `poly` value by the appropriate power of `challenger`, and also check
-                // if we should even include this.
-                poly = self.if_less_than_else(index_i, mpt.len, poly, zero);
-                poly = self.mul(poly, pow);
-                claim_poly = self.add(claim_poly, poly);
-
-                next_pow = self.if_less_than_else(index_i, mpt.len, next_pow, one);
-                pow = self.mul(pow, next_pow);
-
-                encoding_len = self.if_less_than_else(index_i, mpt.len, encoding_len, zero_var);
-                sum_of_rlp_encoding_length = self.add(sum_of_rlp_encoding_length, encoding_len);
-            }
-            claim_poly = self.add_prefix_polynomial_and_shift(
-                sum_of_rlp_encoding_length,
-                claim_poly,
-                challenges[loop_index],
-            );
-            self.watch(&claim_poly, "claim_poly");
-            self.watch(&encoding_poly, "encoding_poly");
-            let claim_poly_equals_encoding_poly = self.is_equal(claim_poly, encoding_poly);
-            let result = self.or(skip_computation, claim_poly_equals_encoding_poly);
-
-            self.assert_is_equal(result, true_v);
+            let index = self.constant::<Variable>(L::Field::from_canonical_usize(i));
+            let pow_multiplier = self.if_less_than_else(index, len, challenge, zero);
+            pow = self.mul(pow, pow_multiplier);
         }
+
+        let mut sum_of_rlp_encoding_length = zero_var;
+        let mut claim_poly = zero;
+        pow = one;
+
+        for i in 0..MAX_MPT_NODE_SIZE {
+            let index_i = self.constant::<Variable>(L::Field::from_canonical_usize(i));
+
+            let (mut poly, mut next_pow, mut encoding_len) = self
+                .calculate_polynomial_emulating_rlp_encoding_cubic(
+                    &mpt.data[i],
+                    mpt.lens[i],
+                    challenge,
+                );
+
+            // Shift the `poly` value by the appropriate power of `challenger`, and also check
+            // if we should even include this.
+            poly = self.if_less_than_else(index_i, mpt.len, poly, zero);
+            poly = self.mul(poly, pow);
+            claim_poly = self.add(claim_poly, poly);
+
+            next_pow = self.if_less_than_else(index_i, mpt.len, next_pow, one);
+            pow = self.mul(pow, next_pow);
+
+            encoding_len = self.if_less_than_else(index_i, mpt.len, encoding_len, zero_var);
+            sum_of_rlp_encoding_length = self.add(sum_of_rlp_encoding_length, encoding_len);
+        }
+        claim_poly =
+            self.add_prefix_polynomial_and_shift(sum_of_rlp_encoding_length, claim_poly, challenge);
+        self.watch(&claim_poly, "claim_poly");
+        self.watch(&encoding_poly, "encoding_poly");
+        let claim_poly_equals_encoding_poly = self.is_equal(claim_poly, encoding_poly);
+        let result = self.or(skip_computation, claim_poly_equals_encoding_poly);
+
+        self.assert_is_equal(result, true_v);
     }
 
     pub fn decode_mpt_node<const ENCODING_LEN: usize, const ELEMENT_LEN: usize>(
