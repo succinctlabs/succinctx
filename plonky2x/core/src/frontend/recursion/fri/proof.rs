@@ -19,13 +19,13 @@ use crate::prelude::{CircuitBuilder, OutputVariableStream, PlonkParameters, Vari
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FriProofVariable<const D: usize> {
     pub commit_phase_merkle_caps: Vec<MerkleCapVariable>,
-    pub query_round_proofs: Vec<FriQueryRoundVriable<D>>,
+    pub query_round_proofs: Vec<FriQueryRoundVariable<D>>,
     pub final_poly: PolynomialCoeffsExtVariable<D>,
     pub pow_witness: Variable,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct FriQueryRoundVriable<const D: usize> {
+pub struct FriQueryRoundVariable<const D: usize> {
     pub initial_trees_proof: FriInitialTreeProofVariable,
     pub steps: Vec<FriQueryStepVariable<D>>,
 }
@@ -83,7 +83,7 @@ impl VariableStream {
         &mut self,
         num_leaves_per_oracle: &[usize],
         params: &FriParams,
-    ) -> FriQueryRoundVriable<D> {
+    ) -> FriQueryRoundVariable<D> {
         let cap_height = params.config.cap_height;
         assert!(params.lde_bits() >= cap_height);
         let mut merkle_proof_len = params.lde_bits() - cap_height;
@@ -98,7 +98,7 @@ impl VariableStream {
             steps.push(self.read_fri_query_step(arity_bits, merkle_proof_len));
         }
 
-        FriQueryRoundVriable {
+        FriQueryRoundVariable {
             initial_trees_proof,
             steps,
         }
@@ -152,7 +152,7 @@ impl VariableStream {
         self.write_slice(&coefficients.0)
     }
 
-    pub fn write_fri_query_round<const D: usize>(&mut self, query_round: &FriQueryRoundVriable<D>) {
+    pub fn write_fri_query_round<const D: usize>(&mut self, query_round: &FriQueryRoundVariable<D>) {
         self.write_fri_initial_trees_proof(&query_round.initial_trees_proof);
 
         for step in &query_round.steps {
@@ -221,7 +221,7 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
         builder: &mut CircuitBuilder<L, D>,
         num_leaves_per_oracle: &[usize],
         params: &FriParams,
-    ) -> FriQueryRoundVriable<D> {
+    ) -> FriQueryRoundVariable<D> {
         let cap_height = params.config.cap_height;
         assert!(params.lde_bits() >= cap_height);
         let mut merkle_proof_len = params.lde_bits() - cap_height;
@@ -236,7 +236,7 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
             steps.push(self.read_fri_query_step(builder, arity_bits, merkle_proof_len));
         }
 
-        FriQueryRoundVriable {
+        FriQueryRoundVariable {
             initial_trees_proof,
             steps,
         }
@@ -485,7 +485,7 @@ impl<const D: usize> From<FriQueryStepTarget<D>> for FriQueryStepVariable<D> {
     }
 }
 
-impl<const D: usize> From<FriQueryRoundTarget<D>> for FriQueryRoundVriable<D> {
+impl<const D: usize> From<FriQueryRoundTarget<D>> for FriQueryRoundVariable<D> {
     fn from(value: FriQueryRoundTarget<D>) -> Self {
         Self {
             initial_trees_proof: value.initial_trees_proof.into(),
@@ -498,8 +498,8 @@ impl<const D: usize> From<FriQueryRoundTarget<D>> for FriQueryRoundVriable<D> {
     }
 }
 
-impl<const D: usize> From<FriQueryRoundVriable<D>> for FriQueryRoundTarget<D> {
-    fn from(value: FriQueryRoundVriable<D>) -> Self {
+impl<const D: usize> From<FriQueryRoundVariable<D>> for FriQueryRoundTarget<D> {
+    fn from(value: FriQueryRoundVariable<D>) -> Self {
         Self {
             initial_trees_proof: value.initial_trees_proof.into(),
             steps: value
@@ -522,7 +522,7 @@ impl<const D: usize> From<FriProofTarget<D>> for FriProofVariable<D> {
             query_round_proofs: value
                 .query_round_proofs
                 .into_iter()
-                .map(FriQueryRoundVriable::from)
+                .map(FriQueryRoundVariable::from)
                 .collect(),
             final_poly: PolynomialCoeffsExtVariable::from(value.final_poly),
             pow_witness: value.pow_witness.into(),
