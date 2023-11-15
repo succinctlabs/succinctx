@@ -152,7 +152,10 @@ impl VariableStream {
         self.write_slice(&coefficients.0)
     }
 
-    pub fn write_fri_query_round<const D: usize>(&mut self, query_round: &FriQueryRoundVariable<D>) {
+    pub fn write_fri_query_round<const D: usize>(
+        &mut self,
+        query_round: &FriQueryRoundVariable<D>,
+    ) {
         self.write_fri_initial_trees_proof(&query_round.initial_trees_proof);
 
         for step in &query_round.steps {
