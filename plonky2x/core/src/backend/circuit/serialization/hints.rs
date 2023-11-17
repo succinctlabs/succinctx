@@ -1,17 +1,13 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use curta::chip::ec::edwards::scalar_mul::air::ScalarMulEd25519;
-use curta::chip::ec::edwards::scalar_mul::generator::{
-    SimpleScalarMulEd25519Generator, SimpleScalarMulEd25519HintGenerator,
-};
 use curta::chip::hash::blake::blake2b::generator::{
     BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
 };
 use curta::machine::hash::sha::sha256::SHA256;
+use curta::machine::hash::sha::sha512::SHA512;
 use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
 use curta::plonky2::cubic::mul_gate::MulCubicGenerator;
-use curta::plonky2::stark::generator::simple::SimpleStarkWitnessGenerator;
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
 use plonky2::gadgets::arithmetic_extension::QuotientGeneratorExtension;
@@ -43,7 +39,8 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSeria
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;
 use crate::frontend::builder::watch::WatchGenerator;
-use crate::frontend::ecc::ed25519::field::ed25519_base::Ed25519Base;
+use crate::frontend::ecc::curve25519::curta::proof_hint::EcOpProofHint;
+use crate::frontend::ecc::curve25519::curta::result_hint::EcOpResultHint;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
@@ -62,7 +59,6 @@ use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
 use crate::frontend::hash::blake2::curta::MAX_NUM_CURTA_CHUNKS;
-use crate::frontend::hash::deprecated::bit_operations::XOR3Generator;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::hash::sha::curta::digest_hint::SHADigestHint;
 use crate::frontend::hash::sha::curta::proof_hint::SHAProofHint;
@@ -72,16 +68,12 @@ use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::hint::simple::serializer::SimpleHintSerializer;
 use crate::frontend::hint::synchronous::Async;
-use crate::frontend::num::biguint::BigUintDivRemGenerator;
-use crate::frontend::num::nonnative::nonnative::{
-    NonNativeAdditionGenerator, NonNativeInverseGenerator, NonNativeMultipleAddsGenerator,
-    NonNativeMultiplicationGenerator, NonNativeSubtractionGenerator,
-};
-use crate::frontend::num::u32::gates::add_many_u32::U32AddManyGenerator;
-use crate::frontend::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
-use crate::frontend::num::u32::gates::comparison::ComparisonGenerator;
-use crate::frontend::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
-use crate::frontend::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
+use crate::frontend::uint::num::biguint::BigUintDivRemGenerator;
+use crate::frontend::uint::num::u32::gates::add_many_u32::U32AddManyGenerator;
+use crate::frontend::uint::num::u32::gates::arithmetic_u32::U32ArithmeticGenerator;
+use crate::frontend::uint::num::u32::gates::comparison::ComparisonGenerator;
+use crate::frontend::uint::num::u32::gates::range_check_u32::U32RangeCheckGenerator;
+use crate::frontend::uint::num::u32::gates::subtraction_u32::U32SubtractionGenerator;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{Bytes32Variable, SubArrayExtractorHint, U256Variable};
 use crate::prelude::{ArrayVariable, BoolVariable, U32Variable, Variable};
@@ -351,22 +343,8 @@ where
         let comparison_generator_id = ComparisonGenerator::<L::Field, D>::id();
         r.register_simple::<ComparisonGenerator<L::Field, D>>(comparison_generator_id);
 
-        let xor3_generator_id = XOR3Generator::<L::Field, D>::id();
-        r.register_simple::<XOR3Generator<L::Field, D>>(xor3_generator_id);
-
         let le_generator_id = LteGenerator::<L, D>::id();
         r.register_simple::<LteGenerator<L, D>>(le_generator_id);
-
-        let simple_stark_witness_generator_id = SimpleStarkWitnessGenerator::<
-            ScalarMulEd25519<L::Field, L::CubicParams>,
-            L::CurtaConfig,
-            D,
-        >::id();
-        r.register_simple::<SimpleStarkWitnessGenerator<
-            ScalarMulEd25519<L::Field, L::CubicParams>,
-            L::CurtaConfig,
-            D,
-        >>(simple_stark_witness_generator_id);
 
         r.register_hint::<BeaconBalanceWitnessHint>();
         r.register_hint::<BeaconExecutionPayloadHint>();
@@ -383,27 +361,6 @@ where
         register_powers_of_two!(r, BeaconValidatorBatchHint);
         register_powers_of_two!(r, BeaconPartialValidatorsHint);
         register_powers_of_two!(r, CompressedBeaconValidatorBatchHint);
-        let id = NonNativeAdditionGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeAdditionGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id = NonNativeInverseGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeInverseGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id = NonNativeMultipleAddsGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeMultipleAddsGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id = NonNativeMultiplicationGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeMultiplicationGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id = NonNativeSubtractionGenerator::<L::Field, D, Ed25519Base>::default().id();
-        r.register_simple::<NonNativeSubtractionGenerator<L::Field, D, Ed25519Base>>(id);
-
-        let id =
-            SimpleScalarMulEd25519Generator::<L::Field, L::CubicParams, L::CurtaConfig, D>::id();
-        r.register_simple::<SimpleScalarMulEd25519Generator<L::Field, L::CubicParams, L::CurtaConfig, D>>(id);
-
-        let id = "SimpleScalarMulEd25519HintGenerator";
-        r.register_simple::<SimpleScalarMulEd25519HintGenerator<L::Field, D>>(id.to_string());
 
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
@@ -445,6 +402,18 @@ where
 
         r.register_hint::<SHAProofHint<SHA256, 64>>();
         r.register_async_hint::<Async<SHAProofHint<SHA256, 64>>>();
+
+        r.register_hint::<SHADigestHint<SHA512, 80>>();
+        r.register_async_hint::<Async<SHADigestHint<SHA512, 80>>>();
+
+        r.register_hint::<SHAProofHint<SHA512, 80>>();
+        r.register_async_hint::<Async<SHAProofHint<SHA512, 80>>>();
+
+        r.register_hint::<EcOpProofHint>();
+        r.register_async_hint::<Async<EcOpProofHint>>();
+
+        r.register_hint::<EcOpResultHint>();
+        r.register_async_hint::<Async<EcOpResultHint>>();
 
         register_powers_of_two!(r, BeaconHeadersFromOffsetRangeHint);
 
