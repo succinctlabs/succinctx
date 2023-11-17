@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use plonky2::plonk::circuit_data::VerifierCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +16,13 @@ pub enum PublicInput<L: PlonkParameters<D>, const D: usize> {
     Elements(Vec<L::Field>),
     RecursiveProofs(Vec<ProofWithPublicInputs<L::Field, L::Config, D>>),
     RemoteRecursiveProofs(Vec<ProofId>),
+    CyclicProof {
+        elements: Vec<L::Field>,
+        proof: Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
+        // #[serde(serialize_with = "serialize_verifier_circuit")]
+        // #[serde(deserialize_with = "deserialize_verifier_circuit")]
+        verifier_data: Vec<VerifierCircuitData<L::Field, L::Config, D>>,
+    },
     None(),
 }
 
@@ -25,6 +33,7 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
             CircuitIO::Bytes(_) => PublicInput::Bytes(vec![]),
             CircuitIO::Elements(_) => PublicInput::Elements(vec![]),
             CircuitIO::RecursiveProofs(_) => PublicInput::RecursiveProofs(vec![]),
+            CircuitIO::CyclicProof(_) => PublicInput::CyclicProof(vec![], vec![], vec![]),
             CircuitIO::None() => PublicInput::None(),
         }
     }
@@ -52,6 +61,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
             CircuitIO::RecursiveProofs(_) => {
                 todo!()
             }
+            CircuitIO::CyclicProof(_) => {
+                todo!()
+            }
             CircuitIO::None() => PublicInput::None(),
         }
     }
@@ -62,6 +74,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
             PublicInput::Elements(input) => {
                 input.extend(V::elements::<L::Field>(value));
             }
+            PublicInput::CyclicProof(input, _, _) => {
+                input.extend(V::elements::<L::Field>(value));
+            }
             _ => panic!("field io is not enabled"),
         };
     }
@@ -70,6 +85,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     pub fn write_all(&mut self, value: &[L::Field]) {
         match self {
             PublicInput::Elements(input) => {
+                input.extend(value);
+            }
+            PublicInput::CyclicProof(input, _, _) => {
                 input.extend(value);
             }
             _ => panic!("field io is not enabled"),

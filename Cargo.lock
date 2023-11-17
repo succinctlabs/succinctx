@@ -902,7 +902,7 @@ dependencies = [
  "itertools 0.10.5",
  "log",
  "num",
- "plonky2",
+ "plonky2 0.1.4 (git+https://github.com/mir-protocol/plonky2.git)",
  "plonky2_maybe_rayon 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand",
  "serde",
@@ -2941,6 +2941,29 @@ checksum = "14e6ab3f592e6fb464fc9712d8d6e6912de6473954635fd76a589d832cffcbb0"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
+dependencies = [
+ "ahash",
+ "anyhow",
+ "getrandom",
+ "hashbrown 0.14.2",
+ "itertools 0.11.0",
+ "keccak-hash",
+ "log",
+ "num",
+ "plonky2_field 0.1.1",
+ "plonky2_maybe_rayon 0.1.1",
+ "plonky2_util 0.1.1",
+ "rand",
+ "rand_chacha",
+ "serde",
+ "serde_json",
+ "static_assertions",
+ "unroll",
+]
+
+[[package]]
+name = "plonky2"
+version = "0.1.4"
 source = "git+https://github.com/mir-protocol/plonky2.git#1e8ed78f5afd2df49666f9efed1f9038c2a077ca"
 dependencies = [
  "ahash",
@@ -2951,13 +2974,27 @@ dependencies = [
  "keccak-hash",
  "log",
  "num",
- "plonky2_field",
+ "plonky2_field 0.1.1 (git+https://github.com/mir-protocol/plonky2.git)",
  "plonky2_maybe_rayon 0.1.1 (git+https://github.com/mir-protocol/plonky2.git)",
- "plonky2_util",
+ "plonky2_util 0.1.1 (git+https://github.com/mir-protocol/plonky2.git)",
  "rand",
  "rand_chacha",
  "serde",
  "serde_json",
+ "static_assertions",
+ "unroll",
+]
+
+[[package]]
+name = "plonky2_field"
+version = "0.1.1"
+dependencies = [
+ "anyhow",
+ "itertools 0.11.0",
+ "num",
+ "plonky2_util 0.1.1",
+ "rand",
+ "serde",
  "static_assertions",
  "unroll",
 ]
@@ -2970,11 +3007,18 @@ dependencies = [
  "anyhow",
  "itertools 0.11.0",
  "num",
- "plonky2_util",
+ "plonky2_util 0.1.1 (git+https://github.com/mir-protocol/plonky2.git)",
  "rand",
  "serde",
  "static_assertions",
  "unroll",
+]
+
+[[package]]
+name = "plonky2_maybe_rayon"
+version = "0.1.1"
+dependencies = [
+ "rayon",
 ]
 
 [[package]]
@@ -2993,6 +3037,10 @@ source = "git+https://github.com/mir-protocol/plonky2.git#1e8ed78f5afd2df49666f9
 dependencies = [
  "rayon",
 ]
+
+[[package]]
+name = "plonky2_util"
+version = "0.1.1"
 
 [[package]]
 name = "plonky2_util"
@@ -3025,7 +3073,7 @@ dependencies = [
  "log",
  "num",
  "num-bigint 0.4.4",
- "plonky2",
+ "plonky2 0.1.4",
  "plonky2x-derive",
  "rand",
  "reqwest",
@@ -3552,7 +3600,7 @@ dependencies = [
  "ethers",
  "hex",
  "log",
- "plonky2",
+ "plonky2 0.1.4 (git+https://github.com/mir-protocol/plonky2.git)",
  "plonky2x",
  "serde",
  "serde_json",
