@@ -2,6 +2,7 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CommonCircuitData, VerifierCircuitTarget};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
+use plonky2::util::serialization::{Buffer, Read};
 use serde::{Deserialize, Serialize};
 
 use super::CircuitBuilder;
@@ -127,14 +128,15 @@ impl<const D: usize> CircuitIO<D> {
             }
             CircuitIO::CyclicProof(io) => {
                 let variables = &io.input;
-                if let PublicInput::CyclicProof(input) = input {
+                if let PublicInput::CyclicProof(input, proof, verifier_data_bytes) = input {
                     for i in 0..variables.len() {
                         variables[i].set(pw, input[i]);
                     }
                     let mut i = variables.len();
-                    pw.set_proof_with_pis_target(&io.proof, &input[i]);
-                    i += 1;
-                    pw.set_verifier_data_target(&io.verifier_data, &input[i])
+                    pw.set_proof_with_pis_target(&io.proof, &proof.unwrap());
+                    let mut buffer = Buffer::new(&verifier_data_bytes);
+                    let size = buffer.read_verifier_circuit_data().unwrap();
+                    pw.set_verifier_data_target(&io.verifier_data)
                 } else {
                     panic!("circuit io type is elements but circuit input is not")
                 }

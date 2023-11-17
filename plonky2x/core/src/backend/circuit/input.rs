@@ -1,3 +1,4 @@
+use ed25519_consensus::batch::Verifier;
 use itertools::Itertools;
 use plonky2::plonk::circuit_data::VerifierCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
@@ -16,13 +17,11 @@ pub enum PublicInput<L: PlonkParameters<D>, const D: usize> {
     Elements(Vec<L::Field>),
     RecursiveProofs(Vec<ProofWithPublicInputs<L::Field, L::Config, D>>),
     RemoteRecursiveProofs(Vec<ProofId>),
-    CyclicProof {
-        elements: Vec<L::Field>,
-        proof: Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
-        // #[serde(serialize_with = "serialize_verifier_circuit")]
-        // #[serde(deserialize_with = "deserialize_verifier_circuit")]
-        verifier_data: Vec<VerifierCircuitData<L::Field, L::Config, D>>,
-    },
+    CyclicProof(
+        Vec<L::Field>,
+        Option<ProofWithPublicInputs<L::Field, L::Config, D>>,
+        #[serde(skip)] Option<VerifierCircuitData<L::Field, L::Config, D>>,
+    ),
     None(),
 }
 
@@ -33,7 +32,7 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
             CircuitIO::Bytes(_) => PublicInput::Bytes(vec![]),
             CircuitIO::Elements(_) => PublicInput::Elements(vec![]),
             CircuitIO::RecursiveProofs(_) => PublicInput::RecursiveProofs(vec![]),
-            CircuitIO::CyclicProof(_) => PublicInput::CyclicProof(vec![], vec![], vec![]),
+            CircuitIO::CyclicProof(_) => PublicInput::CyclicProof(vec![], None, vec![]),
             CircuitIO::None() => PublicInput::None(),
         }
     }

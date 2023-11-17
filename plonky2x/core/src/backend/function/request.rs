@@ -114,7 +114,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
                     },
                 })
             }
-            PublicInput::CyclicProof(_) => todo!(),
+            PublicInput::CyclicProof(_, _, _) => todo!(),
             PublicInput::None() => todo!(),
         }
     }
