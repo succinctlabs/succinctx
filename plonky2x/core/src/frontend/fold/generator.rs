@@ -1,11 +1,7 @@
-
-
 use std::marker::PhantomData;
 
-use log::debug;
-
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
-use plonky2::iop::target::{Target};
+use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
@@ -15,20 +11,8 @@ use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 use serde::{Deserialize, Serialize};
 
 use super::FoldDefinition;
-use crate::backend::circuit::{
-    CircuitBuild, CircuitSerializer, DefaultSerializer, PublicOutput,
-};
-use crate::backend::function::Plonky2xFunction;
-
-
-use crate::frontend::hint::asynchronous::hint::AsyncHint;
-use crate::prelude::{
-    CircuitVariable,
-    PlonkParameters, U32Variable, WitnessWrite,
-};
-
-
-
+use crate::backend::circuit::{CircuitBuild, CircuitSerializer, DefaultSerializer, PublicOutput};
+use crate::prelude::{CircuitVariable, PlonkParameters, U32Variable, WitnessWrite};
 use crate::utils::serde::{deserialize_proof_with_pis_target, serialize_proof_with_pis_target};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -99,6 +83,7 @@ where
 fn prove_cycle<Definition, Ctx, Element, Accumulator, L, const D: usize>(
     circuit: &CircuitBuild<L, D>,
     ctx: Ctx::ValueType<L::Field>,
+    acc: Accumulator::ValueType<L::Field>,
     initial: Accumulator::ValueType<L::Field>,
     element: Element::ValueType<L::Field>,
     index: u32,
@@ -122,13 +107,7 @@ where
     let mut input = circuit.input();
     input.write::<Ctx>(ctx);
     input.write::<Element>(element);
-    if let Some((_, ref mut output)) = prev_result {
-        let acc = output.read::<Accumulator>();
-        debug!("acc: {:} {:?}", index, acc);
-        input.write::<Accumulator>(acc);
-    } else {
-        input.write::<Accumulator>(initial.clone());
-    }
+    input.write::<Accumulator>(acc);
     input.write::<Accumulator>(initial);
     input.write::<U32Variable>(index);
     input.data_write(circuit.data.verifier_data());
@@ -170,6 +149,7 @@ where
         targets
     }
 
+    #[allow(clippy::type_complexity)]
     fn run_once(
         &self,
         witness: &PartitionWitness<L::Field>,
@@ -177,7 +157,6 @@ where
     ) {
         let gate_serializer = DefaultSerializer::gate_registry::<L, D>();
         let generator_serializer = DefaultSerializer::generator_registry::<L, D>();
-        debug!("circuit id {:}", self.circuit_id);
         let circuit_path = format!("./build/{}.circuit", self.circuit_id);
         let circuit =
             CircuitBuild::<L, D>::load(&circuit_path, &gate_serializer, &generator_serializer)
@@ -186,22 +165,43 @@ where
         let ctx_value = self.ctx.get(witness);
         let initial_value = self.initial.get(witness);
 
-        let elements = Definition::get_elements(ctx_value.clone());
+        let iterator = Definition::init(ctx_value.clone());
 
-        let mut last_result = None;
-        for (i, element) in elements.into_iter().enumerate() {
-            debug!("element: {:} {:?}", i, element);
+        let mut last_result: Option<(
+            ProofWithPublicInputs<
+                <L as PlonkParameters<D>>::Field,
+                <L as PlonkParameters<D>>::Config,
+                D,
+            >,
+            PublicOutput<L, D>,
+        )> = None;
+        let mut i = 0_u32;
+        loop {
+            // If first iteration, use initial value, otherwise use previous accumulator.
+            let prev_acc = if let Some((_, ref mut output)) = last_result {
+                output.read::<Accumulator>()
+            } else {
+                initial_value.clone()
+            };
+
+            // Call user definition to get next element.
+            let element = iterator.next(i, prev_acc.clone());
+            if element.is_none() {
+                break;
+            }
+
+            // Generate proof.
             last_result = Some(prove_cycle::<Definition, _, _, _, _, D>(
                 &circuit,
                 ctx_value.clone(),
+                prev_acc,
                 initial_value.clone(),
-                element,
-                i as u32,
+                element.unwrap(),
+                i,
                 &mut last_result,
             ));
+            i += 1;
         }
-        let mut output = last_result.clone().unwrap().1.clone();
-        debug!("output: {:?}", output.read::<Accumulator>());
 
         out_buffer.set_proof_with_pis_target(&self.proof, &last_result.unwrap().0);
     }

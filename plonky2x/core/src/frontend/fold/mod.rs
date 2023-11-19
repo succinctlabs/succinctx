@@ -154,7 +154,8 @@ where
     let should_dummy = builder.is_equal(index, zero_u32);
     let prev_or_initial = builder.select(should_dummy, initial.clone(), prev.clone());
 
-    let next_acc = Definition::fold(&ctx, element.clone(), prev_or_initial, index, &mut builder);
+    let next_acc =
+        Definition::fold_step(&ctx, element.clone(), prev_or_initial, index, &mut builder);
     builder.write(next_acc);
     builder.close_cyclic_io();
 
@@ -237,9 +238,15 @@ where
     <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
         AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
 {
-    fn get_elements(ctx: Ctx::ValueType<L::Field>) -> Vec<Element::ValueType<L::Field>>;
+    fn init(ctx: Ctx::ValueType<L::Field>) -> Self;
 
-    fn fold(
+    fn next(
+        &self,
+        index: u32,
+        current_acc: Accumulator::ValueType<L::Field>,
+    ) -> Option<Element::ValueType<L::Field>>;
+
+    fn fold_step(
         ctx: &Ctx,
         element: Element,
         acc: Accumulator,
@@ -265,7 +272,7 @@ mod tests {
     const D: usize = 2;
 
     #[derive(Debug, Clone)]
-    struct TestFoldDefinition;
+    struct TestFoldDefinition(u32);
 
     impl<L, const D: usize>
         FoldDefinition<U32Variable, U32Variable, (U32Variable, U32Variable), L, D>
@@ -275,16 +282,19 @@ mod tests {
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        fn get_elements(ctx: u32) -> Vec<u32> {
-            // return 1, 2^2, 3^2, ... n^2
-            let mut elements = Vec::new();
-            for i in 1..=ctx {
-                elements.push(i * i);
-            }
-            elements
+        fn init(ctx: u32) -> Self {
+            Self(ctx)
         }
 
-        fn fold(
+        fn next(&self, index: u32, _: (u32, u32)) -> Option<u32> {
+            if index < self.0 {
+                Some((index + 1).pow(2))
+            } else {
+                None
+            }
+        }
+
+        fn fold_step(
             _: &U32Variable,
             element: U32Variable,
             acc: (U32Variable, U32Variable),

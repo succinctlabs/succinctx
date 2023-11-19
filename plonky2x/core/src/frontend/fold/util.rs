@@ -1,31 +1,8 @@
-
-
-
-
-
 use plonky2::gates::noop::NoopGate;
-
-
-
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
-
-
-
-
-
-use crate::backend::function::Plonky2xFunction;
-
-
-use crate::prelude::{
-    CircuitBuilder,
-    PlonkParameters,
-};
-
-
-
-
+use crate::prelude::{CircuitBuilder, PlonkParameters};
 
 pub fn common_data_for_recursion<L: PlonkParameters<D>, const D: usize>(
 ) -> CommonCircuitData<L::Field, D>
