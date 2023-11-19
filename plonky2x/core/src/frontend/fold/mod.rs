@@ -14,7 +14,7 @@ use crate::prelude::{CircuitBuilder, CircuitVariable, PlonkParameters, U32Variab
 mod generator;
 mod util;
 
-trait FoldBuilderMethods<L: PlonkParameters<D>, const D: usize> {
+pub trait FoldBuilderMethods<L: PlonkParameters<D>, const D: usize> {
     fn fold<Definition, Ctx, Element, Accumulator, Serializer>(
         &mut self,
         ctx: Ctx,
