@@ -221,18 +221,19 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 self.register_public_inputs(output.as_slice());
             }
             CircuitIO::CyclicProof(ref io) => {
-                let input = io
-                    .input
-                    .iter()
-                    .flat_map(|b| b.variables())
-                    .collect::<Vec<_>>();
-                let output = io
-                    .output
-                    .iter()
-                    .flat_map(|b| b.variables())
-                    .collect::<Vec<_>>();
-                self.register_public_inputs(input.as_slice());
-                self.register_public_inputs(output.as_slice());
+                // let input = io
+                //     .input
+                //     .iter()
+                //     .flat_map(|b| b.variables())
+                //     .collect::<Vec<_>>();
+                // let output = io
+                //     .output
+                //     .iter()
+                //     .flat_map(|b| b.variables())
+                //     .collect::<Vec<_>>();
+                // self.register_public_inputs(input.as_slice());
+                // self.register_public_inputs(output.as_slice());
+                // self.api.add_verifier_data_public_inputs();
             }
             CircuitIO::None() => {}
         };
@@ -271,6 +272,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             io: self.io,
             async_hints,
         }
+    }
+
+    pub fn try_build(mut self) -> (CircuitBuild<L, D>, bool) {
+        self.pre_build();
+        let (data, success) = self.api.try_build_with_options(true);
+        let async_hints = Self::async_hint_map(&data.prover_only.generators, self.async_hints);
+        (
+            CircuitBuild {
+                data,
+                io: self.io,
+                async_hints,
+            },
+            success,
+        )
     }
 
     pub fn mock_build(mut self) -> MockCircuitBuild<L, D> {

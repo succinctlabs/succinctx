@@ -34,6 +34,7 @@ use plonky2::iop::generator::{
 };
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSerializer, Write};
 
 use super::registry::{SerializationRegistry, Serializer};
@@ -414,6 +415,10 @@ where
 
         r.register_hint::<EcOpResultHint>();
         r.register_async_hint::<Async<EcOpResultHint>>();
+
+        let dummy_proof_generator_id =
+            DummyProofGenerator::<L::Field, L::Config, D>::default().id();
+        r.register_simple::<DummyProofGenerator<L::Field, L::Config, D>>(dummy_proof_generator_id);
 
         register_powers_of_two!(r, BeaconHeadersFromOffsetRangeHint);
 

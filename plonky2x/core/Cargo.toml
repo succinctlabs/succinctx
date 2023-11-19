@@ -14,7 +14,7 @@ ci = []
 
 [dependencies]
 plonky2 = { path = "../../../../workspace/plonky2/plonky2", default-features = false }
-curta = { git = "https://github.com/succinctlabs/curta.git" }
+curta = { path = "../../../curta/curta" }
 plonky2x-derive = { path = "../derive" }
 
 num = { version = "0.4", default-features = false }
