@@ -169,7 +169,7 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
             PublicInput::RecursiveProofs(input) => {
                 input.push(proof);
             }
-            PublicInput::CyclicProof(input, ref mut io_proof, ref data) => {
+            PublicInput::CyclicProof(_input, ref mut io_proof, ref _data) => {
                 if let Some(_) = io_proof {
                     panic!("cyclic proof already has data");
                 } else {

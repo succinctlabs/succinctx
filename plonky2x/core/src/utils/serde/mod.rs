@@ -2,7 +2,7 @@ use itertools::Itertools;
 use num::BigInt;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::circuit_data::{VerifierCircuitData, VerifierCircuitTarget};
+use plonky2::plonk::circuit_data::{VerifierCircuitTarget};
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
