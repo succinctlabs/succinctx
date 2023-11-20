@@ -11,7 +11,7 @@ use crate::frontend::fold::generator::FoldGenerator;
 use crate::frontend::fold::util::common_data_for_recursion;
 use crate::prelude::{CircuitBuilder, CircuitVariable, PlonkParameters, U32Variable};
 
-mod generator;
+pub mod generator;
 mod util;
 
 pub trait FoldBuilderMethods<L: PlonkParameters<D>, const D: usize> {
