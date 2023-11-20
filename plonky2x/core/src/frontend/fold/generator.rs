@@ -80,7 +80,7 @@ where
 }
 
 #[allow(clippy::type_complexity)]
-fn prove_cycle<Definition, Ctx, Element, Accumulator, L, const D: usize>(
+fn prove_cycle<Ctx, Element, Accumulator, L, const D: usize>(
     circuit: &CircuitBuild<L, D>,
     ctx: Ctx::ValueType<L::Field>,
     acc: Accumulator::ValueType<L::Field>,
@@ -96,8 +96,6 @@ fn prove_cycle<Definition, Ctx, Element, Accumulator, L, const D: usize>(
     PublicOutput<L, D>,
 )
 where
-    Definition:
-        FoldDefinition<Ctx, Element, Accumulator, L, D> + std::fmt::Debug + Send + Sync + 'static,
     L: PlonkParameters<D>,
     Ctx: CircuitVariable,
     Element: CircuitVariable,
@@ -191,7 +189,7 @@ where
             }
 
             // Generate proof.
-            last_result = Some(prove_cycle::<Definition, _, _, _, _, D>(
+            last_result = Some(prove_cycle::<Ctx, Element, Accumulator, L, D>(
                 &circuit,
                 ctx_value.clone(),
                 prev_acc,
