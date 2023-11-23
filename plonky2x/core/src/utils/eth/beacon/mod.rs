@@ -400,6 +400,7 @@ impl BeaconClient {
     /// `stateRoot -> validatorsRoot`.
     pub fn get_validators_root(&self, beacon_id: String) -> Result<GetBeaconValidatorsRoot> {
         let endpoint = format!("{}/api/beacon/proof/validator/{}", self.rpc_url, beacon_id);
+        debug!("{}", endpoint);
         let client = Client::new();
         let response = client.get(endpoint).timeout(Duration::new(120, 0)).send()?;
         let response: CustomResponse<GetBeaconValidatorsRoot> = response.json()?;
@@ -418,6 +419,7 @@ impl BeaconClient {
             "{}/api/beacon/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
+        debug!("{}", endpoint);
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconValidatorWitness> = response.json()?;
         assert!(response.success);
@@ -451,6 +453,7 @@ impl BeaconClient {
             "{}/api/beacon/proof/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
+        debug!("{}", endpoint);
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconValidator> = response.json()?;
         assert!(response.success);

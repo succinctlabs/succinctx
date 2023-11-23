@@ -3,7 +3,6 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CommonCircuitData, VerifierCircuitTarget};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
-
 use serde::{Deserialize, Serialize};
 
 use super::CircuitBuilder;
@@ -140,14 +139,7 @@ impl<const D: usize> CircuitIO<D> {
                     pw.set_proof_with_pis_target(proof, proof_contents);
                     let verifier_data = verifier_data.clone().unwrap().materialize();
                     let verifier_data_target = io.verifier_data.as_ref().unwrap();
-                    debug!(
-                        "setting verifier data target {:?}",
-                        &verifier_data.verifier_only
-                    );
-                    pw.set_verifier_data_target(
-                        &verifier_data_target,
-                        &verifier_data.verifier_only,
-                    );
+                    pw.set_verifier_data_target(verifier_data_target, &verifier_data.verifier_only);
                 } else {
                     panic!("circuit io type is cyclic but circuit input is not")
                 }

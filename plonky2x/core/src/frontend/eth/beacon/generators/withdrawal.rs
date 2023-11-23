@@ -81,9 +81,8 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         let result = self
             .client
             .get_withdrawal(hex!(block_root.as_bytes()).to_string(), idx)
-            .expect("failed to get validators root");
+            .expect("failed to get withdrawal");
 
-        info!("{}", result.withdrawal.amount);
         let withdrawal = BeaconWithdrawalValue {
             index: result.withdrawal.index,
             validator_index: result.withdrawal.validator_index,
