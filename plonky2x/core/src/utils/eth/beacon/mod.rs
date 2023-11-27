@@ -630,6 +630,7 @@ impl BeaconClient {
             "{}/api/beacon/proof/withdrawal/{}/{}",
             self.rpc_url, beacon_id, idx
         );
+        info!("{}", endpoint);
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconWithdrawal> = response.json()?;
         assert!(response.success);
