@@ -10,11 +10,53 @@ use crate::prelude::{
     ArrayVariable, BoolVariable, ByteVariable, BytesVariable, CircuitBuilder, CircuitVariable,
 };
 
+pub trait TendermintMerkleTree {
+    fn get_root_from_merkle_proof_hashed_leaf<const PROOF_DEPTH: usize>(
+        &mut self,
+        proof: &ArrayVariable<Bytes32Variable, PROOF_DEPTH>,
+        path_indices: &ArrayVariable<BoolVariable, PROOF_DEPTH>,
+        leaf: Bytes32Variable,
+    ) -> Bytes32Variable;
+
+    fn get_root_from_merkle_proof<const PROOF_DEPTH: usize, const LEAF_SIZE_BYTES: usize>(
+        &mut self,
+        inclusion_proof: &MerkleInclusionProofVariable<PROOF_DEPTH, LEAF_SIZE_BYTES>,
+        path_indices: &ArrayVariable<BoolVariable, PROOF_DEPTH>,
+    ) -> Bytes32Variable;
+
+    fn leaf_hash(&mut self, leaf: &[ByteVariable]) -> Bytes32Variable;
+
+    fn inner_hash(&mut self, left: &Bytes32Variable, right: &Bytes32Variable) -> Bytes32Variable;
+
+    fn hash_merkle_layer(
+        &mut self,
+        merkle_hashes: Vec<Bytes32Variable>,
+        merkle_hash_enabled: Vec<BoolVariable>,
+    ) -> (Vec<Bytes32Variable>, Vec<BoolVariable>);
+
+    fn hash_leaves<const LEAF_SIZE_BYTES: usize>(
+        &mut self,
+        leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
+    ) -> Vec<Bytes32Variable>;
+
+    fn get_root_from_hashed_leaves<const NB_LEAVES: usize>(
+        &mut self,
+        leaf_hashes: Vec<Bytes32Variable>,
+    ) -> Bytes32Variable;
+
+    fn compute_root_from_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
+        &mut self,
+        leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
+    ) -> Bytes32Variable;
+}
+
 /// Merkle Tree implementation for the Tendermint spec (follows Comet BFT Simple Merkle Tree spec: https://docs.cometbft.com/main/spec/core/encoding#merkle-trees).
+/// Adds pre-image prefix of 0x01 to inner nodes and 0x00 to leaf nodes for second pre-image resistance.
+/// Computed root hash is independent of the number of empty leaves, unlike the simple Merkle Tree.
 /// TODO: Create generic interface for Merkle trees to implement.
-impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+impl<L: PlonkParameters<D>, const D: usize> TendermintMerkleTree for CircuitBuilder<L, D> {
     /// Leaf should already be hashed.
-    pub fn get_root_from_merkle_proof_hashed_leaf<const PROOF_DEPTH: usize>(
+    fn get_root_from_merkle_proof_hashed_leaf<const PROOF_DEPTH: usize>(
         &mut self,
         proof: &ArrayVariable<Bytes32Variable, PROOF_DEPTH>,
         path_indices: &ArrayVariable<BoolVariable, PROOF_DEPTH>,
@@ -33,7 +75,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         hash_so_far
     }
 
-    pub fn get_root_from_merkle_proof<const PROOF_DEPTH: usize, const LEAF_SIZE_BYTES: usize>(
+    fn get_root_from_merkle_proof<const PROOF_DEPTH: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
         inclusion_proof: &MerkleInclusionProofVariable<PROOF_DEPTH, LEAF_SIZE_BYTES>,
         path_indices: &ArrayVariable<BoolVariable, PROOF_DEPTH>,
@@ -47,7 +89,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         )
     }
 
-    pub fn leaf_hash(&mut self, leaf: &[ByteVariable]) -> Bytes32Variable {
+    fn leaf_hash(&mut self, leaf: &[ByteVariable]) -> Bytes32Variable {
+        // Leaf node pre-image is 0x00 || leaf.
         let zero_byte = ByteVariable::constant(self, 0u8);
 
         let mut encoded_leaf = vec![zero_byte];
@@ -56,18 +99,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         encoded_leaf.extend(leaf.to_vec());
 
         // Load the output of the hash.
-        // Use curta gadget to generate SHA's.
-        // Note: This can be removed when sha256 interface is fixed.
         self.curta_sha256(&encoded_leaf)
     }
 
-    pub fn inner_hash(
-        &mut self,
-        left: &Bytes32Variable,
-        right: &Bytes32Variable,
-    ) -> Bytes32Variable {
-        // Calculate the length of the message for the inner hash.
-        // 0x01 || left || right
+    fn inner_hash(&mut self, left: &Bytes32Variable, right: &Bytes32Variable) -> Bytes32Variable {
+        // Inner node pre-image is 0x01 || left || right.
         let one_byte = ByteVariable::constant(self, 1u8);
 
         let mut encoded_leaf = vec![one_byte];
@@ -79,15 +115,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         encoded_leaf.extend(right.as_bytes().to_vec());
 
         // Load the output of the hash.
-        // Note: Calculate the inner hash as if both validators are enabled.
         self.curta_sha256(&encoded_leaf)
     }
 
-    pub fn hash_merkle_layer(
+    fn hash_merkle_layer(
         &mut self,
         merkle_hashes: Vec<Bytes32Variable>,
         merkle_hash_enabled: Vec<BoolVariable>,
-        num_hashes: usize,
     ) -> (Vec<Bytes32Variable>, Vec<BoolVariable>) {
         let zero = self._false();
         let one = self._true();
@@ -95,7 +129,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut new_merkle_hashes = Vec::new();
         let mut new_merkle_hash_enabled = Vec::new();
 
-        for i in (0..num_hashes).step_by(2) {
+        for i in (0..merkle_hashes.len()).step_by(2) {
             let both_nodes_enabled = self.and(merkle_hash_enabled[i], merkle_hash_enabled[i + 1]);
 
             let first_node_disabled = self.not(merkle_hash_enabled[i]);
@@ -115,7 +149,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         (new_merkle_hashes, new_merkle_hash_enabled)
     }
 
-    pub fn hash_leaves<const LEAF_SIZE_BYTES: usize>(
+    fn hash_leaves<const LEAF_SIZE_BYTES: usize>(
         &mut self,
         leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
     ) -> Vec<Bytes32Variable> {
@@ -125,13 +159,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .collect_vec()
     }
 
-    pub fn get_root_from_hashed_leaves<const NB_LEAVES: usize>(
+    fn get_root_from_hashed_leaves<const NB_LEAVES: usize>(
         &mut self,
         leaf_hashes: Vec<Bytes32Variable>,
-        leaves_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable {
         assert!(leaf_hashes.len() == NB_LEAVES);
-        assert!(leaves_enabled.len() == NB_LEAVES);
 
         let empty_bytes = Bytes32Variable::constant(self, H256::from_slice(&[0u8; 32]));
 
@@ -146,32 +178,27 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // Whether to treat the validator as empty.
         // Pad the enabled array to be a power of 2.
-        let mut current_node_enabled = leaves_enabled.clone();
+        let mut current_node_enabled = [self._true(); NB_LEAVES].to_vec();
         current_node_enabled.resize(padded_nb_leaves, self._false());
 
-        let mut merkle_layer_size = padded_nb_leaves;
-
         // Hash each layer of nodes to get the root according to the Tendermint spec, starting from the leaves.
-        while merkle_layer_size > 1 {
+        while current_nodes.len() > 1 {
             (current_nodes, current_node_enabled) =
-                self.hash_merkle_layer(current_nodes, current_node_enabled, merkle_layer_size);
-            merkle_layer_size /= 2;
+                self.hash_merkle_layer(current_nodes, current_node_enabled);
         }
 
         // Return the root hash.
         current_nodes[0]
     }
 
-    pub fn compute_root_from_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
+    fn compute_root_from_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
         leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
-        leaves_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable {
         assert!(NB_LEAVES == leaves.len());
-        assert!(NB_LEAVES == leaves_enabled.len());
 
         let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves.to_vec());
-        self.get_root_from_hashed_leaves::<NB_LEAVES>(hashed_leaves, leaves_enabled.to_vec())
+        self.get_root_from_hashed_leaves::<NB_LEAVES>(hashed_leaves)
     }
 }
 
@@ -184,6 +211,7 @@ mod tests {
     use itertools::Itertools;
 
     use crate::backend::circuit::DefaultParameters;
+    use crate::frontend::merkle::tendermint::TendermintMerkleTree;
     use crate::frontend::merkle::tree::{InclusionProof, MerkleInclusionProofVariable};
     use crate::prelude::*;
 
@@ -193,7 +221,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_root_from_leaves() {
+    fn test_get_root_from_leaves_tendermint() {
         env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
@@ -201,8 +229,7 @@ mod tests {
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let leaves = builder.read::<ArrayVariable<BytesVariable<48>, 32>>();
-        let enabled = builder.read::<ArrayVariable<BoolVariable, 32>>();
-        let root = builder.compute_root_from_leaves::<32, 48>(leaves.as_vec(), enabled.as_vec());
+        let root = builder.compute_root_from_leaves::<32, 48>(leaves.as_vec());
         builder.write::<Bytes32Variable>(root);
         let circuit = builder.build();
         circuit.test_default_serializers();
@@ -210,7 +237,6 @@ mod tests {
         let mut input = circuit.input();
 
         input.write::<ArrayVariable<BytesVariable<48>, 32>>([[0u8; 48]; 32].to_vec());
-        input.write::<ArrayVariable<BoolVariable, 32>>([true; 32].to_vec());
 
         let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
@@ -224,7 +250,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
-    fn test_get_root_from_merkle_proof() {
+    fn test_get_root_from_merkle_proof_tendermint() {
         env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
