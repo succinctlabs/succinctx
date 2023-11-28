@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use log::debug;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartitionWitness;
@@ -189,6 +190,7 @@ where
             }
 
             // Generate proof.
+            debug!("proving element {}", i);
             last_result = Some(prove_cycle::<Ctx, Element, Accumulator, L, D>(
                 &circuit,
                 ctx_value.clone(),
