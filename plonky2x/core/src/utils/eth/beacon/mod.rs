@@ -405,6 +405,7 @@ impl BeaconClient {
         let response = client.get(endpoint).timeout(Duration::new(120, 0)).send()?;
         let response: CustomResponse<GetBeaconValidatorsRoot> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -457,6 +458,7 @@ impl BeaconClient {
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconValidator> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -613,6 +615,7 @@ impl BeaconClient {
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconWithdrawals> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -634,6 +637,7 @@ impl BeaconClient {
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconWithdrawal> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
