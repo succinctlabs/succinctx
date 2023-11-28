@@ -402,7 +402,10 @@ impl BeaconClient {
         let endpoint = format!("{}/api/beacon/proof/validator/{}", self.rpc_url, beacon_id);
         debug!("{}", endpoint);
         let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(120, 0)).send()?;
+        let response = client
+            .get(&endpoint)
+            .timeout(Duration::new(120, 0))
+            .send()?;
         let response: CustomResponse<GetBeaconValidatorsRoot> = response.json()?;
         assert!(response.success);
         debug!("done {}", endpoint);
