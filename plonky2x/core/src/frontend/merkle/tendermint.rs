@@ -39,14 +39,16 @@ pub trait TendermintMerkleTree {
         leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
     ) -> Vec<Bytes32Variable>;
 
-    fn get_root_from_hashed_leaves<const NB_LEAVES: usize>(
+    fn get_root_from_hashed_leaves<const MAX_NB_LEAVES: usize>(
         &mut self,
         leaf_hashes: Vec<Bytes32Variable>,
+        leaf_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable;
 
-    fn compute_root_from_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
+    fn compute_root_from_leaves<const MAX_NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
         leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
+        leaf_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable;
 }
 
@@ -159,17 +161,21 @@ impl<L: PlonkParameters<D>, const D: usize> TendermintMerkleTree for CircuitBuil
             .collect_vec()
     }
 
-    fn get_root_from_hashed_leaves<const NB_LEAVES: usize>(
+    /// Note: leaf_enabled is necessary for when MAX_NB_LEAVES is greater than the number of leaves
+    /// in the tree.
+    fn get_root_from_hashed_leaves<const MAX_NB_LEAVES: usize>(
         &mut self,
         leaf_hashes: Vec<Bytes32Variable>,
+        leaf_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable {
-        assert!(leaf_hashes.len() == NB_LEAVES);
+        assert!(leaf_hashes.len() == MAX_NB_LEAVES);
+        assert!(leaf_enabled.len() == MAX_NB_LEAVES);
 
         let empty_bytes = Bytes32Variable::constant(self, H256::from_slice(&[0u8; 32]));
 
         // Extend leaf_hashes and leaves_enabled to be a power of 2.
-        let padded_nb_leaves = pow(2, log2_ceil_usize(NB_LEAVES));
-        assert!(padded_nb_leaves >= NB_LEAVES && padded_nb_leaves.is_power_of_two());
+        let padded_nb_leaves = pow(2, log2_ceil_usize(MAX_NB_LEAVES));
+        assert!(padded_nb_leaves >= MAX_NB_LEAVES && padded_nb_leaves.is_power_of_two());
 
         // Hash each of the validators to get their corresponding leaf hash.
         // Pad the leaves to be a power of 2.
@@ -178,7 +184,7 @@ impl<L: PlonkParameters<D>, const D: usize> TendermintMerkleTree for CircuitBuil
 
         // Whether to treat the validator as empty.
         // Pad the enabled array to be a power of 2.
-        let mut current_node_enabled = [self._true(); NB_LEAVES].to_vec();
+        let mut current_node_enabled = leaf_enabled.clone();
         current_node_enabled.resize(padded_nb_leaves, self._false());
 
         // Hash each layer of nodes to get the root according to the Tendermint spec, starting from the leaves.
@@ -191,14 +197,18 @@ impl<L: PlonkParameters<D>, const D: usize> TendermintMerkleTree for CircuitBuil
         current_nodes[0]
     }
 
-    fn compute_root_from_leaves<const NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
+    /// Note: leaf_enabled is necessary for when MAX_NB_LEAVES is greater than the number of leaves
+    /// in the tree.
+    fn compute_root_from_leaves<const MAX_NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
         leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
+        leaf_enabled: Vec<BoolVariable>,
     ) -> Bytes32Variable {
-        assert!(NB_LEAVES == leaves.len());
+        assert!(MAX_NB_LEAVES == leaves.len());
+        assert!(MAX_NB_LEAVES == leaf_enabled.len());
 
         let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves.to_vec());
-        self.get_root_from_hashed_leaves::<NB_LEAVES>(hashed_leaves)
+        self.get_root_from_hashed_leaves::<MAX_NB_LEAVES>(hashed_leaves, leaf_enabled)
     }
 }
 
@@ -229,7 +239,9 @@ mod tests {
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let leaves = builder.read::<ArrayVariable<BytesVariable<48>, 32>>();
-        let root = builder.compute_root_from_leaves::<32, 48>(leaves.as_vec());
+        let leaf_enabled = builder.read::<ArrayVariable<BoolVariable, 32>>();
+        let root =
+            builder.compute_root_from_leaves::<32, 48>(leaves.as_vec(), leaf_enabled.as_vec());
         builder.write::<Bytes32Variable>(root);
         let circuit = builder.build();
         circuit.test_default_serializers();
@@ -237,6 +249,7 @@ mod tests {
         let mut input = circuit.input();
 
         input.write::<ArrayVariable<BytesVariable<48>, 32>>([[0u8; 48]; 32].to_vec());
+        input.write::<ArrayVariable<BoolVariable, 32>>([true; 32].to_vec());
 
         let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
