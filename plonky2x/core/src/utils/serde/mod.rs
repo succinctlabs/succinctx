@@ -204,7 +204,7 @@ where
             buffer
                 .read_target_proof_with_public_inputs()
                 .map_err(serde::de::Error::custom)
-                .map(|proof_with_pis| Some(proof_with_pis))
+                .map(Some)
         }
         None => Ok(None),
     }
@@ -349,7 +349,7 @@ where
             buffer
                 .read_target_verifier_circuit()
                 .map_err(serde::de::Error::custom)
-                .map(|verifier_circuit_target| Some(verifier_circuit_target))
+                .map(Some)
         }
         None => Ok(None),
     }

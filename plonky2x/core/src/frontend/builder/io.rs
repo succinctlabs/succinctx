@@ -1,4 +1,3 @@
-use log::debug;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CommonCircuitData, VerifierCircuitTarget};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
@@ -55,6 +54,7 @@ pub struct CyclicProofIO<const D: usize> {
 
 /// A schema for what the inputs and outputs are for a circuit.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum CircuitIO<const D: usize> {
     Bytes(BytesIO),
     Elements(ElementsIO),
@@ -134,10 +134,10 @@ impl<const D: usize> CircuitIO<D> {
                     for i in 0..variables.len() {
                         variables[i].set(pw, input[i]);
                     }
-                    let proof_contents = proof.as_ref().unwrap();
+                    let proof_contents = proof.as_ref().as_ref().unwrap();
                     let proof = io.proof.as_ref().unwrap();
                     pw.set_proof_with_pis_target(proof, proof_contents);
-                    let verifier_data = verifier_data.clone().unwrap().materialize();
+                    let verifier_data = verifier_data.clone().unwrap();
                     let verifier_data_target = io.verifier_data.as_ref().unwrap();
                     pw.set_verifier_data_target(verifier_data_target, &verifier_data.verifier_only);
                 } else {
@@ -273,13 +273,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         data: &CommonCircuitData<L::Field, D>,
     ) -> ProofWithPublicInputsTarget<D> {
         self.try_init_proof_io();
-        let proof = self.add_virtual_proof_with_pis(&data);
+        let proof = self.add_virtual_proof_with_pis(data);
         match self.io {
             CircuitIO::RecursiveProofs(ref mut io) => {
                 io.input.push(proof.clone());
             }
             CircuitIO::CyclicProof(ref mut io) => {
-                if let Some(_) = io.proof {
+                if io.proof.is_some() {
                     panic!("proof already set");
                 } else {
                     io.proof = Some(proof.clone());

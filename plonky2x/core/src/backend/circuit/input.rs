@@ -1,10 +1,5 @@
 use itertools::Itertools;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::circuit_data::{
-    CommonCircuitData, VerifierCircuitData, VerifierOnlyCircuitData,
-};
-use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::circuit_data::VerifierCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use serde::{Deserialize, Serialize};
 
@@ -23,54 +18,11 @@ pub enum PublicInput<L: PlonkParameters<D>, const D: usize> {
     RemoteRecursiveProofs(Vec<ProofId>),
     CyclicProof(
         Vec<L::Field>,
-        Option<ProofWithPublicInputs<L::Field, L::Config, D>>,
-        #[serde(skip)] Option<MyVerifierCircuitData<L::Field, L::Config, D>>,
+        Box<Option<ProofWithPublicInputs<L::Field, L::Config, D>>>,
+        #[serde(skip)] Box<Option<VerifierCircuitData<L::Field, L::Config, D>>>,
     ),
     None(),
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MyVerifierCircuitData<
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    const D: usize,
-> {
-    pub verifier_only: VerifierOnlyCircuitData<C, D>,
-    pub common: CommonCircuitData<F, D>,
-}
-
-// impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
-//     MyVerifierCircuitData<F, C, D>
-// {
-//     fn into(self) -> VerifierCircuitData<F, C, D> {
-//         VerifierCircuitData {
-//             verifier_only: self.verifier_only,
-//             common: self.common,
-//         }
-//     }
-// }
-
-impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
-    MyVerifierCircuitData<F, C, D>
-{
-    pub fn materialize(self) -> VerifierCircuitData<F, C, D> {
-        VerifierCircuitData {
-            verifier_only: self.verifier_only,
-            common: self.common,
-        }
-    }
-}
-
-// impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
-//     From<MyVerifierCircuitData<F, C, D>> for VerifierCircuitData<F, C, D>
-// {
-//     fn from(data: MyVerifierCircuitData<F, C, D>) -> Self {
-//         VerifierCircuitData {
-//             verifier_only: data.verifier_only,
-//             common: data.common,
-//         }
-//     }
-// }
 
 impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     /// Creates an empty public input instance.
@@ -79,7 +31,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
             CircuitIO::Bytes(_) => PublicInput::Bytes(vec![]),
             CircuitIO::Elements(_) => PublicInput::Elements(vec![]),
             CircuitIO::RecursiveProofs(_) => PublicInput::RecursiveProofs(vec![]),
-            CircuitIO::CyclicProof(_) => PublicInput::CyclicProof(vec![], None, None),
+            CircuitIO::CyclicProof(_) => {
+                PublicInput::CyclicProof(vec![], Box::new(None), Box::new(None))
+            }
             CircuitIO::None() => PublicInput::None(),
         }
     }
@@ -170,10 +124,10 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
                 input.push(proof);
             }
             PublicInput::CyclicProof(_input, ref mut io_proof, ref _data) => {
-                if let Some(_) = io_proof {
+                if io_proof.is_some() {
                     panic!("cyclic proof already has data");
                 } else {
-                    *io_proof = Some(proof);
+                    *io_proof = Box::new(Some(proof));
                 }
             }
             _ => panic!("cyclic io is not enabled"),
@@ -183,14 +137,14 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     pub fn data_write(&mut self, data: VerifierCircuitData<L::Field, L::Config, D>) {
         match self {
             PublicInput::CyclicProof(_, _, ref mut io_data) => {
-                if let Some(_) = io_data {
+                if io_data.as_ref().is_some() {
                     panic!("cyclic proof already has data");
                 } else {
-                    let wrapped = MyVerifierCircuitData {
+                    let wrapped = VerifierCircuitData {
                         verifier_only: data.verifier_only,
                         common: data.common,
                     };
-                    *io_data = Some(wrapped);
+                    *io_data = Box::new(Some(wrapped));
                 }
             }
             _ => panic!("cyclic io is not enabled"),

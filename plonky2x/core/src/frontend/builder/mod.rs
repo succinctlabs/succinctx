@@ -220,20 +220,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     .collect::<Vec<_>>();
                 self.register_public_inputs(output.as_slice());
             }
-            CircuitIO::CyclicProof(ref _io) => {
-                // let input = io
-                //     .input
-                //     .iter()
-                //     .flat_map(|b| b.variables())
-                //     .collect::<Vec<_>>();
-                // let output = io
-                //     .output
-                //     .iter()
-                //     .flat_map(|b| b.variables())
-                //     .collect::<Vec<_>>();
-                // self.register_public_inputs(input.as_slice());
-                // self.register_public_inputs(output.as_slice());
-                // self.api.add_verifier_data_public_inputs();
+            CircuitIO::CyclicProof(ref io) => {
+                if !io.closed {
+                    panic!("close_cyclic_io should have been called");
+                }
             }
             CircuitIO::None() => {}
         };
