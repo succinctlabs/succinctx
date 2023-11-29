@@ -1,3 +1,4 @@
+use curta::prelude::Field;
 use ethers::types::H256;
 use itertools::Itertools;
 use num::pow;
@@ -5,7 +6,9 @@ use num::pow;
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::merkle::utils::log2_ceil_usize;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{BoolVariable, ByteVariable, BytesVariable, CircuitBuilder, CircuitVariable};
+use crate::prelude::{
+    ArrayVariable, ByteVariable, BytesVariable, CircuitBuilder, CircuitVariable, Variable,
+};
 
 pub trait SimpleMerkleTree {
     fn leaf_hash(&mut self, leaf: &[ByteVariable]) -> Bytes32Variable;
@@ -21,14 +24,14 @@ pub trait SimpleMerkleTree {
 
     fn get_root_from_hashed_leaves<const MAX_NB_LEAVES: usize>(
         &mut self,
-        leaf_hashes: Vec<Bytes32Variable>,
-        leaf_enabled: Vec<BoolVariable>,
+        leaf_hashes: ArrayVariable<Bytes32Variable, MAX_NB_LEAVES>,
+        nb_enabled_leaves: Variable,
     ) -> Bytes32Variable;
 
     fn compute_root_from_leaves<const MAX_NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
-        leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
-        leaf_enabled: Vec<BoolVariable>,
+        leaves: ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, MAX_NB_LEAVES>,
+        nb_enabled_leaves: Variable,
     ) -> Bytes32Variable;
 }
 
@@ -74,15 +77,11 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleMerkleTree for CircuitBuilder<
             .collect_vec()
     }
 
-    /// Note: leaf_enabled is necessary for when MAX_NB_LEAVES is greater than the number of leaves
-    /// in the tree.
     fn get_root_from_hashed_leaves<const MAX_NB_LEAVES: usize>(
         &mut self,
-        leaf_hashes: Vec<Bytes32Variable>,
-        leaf_enabled: Vec<BoolVariable>,
+        leaf_hashes: ArrayVariable<Bytes32Variable, MAX_NB_LEAVES>,
+        nb_enabled_leaves: Variable,
     ) -> Bytes32Variable {
-        assert!(leaf_hashes.len() == MAX_NB_LEAVES);
-
         let empty_bytes = Bytes32Variable::constant(self, H256::from_slice(&[0u8; 32]));
 
         // Extend leaf_hashes and leaves_enabled to be a power of 2.
@@ -91,15 +90,14 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleMerkleTree for CircuitBuilder<
 
         // Hash each of the validators to get their corresponding leaf hash.
         // Pad the leaves to be a power of 2.
-        let mut current_nodes = leaf_hashes.clone();
+        let mut current_nodes = leaf_hashes.data;
         current_nodes.resize(padded_nb_leaves, empty_bytes);
-
-        let mut current_enabled = leaf_enabled.clone();
-        current_enabled.resize(padded_nb_leaves, BoolVariable::constant(self, false));
 
         // Fill in the disabled leaves with empty bytes.
         for i in 0..padded_nb_leaves {
-            current_nodes[i] = self.select(current_enabled[i], current_nodes[i], empty_bytes)
+            let idx = self.constant::<Variable>(L::Field::from_canonical_usize(i));
+            let enabled = self.lt(idx, nb_enabled_leaves);
+            current_nodes[i] = self.select(enabled, current_nodes[i], empty_bytes)
         }
 
         let mut merkle_layer_size = padded_nb_leaves;
@@ -117,14 +115,12 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleMerkleTree for CircuitBuilder<
     /// in the tree.
     fn compute_root_from_leaves<const MAX_NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
-        leaves: Vec<BytesVariable<LEAF_SIZE_BYTES>>,
-        leaf_enabled: Vec<BoolVariable>,
+        leaves: ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, MAX_NB_LEAVES>,
+        nb_enabled_leaves: Variable,
     ) -> Bytes32Variable {
-        assert!(MAX_NB_LEAVES == leaves.len());
-        assert!(MAX_NB_LEAVES == leaf_enabled.len());
-
-        let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves.to_vec());
-        self.get_root_from_hashed_leaves::<MAX_NB_LEAVES>(hashed_leaves, leaf_enabled)
+        let hashed_leaves = self.hash_leaves::<LEAF_SIZE_BYTES>(leaves.as_vec());
+        let hashed_leaves = ArrayVariable::<Bytes32Variable, MAX_NB_LEAVES>::new(hashed_leaves);
+        self.get_root_from_hashed_leaves::<MAX_NB_LEAVES>(hashed_leaves, nb_enabled_leaves)
     }
 }
 
@@ -139,6 +135,7 @@ mod tests {
 
     type L = DefaultParameters;
     const D: usize = 2;
+    type F = GoldilocksField;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -150,9 +147,8 @@ mod tests {
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let leaves = builder.read::<ArrayVariable<BytesVariable<48>, 32>>();
-        let leaf_enabled = builder.read::<ArrayVariable<BoolVariable, 32>>();
-        let root =
-            builder.compute_root_from_leaves::<32, 48>(leaves.as_vec(), leaf_enabled.as_vec());
+        let nb_enabled_leaves = builder.read::<Variable>();
+        let root = builder.compute_root_from_leaves::<32, 48>(leaves, nb_enabled_leaves);
         builder.write::<Bytes32Variable>(root);
         let circuit = builder.build();
         circuit.test_default_serializers();
@@ -160,7 +156,7 @@ mod tests {
         let mut input = circuit.input();
 
         input.write::<ArrayVariable<BytesVariable<48>, 32>>([[0u8; 48]; 32].to_vec());
-        input.write::<ArrayVariable<BoolVariable, 32>>([true; 32].to_vec());
+        input.write::<Variable>(F::from_canonical_usize(32));
 
         let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
