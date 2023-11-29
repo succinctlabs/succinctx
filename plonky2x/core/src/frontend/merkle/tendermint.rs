@@ -163,8 +163,6 @@ impl<L: PlonkParameters<D>, const D: usize> TendermintMerkleTree for CircuitBuil
             .collect_vec()
     }
 
-    /// Note: leaf_enabled is necessary for when MAX_NB_LEAVES is greater than the number of leaves
-    /// in the tree.
     fn get_root_from_hashed_leaves<const MAX_NB_LEAVES: usize>(
         &mut self,
         leaf_hashes: ArrayVariable<Bytes32Variable, MAX_NB_LEAVES>,
@@ -199,8 +197,6 @@ impl<L: PlonkParameters<D>, const D: usize> TendermintMerkleTree for CircuitBuil
         current_nodes[0]
     }
 
-    /// Note: leaf_enabled is necessary for when MAX_NB_LEAVES is greater than the number of leaves
-    /// in the tree.
     fn compute_root_from_leaves<const MAX_NB_LEAVES: usize, const LEAF_SIZE_BYTES: usize>(
         &mut self,
         leaves: ArrayVariable<BytesVariable<LEAF_SIZE_BYTES>, MAX_NB_LEAVES>,
