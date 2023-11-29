@@ -258,9 +258,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use std::env;
-
-    use log::{debug, info};
+    use log::info;
     use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 
     use super::FoldDefinition;
@@ -315,12 +313,6 @@ mod tests {
 
     #[test]
     fn test_recursion() {
-        dotenv::dotenv().ok();
-        env::set_var("RUST_LOG", "debug");
-        env_logger::init();
-
-        debug!("hi");
-
         let mut builder = CircuitBuilder::<L, D>::new();
         let num = builder.evm_read::<U32Variable>();
         let zero_u32 = builder.constant::<U32Variable>(0u32);
