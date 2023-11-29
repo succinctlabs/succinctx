@@ -763,7 +763,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -787,7 +787,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -811,7 +811,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -840,7 +840,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -868,7 +868,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -896,7 +896,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root =
             "0x1bfb9d3eda9f16e2f50dedf079798ce218748d48024d8150a0299688bb528735";
@@ -923,7 +923,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -947,7 +947,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -971,7 +971,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -997,7 +997,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -1021,7 +1021,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -1047,7 +1047,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
         let slot = client.get_finalized_slot().unwrap();
@@ -1075,7 +1075,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -1099,7 +1099,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 
@@ -1123,7 +1123,7 @@ pub(crate) mod tests {
         env_logger::try_init().unwrap_or_default();
         dotenv::dotenv().ok();
 
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         let latest_block_root = client.get_finalized_block_root().unwrap();
 

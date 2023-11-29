@@ -42,7 +42,7 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconValidators
     ) {
         let block_root = input_stream.read_value::<Bytes32Variable>();
 
-        let result = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap())
+        let result = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap())
             .get_validators_root(hex!(block_root.as_bytes()).to_string())
             .expect("failed to get validators root");
 
@@ -99,7 +99,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
     ) {
         let block_root = self.block_root.get(witness);
 
-        let result = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap())
+        let result = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap())
             .get_validators_root(hex!(block_root.as_bytes()).to_string())
             .expect("failed to get validators root");
 

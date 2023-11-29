@@ -19,7 +19,7 @@ pub struct BeaconGraffitiHint;
 #[async_trait]
 impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconGraffitiHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
-        let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
+        let client = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap());
         let header_root = input_stream.read_value::<Bytes32Variable>();
         let response = client.get_graffiti(hex!(header_root)).unwrap();
         output_stream.write_value::<Bytes32Variable>(bytes32!(response.graffiti));

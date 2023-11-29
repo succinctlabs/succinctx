@@ -204,7 +204,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         let proof = (0..DEPTH)
             .map(|_| Bytes32Variable::from_targets(&src.read_target_vec().unwrap()))
             .collect::<Vec<_>>();
-        let consensus_rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let consensus_rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(consensus_rpc);
         Ok(Self {
             client,

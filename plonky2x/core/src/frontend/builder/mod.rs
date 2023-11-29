@@ -87,13 +87,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             ec_25519_ops_accelerator: None,
         };
 
-        if let Ok(rpc_url) = env::var("CONSENSUS_RPC_1") {
+        if let Ok(rpc_url) = env::var("CONSENSUS_RPC_URL") {
             let client = BeaconClient::new(rpc_url);
             builder.set_beacon_client(client);
         }
 
-        if let Ok(api_url) = env::var("BEACONCHAIN_API_URL_1") {
-            if let Ok(api_key) = env::var("BEACONCHAIN_API_KEY_1") {
+        if let Ok(api_url) = env::var("BEACONCHAIN_API_URL") {
+            if let Ok(api_key) = env::var("BEACONCHAIN_API_KEY") {
                 let client = BeaconchainAPIClient::new(api_url, api_key);
                 builder.set_beaconchain_api_client(client);
             }

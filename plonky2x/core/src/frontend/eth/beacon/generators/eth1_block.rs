@@ -26,8 +26,8 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for Eth1BlockToSlotH
         output_stream: &mut ValueStream<L, D>,
     ) {
         let client = BeaconchainAPIClient::new(
-            env::var("BEACONCHAIN_API_URL_1").unwrap(),
-            env::var("BEACONCHAIN_API_KEY_1").unwrap(),
+            env::var("BEACONCHAIN_API_URL").unwrap(),
+            env::var("BEACONCHAIN_API_KEY").unwrap(),
         );
         let eth1_block = input_stream.read_value::<U256Variable>();
 
@@ -47,7 +47,7 @@ pub struct BeaconExecutionPayloadHint {}
 
 impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconExecutionPayloadHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
-        let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
+        let client = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap());
 
         let block_root = input_stream.read_value::<Bytes32Variable>();
         let execution_payload: crate::utils::eth::beacon::GetBeaconExecutionPayload = client

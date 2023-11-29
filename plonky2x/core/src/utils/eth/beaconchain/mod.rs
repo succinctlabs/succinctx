@@ -81,7 +81,7 @@ mod test {
     #[cfg_attr(feature = "ci", ignore)]
     async fn test_get_execution_blocks() {
         dotenv::dotenv().ok();
-        let api_key = env::var("BEACONCHAIN_API_KEY_1").unwrap();
+        let api_key = env::var("BEACONCHAIN_API_KEY").unwrap();
         let client = BeaconchainAPIClient::new("https://beaconcha.in".to_string(), api_key);
         let withdrawals = client
             .get_execution_blocks(&[U256::from(18173221)])
