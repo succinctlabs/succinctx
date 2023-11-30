@@ -3,6 +3,7 @@
 //! Reference 1: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
 //! Reference 2: https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie
 
+use log::debug;
 use num::bigint::ToBigInt;
 use num::BigInt;
 
@@ -167,6 +168,9 @@ pub fn verify_decoded_list<const M: usize>(
         claim_poly += poly * ((i < node.len) as u32);
     }
 
+    // TODO: This if-else branch is actually missing the case where the encoding is > 55 bytes but
+    // less than 256 bytes.
+    //
     // Based on what we've seen, we calculate the prefix of the whole encoding.
     if sum_of_rlp_encoding_length <= 55 {
         // If the combined length of the encoded strings is <= 55, then the prefix is simply the
@@ -184,22 +188,28 @@ pub fn verify_decoded_list<const M: usize>(
         claim_poly *= random.pow(3);
         claim_poly += 0xf9;
 
-        // Most signficant byte.
+        // Most significant byte.
         claim_poly += (sum_of_rlp_encoding_length / 256) * random.clone();
-        // Lease siginificant byte.
+        // Lease significant byte.
         claim_poly += (sum_of_rlp_encoding_length % 256) * random.pow(2);
     }
 
+    debug!(
+        "claim_poly = {}, encoding_poly (exp val)= {}",
+        claim_poly, encoding_poly
+    );
     assert!(claim_poly == encoding_poly);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::bytes;
+    use crate::utils::{bytes, setup_logger};
 
     const MAX_SIZE_SHORT_ENCODING: usize = 2 * 32 + 20;
     fn set_up_short_encoding() -> (Vec<u8>, [u8; MAX_SIZE_SHORT_ENCODING], MPTNodeFixedSize) {
+        setup_logger();
+
         // This is an RLP-encoded list of an extension node. The 00 in 0x006f indicates that the path
         // length is even, and the path is 6 -> f. This extension node points to a leaf node with
         // the hash starting with 0x188d11.  ["0x006f",

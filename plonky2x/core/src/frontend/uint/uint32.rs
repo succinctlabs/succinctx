@@ -190,6 +190,24 @@ impl<L: PlonkParameters<D>, const D: usize> Div<L, D> for U32Variable {
     }
 }
 
+impl<L: PlonkParameters<D>, const D: usize> DivRem<L, D> for U32Variable {
+    type Output = (Self, Self);
+
+    fn div_rem(self, rhs: U32Variable, builder: &mut CircuitBuilder<L, D>) -> Self::Output {
+        let self_biguint = BigUintTarget {
+            limbs: vec![self.into()],
+        };
+        let rhs_biguint = BigUintTarget {
+            limbs: vec![rhs.into()],
+        };
+
+        let (div_biguint, rem_biguint) = builder.api.div_rem_biguint(&self_biguint, &rhs_biguint);
+
+        // Get the least significant u32 limb.
+        (div_biguint.limbs[0].into(), rem_biguint.limbs[0].into())
+    }
+}
+
 impl<L: PlonkParameters<D>, const D: usize> Add<L, D> for U32Variable {
     type Output = Self;
 
@@ -399,6 +417,32 @@ mod tests {
         let expected_result_var = U32Variable::constant(&mut builder, expected_result);
 
         builder.assert_is_equal(result.variable, expected_result_var.variable);
+
+        let circuit = builder.build();
+        let pw = PartialWitness::new();
+
+        let proof = circuit.data.prove(pw).unwrap();
+        circuit.data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_u32_div_rem() {
+        let mut builder = CircuitBuilder::<L, D>::new();
+
+        let mut rng = rand::thread_rng();
+        let operand_a: u32 = rng.gen();
+        let operand_b: u32 = rng.gen();
+        let expected_div = operand_a.wrapping_div(operand_b);
+        let expected_rem = operand_a.wrapping_rem(operand_b);
+
+        let a = U32Variable::constant(&mut builder, operand_a);
+        let b = U32Variable::constant(&mut builder, operand_b);
+        let (div_got, rem_got) = builder.div_rem(a, b);
+        let div_exp = U32Variable::constant(&mut builder, expected_div);
+        let rem_exp = U32Variable::constant(&mut builder, expected_rem);
+
+        builder.assert_is_equal(div_got.variable, div_exp.variable);
+        builder.assert_is_equal(rem_got.variable, rem_exp.variable);
 
         let circuit = builder.build();
         let pw = PartialWitness::new();

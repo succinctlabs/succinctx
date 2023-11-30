@@ -126,6 +126,24 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 }
 
+/// The division + remainder operation.
+///
+/// Types implementing this trait can be used within the `builder.div_rem(lhs, rhs)` method.
+pub trait DivRem<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
+    type Output;
+
+    fn div_rem(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> Self::Output;
+}
+
+impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
+    pub fn div_rem<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> <Lhs as DivRem<L, D, Rhs>>::Output
+    where
+        Lhs: DivRem<L, D, Rhs>,
+    {
+        lhs.div_rem(rhs, self)
+    }
+}
+
 /// A zero element.
 ///
 /// Types implementing this trait can be used via the `builder.zero()` method.

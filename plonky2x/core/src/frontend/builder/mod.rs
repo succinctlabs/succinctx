@@ -144,7 +144,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.beaconchain_api_client = Some(client);
     }
 
-    /// Adds all the constraints nedded before building the circuit and registering hints.
+    /// Adds all the constraints needed before building the circuit and registering hints.
     fn pre_build(&mut self) {
         let blake2b_accelerator = self.blake2b_accelerator.clone();
         if let Some(accelerator) = blake2b_accelerator {
