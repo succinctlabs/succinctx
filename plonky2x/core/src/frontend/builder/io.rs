@@ -207,6 +207,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         };
     }
 
+    /// Closes cyclic IO. This function must be called after all IO operations and before
+    /// `builder.proof_read` is called, since the verifier data must be the last public input. Also,
+    /// closing IO lets us know the correct number of public inputs when verifying the inner proof.
     pub fn close_cyclic_io(&mut self) {
         let verifier_data: Option<VerifierCircuitTarget>;
         match self.io {

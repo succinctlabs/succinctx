@@ -80,6 +80,7 @@ where
     }
 }
 
+/// Prove one loop of the fold.
 #[allow(clippy::type_complexity)]
 fn prove_cycle<Ctx, Element, Accumulator, L, const D: usize>(
     circuit: &CircuitBuild<L, D>,
@@ -110,6 +111,7 @@ where
     input.write::<Accumulator>(initial);
     input.write::<U32Variable>(index);
     input.data_write(circuit.data.verifier_data());
+    // If there's a previous result, use the proof from it, otherwise use a dummy proof.
     let proof = if let Some((proof, _)) = prev_result.take() {
         proof
     } else {

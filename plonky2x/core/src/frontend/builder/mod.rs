@@ -250,6 +250,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
     }
 
+    /// Try to build the circuit, returning data and success. If it fails due to unexpected cyclic
+    /// common_data, if will still return the data and success as false.
     pub fn try_build(mut self) -> (CircuitBuild<L, D>, bool) {
         self.pre_build();
         let (data, success) = self.api.try_build_with_options(true);

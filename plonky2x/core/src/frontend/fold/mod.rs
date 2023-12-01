@@ -115,6 +115,8 @@ impl<L: PlonkParameters<D>, const D: usize> FoldBuilderMethods<L, D> for Circuit
     }
 }
 
+/// Builds the inner circuit for the fold. The circuit takes in context, element, previous acc,
+/// initial acc, and index, and outputs the next accumulator.
 fn build_inner<Definition, Ctx, Element, Accumulator, Serializer, L, const D: usize>(
     input_data: Option<CommonCircuitData<L::Field, D>>,
 ) -> CircuitBuild<L, D>
@@ -132,6 +134,7 @@ where
     <Accumulator as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
 {
     let mut builder = CircuitBuilder::<L, D>::new();
+    // Explicitly enable cyclic IO.
     builder.use_cyclic_recursion();
 
     let ctx = builder.read::<Ctx>();
@@ -140,31 +143,30 @@ where
     let initial = builder.read::<Accumulator>();
     let index = builder.read::<U32Variable>();
 
-    /*
-    Proof verifies:
-    (ctx, index, element, prev_acc, initial_acc) -> next_acc
-    if index === 0, disregard prev_acc and use empty initial
-    inner ctx == ctx
-    inner index = index - 1
-    inner elment: anything
-    inner prev_acc: anything
-    inner initial_acc: initial_acc
-     */
     let zero_u32 = builder.constant(0u32);
+    let true_bool = builder._true();
+
+    // If index = 0, the inner proof will be dummy, and we should use the initial accumulator.
     let should_dummy = builder.is_equal(index, zero_u32);
     let prev_or_initial = builder.select(should_dummy, initial.clone(), prev.clone());
 
+    // Call user defined fold step.
     let next_acc =
         Definition::fold_step(&ctx, element.clone(), prev_or_initial, index, &mut builder);
     builder.write(next_acc);
+
+    // Close cyclic IO so we can use builder.proof_read and get # of public inputs.
     builder.close_cyclic_io();
 
+    // Use dummy data for the first time, then once we know the expected real data, use that.
     let mut common_data = if input_data.is_none() {
         common_data_for_recursion::<L, D>()
     } else {
         input_data.clone().unwrap()
     };
+    // Set the number of public inputs
     common_data.num_public_inputs = builder.api.num_public_inputs();
+    // Read inner proof and decode its public inputs that we want to verify.
     let inner_cyclic_proof_with_pis = builder.proof_read(&common_data);
     let inner_cyclic_pis = &inner_cyclic_proof_with_pis.public_inputs;
     let mut ptr = 0;
@@ -184,9 +186,9 @@ where
     let inner_output =
         Accumulator::from_targets(&inner_cyclic_pis[ptr..ptr + accumulator_elements]);
 
-    // Ensure ctx is correct.
+    // Ensure ctx is equal.
     let ctx_equal = builder.is_equal(inner_ctx, ctx);
-    // Ensure initial acc is correct.
+    // Ensure initial acc is equal.
     let initial_equal = builder.is_equal(inner_initial, initial);
     // Ensure prev acc = inner proof output.
     let correct_prev = builder.is_equal(inner_output, prev);
@@ -200,9 +202,8 @@ where
     inner_valid = builder.and(inner_valid, correct_prev);
     inner_valid = builder.and(inner_valid, correct_index);
 
-    // Only verify inner validity if we are not dummy.
+    // Only verify inner validity if this is not the 0th proof.
     let inner_valid_or_dummy = builder.or(inner_valid, should_dummy);
-    let true_bool = builder._true();
     builder.assert_is_equal(inner_valid_or_dummy, true_bool);
 
     // Verify inner proof or dummy if index = 0.
