@@ -10,6 +10,3 @@ incremental = true
 
 [profile.bench]
 opt-level = 3
-
-[patch.'https://github.com/mir-protocol/plonky2.git']
-plonky2 = { git = "https://github.com/succinctlabs/plonky2.git", branch = "chris/recursion" }

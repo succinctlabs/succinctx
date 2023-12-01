@@ -2908,7 +2908,7 @@ checksum = "14e6ab3f592e6fb464fc9712d8d6e6912de6473954635fd76a589d832cffcbb0"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/succinctlabs/plonky2.git?branch=chris/recursion#b598e6ff9f93d7ba548758aba561549f3e5767c9"
+source = "git+https://github.com/mir-protocol/plonky2.git#2d0df393a23c4c464d9796b8018170a47c6d61d9"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2919,7 +2919,7 @@ dependencies = [
  "log",
  "num",
  "plonky2_field",
- "plonky2_maybe_rayon 0.1.1 (git+https://github.com/succinctlabs/plonky2.git?branch=chris/recursion)",
+ "plonky2_maybe_rayon 0.1.1 (git+https://github.com/mir-protocol/plonky2.git)",
  "plonky2_util",
  "rand",
  "rand_chacha",
@@ -2932,7 +2932,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/succinctlabs/plonky2.git?branch=chris/recursion#b598e6ff9f93d7ba548758aba561549f3e5767c9"
+source = "git+https://github.com/mir-protocol/plonky2.git#2d0df393a23c4c464d9796b8018170a47c6d61d9"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2956,7 +2956,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/succinctlabs/plonky2.git?branch=chris/recursion#b598e6ff9f93d7ba548758aba561549f3e5767c9"
+source = "git+https://github.com/mir-protocol/plonky2.git#2d0df393a23c4c464d9796b8018170a47c6d61d9"
 dependencies = [
  "rayon",
 ]
@@ -2964,7 +2964,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/succinctlabs/plonky2.git?branch=chris/recursion#b598e6ff9f93d7ba548758aba561549f3e5767c9"
+source = "git+https://github.com/mir-protocol/plonky2.git#2d0df393a23c4c464d9796b8018170a47c6d61d9"
 
 [[package]]
 name = "plonky2x"
