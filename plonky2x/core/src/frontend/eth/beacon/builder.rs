@@ -3,12 +3,11 @@ use ethers::types::{H256, U256};
 
 use super::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
-    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
-    BeaconExecutionPayloadHint, BeaconGraffitiHint, BeaconHeaderHint,
-    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint, BeaconPartialBalancesHint,
-    BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
-    BeaconValidatorsHint, BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator,
-    CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint, CLOSE_SLOT_BLOCK_ROOT_DEPTH,
+    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint, BeaconGraffitiHint,
+    BeaconHeaderHint, BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint,
+    BeaconPartialBalancesHint, BeaconPartialValidatorsHint, BeaconValidatorBatchHint,
+    BeaconValidatorGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
+    BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint, CLOSE_SLOT_BLOCK_ROOT_DEPTH,
     FAR_SLOT_BLOCK_ROOT_DEPTH, FAR_SLOT_HISTORICAL_SUMMARY_DEPTH,
 };
 use super::vars::{
@@ -19,7 +18,6 @@ use super::vars::{
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::eth::vars::BLSPubkeyVariable;
-use crate::frontend::uint::uint256::U256Variable;
 use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{
     Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable, VariableStream,
@@ -56,9 +54,6 @@ const HISTORICAL_SUMMARY_BLOCK_ROOT_GINDEX: u64 = 16384;
 
 /// The gindex for blockRoot -> state -> state.block_roots[0].
 const CLOSE_SLOT_BLOCK_ROOT_GINDEX: u64 = 2924544;
-
-/// The gindex for blockRoot -> body -> executionPayload -> blockNumber.
-const EXECUTION_PAYLOAD_BLOCK_NUMBER_GINDEX: u64 = 3222;
 
 /// The log2 of the validator registry limit.
 const VALIDATOR_REGISTRY_LIMIT_LOG2: usize = 40;
@@ -475,47 +470,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.assert_is_equal(block_root, restored_root);
 
         header
-    }
-
-    /// Get beacon block hash and slot from eth1 block number, then prove from source block root.
-    pub fn beacon_get_block_from_eth1_block_number(
-        &mut self,
-        source_beacon_block_root: Bytes32Variable,
-        source_slot: U64Variable,
-        eth1_block_number: U256Variable,
-    ) -> (Bytes32Variable, U64Variable) {
-        // Witness the slot number from the eth1 block number
-        let mut block_to_slot_input = VariableStream::new();
-        block_to_slot_input.write(&eth1_block_number);
-        let block_to_slot_output = self.async_hint(block_to_slot_input, Eth1BlockToSlotHint {});
-        let slot = block_to_slot_output.read::<U64Variable>(self);
-
-        // Prove source block root -> witnessed beacon block
-        let target_root =
-            self.beacon_get_historical_block(source_beacon_block_root, source_slot, slot);
-
-        // Witness SSZ proof for target block root -> beacon body -> execution payload -> eth1 block number
-        let mut beacon_block_to_eth1_number_input = VariableStream::new();
-        beacon_block_to_eth1_number_input.write(&target_root);
-        let beacon_block_to_eth1_number_output = self.hint(
-            beacon_block_to_eth1_number_input,
-            BeaconExecutionPayloadHint {},
-        );
-        let proof =
-            beacon_block_to_eth1_number_output.read::<ArrayVariable<Bytes32Variable, 11>>(self);
-
-        // Convert eth1 block number to leaf
-        let eth1_block_number_leaf = eth1_block_number.hash_tree_root(self);
-
-        // Verify the SSZ proof
-        self.ssz_verify_proof_const(
-            target_root,
-            eth1_block_number_leaf,
-            &proof.data,
-            EXECUTION_PAYLOAD_BLOCK_NUMBER_GINDEX,
-        );
-
-        (target_root, slot)
     }
 
     /// Get a historical block root using state.block_roots for close slots and historical_summaries for slots > 8192 slots away.
