@@ -32,7 +32,6 @@ use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::prelude::ArrayVariable;
 use crate::utils::eth::beacon::BeaconClient;
-use crate::utils::eth::beaconchain::BeaconchainAPIClient;
 
 /// The universal builder for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
@@ -41,7 +40,6 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
-    pub beaconchain_api_client: Option<BeaconchainAPIClient>,
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintGenerator<L, D>>>,
@@ -73,7 +71,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             api,
             io: CircuitIO::new(),
             beacon_client: None,
-            beaconchain_api_client: None,
             execution_client: None,
             chain_id: None,
             debug: false,
@@ -90,13 +87,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         if let Ok(rpc_url) = env::var("CONSENSUS_RPC_URL") {
             let client = BeaconClient::new(rpc_url);
             builder.set_beacon_client(client);
-        }
-
-        if let Ok(api_url) = env::var("BEACONCHAIN_API_URL") {
-            if let Ok(api_key) = env::var("BEACONCHAIN_API_KEY") {
-                let client = BeaconchainAPIClient::new(api_url, api_key);
-                builder.set_beaconchain_api_client(client);
-            }
         }
 
         builder
@@ -138,10 +128,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn set_beacon_client(&mut self, client: BeaconClient) {
         self.beacon_client = Some(client);
-    }
-
-    pub fn set_beaconchain_api_client(&mut self, client: BeaconchainAPIClient) {
-        self.beaconchain_api_client = Some(client);
     }
 
     /// Adds all the constraints nedded before building the circuit and registering hints.
