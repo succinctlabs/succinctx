@@ -183,7 +183,7 @@ where
         );
         pw.set_proof_with_pis_target(&self.circuit_proof_target, inner_proof);
 
-        let hash_proof = self.hash_circuit.data.prove(pw)?;
+        let (hash_proof, _) = self.hash_circuit.prove_with_partial_witness(pw);
         self.hash_circuit.data.verify(hash_proof.clone())?;
         debug!("Successfully verified hash proof");
 
