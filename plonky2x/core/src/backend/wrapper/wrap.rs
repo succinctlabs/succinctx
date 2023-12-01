@@ -71,8 +71,8 @@ where
         hash_builder.watch_slice(&input_bytes, "input_bytes");
         hash_builder.watch_slice(&output_bytes, "output_bytes");
 
-        let input_hash = hash_builder.sha256(&input_bytes);
-        let output_hash = hash_builder.sha256(&output_bytes);
+        let input_hash = hash_builder.curta_sha256(&input_bytes);
+        let output_hash = hash_builder.curta_sha256(&output_bytes);
 
         hash_builder.watch(&input_hash, "input_hash");
         hash_builder.watch(&output_hash, "output_hash");
