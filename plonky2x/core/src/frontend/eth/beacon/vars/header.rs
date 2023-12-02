@@ -94,7 +94,7 @@ mod test {
         env::set_var("RUST_LOG", "debug");
         env_logger::init();
         let mut builder = CircuitBuilder::<L, D>::new();
-        let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
+        let client = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap());
         let header = client.get_header("7404237".to_string()).await.unwrap();
         let beacon_header = BeaconHeaderValue::<<L as PlonkParameters<D>>::Field> {
             slot: U64::from_dec_str(header.slot.as_str()).unwrap().as_u64(),

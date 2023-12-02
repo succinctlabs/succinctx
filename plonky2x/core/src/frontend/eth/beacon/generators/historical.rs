@@ -28,7 +28,7 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconHistorical
         let block_root = input_stream.read_value::<Bytes32Variable>();
         let target_slot = input_stream.read_value::<U64Variable>();
 
-        let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
+        let client = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap());
         let result = client
             .get_historical_block(hex!(block_root.as_bytes()).to_string(), target_slot)
             .await

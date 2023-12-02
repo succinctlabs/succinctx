@@ -34,6 +34,7 @@ use plonky2::iop::generator::{
 };
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSerializer, Write};
 
 use super::registry::{SerializationRegistry, Serializer};
@@ -43,12 +44,11 @@ use crate::frontend::ecc::curve25519::curta::proof_hint::EcOpProofHint;
 use crate::frontend::ecc::curve25519::curta::result_hint::EcOpResultHint;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
-    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
-    BeaconExecutionPayloadHint, BeaconGraffitiHint, BeaconHeaderHint,
-    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint, BeaconPartialBalancesHint,
-    BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
-    BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
+    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint, BeaconGraffitiHint,
+    BeaconHeaderHint, BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint,
+    BeaconPartialBalancesHint, BeaconPartialValidatorsHint, BeaconValidatorBatchHint,
+    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconValidatorsHint,
+    BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
@@ -347,11 +347,9 @@ where
         r.register_simple::<LteGenerator<L, D>>(le_generator_id);
 
         r.register_hint::<BeaconBalanceWitnessHint>();
-        r.register_hint::<BeaconExecutionPayloadHint>();
 
         r.register_async_hint::<BeaconAllWithdrawalsHint>();
         r.register_async_hint::<BeaconHeaderHint>();
-        r.register_async_hint::<Eth1BlockToSlotHint>();
         r.register_async_hint::<BeaconHistoricalBlockHint>();
         r.register_async_hint::<EthStorageProofHint<L, D>>();
         r.register_async_hint::<BeaconValidatorsHint>();
@@ -414,6 +412,10 @@ where
 
         r.register_hint::<EcOpResultHint>();
         r.register_async_hint::<Async<EcOpResultHint>>();
+
+        let dummy_proof_generator_id =
+            DummyProofGenerator::<L::Field, L::Config, D>::default().id();
+        r.register_simple::<DummyProofGenerator<L::Field, L::Config, D>>(dummy_proof_generator_id);
 
         register_powers_of_two!(r, BeaconHeadersFromOffsetRangeHint);
 

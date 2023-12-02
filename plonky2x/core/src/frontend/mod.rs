@@ -3,6 +3,7 @@ pub mod curta;
 pub mod ecc;
 pub mod eth;
 pub mod extension;
+pub mod fold;
 pub mod hash;
 pub mod hint;
 pub mod mapreduce;

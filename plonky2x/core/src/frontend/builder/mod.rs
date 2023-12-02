@@ -32,7 +32,6 @@ use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::prelude::ArrayVariable;
 use crate::utils::eth::beacon::BeaconClient;
-use crate::utils::eth::beaconchain::BeaconchainAPIClient;
 
 /// The universal builder for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
@@ -41,7 +40,6 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
-    pub beaconchain_api_client: Option<BeaconchainAPIClient>,
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintGenerator<L, D>>>,
@@ -73,7 +71,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             api,
             io: CircuitIO::new(),
             beacon_client: None,
-            beaconchain_api_client: None,
             execution_client: None,
             chain_id: None,
             debug: false,
@@ -87,16 +84,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             ec_25519_ops_accelerator: None,
         };
 
-        if let Ok(rpc_url) = env::var("CONSENSUS_RPC_1") {
+        if let Ok(rpc_url) = env::var("CONSENSUS_RPC_URL") {
             let client = BeaconClient::new(rpc_url);
             builder.set_beacon_client(client);
-        }
-
-        if let Ok(api_url) = env::var("BEACONCHAIN_API_URL_1") {
-            if let Ok(api_key) = env::var("BEACONCHAIN_API_KEY_1") {
-                let client = BeaconchainAPIClient::new(api_url, api_key);
-                builder.set_beaconchain_api_client(client);
-            }
         }
 
         builder
@@ -138,10 +128,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     pub fn set_beacon_client(&mut self, client: BeaconClient) {
         self.beacon_client = Some(client);
-    }
-
-    pub fn set_beaconchain_api_client(&mut self, client: BeaconchainAPIClient) {
-        self.beaconchain_api_client = Some(client);
     }
 
     /// Adds all the constraints nedded before building the circuit and registering hints.
@@ -220,6 +206,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     .collect::<Vec<_>>();
                 self.register_public_inputs(output.as_slice());
             }
+            CircuitIO::CyclicProof(ref io) => {
+                if !io.closed {
+                    panic!("close_cyclic_io should have been called");
+                }
+            }
             CircuitIO::None() => {}
         };
     }
@@ -257,6 +248,22 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             io: self.io,
             async_hints,
         }
+    }
+
+    /// Try to build the circuit, returning data and success. If it fails due to unexpected cyclic
+    /// common_data, if will still return the data and success as false.
+    pub fn try_build(mut self) -> (CircuitBuild<L, D>, bool) {
+        self.pre_build();
+        let (data, success) = self.api.try_build_with_options(true);
+        let async_hints = Self::async_hint_map(&data.prover_only.generators, self.async_hints);
+        (
+            CircuitBuild {
+                data,
+                io: self.io,
+                async_hints,
+            },
+            success,
+        )
     }
 
     pub fn mock_build(mut self) -> MockCircuitBuild<L, D> {

@@ -123,9 +123,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // Read and verify the child proofs.
         let verifier_data = builder.constant_verifier_data::<L>(&child_circuit.data);
-        let proof_left = builder.proof_read(child_circuit);
+        let proof_left = builder.proof_read(&child_circuit.data.common);
         builder.verify_proof::<L>(&proof_left, &verifier_data, &child_circuit.data.common);
-        let proof_right = builder.proof_read(child_circuit);
+        let proof_right = builder.proof_read(&child_circuit.data.common);
         builder.verify_proof::<L>(&proof_right, &verifier_data, &child_circuit.data.common);
 
         // Assert that the contexts match.

@@ -2,6 +2,7 @@ use itertools::Itertools;
 use num::BigInt;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::circuit_data::VerifierCircuitTarget;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
@@ -169,6 +170,46 @@ where
     serializer.serialize_str(&hex)
 }
 
+pub fn serialize_proof_with_pis_target_option<S, const D: usize>(
+    proof_with_pis: &Option<ProofWithPublicInputsTarget<D>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match proof_with_pis {
+        Some(proof_with_pis) => {
+            let mut buffer: Vec<u8> = Vec::new();
+            buffer
+                .write_target_proof_with_public_inputs(proof_with_pis)
+                .unwrap();
+            let hex = hex::encode(buffer);
+            serializer.serialize_some(&hex)
+        }
+        None => serializer.serialize_none(),
+    }
+}
+
+pub fn deserialize_proof_with_pis_target_option<'de, D, const E: usize>(
+    deserialize: D,
+) -> Result<Option<ProofWithPublicInputsTarget<E>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s: Option<String> = Deserialize::deserialize(deserialize)?;
+    match s {
+        Some(s) => {
+            let bytes = hex::decode(s).unwrap();
+            let mut buffer = Buffer::new(&bytes);
+            buffer
+                .read_target_proof_with_public_inputs()
+                .map_err(serde::de::Error::custom)
+                .map(Some)
+        }
+        None => Ok(None),
+    }
+}
+
 pub fn deserialize_proof_with_pis_target<'de, D, const E: usize>(
     deserialize: D,
 ) -> Result<ProofWithPublicInputsTarget<E>, D::Error>
@@ -216,4 +257,44 @@ where
         proof_with_pis_vec.push(buffer.read_target_proof_with_public_inputs().unwrap());
     }
     Ok(proof_with_pis_vec)
+}
+
+pub fn serialize_verifier_circuit_target_option<S>(
+    verifier_circuit_target: &Option<VerifierCircuitTarget>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match verifier_circuit_target {
+        Some(verifier_circuit_target) => {
+            let mut buffer: Vec<u8> = Vec::new();
+            buffer
+                .write_target_verifier_circuit(verifier_circuit_target)
+                .unwrap();
+            let hex = hex::encode(buffer);
+            serializer.serialize_some(&hex)
+        }
+        None => serializer.serialize_none(),
+    }
+}
+
+pub fn deserialize_verifier_circuit_target_option<'de, D>(
+    deserialize: D,
+) -> Result<Option<VerifierCircuitTarget>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s: Option<String> = Deserialize::deserialize(deserialize)?;
+    match s {
+        Some(s) => {
+            let bytes = hex::decode(s).unwrap();
+            let mut buffer = Buffer::new(&bytes);
+            buffer
+                .read_target_verifier_circuit()
+                .map_err(serde::de::Error::custom)
+                .map(Some)
+        }
+        None => Ok(None),
+    }
 }

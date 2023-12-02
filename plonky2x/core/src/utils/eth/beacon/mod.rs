@@ -400,10 +400,15 @@ impl BeaconClient {
     /// `stateRoot -> validatorsRoot`.
     pub fn get_validators_root(&self, beacon_id: String) -> Result<GetBeaconValidatorsRoot> {
         let endpoint = format!("{}/api/beacon/proof/validator/{}", self.rpc_url, beacon_id);
+        debug!("{}", endpoint);
         let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(120, 0)).send()?;
+        let response = client
+            .get(&endpoint)
+            .timeout(Duration::new(120, 0))
+            .send()?;
         let response: CustomResponse<GetBeaconValidatorsRoot> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -418,6 +423,7 @@ impl BeaconClient {
             "{}/api/beacon/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
+        debug!("{}", endpoint);
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconValidatorWitness> = response.json()?;
         assert!(response.success);
@@ -451,9 +457,11 @@ impl BeaconClient {
             "{}/api/beacon/proof/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
+        debug!("{}", endpoint);
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconValidator> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -610,6 +618,7 @@ impl BeaconClient {
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconWithdrawals> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -627,9 +636,11 @@ impl BeaconClient {
             "{}/api/beacon/proof/withdrawal/{}/{}",
             self.rpc_url, beacon_id, idx
         );
+        info!("{}", endpoint);
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconWithdrawal> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -753,7 +764,7 @@ mod tests {
     fn test_get_validators_root_by_slot() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_validators_root(slot.to_string())?;
@@ -766,7 +777,7 @@ mod tests {
     fn test_get_validators_root_by_block_root() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
         let result = client.get_validators_root(block_root.to_string())?;
@@ -779,7 +790,7 @@ mod tests {
     fn test_get_validator_by_slot() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_validator(slot.to_string(), 0)?;
@@ -792,7 +803,7 @@ mod tests {
     fn test_get_validator_by_block_root() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
         let result = client.get_validator(block_root.to_string(), 0)?;
@@ -804,7 +815,7 @@ mod tests {
     #[test]
     fn test_get_block_roots() -> Result<()> {
         utils::setup_logger();
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_block_roots(slot.to_string())?;
@@ -816,7 +827,7 @@ mod tests {
     #[test]
     fn test_get_headers_from_offset_range() -> Result<()> {
         utils::setup_logger();
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_headers_from_offset_range(slot.to_string(), 0, 16)?;

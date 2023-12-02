@@ -18,7 +18,7 @@ impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
     for BeaconHeadersFromOffsetRangeHint<B>
 {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
-        let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
+        let client = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap());
         let header_root = input_stream.read_value::<Bytes32Variable>();
         let start_offset = input_stream.read_value::<U64Variable>();
         let end_offset = input_stream.read_value::<U64Variable>() + 1;

@@ -14,7 +14,7 @@ pub struct BeaconBalanceWitnessHint {}
 
 impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BeaconBalanceWitnessHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
-        let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
+        let client = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap());
         let header_root = input_stream.read_value::<Bytes32Variable>();
         let validator_index = input_stream.read_value::<U64Variable>();
 
@@ -33,7 +33,7 @@ impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
     for BeaconBalanceBatchWitnessHint<B>
 {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
-        let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
+        let client = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap());
         let header_root = input_stream.read_value::<Bytes32Variable>();
         let start_idx = input_stream.read_value::<U64Variable>();
         let response = client

@@ -29,6 +29,26 @@ pub enum ProverOutputs<L: PlonkParameters<D>, const D: usize> {
     Remote(Vec<ProofId>),
 }
 
+impl<L: PlonkParameters<D>, const D: usize> ProverOutput<L, D> {
+    #[allow(clippy::type_complexity)]
+    pub fn materialize(
+        self,
+    ) -> Result<(
+        ProofWithPublicInputs<L::Field, L::Config, D>,
+        PublicOutput<L, D>,
+    )> {
+        let (proof, output) = match self {
+            ProverOutput::Local(proof, output) => (proof, output),
+            ProverOutput::Remote(proof_id) => {
+                let service = ProofService::new_from_env();
+                let response = service.get::<L, D>(proof_id).unwrap();
+                response.result.unwrap().as_proof_and_output()
+            }
+        };
+        Ok((proof, output))
+    }
+}
+
 impl<L: PlonkParameters<D>, const D: usize> ProverOutputs<L, D> {
     #[allow(clippy::type_complexity)]
     pub fn materialize(
