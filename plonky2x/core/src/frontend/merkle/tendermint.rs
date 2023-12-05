@@ -181,14 +181,14 @@ impl<L: PlonkParameters<D>, const D: usize> TendermintMerkleTree for CircuitBuil
         // Whether to treat the validator as empty.
         // Pad the enabled array to be a power of 2.
         let mut current_node_enabled = Vec::new();
-        let is_enabled = self._true();
+        let mut is_enabled = self._true();
         for i in 0..padded_nb_leaves {
             let idx = self.constant::<Variable>(L::Field::from_canonical_usize(i));
 
             // If at_end, then the rest of the leaves (including this one) are disabled.
             let at_end = self.is_equal(idx, nb_enabled_leaves);
             let not_at_end = self.not(at_end);
-            let is_enabled = self.and(not_at_end, is_enabled);
+            is_enabled = self.and(not_at_end, is_enabled);
 
             current_node_enabled.push(is_enabled);
         }
