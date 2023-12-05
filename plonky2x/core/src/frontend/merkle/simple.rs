@@ -94,10 +94,16 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleMerkleTree for CircuitBuilder<
         current_nodes.resize(padded_nb_leaves, empty_bytes);
 
         // Fill in the disabled leaves with empty bytes.
+        let is_enabled = self._true();
         for i in 0..padded_nb_leaves {
             let idx = self.constant::<Variable>(L::Field::from_canonical_usize(i));
-            let enabled = self.lt(idx, nb_enabled_leaves);
-            current_nodes[i] = self.select(enabled, current_nodes[i], empty_bytes)
+
+            // If at_end, then the rest of the leaves (including this one) are disabled.
+            let at_end = self.is_equal(idx, nb_enabled_leaves);
+            let not_at_end = self.not(at_end);
+            let is_enabled = self.and(not_at_end, is_enabled);
+
+            current_nodes[i] = self.select(is_enabled, current_nodes[i], empty_bytes)
         }
 
         let mut merkle_layer_size = padded_nb_leaves;

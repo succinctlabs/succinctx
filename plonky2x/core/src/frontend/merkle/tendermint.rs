@@ -57,7 +57,6 @@ pub trait TendermintMerkleTree {
 /// Merkle Tree implementation for the Tendermint spec (follows Comet BFT Simple Merkle Tree spec: https://docs.cometbft.com/main/spec/core/encoding#merkle-trees).
 /// Adds pre-image prefix of 0x01 to inner nodes and 0x00 to leaf nodes for second pre-image resistance.
 /// Computed root hash is independent of the number of empty leaves, unlike the simple Merkle Tree.
-/// TODO: Create generic interface for Merkle trees to implement.
 impl<L: PlonkParameters<D>, const D: usize> TendermintMerkleTree for CircuitBuilder<L, D> {
     /// Leaf should already be hashed.
     fn get_root_from_merkle_proof_hashed_leaf<const PROOF_DEPTH: usize>(
@@ -182,9 +181,16 @@ impl<L: PlonkParameters<D>, const D: usize> TendermintMerkleTree for CircuitBuil
         // Whether to treat the validator as empty.
         // Pad the enabled array to be a power of 2.
         let mut current_node_enabled = Vec::new();
+        let is_enabled = self._true();
         for i in 0..padded_nb_leaves {
             let idx = self.constant::<Variable>(L::Field::from_canonical_usize(i));
-            current_node_enabled.push(self.lt(idx, nb_enabled_leaves));
+
+            // If at_end, then the rest of the leaves (including this one) are disabled.
+            let at_end = self.is_equal(idx, nb_enabled_leaves);
+            let not_at_end = self.not(at_end);
+            let is_enabled = self.and(not_at_end, is_enabled);
+
+            current_node_enabled.push(is_enabled);
         }
 
         // Hash each layer of nodes to get the root according to the Tendermint spec, starting from the leaves.
