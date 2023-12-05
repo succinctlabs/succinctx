@@ -22,7 +22,7 @@ contract DeployTimelock is BaseScript {
 
         // Deploy contract
         Timelock timelock = 
-            new Timelock{salt: CREATE2_SALT}(MINIMUM_DELAY,PROPOSERS,EXECUTORS,address(0));
+            new Timelock{salt: CREATE2_SALT}(MINIMUM_DELAY, PROPOSERS, EXECUTORS,address(0));
 
         // Write address
         writeEnvAddress(DEPLOYMENT_FILE, "TIMELOCK", address(timelock));
