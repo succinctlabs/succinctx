@@ -14,7 +14,6 @@ contract DeployTimelock is BaseScript {
         );
 
         // Check inputs
-
         bytes32 CREATE2_SALT = envBytes32("CREATE2_SALT");
         uint256 MINIMUM_DELAY = envUint256("MINIMUM_DELAY");
         address GUARDIAN = envAddress("GUARDIAN", block.chainid);
