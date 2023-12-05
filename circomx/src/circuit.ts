@@ -49,14 +49,14 @@ export abstract class Circuit {
     const buildDirName = `${circuitName}_cpp`;
     executeCommand(`make -C build/${buildDirName}/`);
     executeCommand(
-      `cp build/${buildDirName}/${circuitName} build/${circuitName}`
+      `mv build/${buildDirName}/${circuitName} build/${circuitName}`
     );
     executeCommand(
       `cp build/${buildDirName}/${circuitName}.dat build/${circuitName}.dat`
     );
     // Tar build dir
     executeCommand(
-      `tar -czf build/${buildDirName}.tar.gz -C build ${buildDirName}`
+      `tar -czvf build/${buildDirName}.tar.gz -C build ${buildDirName}`
     );
     // Remove build dir
     executeCommand(`rm -rf build/${buildDirName}`);
