@@ -21,7 +21,7 @@ contract DeployTimelock is BaseScript {
         EXECUTORS[0] = GUARDIAN;
 
         // Deploy contract
-        Timelock timelock = 
+        Timelock timelock =
             new Timelock{salt: CREATE2_SALT}(MINIMUM_DELAY, PROPOSERS, EXECUTORS, address(0));
 
         // Write address
