@@ -8,7 +8,10 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract DeployTimelock is BaseScript {
     function run() external broadcaster {
-        console.log("Deploying Timelock contract on chain %s", Strings.toString(block.chainid));
+        console.log(
+            "Deploying Timelock contract on chain %s",
+            Strings.toString(block.chainid)
+        );
 
         // Check inputs
 
@@ -23,7 +26,10 @@ contract DeployTimelock is BaseScript {
 
         // Deploy contract
         Timelock timelock = new Timelock{salt: CREATE2_SALT}(
-            MINIMUM_DELAY, PROPOSERS, EXECUTORS, address(0)
+            MINIMUM_DELAY,
+            PROPOSERS,
+            EXECUTORS,
+            address(0)
         );
 
         // Write address
