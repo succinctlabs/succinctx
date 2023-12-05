@@ -11,7 +11,8 @@ pub mod keccak256;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// WARNING: DO NOT USE IN PRODUCTION, this is unconstrained!
-    pub fn keccak256(&mut self, bytes: &[ByteVariable]) -> Bytes32Variable {
+    pub fn keccak256_witness(&mut self, bytes: &[ByteVariable]) -> Bytes32Variable {
+        // TODO: Need to constrain generator result
         let generator: Keccak256Generator<L, D> = Keccak256Generator {
             input: bytes.to_vec(),
             output: self.init(),
@@ -23,11 +24,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         output
     }
 
-    pub fn keccak256_variable(
+    /// WARNING: DO NOT USE IN PRODUCTION, this is unconstrained!
+    pub fn keccak256_variable_witness(
         &mut self,
         bytes: &[ByteVariable],
         length: Variable,
     ) -> Bytes32Variable {
+        // TODO: Need to constrain generator result
         let generator = Keccak256Generator {
             input: bytes.to_vec(),
             output: self.init(),
@@ -58,7 +61,7 @@ mod tests {
         let word = builder.constant::<Bytes32Variable>(bytes32!(
             "0x0000000000000000000000000000000000000000000000000000000000000000"
         ));
-        let hash = builder.keccak256(&word.0 .0);
+        let hash = builder.keccak256_witness(&word.0 .0);
         builder.watch(&hash, "hi");
 
         let circuit = builder.build();
