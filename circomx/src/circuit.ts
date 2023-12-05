@@ -54,8 +54,12 @@ export abstract class Circuit {
     executeCommand(
       `cp build/${buildDirName}/${circuitName}.dat build/${circuitName}.dat`
     );
+    // Tar build dir
+    executeCommand(
+      `tar -czf build/${buildDirName}.tar.gz -C build ${buildDirName}`
+    );
+    // Remove build dir
     executeCommand(`rm -rf build/${buildDirName}`);
-    executeCommand(`rm -rf build/${circuit}_cpp`);
     if (!noZkey) {
       executeCommand(
         `node ${NODE_OPTIONS} ${snarkjsPath} zkey new build/${circuitName}.r1cs ${ptauPath} build/p1.zkey`
