@@ -40,10 +40,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         PublicInput::new(&self.io)
     }
 
-    /// Generates a proof for the circuit. The proof can be verified using `verify`.
-    pub fn prove(
+    /// Generates a proof for the circuit using a plonky2 partial witness. The proof can be verified
+    /// using `verify`.
+    pub fn prove_with_partial_witness(
         &self,
-        input: &PublicInput<L, D>,
+        pw: PartialWitness<L::Field>,
     ) -> (
         ProofWithPublicInputs<L::Field, L::Config, D>,
         PublicOutput<L, D>,
@@ -53,8 +54,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
         let start_time = Instant::now();
-        let mut pw = PartialWitness::new();
-        self.io.set_witness(&mut pw, input);
         trace!("generating witness...");
         let partition_witness = generate_witness(
             pw,
@@ -82,7 +81,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
     }
 
     /// Generates a proof for the circuit. The proof can be verified using `verify`.
-    pub async fn prove_async(
+    pub fn prove(
         &self,
         input: &PublicInput<L, D>,
     ) -> (
@@ -93,9 +92,25 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        let start_time = tokio::time::Instant::now();
         let mut pw = PartialWitness::new();
         self.io.set_witness(&mut pw, input);
+        self.prove_with_partial_witness(pw)
+    }
+
+    /// Generates a proof for the circuit using a plonky2 partial witness. The proof can be verified
+    /// using `verify`.
+    pub async fn prove_with_partial_witness_async(
+        &self,
+        pw: PartialWitness<L::Field>,
+    ) -> (
+        ProofWithPublicInputs<L::Field, L::Config, D>,
+        PublicOutput<L, D>,
+    )
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
+        let start_time = tokio::time::Instant::now();
         trace!("generating witness...");
         let partition_witness = generate_witness_async(
             pw,
@@ -122,6 +137,23 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
             debug!("proving took: {:?}", elapsed_time);
             (proof_with_pis, output)
         })
+    }
+
+    /// Generates a proof for the circuit. The proof can be verified using `verify`.
+    pub async fn prove_async(
+        &self,
+        input: &PublicInput<L, D>,
+    ) -> (
+        ProofWithPublicInputs<L::Field, L::Config, D>,
+        PublicOutput<L, D>,
+    )
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
+        let mut pw = PartialWitness::new();
+        self.io.set_witness(&mut pw, input);
+        self.prove_with_partial_witness_async(pw).await
     }
 
     /// Verifies a proof for the circuit.

@@ -71,8 +71,8 @@ where
         hash_builder.watch_slice(&input_bytes, "input_bytes");
         hash_builder.watch_slice(&output_bytes, "output_bytes");
 
-        let input_hash = hash_builder.sha256(&input_bytes);
-        let output_hash = hash_builder.sha256(&output_bytes);
+        let input_hash = hash_builder.curta_sha256(&input_bytes);
+        let output_hash = hash_builder.curta_sha256(&output_bytes);
 
         hash_builder.watch(&input_hash, "input_hash");
         hash_builder.watch(&output_hash, "output_hash");
@@ -183,7 +183,7 @@ where
         );
         pw.set_proof_with_pis_target(&self.circuit_proof_target, inner_proof);
 
-        let hash_proof = self.hash_circuit.data.prove(pw)?;
+        let (hash_proof, _) = self.hash_circuit.prove_with_partial_witness(pw);
         self.hash_circuit.data.verify(hash_proof.clone())?;
         debug!("Successfully verified hash proof");
 
