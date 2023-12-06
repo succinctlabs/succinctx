@@ -16,7 +16,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BLAKE2BDigestHint {
         let length = input_stream.read_value::<Variable>().as_canonical_u64() as usize;
         // Read the padded chunks from the input stream.
         let message = input_stream.read_vec::<ByteVariable>(length);
-        let mut num_message_chunks = (message.len() / 128) + 1;
+        let mut num_message_chunks = (message.len() as u64 / 128) + 1;
         if num_message_chunks % 128 == 0 {
             num_message_chunks -= 1;
         }
@@ -25,19 +25,19 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BLAKE2BDigestHint {
 
         // Initialize the hash state.
         let mut state = blake2b::IV;
-        let t = 0;
+        let mut t = 0;
         for (i, chunk) in padded_chunks.chunks_exact(128).enumerate() {
-            let at_last_chunk = i == num_message_chunks - 1;
+            let at_last_chunk = i as u64 == num_message_chunks - 1;
             if at_last_chunk {
                 t = message.len() as u64;
             } else {
                 t += 128;
             }
-            BLAKE2BPure::compress(chunk, &mut state, t, i == num_message_chunks - 1);
+            BLAKE2BPure::compress(chunk, &mut state, t, at_last_chunk);
         }
 
         // Write the digest to the output stream.
-        let mut digest: [u64; 4];
+        let mut digest: [u64; 4] = Default::default();
         digest.copy_from_slice(&state[0..4]);
         output_stream.write_value::<[U64Variable; 4]>(digest)
     }
