@@ -80,7 +80,7 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         let end_bits = self.read_vec::<BoolVariable>(num_chunks);
         let digest_bits = self.read_vec::<BoolVariable>(num_chunks);
         let digest_indices = self.read_vec::<Variable>(num_digests);
-        let digests = self.read_vec::<[S::IntVariable; 8]>(num_digests);
+        let digests = self.read_vec::<[U64Variable; 4]>(num_digests);
 
         BLAKE2BInputDataValues {
             padded_chunks,
