@@ -96,7 +96,7 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
             .sha_requests
             .iter()
             .flat_map(|req| {
-                // For every reuqest, we read the corresponding messagem, pad it, and compute the
+                // For every request, we read the corresponding messagem, pad it, and compute the
                 // corresponding chunk index.
 
                 // Get the padded chunks and the number of chunks in the message, depending on the
@@ -109,7 +109,7 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
                             builder.constant((padded_chunks.len() / 16 - 1).try_into().unwrap());
                         (padded_chunks, num_chunks)
                     }
-                    // If the length of the massage is a variable, we read the chunk index form the
+                    // If the length of the message is a variable, we read the chunk index from the
                     // request.
                     SHARequest::Variable(input, length, last_chunk) => (
                         Self::pad_circuit_variable_length(builder, input, *length),
