@@ -15,11 +15,15 @@ use log::debug;
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 
+use super::accelerator::BLAKE2BAccelerator;
 use super::curta::BLAKE2BAirParameters;
 use super::data::{BLAKE2BInputData, BLAKE2BInputDataValues, BLAKE2BInputParameters};
+use super::request::BLAKE2BRequest;
 use crate::frontend::curta::proof::ByteStarkProofVariable;
+use crate::frontend::vars::EvmVariable;
 use crate::prelude::{
-    CircuitBuilder, CircuitVariable, PlonkParameters, U32Variable, U64Variable, Variable,
+    BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters, U32Variable,
+    U64Variable, Variable,
 };
 
 #[derive(Debug, Clone)]
@@ -238,4 +242,115 @@ pub fn stark<L: PlonkParameters<D>, const D: usize>(
         num_messages,
         num_rows,
     }
+}
+
+/// Get the input data for the stark from a `BLAKE2BAccelerator`.
+fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
+    builder: &mut CircuitBuilder<L, D>,
+    accelerator: BLAKE2BAccelerator,
+) -> BLAKE2BInputData {
+    // Initialze the data struictures of `BLAKE2BInputData`.
+    let mut t_values = Vec::new();
+    let mut end_bit_values = Vec::new();
+    let mut digest_bits = Vec::new();
+    let mut current_chunk_index = 0;
+    let mut digest_indices = Vec::<Variable>::new();
+
+    // Get the padded chunks from input messages, and assign the correct values of t_values, end_bit,
+    // digest_bits, and digest_indices.
+    //
+    // `t_values` - the t values for each chunk.
+    // `end_bit` - a bit that is true for the last chunk of a message (or the total_message
+    // passed in the case of a message of variable length).
+    // `digest_bit` - a bit that indicates the hash state is read into the digest list after
+    // processing the chunk. For a message of fioxed length, this is the same as `end_bit`.
+    // `digest_index` - the index of the digest to be read, corresponding to the location of the
+    // chunk in the padded chunks.
+    let padded_chunks = accelerator
+        .blake2b_requests
+        .iter()
+        .flat_map(|req| {
+            // For every request, we read the corresponding messagem, pad it, and compute the
+            // corresponding chunk index.
+
+            // Get the padded chunks and the number of chunks in the message, depending on the
+            // type of the request.
+            let (padded_chunks, length, last_chunk_index) = match req {
+                BLAKE2BRequest::Fixed(input) => {
+                    // If the length is fixed, the chunk_index is just `number of chunks  - 1``.
+                    let padded_chunks = pad_blake2b_circuit(builder, input);
+                    let num_chunks =
+                        builder.constant((padded_chunks.len() / 16 - 1).try_into().unwrap());
+                    let length = builder.constant::<U64Variable>(input.len() as u64);
+                    (padded_chunks, length, num_chunks)
+                }
+                // If the length of the message is a variable, we read the chunk index from the
+                // request.
+                BLAKE2BRequest::Variable(input, length, last_chunk) => {
+                    (pad_blake2b_circuit(builder, input), *length, *last_chunk)
+                }
+            };
+
+            // Get the total number of chunks processed.
+            let total_number_of_chunks = padded_chunks.len() / 16;
+            // Store the end_bit values. The end bit indicates the end of message chunks.
+            end_bit_values.extend_from_slice(&vec![false; total_number_of_chunks - 1]);
+            end_bit_values.push(true);
+            // The chunk index is given by the currenty index plus the chunk index we got from
+            // the request.
+            let current_chunk_index_variable =
+                builder.constant::<Variable>(L::Field::from_canonical_usize(current_chunk_index));
+            let digest_index = builder.add(current_chunk_index_variable, last_chunk_index.variable);
+            digest_indices.push(digest_index);
+            // The digest bit is equal to zero for all chunks except the one that corresponds to
+            // the `chunk_index`. We find the bits by comparing each value between 0 and the
+            // total number of chunks to the `chunk_index`.
+            let mut flag = builder.constant::<BoolVariable>(true);
+            for j in 0..total_number_of_chunks {
+                let j_var = builder.constant::<U32Variable>(j as u32);
+                let mut t_var = builder.constant::<U64Variable>((j * 128) as u64);
+                let at_digest_chunk = builder.is_equal(j_var, last_chunk_index);
+                digest_bits.push(at_digest_chunk);
+
+                t_var = builder.select(at_digest_chunk, length, t_var);
+                t_values.push(t_var);
+            }
+            // Increment the current chunk index by the total number of chunks.
+            current_chunk_index += total_number_of_chunks;
+
+            padded_chunks
+        })
+        .collect::<Vec<_>>();
+
+    // Convert end_bits to variables.
+    let end_bits = builder.constant_vec(&end_bit_values);
+
+    BLAKE2BInputData {
+        padded_chunks,
+        t_values,
+        digest_bits,
+        end_bits,
+        digest_indices,
+        digests: accelerator.blake2b_responses,
+    }
+}
+
+// Need to make the message 128 byte aligned
+fn pad_blake2b_circuit<L: PlonkParameters<D>, const D: usize>(
+    builder: &mut CircuitBuilder<L, D>,
+    input: &[ByteVariable],
+) -> Vec<U64Variable> {
+    let num_pad_bytes = 128 - (input.len() % 128);
+
+    let mut padded_message = Vec::new();
+    padded_message.extend_from_slice(input);
+
+    for _ in 0..num_pad_bytes {
+        padded_message.push(builder.zero());
+    }
+
+    padded_message
+        .chunks_exact(8)
+        .map(|bytes| U64Variable::decode(builder, bytes))
+        .collect()
 }
