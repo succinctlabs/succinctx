@@ -109,6 +109,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         bytes.into()
     }
 
+    /*
     /// Verifies a blake2b curta instance
     fn curta_constrain_blake2b(&mut self, accelerator: &Blake2bAccelerator<L, D>) {
         let mut padded_messages = Vec::new();
@@ -143,6 +144,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.api
             .constrain_blake2b_gadget::<L::CubicParams, L::CurtaConfig>(blake2b_builder_gadget);
     }
+    */
 }
 
 #[cfg(test)]
