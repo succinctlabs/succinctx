@@ -5,42 +5,37 @@ use curta::chip::register::Register;
 use curta::chip::trace::writer::{InnerWriterData, TraceWriter};
 use curta::chip::uint::register::U64Register;
 use curta::chip::uint::util::u64_to_le_field_bytes;
-use curta::chip::{AirParameters, Chip};
+use curta::machine::builder::Builder;
+use curta::machine::bytes::builder::BytesBuilder;
 use curta::machine::bytes::proof::ByteStarkProof;
 use curta::machine::bytes::stark::ByteStark;
-use curta::machine::hash::blake::blake2b::register::BLAKE2BDigestRegister;
 use curta::math::prelude::*;
-use curta::plonky2::Plonky2Air;
 use itertools::Itertools;
 use log::debug;
+use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 
-use super::data::{BLAKE2BInputData, BLAKE2BInputDataValues};
+use super::curta::BLAKE2BAirParameters;
+use super::data::{BLAKE2BInputData, BLAKE2BInputDataValues, BLAKE2BInputParameters};
 use crate::frontend::curta::proof::ByteStarkProofVariable;
 use crate::prelude::{
     CircuitBuilder, CircuitVariable, PlonkParameters, U32Variable, U64Variable, Variable,
 };
 
 #[derive(Debug, Clone)]
-pub struct BLAKE2BStark<L: PlonkParameters<D>, A: AirParameters, const D: usize> {
-    pub stark: ByteStark<A, L::CurtaConfig, D>,
+pub struct BLAKE2BStark<L: PlonkParameters<D>, const D: usize> {
+    pub stark: ByteStark<BLAKE2BAirParameters<L, D>, L::CurtaConfig, D>,
     pub padded_chunks: Vec<ArrayRegister<U64Register>>,
-    pub t_values: Vec<U64Register>,
+    pub t_values: ArrayRegister<U64Register>,
     pub end_bits: ArrayRegister<BitRegister>,
     pub digest_bits: ArrayRegister<BitRegister>,
     pub digest_indices: ArrayRegister<ElementRegister>,
-    pub digests: Vec<BLAKE2BDigestRegister>,
+    pub digests: Vec<ArrayRegister<U64Register>>,
+    pub num_messages: ElementRegister,
     pub num_rows: usize,
 }
 
-impl<
-        L: PlonkParameters<D>,
-        A: AirParameters<Field = L::Field, CubicParams = L::CubicParams>,
-        const D: usize,
-    > BLAKE2BStark<L, A, D>
-where
-    Chip<A>: Plonky2Air<L::Field, D>,
-{
+impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
     fn write_input(&self, writer: &TraceWriter<L::Field>, input: BLAKE2BInputDataValues<L, D>) {
         for (digest_index_reg, digest_index) in
             self.digest_indices.iter().zip(input.digest_indices.iter())
@@ -66,7 +61,7 @@ where
         }
 
         for (t, t_value) in self.t_values.iter().zip(input.t_values.iter()) {
-            writer.write(t, &u64_to_le_field_bytes(*t_value), 0);
+            writer.write(&t, &u64_to_le_field_bytes(*t_value), 0);
         }
 
         for (end_bit, end_bit_value) in self.end_bits.iter().zip(input.end_bits) {
@@ -196,5 +191,51 @@ where
         U64Variable {
             limbs: [low_limb, high_limb],
         }
+    }
+}
+
+/// The Curta Stark corresponding to the input data.
+pub fn stark<L: PlonkParameters<D>, const D: usize>(
+    parameters: BLAKE2BInputParameters,
+) -> BLAKE2BStark<L, D> {
+    let mut builder = BytesBuilder::<BLAKE2BAirParameters<L, D>>::new();
+
+    let num_chunks = parameters.num_chunks;
+    let padded_chunks = (0..num_chunks)
+        .map(|_| builder.alloc_array_public::<U64Register>(16))
+        .collect::<Vec<_>>();
+
+    // Allocate registers for the public inputs to the Stark.
+    let t_values = builder.alloc_array_public::<U64Register>(num_chunks);
+    let end_bits = builder.alloc_array_public::<BitRegister>(num_chunks);
+    let digest_bits = builder.alloc_array_public::<BitRegister>(num_chunks);
+    let digest_indices = builder.alloc_array_public::<ElementRegister>(parameters.num_digests);
+    let num_messages = builder.alloc_public::<ElementRegister>();
+
+    // Hash the padded chunks.
+    let digests = builder.blake2b(
+        &padded_chunks,
+        &t_values,
+        &end_bits,
+        &digest_bits,
+        &digest_indices,
+        &num_messages,
+    );
+
+    // Build the stark.
+    let num_rows_degree = log2_ceil(96 * num_chunks);
+    let num_rows = 1 << num_rows_degree;
+    let stark = builder.build::<L::CurtaConfig, D>(num_rows);
+
+    BLAKE2BStark {
+        stark,
+        padded_chunks,
+        t_values,
+        end_bits,
+        digest_bits,
+        digest_indices,
+        digests,
+        num_messages,
+        num_rows,
     }
 }

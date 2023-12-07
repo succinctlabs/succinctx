@@ -883,7 +883,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/blake2b_refactor#f5126b146c358d6b9c33e3a1bebe22a65ab14440"
+source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/blake2b_refactor#f4c034ef2477c49c9bba29ce78e74ed0e8533e29"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2581,9 +2581,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.18.0"
+version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
+checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 
 [[package]]
 name = "open-fastrlp"
@@ -2908,7 +2908,7 @@ checksum = "14e6ab3f592e6fb464fc9712d8d6e6912de6473954635fd76a589d832cffcbb0"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/mir-protocol/plonky2.git#47e24306b7dc224383712a6700986331615f3e2a"
+source = "git+https://github.com/mir-protocol/plonky2.git#4ba7718e6628af36715065f44987d89d78791752"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2932,7 +2932,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#47e24306b7dc224383712a6700986331615f3e2a"
+source = "git+https://github.com/mir-protocol/plonky2.git#4ba7718e6628af36715065f44987d89d78791752"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2956,7 +2956,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#47e24306b7dc224383712a6700986331615f3e2a"
+source = "git+https://github.com/mir-protocol/plonky2.git#4ba7718e6628af36715065f44987d89d78791752"
 dependencies = [
  "rayon",
 ]
@@ -2964,7 +2964,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git#47e24306b7dc224383712a6700986331615f3e2a"
+source = "git+https://github.com/mir-protocol/plonky2.git#4ba7718e6628af36715065f44987d89d78791752"
 
 [[package]]
 name = "plonky2x"
