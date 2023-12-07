@@ -1,12 +1,14 @@
 use core::marker::PhantomData;
 
 use curta::chip::hash::blake::blake2b::builder_gadget::{BLAKE2BBuilder, BLAKE2BBuilderGadget};
-use curta::chip::hash::blake::blake2b::generator::BLAKE2BAirParameters;
+use curta::chip::uint::operations::instruction::UintInstruction;
+use curta::chip::AirParameters;
 use plonky2::iop::target::Target;
+use serde::{Deserialize, Serialize};
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::Bytes32Variable;
-use crate::prelude::{ByteVariable, CircuitBuilder, CircuitVariable, Variable};
+use crate::prelude::*;
 
 pub const MAX_NUM_CURTA_CHUNKS: usize = 1600;
 
@@ -28,6 +30,19 @@ impl<L: PlonkParameters<D>, const D: usize> Blake2bAccelerator<L, D> {
     pub fn build(&self, builder: &mut CircuitBuilder<L, D>) {
         builder.curta_constrain_blake2b(self);
     }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct BLAKE2BAirParameters<L, const D: usize>(PhantomData<L>);
+
+impl<L: PlonkParameters<D>, const D: usize> AirParameters for BLAKE2BAirParameters<L, D> {
+    type Field = L::Field;
+    type CubicParams = L::CubicParams;
+
+    type Instruction = UintInstruction;
+
+    const NUM_FREE_COLUMNS: usize = 1527;
+    const EXTENDED_COLUMNS: usize = 708;
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
