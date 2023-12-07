@@ -14,7 +14,7 @@ pub enum BLAKE2BRequest {
     /// A message of fixed length.
     Fixed(Vec<ByteVariable>),
     /// A message of variable length, represented by a tuple `(total_message, lengh, last_chunk)`.
-    Variable(Vec<ByteVariable>, U64Variable, U32Variable),
+    Variable(Vec<ByteVariable>, U32Variable, U32Variable),
 }
 
 impl BLAKE2BRequest {

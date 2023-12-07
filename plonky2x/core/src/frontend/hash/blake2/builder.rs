@@ -2,7 +2,7 @@ use super::accelerator::BLAKE2BAccelerator;
 use super::digest_hint::BLAKE2BDigestHint;
 use super::proof_hint::BLAKE2BProofHint;
 use super::request::BLAKE2BRequest;
-use super::stark::stark;
+use super::stark::{get_blake2b_data, stark};
 use crate::frontend::hint::synchronous::Async;
 use crate::prelude::*;
 
@@ -38,12 +38,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         // Prove correctness of the digest using the proof hint.
 
         // Initialize the corresponding stark and hint.
-        let blake2b_data = self.get_blake2b_data(accelerator);
+        let blake2b_data = get_blake2b_data(self, accelerator);
         let parameters = blake2b_data.parameters();
         let blake2b_stark = stark(parameters);
         let proof_hint = BLAKE2BProofHint::new(parameters);
         let mut input_stream = VariableStream::new();
-        input_stream.write_sha_input(&blake2b_data);
+        input_stream.write_blake2b_input(&blake2b_data);
 
         // Read the stark proof and public inputs from the hint's output stream.
         let output_stream = self.async_hint(input_stream, Async(proof_hint));

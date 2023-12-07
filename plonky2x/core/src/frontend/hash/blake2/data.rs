@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::prelude::{
-    BoolVariable, CircuitVariable, PlonkParameters, U64Variable, ValueStream, Variable,
-    VariableStream,
+    BoolVariable, PlonkParameters, U32Variable, U64Variable, ValueStream, Variable, VariableStream,
 };
 
 /// Circuit variables for the input data of a SHA computation.
@@ -10,7 +9,7 @@ pub struct BLAKE2BInputData {
     /// The padded chunks of the input message.
     pub padded_chunks: Vec<U64Variable>,
     /// The t values for each chunk.
-    pub t_values: Vec<U64Variable>,
+    pub t_values: Vec<U32Variable>,
     // A flag for each chunk indicating whether the hash state needs to be restarted after
     // processing the chunk.
     pub end_bits: Vec<BoolVariable>,
@@ -54,7 +53,7 @@ impl BLAKE2BInputData {
 
 impl VariableStream {
     /// Read blake2b input data from the stream.
-    pub fn write_blake2b_input<T: CircuitVariable>(&mut self, input: &BLAKE2BInputData) {
+    pub fn write_blake2b_input(&mut self, input: &BLAKE2BInputData) {
         self.write_slice(&input.padded_chunks);
         self.write_slice(&input.t_values);
         self.write_slice(&input.end_bits);

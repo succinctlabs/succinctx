@@ -22,7 +22,7 @@ use super::request::BLAKE2BRequest;
 use crate::frontend::curta::proof::ByteStarkProofVariable;
 use crate::frontend::vars::EvmVariable;
 use crate::prelude::{
-    BoolVariable, ByteVariable, CircuitBuilder, CircuitVariable, PlonkParameters, U32Variable,
+    ByteVariable, Bytes32Variable, CircuitBuilder, CircuitVariable, PlonkParameters, U32Variable,
     U64Variable, Variable,
 };
 
@@ -48,7 +48,7 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
         }
 
         for (digest_reg, digest_value) in self.digests.iter().zip(input.digests.iter()) {
-            let array: ArrayRegister<_> = (*digest_reg).into();
+            let array: ArrayRegister<_> = *digest_reg;
             writer.write_array(&array, digest_value.map(u64_to_le_field_bytes), 0);
         }
 
@@ -166,7 +166,7 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
 
         // Connect digests.
         for (digest, &register) in blake2b_input.digests.iter().zip_eq(self.digests.iter()) {
-            let array: ArrayRegister<U64Register> = register.into();
+            let array: ArrayRegister<U64Register> = register;
             for (int, int_reg) in digest.iter().zip_eq(array.iter()) {
                 let value = int_reg.read_from_slice(public_inputs);
                 let var = Self::value_to_variable(builder, value);
@@ -245,7 +245,7 @@ pub fn stark<L: PlonkParameters<D>, const D: usize>(
 }
 
 /// Get the input data for the stark from a `BLAKE2BAccelerator`.
-fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
+pub(crate) fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
     builder: &mut CircuitBuilder<L, D>,
     accelerator: BLAKE2BAccelerator,
 ) -> BLAKE2BInputData {
@@ -281,7 +281,7 @@ fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
                     let padded_chunks = pad_blake2b_circuit(builder, input);
                     let num_chunks =
                         builder.constant((padded_chunks.len() / 16 - 1).try_into().unwrap());
-                    let length = builder.constant::<U64Variable>(input.len() as u64);
+                    let length = builder.constant::<U32Variable>(input.len() as u32);
                     (padded_chunks, length, num_chunks)
                 }
                 // If the length of the message is a variable, we read the chunk index from the
@@ -305,10 +305,9 @@ fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
             // The digest bit is equal to zero for all chunks except the one that corresponds to
             // the `chunk_index`. We find the bits by comparing each value between 0 and the
             // total number of chunks to the `chunk_index`.
-            let mut flag = builder.constant::<BoolVariable>(true);
             for j in 0..total_number_of_chunks {
                 let j_var = builder.constant::<U32Variable>(j as u32);
-                let mut t_var = builder.constant::<U64Variable>((j * 128) as u64);
+                let mut t_var = builder.constant::<U32Variable>((j * 128) as u32);
                 let at_digest_chunk = builder.is_equal(j_var, last_chunk_index);
                 digest_bits.push(at_digest_chunk);
 
@@ -353,4 +352,43 @@ fn pad_blake2b_circuit<L: PlonkParameters<D>, const D: usize>(
         .chunks_exact(8)
         .map(|bytes| U64Variable::decode(builder, bytes))
         .collect()
+}
+
+pub(crate) fn digest_to_array<L: PlonkParameters<D>, const D: usize>(
+    builder: &mut CircuitBuilder<L, D>,
+    digest: Bytes32Variable,
+) -> [U64Variable; 4] {
+    digest
+        .as_bytes()
+        .chunks_exact(8)
+        .map(|x| U64Variable::decode(builder, x))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap()
+}
+
+pub(crate) fn compute_blake2b_last_chunk<L: PlonkParameters<D>, const D: usize>(
+    builder: &mut CircuitBuilder<L, D>,
+    input_byte_length: U32Variable,
+) -> U32Variable {
+    let chunk_size = builder.constant::<U32Variable>(128);
+    let mut digest_index = builder.div(input_byte_length, chunk_size);
+    // Check if input_byte_length % 128 == 0.  If that is true, then add 1 to the digest_index.
+    // Check to see if the least sig 7 bits are 0.
+
+    let zero = builder.zero();
+
+    let bits = digest_index.to_be_bits(builder);
+    let mut bits_sum = zero;
+
+    for i in 0..7 {
+        bits_sum = builder.add(bits[31 - i].variable, bits_sum);
+    }
+
+    let add_one = builder.is_equal(bits_sum, zero);
+    digest_index = builder.add(
+        digest_index,
+        U32Variable::from_variables_unsafe(&[add_one.variable]),
+    );
+    digest_index
 }
