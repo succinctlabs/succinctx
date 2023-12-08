@@ -25,9 +25,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     input_stream.write_slice(msg);
                 }
                 BLAKE2BRequest::Variable(msg, len, _) => {
-                    for msg_byte in msg.iter() {
-                        self.watch(msg_byte, "input msg");
-                    }
                     input_stream.write(len);
                     input_stream.write_slice(msg);
                 }

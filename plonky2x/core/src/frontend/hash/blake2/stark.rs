@@ -218,6 +218,8 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
 pub fn stark<L: PlonkParameters<D>, const D: usize>(
     parameters: BLAKE2BInputParameters,
 ) -> BLAKE2BStark<L, D> {
+    println!("parameters are {:?}", parameters);
+
     let mut builder = BytesBuilder::<BLAKE2BAirParameters<L, D>>::new();
 
     let num_chunks = parameters.num_chunks;
@@ -327,9 +329,11 @@ pub(crate) fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
             // The digest bit is equal to zero for all chunks except the one that corresponds to
             // the `chunk_index`. We find the bits by comparing each value between 0 and the
             // total number of chunks to the `chunk_index`.
+            let mut t_var = builder.constant::<U32Variable>(0);
+            let chunk_size = builder.constant::<U32Variable>(128);
             for j in 0..total_number_of_chunks {
+                t_var = builder.add(t_var, chunk_size);
                 let j_var = builder.constant::<U32Variable>(j as u32);
-                let mut t_var = builder.constant::<U32Variable>((j * 128) as u32);
                 let at_digest_chunk = builder.is_equal(j_var, last_chunk_index);
                 digest_bits.push(at_digest_chunk);
 
@@ -372,7 +376,12 @@ fn pad_blake2b_circuit<L: PlonkParameters<D>, const D: usize>(
 
     padded_message
         .chunks_exact(8)
-        .map(|bytes| U64Variable::decode(builder, bytes))
+        .map(|bytes| {
+            let mut bytes_copy = Vec::new();
+            bytes_copy.extend_from_slice(bytes);
+            bytes_copy.reverse();
+            U64Variable::decode(builder, &bytes_copy)
+        })
         .collect()
 }
 
@@ -383,8 +392,12 @@ pub(crate) fn digest_to_array<L: PlonkParameters<D>, const D: usize>(
     digest
         .as_bytes()
         .chunks_exact(8)
-        .rev()
-        .map(|x| U64Variable::decode(builder, x))
+        .map(|x| {
+            let mut x_copy = Vec::new();
+            x_copy.extend_from_slice(x);
+            x_copy.reverse();
+            U64Variable::decode(builder, &x_copy)
+        })
         .collect::<Vec<_>>()
         .try_into()
         .unwrap()

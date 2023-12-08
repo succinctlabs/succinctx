@@ -2,7 +2,6 @@ use core::marker::PhantomData;
 
 use curta::chip::uint::operations::instruction::UintInstruction;
 use curta::chip::AirParameters;
-use curta::utils::watcher::Watcher;
 use serde::{Deserialize, Serialize};
 
 use super::accelerator::BLAKE2BAccelerator;
@@ -77,7 +76,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             last_chunk,
         ));
         accelerator.blake2b_responses.push(digest_array);
-        self.watch(&length, "message length");
 
         digest
     }
@@ -113,7 +111,7 @@ mod tests {
         builder.watch(&result, "result");
         builder.watch(&expected_digest, "expected_digest");
 
-        // builder.assert_is_equal(result, expected_digest);
+        builder.assert_is_equal(result, expected_digest);
 
         let circuit = builder.build();
         let input = circuit.input();
