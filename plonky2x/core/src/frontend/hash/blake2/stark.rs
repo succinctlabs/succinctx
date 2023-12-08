@@ -41,13 +41,15 @@ pub struct BLAKE2BStark<L: PlonkParameters<D>, const D: usize> {
 
 impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
     fn write_input(&self, writer: &TraceWriter<L::Field>, input: BLAKE2BInputDataValues<L, D>) {
-        for (digest_index_reg, digest_index) in
-            self.digest_indices.iter().zip(input.digest_indices.iter())
+        for (digest_index_reg, digest_index) in self
+            .digest_indices
+            .iter()
+            .zip_eq(input.digest_indices.iter())
         {
             writer.write(&digest_index_reg, digest_index, 0);
         }
 
-        for (digest_reg, digest_value) in self.digests.iter().zip(input.digests.iter()) {
+        for (digest_reg, digest_value) in self.digests.iter().zip_eq(input.digests.iter()) {
             let array: ArrayRegister<_> = *digest_reg;
             writer.write_array(&array, digest_value.map(u64_to_le_field_bytes), 0);
         }
@@ -55,8 +57,15 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
         for (chunk, chunk_value) in self
             .padded_chunks
             .iter()
-            .zip(input.padded_chunks.chunks_exact(16))
+            .zip_eq(input.padded_chunks.chunks_exact(16))
         {
+            println!(
+                "writing chunk: {:?}",
+                chunk_value
+                    .iter()
+                    .map(|x: &u64| u64_to_le_field_bytes::<L::Field>(*x))
+                    .collect_vec()
+            );
             writer.write_array(
                 chunk,
                 chunk_value.iter().map(|x| u64_to_le_field_bytes(*x)),
@@ -64,11 +73,11 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
             );
         }
 
-        for (t, t_value) in self.t_values.iter().zip(input.t_values.iter()) {
-            writer.write(&t, &u64_to_le_field_bytes(*t_value), 0);
+        for (t, t_value) in self.t_values.iter().zip_eq(input.t_values.iter()) {
+            writer.write(&t, &u64_to_le_field_bytes(*t_value as u64), 0);
         }
 
-        for (end_bit, end_bit_value) in self.end_bits.iter().zip(input.end_bits) {
+        for (end_bit, end_bit_value) in self.end_bits.iter().zip_eq(input.end_bits) {
             writer.write(
                 &end_bit,
                 &L::Field::from_canonical_u8(end_bit_value as u8),
@@ -76,13 +85,19 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
             );
         }
 
-        for (digest_bit, digest_bit_value) in self.digest_bits.iter().zip(input.digest_bits) {
+        for (digest_bit, digest_bit_value) in self.digest_bits.iter().zip_eq(input.digest_bits) {
             writer.write(
                 &digest_bit,
                 &L::Field::from_canonical_u8(digest_bit_value as u8),
                 0,
             );
         }
+
+        writer.write(
+            &self.num_messages,
+            &L::Field::from_canonical_u32(input.digests.len() as u32),
+            0,
+        );
     }
 
     /// Generate a proof for the SHA stark given the input data.
@@ -291,6 +306,8 @@ pub(crate) fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
                 }
             };
 
+            builder.watch(&last_chunk_index, "last chunk index");
+
             // Get the total number of chunks processed.
             let total_number_of_chunks = padded_chunks.len() / 16;
             // Store the end_bit values. The end bit indicates the end of message chunks.
@@ -300,6 +317,10 @@ pub(crate) fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
             // the request.
             let current_chunk_index_variable =
                 builder.constant::<Variable>(L::Field::from_canonical_usize(current_chunk_index));
+            builder.watch(
+                &current_chunk_index_variable,
+                "current_chunk_index_variable",
+            );
             let digest_index = builder.add(current_chunk_index_variable, last_chunk_index.variable);
             digest_indices.push(digest_index);
             // The digest bit is equal to zero for all chunks except the one that corresponds to
@@ -367,28 +388,33 @@ pub(crate) fn digest_to_array<L: PlonkParameters<D>, const D: usize>(
         .unwrap()
 }
 
-pub(crate) fn compute_blake2b_last_chunk<L: PlonkParameters<D>, const D: usize>(
+pub(crate) fn compute_blake2b_last_chunk_index<L: PlonkParameters<D>, const D: usize>(
     builder: &mut CircuitBuilder<L, D>,
     input_byte_length: U32Variable,
 ) -> U32Variable {
     let chunk_size = builder.constant::<U32Variable>(128);
+    builder.watch(&chunk_size, "chunk size");
     let mut digest_index = builder.div(input_byte_length, chunk_size);
     // Check if input_byte_length % 128 == 0.  If that is true, then add 1 to the digest_index.
     // Check to see if the least sig 7 bits are 0.
+    builder.watch(&digest_index, "digest index");
 
-    let zero = builder.zero();
+    // let zero = builder.zero();
 
-    let bits = digest_index.to_be_bits(builder);
-    let mut bits_sum = zero;
+    // let bits = digest_index.to_be_bits(builder);
+    // let mut bits_sum = zero;
 
-    for i in 0..7 {
-        bits_sum = builder.add(bits[31 - i].variable, bits_sum);
-    }
+    // for i in 0..7 {
+    //     bits_sum = builder.add(bits[31 - i].variable, bits_sum);
+    //     builder.watch(&bits_sum, "bits sum");
+    // }
 
-    let add_one = builder.is_equal(bits_sum, zero);
-    digest_index = builder.add(
-        digest_index,
-        U32Variable::from_variables_unsafe(&[add_one.variable]),
-    );
+    // let add_one = builder.is_equal(bits_sum, zero);
+    // builder.watch(&add_one, "add one");
+    // digest_index = builder.add(
+    //     digest_index,
+    //     U32Variable::from_variables_unsafe(&[add_one.variable]),
+    // );
+    builder.watch(&digest_index, "digest index");
     digest_index
 }

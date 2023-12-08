@@ -59,6 +59,8 @@ use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
 use crate::frontend::hash::blake2::curta::MAX_NUM_CURTA_CHUNKS;
+use crate::frontend::hash::blake2::digest_hint::BLAKE2BDigestHint;
+use crate::frontend::hash::blake2::proof_hint::BLAKE2BProofHint;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::hash::sha::curta::digest_hint::SHADigestHint;
 use crate::frontend::hash::sha::curta::proof_hint::SHAProofHint;
@@ -412,6 +414,12 @@ where
 
         r.register_hint::<EcOpResultHint>();
         r.register_async_hint::<Async<EcOpResultHint>>();
+
+        r.register_hint::<BLAKE2BDigestHint>();
+        r.register_async_hint::<Async<BLAKE2BDigestHint>>();
+
+        r.register_hint::<BLAKE2BProofHint>();
+        r.register_async_hint::<Async<BLAKE2BProofHint>>();
 
         let dummy_proof_generator_id =
             DummyProofGenerator::<L::Field, L::Config, D>::default().id();

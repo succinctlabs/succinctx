@@ -23,9 +23,14 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BLAKE2BDigestHint {
 
         let padded_chunks = BLAKE2BUtil::pad(&message, num_message_chunks);
 
+        println!("padded chunks is {:?}", padded_chunks);
+        println!("num_message_chunks is {:?}", num_message_chunks);
+        println!("msg len is {:?}", message.len());
+
         // Initialize the hash state.
         let mut state = blake2b::IV;
         let mut t = 0;
+        println!("state is {:?}", state);
         for (i, chunk) in padded_chunks.chunks_exact(128).enumerate() {
             let at_last_chunk = i as u64 == num_message_chunks - 1;
             if at_last_chunk {
@@ -38,6 +43,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BLAKE2BDigestHint {
 
         // Write the digest to the output stream.
         let mut digest: [u64; 4] = Default::default();
+        println!("state: {:?}", state);
         digest.copy_from_slice(&state[0..4]);
         output_stream.write_value::<[U64Variable; 4]>(digest)
     }

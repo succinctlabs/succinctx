@@ -96,6 +96,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let digest = self.init_unsafe::<Bytes32Variable>();
+
+        let test = digest.as_bytes()[0];
+        let zero = self.zero::<ByteVariable>();
+        self.assert_is_equal(test, zero);
+
+        /*
         let digest_array = SHA256::digest_to_array(self, digest);
         let accelerator = self
             .sha256_accelerator
@@ -105,6 +111,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .sha_requests
             .push(SHARequest::Fixed(input.to_vec()));
         accelerator.sha_responses.push(digest_array);
+        */
 
         digest
     }

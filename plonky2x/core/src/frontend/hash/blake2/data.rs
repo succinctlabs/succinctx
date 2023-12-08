@@ -25,9 +25,10 @@ pub struct BLAKE2BInputData {
 /// The values of the input data of a BLAKE2B computation.
 ///
 /// This struct represents the values of the variables of `BLAKE2BInputData`.
+#[derive(Debug, Clone)]
 pub struct BLAKE2BInputDataValues<L: PlonkParameters<D>, const D: usize> {
     pub padded_chunks: Vec<u64>,
-    pub t_values: Vec<u64>,
+    pub t_values: Vec<u32>,
     pub end_bits: Vec<bool>,
     pub digest_bits: Vec<bool>,
     pub digest_indices: Vec<L::Field>,
@@ -75,7 +76,7 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         } = parameters;
 
         let padded_chunks = self.read_vec::<U64Variable>(num_chunks * 16);
-        let t_values = self.read_vec::<U64Variable>(num_chunks);
+        let t_values = self.read_vec::<U32Variable>(num_chunks);
         let end_bits = self.read_vec::<BoolVariable>(num_chunks);
         let digest_bits = self.read_vec::<BoolVariable>(num_chunks);
         let digest_indices = self.read_vec::<Variable>(num_digests);

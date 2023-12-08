@@ -25,6 +25,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     input_stream.write_slice(msg);
                 }
                 BLAKE2BRequest::Variable(msg, len, _) => {
+                    for msg_byte in msg.iter() {
+                        self.watch(msg_byte, "input msg");
+                    }
                     input_stream.write(len);
                     input_stream.write_slice(msg);
                 }
@@ -32,6 +35,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             let output_stream = self.hint(input_stream, digest_hint);
             let digest = output_stream.read::<[U64Variable; 4]>(self);
+            for i in 0..digest.len() {
+                self.watch(&digest[i], "correct digest");
+            }
+
+            for i in 0..(*response).len() {
+                self.watch(&response[i], "response");
+            }
+
             self.assert_is_equal(digest, *response);
         }
 

@@ -55,6 +55,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
     {
         let start_time = Instant::now();
         trace!("generating witness...");
+        println!("generating witness...");
         let partition_witness = generate_witness(
             pw,
             &self.data.prover_only,
@@ -63,7 +64,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
         )
         .unwrap();
         let elapsed_time = start_time.elapsed();
-        debug!("Witness generation took {:?}", elapsed_time);
+        println!("Witness generation took {:?}", elapsed_time);
         trace!("finished generating witness");
         trace!("generating proof...");
         let proof_with_pis = prove_with_partition_witness::<L::Field, L::Config, D>(
