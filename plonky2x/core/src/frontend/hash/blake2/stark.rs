@@ -185,6 +185,7 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
             for (int, int_reg) in digest.iter().zip_eq(array.iter()) {
                 let value = int_reg.read_from_slice(public_inputs);
                 let var = Self::value_to_variable(builder, value);
+                builder.watch(&var, "digest var");
                 builder.assert_is_equal(*int, var);
             }
         }
@@ -382,6 +383,7 @@ pub(crate) fn digest_to_array<L: PlonkParameters<D>, const D: usize>(
     digest
         .as_bytes()
         .chunks_exact(8)
+        .rev()
         .map(|x| U64Variable::decode(builder, x))
         .collect::<Vec<_>>()
         .try_into()
@@ -393,28 +395,5 @@ pub(crate) fn compute_blake2b_last_chunk_index<L: PlonkParameters<D>, const D: u
     input_byte_length: U32Variable,
 ) -> U32Variable {
     let chunk_size = builder.constant::<U32Variable>(128);
-    builder.watch(&chunk_size, "chunk size");
-    let mut digest_index = builder.div(input_byte_length, chunk_size);
-    // Check if input_byte_length % 128 == 0.  If that is true, then add 1 to the digest_index.
-    // Check to see if the least sig 7 bits are 0.
-    builder.watch(&digest_index, "digest index");
-
-    // let zero = builder.zero();
-
-    // let bits = digest_index.to_be_bits(builder);
-    // let mut bits_sum = zero;
-
-    // for i in 0..7 {
-    //     bits_sum = builder.add(bits[31 - i].variable, bits_sum);
-    //     builder.watch(&bits_sum, "bits sum");
-    // }
-
-    // let add_one = builder.is_equal(bits_sum, zero);
-    // builder.watch(&add_one, "add one");
-    // digest_index = builder.add(
-    //     digest_index,
-    //     U32Variable::from_variables_unsafe(&[add_one.variable]),
-    // );
-    builder.watch(&digest_index, "digest index");
-    digest_index
+    builder.div(input_byte_length, chunk_size)
 }

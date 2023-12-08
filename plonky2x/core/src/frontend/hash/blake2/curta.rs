@@ -104,12 +104,14 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
         let zero = builder.zero::<U32Variable>();
-        builder.watch(&zero, "zero");
         let result = builder.curta_blake2b_variable(&[], zero);
 
-        // let expected_digest =
-        //     bytes32!("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8");
-        // let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
+        let expected_digest =
+            bytes32!("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8");
+        let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
+
+        builder.watch(&result, "result");
+        builder.watch(&expected_digest, "expected_digest");
 
         // builder.assert_is_equal(result, expected_digest);
 
