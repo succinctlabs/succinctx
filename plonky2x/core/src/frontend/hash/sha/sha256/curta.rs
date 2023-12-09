@@ -96,7 +96,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let digest = self.init_unsafe::<Bytes32Variable>();
-
         let digest_array = SHA256::digest_to_array(self, digest);
         let accelerator = self
             .sha256_accelerator

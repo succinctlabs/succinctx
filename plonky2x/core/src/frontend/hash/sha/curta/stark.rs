@@ -6,7 +6,6 @@ use curta::chip::trace::writer::{InnerWriterData, TraceWriter};
 use curta::chip::Chip;
 use curta::machine::bytes::proof::ByteStarkProof;
 use curta::machine::bytes::stark::ByteStark;
-use curta::machine::hash::sha::algorithm::SHAir;
 use curta::math::prelude::*;
 use curta::plonky2::Plonky2Air;
 use itertools::Itertools;
@@ -132,10 +131,7 @@ where
             .iter()
             .zip_eq(self.padded_chunks.iter().flat_map(|x| x.iter()))
         {
-            let value: <<S as SHAir<
-                curta::prelude::BytesBuilder<<S as SHA<L, D, CYCLE_LEN>>::AirParameters>,
-                CYCLE_LEN,
-            >>::IntRegister as Register>::Value<Variable> = register.read_from_slice(public_inputs);
+            let value = register.read_from_slice(public_inputs);
             let var = S::value_to_variable(builder, value);
             builder.assert_is_equal(*int, var);
         }
