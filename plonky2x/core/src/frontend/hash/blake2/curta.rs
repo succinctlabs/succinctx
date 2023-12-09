@@ -55,7 +55,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         length: U32Variable,
     ) -> Bytes32Variable {
         let last_chunk = compute_blake2b_last_chunk_index(self, length);
-        self.watch(&last_chunk, "last chunk");
         if self.blake2b_accelerator.is_none() {
             self.blake2b_accelerator = Some(BLAKE2BAccelerator {
                 blake2b_requests: Vec::new(),
@@ -109,9 +108,6 @@ mod tests {
         let expected_digest =
             bytes32!("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8");
         let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
-
-        builder.watch(&result, "result");
-        builder.watch(&expected_digest, "expected_digest");
 
         builder.assert_is_equal(result, expected_digest);
 

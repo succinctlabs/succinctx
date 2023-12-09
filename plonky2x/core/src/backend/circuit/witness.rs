@@ -15,7 +15,6 @@ use log::trace;
 use plonky2::iop::generator::{GeneratedValues, WitnessGeneratorRef};
 use plonky2::iop::witness::{PartialWitness, PartitionWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CommonCircuitData, ProverOnlyCircuitData};
-use tokio::runtime;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::oneshot;
 
@@ -42,8 +41,7 @@ pub fn generate_witness<'a, L: PlonkParameters<D>, const D: usize>(
             let mut hint_handler = HintHandler::<L, D>::new(rx);
 
             // Spawn a runtime and run the hint handler.
-            //let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
-            let rt = runtime::Builder::new_current_thread().build()?;
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
             rayon::spawn(move || {
                 let result = rt.block_on(hint_handler.run());
                 if let Err(e) = result {

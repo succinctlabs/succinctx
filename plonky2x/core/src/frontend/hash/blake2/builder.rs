@@ -32,14 +32,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             let output_stream = self.hint(input_stream, digest_hint);
             let digest = output_stream.read::<[U64Variable; 4]>(self);
-            for i in 0..digest.len() {
-                self.watch(&digest[i], "correct digest");
-            }
-
-            for i in 0..(*response).len() {
-                self.watch(&response[i], "response");
-            }
-
             self.assert_is_equal(digest, *response);
         }
 

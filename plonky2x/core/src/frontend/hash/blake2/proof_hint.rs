@@ -22,9 +22,6 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for BLAKE2BProofHint {
         let inputs = input_stream.read_blake2b_input_values(self.parameters);
         let stark = stark(self.parameters);
 
-        println!("inputs are {:?}", inputs);
-        println!("parameters are {:?}", self.parameters);
-
         // Generate the proof with public inputs and write them to the output stream.
         let (proof, public_inputs) = stark.prove(inputs);
 

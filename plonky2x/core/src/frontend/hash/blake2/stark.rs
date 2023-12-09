@@ -185,7 +185,6 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
             for (int, int_reg) in digest.iter().zip_eq(array.iter()) {
                 let value = int_reg.read_from_slice(public_inputs);
                 let var = Self::value_to_variable(builder, value);
-                builder.watch(&var, "digest var");
                 builder.assert_is_equal(*int, var);
             }
         }
@@ -309,8 +308,6 @@ pub(crate) fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
                 }
             };
 
-            builder.watch(&last_chunk_index, "last chunk index");
-
             // Get the total number of chunks processed.
             let total_number_of_chunks = padded_chunks.len() / 16;
             // Store the end_bit values. The end bit indicates the end of message chunks.
@@ -320,10 +317,6 @@ pub(crate) fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
             // the request.
             let current_chunk_index_variable =
                 builder.constant::<Variable>(L::Field::from_canonical_usize(current_chunk_index));
-            builder.watch(
-                &current_chunk_index_variable,
-                "current_chunk_index_variable",
-            );
             let digest_index = builder.add(current_chunk_index_variable, last_chunk_index.variable);
             digest_indices.push(digest_index);
             // The digest bit is equal to zero for all chunks except the one that corresponds to
