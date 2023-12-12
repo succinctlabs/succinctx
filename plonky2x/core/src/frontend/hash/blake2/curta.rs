@@ -11,8 +11,6 @@ use crate::backend::circuit::PlonkParameters;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::*;
 
-pub const MAX_NUM_CURTA_CHUNKS: usize = 1600;
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct BLAKE2BAirParameters<L, const D: usize>(PhantomData<L>);
 
