@@ -1,9 +1,6 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use curta::chip::hash::blake::blake2b::generator::{
-    BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
-};
 use curta::machine::hash::sha::sha256::SHA256;
 use curta::machine::hash::sha::sha512::SHA512;
 use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
@@ -58,7 +55,8 @@ use crate::frontend::eth::mpt::generators::LteGenerator;
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
-use crate::frontend::hash::blake2::curta::MAX_NUM_CURTA_CHUNKS;
+use crate::frontend::hash::blake2::digest_hint::BLAKE2BDigestHint;
+use crate::frontend::hash::blake2::proof_hint::BLAKE2BProofHint;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
 use crate::frontend::hash::sha::curta::digest_hint::SHADigestHint;
 use crate::frontend::hash::sha::curta::proof_hint::SHAProofHint;
@@ -369,26 +367,6 @@ where
         let id = MulCubicGenerator::<L::Field, D>::id();
         r.register_simple::<MulCubicGenerator<L::Field, D>>(id);
 
-        let blake2b_hint_generator_id = BLAKE2BHintGenerator::id();
-        r.register_simple::<BLAKE2BHintGenerator>(blake2b_hint_generator_id);
-
-        let blake2b_generator = BLAKE2BGenerator::<
-            L::Field,
-            L::CubicParams,
-            L::CurtaConfig,
-            D,
-            BLAKE2BAirParameters<L::Field, L::CubicParams>,
-            MAX_NUM_CURTA_CHUNKS,
-        >::id();
-        r.register_simple::<BLAKE2BGenerator<
-            L::Field,
-            L::CubicParams,
-            L::CurtaConfig,
-            D,
-            BLAKE2BAirParameters<L::Field, L::CubicParams>,
-            MAX_NUM_CURTA_CHUNKS,
-        >>(blake2b_generator);
-
         r.register_hint::<SubArrayExtractorHint>();
 
         r.register_hint::<BeaconBlockRootsHint>();
@@ -412,6 +390,12 @@ where
 
         r.register_hint::<EcOpResultHint>();
         r.register_async_hint::<Async<EcOpResultHint>>();
+
+        r.register_hint::<BLAKE2BDigestHint>();
+        r.register_async_hint::<Async<BLAKE2BDigestHint>>();
+
+        r.register_hint::<BLAKE2BProofHint>();
+        r.register_async_hint::<Async<BLAKE2BProofHint>>();
 
         let dummy_proof_generator_id =
             DummyProofGenerator::<L::Field, L::Config, D>::default().id();

@@ -152,6 +152,8 @@ mod tests {
             a_init.get(1),
             &Time::zero(),
             Some(num_rows_reg),
+            None,
+            None,
         );
 
         let clk = Time::from_element(air_builder.clk);
@@ -161,10 +163,10 @@ mod tests {
         let zero_trace = air_builder.alloc::<ElementRegister>();
         air_builder.set_to_expression(&zero_trace, GoldilocksField::ZERO.into());
         let a_0_trace = a_ptr.get_at(zero_trace);
-        let a = air_builder.load(&a_0_trace, &clk);
-        let b = air_builder.load(&a_ptr.get(1), &Time::zero());
+        let a = air_builder.load(&a_0_trace, &clk, None, None);
+        let b = air_builder.load(&a_ptr.get(1), &Time::zero(), None, None);
         let c = air_builder.and(&a, &b);
-        air_builder.store(&a_0_trace, c, &clk.advance(), None);
+        air_builder.store(&a_0_trace, c, &clk.advance(), None, None, None);
 
         let a_final = air_builder.api.alloc_public::<U32Register>();
 

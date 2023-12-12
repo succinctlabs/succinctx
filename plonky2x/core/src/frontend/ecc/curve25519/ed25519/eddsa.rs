@@ -18,8 +18,6 @@ use crate::prelude::{
     U256Variable, U32Variable, Variable,
 };
 
-const MAX_NUM_SIGS: usize = 256;
-
 #[derive(Clone, Debug, CircuitVariable)]
 pub struct EDDSASignatureVariable {
     pub r: CompressedEdwardsYVariable,
@@ -82,7 +80,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         signatures: ArrayVariable<EDDSASignatureVariable, NUM_SIGS>,
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
-        assert!(NUM_SIGS > 0 && NUM_SIGS <= MAX_NUM_SIGS);
+        assert!(NUM_SIGS > 0);
         assert!(is_active.len() == NUM_SIGS);
         assert!(messages.len() == NUM_SIGS);
         if let Some(ref msg_lens) = message_byte_lengths {
@@ -141,7 +139,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         signatures: ArrayVariable<EDDSASignatureVariable, NUM_SIGS>,
         pubkeys: ArrayVariable<CompressedEdwardsYVariable, NUM_SIGS>,
     ) {
-        assert!(NUM_SIGS > 0 && NUM_SIGS <= MAX_NUM_SIGS);
+        assert!(NUM_SIGS > 0);
         assert!(messages.len() == NUM_SIGS);
         if let Some(ref msg_lens) = message_byte_lengths {
             assert!(msg_lens.len() == NUM_SIGS);
