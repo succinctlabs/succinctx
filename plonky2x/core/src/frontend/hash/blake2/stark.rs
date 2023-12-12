@@ -59,13 +59,6 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
             .iter()
             .zip_eq(input.padded_chunks.chunks_exact(16))
         {
-            println!(
-                "writing chunk: {:?}",
-                chunk_value
-                    .iter()
-                    .map(|x: &u64| u64_to_le_field_bytes::<L::Field>(*x))
-                    .collect_vec()
-            );
             writer.write_array(
                 chunk,
                 chunk_value.iter().map(|x| u64_to_le_field_bytes(*x)),
@@ -100,7 +93,7 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
         );
     }
 
-    /// Generate a proof for the SHA stark given the input data.
+    /// Generate a proof for the BLAKE2B stark given the input data.
     #[allow(clippy::type_complexity)]
     pub fn prove(
         &self,
@@ -217,8 +210,6 @@ impl<L: PlonkParameters<D>, const D: usize> BLAKE2BStark<L, D> {
 pub fn stark<L: PlonkParameters<D>, const D: usize>(
     parameters: BLAKE2BInputParameters,
 ) -> BLAKE2BStark<L, D> {
-    println!("parameters are {:?}", parameters);
-
     let mut builder = BytesBuilder::<BLAKE2BAirParameters<L, D>>::new();
 
     let num_chunks = parameters.num_chunks;

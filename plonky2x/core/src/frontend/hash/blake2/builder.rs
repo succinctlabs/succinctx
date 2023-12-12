@@ -7,7 +7,7 @@ use crate::frontend::hint::synchronous::Async;
 use crate::prelude::*;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    /// The constraints for an accelerated SHA computation using Curta.
+    /// The constraints for an accelerated BLAKE2B computation using Curta.
     pub(crate) fn curta_constrain_blake2b(&mut self, accelerator: BLAKE2BAccelerator) {
         // Get all the digest values using the digest hint.
         for (request, response) in accelerator

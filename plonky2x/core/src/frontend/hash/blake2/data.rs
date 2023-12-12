@@ -65,7 +65,7 @@ impl VariableStream {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
-    /// Read sha input data from the stream.
+    /// Read blake2b input data from the stream.
     pub fn read_blake2b_input_values(
         &mut self,
         parameters: BLAKE2BInputParameters,
