@@ -80,8 +80,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-
     use itertools::Itertools;
 
     use crate::backend::circuit::DefaultParameters;
