@@ -114,7 +114,7 @@ impl RemoteProver {
             .collect_vec();
         let (batch_id, proof_ids) = service.submit_batch(&requests)?;
 
-        const MAX_RETRIES: usize = 500;
+        const MAX_RETRIES: usize = 1500;
         for _ in 0..MAX_RETRIES {
             sleep(Duration::from_secs(10)).await;
             let request = match service.get_batch::<L, D>(batch_id) {
