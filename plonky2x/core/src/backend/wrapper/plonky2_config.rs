@@ -28,7 +28,7 @@ impl GenericConfig<2> for PoseidonBN128GoldilocksConfig {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct PoseidonBN128HashOut<F: Field> {
-    value: Fr,
+    pub value: Fr,
     _phantom: PhantomData<F>,
 }
 
