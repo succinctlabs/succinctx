@@ -389,7 +389,7 @@ impl BeaconClient {
         let client = Client::new();
         let response = client
             .get(endpoint)
-            .timeout(Duration::from_secs(300))
+            .timeout(Duration::from_secs(900))
             .send()?;
         let response: CustomResponse<GetBeaconPartialValidatorsRoot> = response.json()?;
         assert!(response.success);
@@ -508,7 +508,7 @@ impl BeaconClient {
         let client = Client::new();
         let response = client
             .get(endpoint)
-            .timeout(Duration::from_secs(300))
+            .timeout(Duration::from_secs(900))
             .send()?;
         let response: CustomResponse<GetBeaconPartialBalancesRoot> = response.json()?;
         assert!(response.success);
