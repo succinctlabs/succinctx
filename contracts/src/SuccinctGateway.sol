@@ -51,6 +51,11 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         _;
     }
 
+    /// @dev Version of the contract, used for tracking upgrades.
+    function VERSION() external pure override returns (string memory) {
+        return "1.0.1";
+    }
+
     /// @dev Initializes the contract.
     /// @param _feeVault The address of the fee vault.
     /// @param _timelock The address of the timelock contract.
