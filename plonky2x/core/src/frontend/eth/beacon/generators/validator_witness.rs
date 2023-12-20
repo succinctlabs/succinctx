@@ -1,6 +1,6 @@
 use std::env;
 
-use ethers::types::{H256, U256};
+use ethers::types::U256;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::eth::beacon::vars::{
@@ -11,7 +11,7 @@ use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::ValueStream;
 use crate::prelude::{ArrayVariable, Bytes32Variable, PlonkParameters};
 use crate::utils::eth::beacon::BeaconClient;
-use crate::utils::{bytes, bytes32, hex};
+use crate::utils::{bytes32, hex};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BeaconValidatorHint {}
