@@ -78,6 +78,15 @@ pub struct BeaconValidator {
 }
 
 impl BeaconValidator {
+    pub fn pubkey_hash(&self) -> H256 {
+        let pubkey_bytes = hex::decode(&self.pubkey.as_str()[2..]).unwrap();
+        let mut pubkey_p1 = [0u8; 32];
+        pubkey_p1.copy_from_slice(&pubkey_bytes[..32]);
+        let mut pubkey_p2 = [0u8; 32];
+        pubkey_p2[0..16].copy_from_slice(&pubkey_bytes[32..]);
+        H256::from(sha256(&[pubkey_p1, pubkey_p2].concat()))
+    }
+
     pub fn ssz_merkleize(&self) -> (H256, Vec<H256>) {
         let pubkey_bytes = hex::decode(&self.pubkey.as_str()[2..]).unwrap();
         let mut pubkey_p1 = [0u8; 32];
