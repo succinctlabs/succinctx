@@ -356,6 +356,7 @@ impl Ed25519CurtaOp {
             }
             EcOpRequestType::IsValid => {
                 let point = builder.alloc_public_ec_point();
+                builder.ed_assert_valid(&point);
                 Self::IsValid(point)
             }
         }
