@@ -207,22 +207,20 @@ pub trait Hash<
         let mut t_values = None;
         if HAS_T_VALUES {
             // Allocate registers for the t-values.
-            t_values = Some(
-                (0..num_chunks)
-                    .map(|_| builder.alloc_public::<Self::IntRegister>())
-                    .collect::<Vec<_>>(),
-            );
+            t_values = Some(builder.alloc_array_public::<Self::IntRegister>(parameters.num_chunks));
         }
 
         let end_bits = builder.alloc_array_public::<BitRegister>(num_chunks);
         let digest_bits = builder.alloc_array_public::<BitRegister>(num_chunks);
         let digest_indices = builder.alloc_array_public::<ElementRegister>(parameters.num_digests);
+        let num_messages =
+            builder.constant(&L::Field::from_canonical_usize(parameters.num_digests));
 
         // Hash the padded chunks.
         let digests = Self::hash_circuit(
-            builder,
-            padded_chunks,
-            t_values,
+            &mut builder,
+            &padded_chunks,
+            &t_values,
             &end_bits,
             &digest_bits,
             &digest_indices,
@@ -255,7 +253,7 @@ pub trait Hash<
     fn hash_circuit(
         builder: &mut BytesBuilder<Self::AirParameters>,
         padded_chunks: &[ArrayRegister<Self::IntRegister>],
-        t_values: Option<&ArrayRegister<Self::IntRegister>>,
+        t_values: &Option<ArrayRegister<Self::IntRegister>>,
         end_bits: &ArrayRegister<BitRegister>,
         digest_bits: &ArrayRegister<BitRegister>,
         digest_indices: &ArrayRegister<ElementRegister>,

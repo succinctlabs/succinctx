@@ -28,7 +28,7 @@ pub struct HashStark<
 > {
     pub stark: ByteStark<S::AirParameters, L::CurtaConfig, D>,
     pub padded_chunks: Vec<ArrayRegister<S::IntRegister>>,
-    pub t_values: Option<Vec<S::IntRegister>>,
+    pub t_values: Option<ArrayRegister<S::IntRegister>>,
     pub end_bits: ArrayRegister<BitRegister>,
     pub digest_bits: ArrayRegister<BitRegister>,
     pub digest_indices: ArrayRegister<ElementRegister>,
@@ -75,15 +75,11 @@ where
             );
         }
 
-        if input.t_values.is_some() {
-            for (t_value, t_value_value) in self
-                .t_values
-                .as_ref()
-                .unwrap()
-                .iter()
-                .zip(input.t_values.as_ref().unwrap())
-            {
-                writer.write(t_value, &S::int_to_field_value(*t_value_value), 0);
+        if self.t_values.is_some() {
+            let t_values = self.t_values.as_ref().unwrap();
+            let t_values_input = input.t_values.as_ref().unwrap();
+            for (t_value, t_value_value) in t_values.iter().zip(t_values_input.iter()) {
+                writer.write(&t_value, &S::int_to_field_value(*t_value_value), 0);
             }
         }
 
