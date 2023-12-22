@@ -10,7 +10,7 @@ use crate::frontend::hint::synchronous::Async;
 use crate::prelude::*;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    /// The constraints for an accelerated SHA computation using Curta.
+    /// The constraints for an accelerated hash computation using Curta.
     pub(crate) fn curta_constrain_hash<
         S: Hash<L, D, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>,
         const CYCLE_LEN: usize,

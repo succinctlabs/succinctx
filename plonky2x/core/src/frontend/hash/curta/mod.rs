@@ -1,5 +1,6 @@
 use core::fmt::Debug;
 
+use curta::chip::register::array::ArrayRegister;
 use curta::chip::register::bit::BitRegister;
 use curta::chip::register::element::ElementRegister;
 use curta::chip::register::Register;
@@ -196,7 +197,7 @@ pub trait Hash<
     fn stark(
         parameters: HashInputParameters,
     ) -> HashStark<L, Self, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN> {
-        let mut builder = BytesBuilder::<Self::AirParameters>::new();
+        let mut builder = Self::curta_builder();
 
         let num_chunks = parameters.num_chunks;
         let padded_chunks = (0..num_chunks)
@@ -218,8 +219,15 @@ pub trait Hash<
         let digest_indices = builder.alloc_array_public::<ElementRegister>(parameters.num_digests);
 
         // Hash the padded chunks.
-        let digests =
-            builder.sha::<Self, CYCLE_LEN>(&padded_chunks, &end_bits, &digest_bits, digest_indices);
+        let digests = Self::hash_circuit(
+            builder,
+            padded_chunks,
+            t_values,
+            &end_bits,
+            &digest_bits,
+            &digest_indices,
+            num_messages,
+        );
 
         // Build the stark.
         let num_rows_degree = log2_ceil(CYCLE_LEN * num_chunks);
@@ -238,5 +246,19 @@ pub trait Hash<
         }
     }
 
-    fn digest(message: Vec<u8>) -> [Self::Integer; DIGEST_LEN];
+    fn hash(message: Vec<u8>) -> [Self::Integer; DIGEST_LEN];
+
+    fn curta_builder() -> BytesBuilder<Self::AirParameters> {
+        BytesBuilder::<Self::AirParameters>::new()
+    }
+
+    fn hash_circuit(
+        builder: &mut BytesBuilder<Self::AirParameters>,
+        padded_chunks: &[ArrayRegister<Self::IntRegister>],
+        t_values: Option<&ArrayRegister<Self::IntRegister>>,
+        end_bits: &ArrayRegister<BitRegister>,
+        digest_bits: &ArrayRegister<BitRegister>,
+        digest_indices: &ArrayRegister<ElementRegister>,
+        num_messages: &ElementRegister,
+    ) -> Vec<Self::DigestRegister>;
 }

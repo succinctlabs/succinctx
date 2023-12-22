@@ -32,7 +32,7 @@ impl<
         // Read the padded chunks from the input stream.
         let message = input_stream.read_vec::<ByteVariable>(length);
 
-        let digest = S::hash(&message);
+        let digest = S::hash(message);
         // Write the digest to the output stream.
         output_stream.write_value::<[S::IntVariable; DIGEST_LEN]>(digest)
     }

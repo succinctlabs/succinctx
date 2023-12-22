@@ -14,9 +14,6 @@ use crate::prelude::*;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct BLAKE2BAirParameters<L, const D: usize>(PhantomData<L>);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct BLAKE2BAirParameters<L, const D: usize>(PhantomData<L>);
-
 impl<L: PlonkParameters<D>, const D: usize> AirParameters for BLAKE2BAirParameters<L, D> {
     type Field = L::Field;
     type CubicParams = L::CubicParams;
