@@ -2,16 +2,17 @@ use core::marker::PhantomData;
 
 use curta::chip::uint::operations::instruction::UintInstruction;
 use curta::chip::AirParameters;
+use curta::machine::hash::sha::algorithm::SHAPure;
 use curta::machine::hash::sha::sha256::SHA256;
 use serde::{Deserialize, Serialize};
 
-use crate::frontend::hash::sha::curta::accelerator::SHAAccelerator;
-use crate::frontend::hash::sha::curta::request::SHARequest;
-use crate::frontend::hash::sha::curta::SHA;
+use crate::frontend::hash::curta::accelerator::HashAccelerator;
+use crate::frontend::hash::curta::request::HashRequest;
+use crate::frontend::hash::curta::Hash;
 use crate::frontend::vars::EvmVariable;
 use crate::prelude::*;
 
-pub type SHA256Accelerator = SHAAccelerator<U32Variable>;
+pub type SHA256Accelerator = HashAccelerator<U32Variable, 8>;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct SHA256AirParameters<L, const D: usize>(PhantomData<L>);
@@ -26,7 +27,7 @@ impl<L: PlonkParameters<D>, const D: usize> AirParameters for SHA256AirParameter
     const EXTENDED_COLUMNS: usize = 351;
 }
 
-impl<L: PlonkParameters<D>, const D: usize> SHA<L, D, 64> for SHA256 {
+impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 64, false, 8> for SHA256 {
     type IntVariable = U32Variable;
     type DigestVariable = Bytes32Variable;
 
@@ -83,6 +84,16 @@ impl<L: PlonkParameters<D>, const D: usize> SHA<L, D, 64> for SHA256 {
             .try_into()
             .unwrap()
     }
+
+    fn hash(message: Vec<u8>) -> [Self::Integer; 8] {
+        let mut current_state = SHA256::INITIAL_HASH;
+        let padded_chunks = SHA256::pad(&message);
+        for chunk in padded_chunks.chunks_exact(16) {
+            let pre_processed = SHA256::pre_process(chunk);
+            current_state = SHA256::process(current_state, &pre_processed);
+        }
+        current_state
+    }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
@@ -90,8 +101,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn curta_sha256(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
         if self.sha256_accelerator.is_none() {
             self.sha256_accelerator = Some(SHA256Accelerator {
-                sha_requests: Vec::new(),
-                sha_responses: Vec::new(),
+                hash_requests: Vec::new(),
+                hash_responses: Vec::new(),
             });
         }
 
@@ -102,9 +113,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .as_mut()
             .expect("sha256 accelerator should exist");
         accelerator
-            .sha_requests
-            .push(SHARequest::Fixed(input.to_vec()));
-        accelerator.sha_responses.push(digest_array);
+            .hash_requests
+            .push(HashRequest::Fixed(input.to_vec()));
+        accelerator.hash_responses.push(digest_array);
 
         digest
     }
@@ -122,8 +133,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let last_chunk = self.compute_sha256_last_chunk(length);
         if self.sha256_accelerator.is_none() {
             self.sha256_accelerator = Some(SHA256Accelerator {
-                sha_requests: Vec::new(),
-                sha_responses: Vec::new(),
+                hash_requests: Vec::new(),
+                hash_responses: Vec::new(),
             });
         }
 
@@ -134,9 +145,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .as_mut()
             .expect("sha256 accelerator should exist");
         accelerator
-            .sha_requests
-            .push(SHARequest::Variable(input.to_vec(), length, last_chunk));
-        accelerator.sha_responses.push(digest_array);
+            .hash_requests
+            .push(HashRequest::Variable(input.to_vec(), length, last_chunk));
+        accelerator.hash_responses.push(digest_array);
 
         digest
     }

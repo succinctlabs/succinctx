@@ -84,9 +84,6 @@ pub trait Hash<
         value: <Self::IntRegister as Register>::Value<Variable>,
     ) -> Self::IntVariable;
 
-    /// Convert a value of usize type to a `Self::IntVariable`.
-    fn usize_to_variable(builder: &mut CircuitBuilder<L, D>, value: usize) -> Self::IntVariable;
-
     /// Convert a value of the `Self::DigestRegister` to an array of `Self::IntVariable`s.
     fn digest_to_array(
         builder: &mut CircuitBuilder<L, D>,
