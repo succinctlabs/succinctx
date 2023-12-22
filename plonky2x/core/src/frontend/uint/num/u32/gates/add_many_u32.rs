@@ -21,7 +21,7 @@ use plonky2::util::ceil_div_usize;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 const LOG2_MAX_NUM_ADDENDS: usize = 6;
-pub const MAX_NUM_ADDENDS: usize = 64;
+const MAX_NUM_ADDENDS: usize = 64;
 
 /// A gate to perform addition on `num_addends` different 32-bit values, plus a small carry
 #[derive(Copy, Clone, Debug, Default)]
