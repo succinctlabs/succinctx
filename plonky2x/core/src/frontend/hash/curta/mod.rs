@@ -224,7 +224,7 @@ pub trait Hash<
             &end_bits,
             &digest_bits,
             &digest_indices,
-            num_messages,
+            &num_messages,
         );
 
         // Build the stark.
