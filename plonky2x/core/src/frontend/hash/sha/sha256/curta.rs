@@ -1,8 +1,13 @@
 use core::marker::PhantomData;
 
+use curta::chip::register::array::ArrayRegister;
+use curta::chip::register::bit::BitRegister;
+use curta::chip::register::element::ElementRegister;
 use curta::chip::uint::operations::instruction::UintInstruction;
 use curta::chip::AirParameters;
+use curta::machine::bytes::builder::BytesBuilder;
 use curta::machine::hash::sha::algorithm::SHAPure;
+use curta::machine::hash::sha::builder::SHABuilder;
 use curta::machine::hash::sha::sha256::SHA256;
 use serde::{Deserialize, Serialize};
 
@@ -93,6 +98,18 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 64, false, 8> for SHA256 
             current_state = SHA256::process(current_state, &pre_processed);
         }
         current_state
+    }
+
+    fn hash_circuit(
+        builder: &mut BytesBuilder<Self::AirParameters>,
+        padded_chunks: &[ArrayRegister<Self::IntRegister>],
+        t_values: &Option<ArrayRegister<Self::IntRegister>>,
+        end_bits: &ArrayRegister<BitRegister>,
+        digest_bits: &ArrayRegister<BitRegister>,
+        digest_indices: &ArrayRegister<ElementRegister>,
+        num_messages: &ElementRegister,
+    ) -> Vec<Self::DigestRegister> {
+        builder.sha::<SHA256, 64>(padded_chunks, end_bits, digest_bits, *digest_indices)
     }
 }
 
