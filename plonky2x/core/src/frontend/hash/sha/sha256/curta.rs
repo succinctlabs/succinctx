@@ -103,11 +103,11 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 64, false, 8> for SHA256 
     fn hash_circuit(
         builder: &mut BytesBuilder<Self::AirParameters>,
         padded_chunks: &[ArrayRegister<Self::IntRegister>],
-        t_values: &Option<ArrayRegister<Self::IntRegister>>,
+        _: &Option<ArrayRegister<Self::IntRegister>>,
         end_bits: &ArrayRegister<BitRegister>,
         digest_bits: &ArrayRegister<BitRegister>,
         digest_indices: &ArrayRegister<ElementRegister>,
-        num_messages: &ElementRegister,
+        _: &ElementRegister,
     ) -> Vec<Self::DigestRegister> {
         builder.sha::<SHA256, 64>(padded_chunks, end_bits, digest_bits, *digest_indices)
     }

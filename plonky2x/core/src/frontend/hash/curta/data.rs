@@ -68,7 +68,7 @@ impl VariableStream {
     ) {
         self.write_slice(&input.padded_chunks);
         if input.t_values.is_some() {
-            self.write_slice(&input.t_values.as_ref().unwrap());
+            self.write_slice(input.t_values.as_ref().unwrap());
         }
         self.write_slice(&input.end_bits);
         self.write_slice(&input.digest_bits);

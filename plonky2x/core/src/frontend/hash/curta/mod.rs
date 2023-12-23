@@ -167,7 +167,7 @@ pub trait Hash<
 
                     t_var = builder.select(at_digest_chunk, length, t_var);
                     if HAS_T_VALUES {
-                        t_values.unwrap().push(t_var);
+                        t_values.clone().unwrap().push(t_var);
                     }
                 }
                 // Increment the current chunk index by the total number of chunks.
