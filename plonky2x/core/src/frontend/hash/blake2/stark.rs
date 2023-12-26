@@ -15,11 +15,10 @@ use log::debug;
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 
-use super::accelerator::BLAKE2BAccelerator;
-use super::curta::BLAKE2BAirParameters;
+use super::curta::{BLAKE2BAccelerator, BLAKE2BAirParameters};
 use super::data::{BLAKE2BInputData, BLAKE2BInputDataValues, BLAKE2BInputParameters};
-use super::request::BLAKE2BRequest;
 use crate::frontend::curta::proof::ByteStarkProofVariable;
+use crate::frontend::hash::curta::request::HashRequest;
 use crate::frontend::vars::EvmVariable;
 use crate::prelude::{
     ByteVariable, Bytes32Variable, CircuitBuilder, CircuitVariable, PlonkParameters, U32Variable,
@@ -275,7 +274,7 @@ pub(crate) fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
     // `digest_index` - the index of the digest to be read, corresponding to the location of the
     // chunk in the padded chunks.
     let padded_chunks = accelerator
-        .blake2b_requests
+        .hash_requests
         .iter()
         .flat_map(|req| {
             // For every request, we read the corresponding messagem, pad it, and compute the
@@ -284,7 +283,7 @@ pub(crate) fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
             // Get the padded chunks and the number of chunks in the message, depending on the
             // type of the request.
             let (padded_chunks, length, last_chunk_index) = match req {
-                BLAKE2BRequest::Fixed(input) => {
+                HashRequest::Fixed(input) => {
                     // If the length is fixed, the chunk_index is just `number of chunks  - 1``.
                     let padded_chunks = pad_blake2b_circuit(builder, input);
                     let num_chunks =
@@ -294,7 +293,7 @@ pub(crate) fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
                 }
                 // If the length of the message is a variable, we read the chunk index from the
                 // request.
-                BLAKE2BRequest::Variable(input, length, last_chunk) => {
+                HashRequest::Variable(input, length, last_chunk) => {
                     (pad_blake2b_circuit(builder, input), *length, *last_chunk)
                 }
             };
@@ -340,7 +339,7 @@ pub(crate) fn get_blake2b_data<L: PlonkParameters<D>, const D: usize>(
         digest_bits,
         end_bits,
         digest_indices,
-        digests: accelerator.blake2b_responses,
+        digests: accelerator.hash_responses,
     }
 }
 

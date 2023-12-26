@@ -1,8 +1,8 @@
-use super::accelerator::BLAKE2BAccelerator;
+use super::curta::BLAKE2BAccelerator;
 use super::digest_hint::BLAKE2BDigestHint;
 use super::proof_hint::BLAKE2BProofHint;
-use super::request::BLAKE2BRequest;
 use super::stark::{get_blake2b_data, stark};
+use crate::frontend::hash::curta::request::HashRequest;
 use crate::frontend::hint::synchronous::Async;
 use crate::prelude::*;
 
@@ -11,20 +11,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub(crate) fn curta_constrain_blake2b(&mut self, accelerator: BLAKE2BAccelerator) {
         // Get all the digest values using the digest hint.
         for (request, response) in accelerator
-            .blake2b_requests
+            .hash_requests
             .iter()
-            .zip(accelerator.blake2b_responses.iter())
+            .zip(accelerator.hash_responses.iter())
         {
             let digest_hint = BLAKE2BDigestHint::new();
             let mut input_stream = VariableStream::new();
 
             match &request {
-                BLAKE2BRequest::Fixed(msg) => {
+                HashRequest::Fixed(msg) => {
                     let len = self.constant::<Variable>(L::Field::from_canonical_usize(msg.len()));
                     input_stream.write(&len);
                     input_stream.write_slice(msg);
                 }
-                BLAKE2BRequest::Variable(msg, len, _) => {
+                HashRequest::Variable(msg, len, _) => {
                     input_stream.write(len);
                     input_stream.write_slice(msg);
                 }

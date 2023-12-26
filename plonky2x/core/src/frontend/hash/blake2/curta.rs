@@ -4,12 +4,14 @@ use curta::chip::uint::operations::instruction::UintInstruction;
 use curta::chip::AirParameters;
 use serde::{Deserialize, Serialize};
 
-use super::accelerator::BLAKE2BAccelerator;
-use super::request::BLAKE2BRequest;
 use super::stark::{compute_blake2b_last_chunk_index, digest_to_array};
 use crate::backend::circuit::PlonkParameters;
+use crate::frontend::hash::curta::accelerator::HashAccelerator;
+use crate::frontend::hash::curta::request::HashRequest;
 use crate::frontend::vars::Bytes32Variable;
 use crate::prelude::*;
+
+pub type BLAKE2BAccelerator = HashAccelerator<U64Variable, 4>;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct BLAKE2BAirParameters<L, const D: usize>(PhantomData<L>);
@@ -28,8 +30,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn curta_blake2b(&mut self, input: &[ByteVariable]) -> Bytes32Variable {
         if self.blake2b_accelerator.is_none() {
             self.blake2b_accelerator = Some(BLAKE2BAccelerator {
-                blake2b_requests: Vec::new(),
-                blake2b_responses: Vec::new(),
+                hash_requests: Vec::new(),
+                hash_responses: Vec::new(),
             });
         }
 
@@ -40,9 +42,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .as_mut()
             .expect("blake2b accelerator should exist");
         accelerator
-            .blake2b_requests
-            .push(BLAKE2BRequest::Fixed(input.to_vec()));
-        accelerator.blake2b_responses.push(digest_array);
+            .hash_requests
+            .push(HashRequest::Fixed(input.to_vec()));
+        accelerator.hash_responses.push(digest_array);
 
         digest
     }
@@ -55,8 +57,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let last_chunk = compute_blake2b_last_chunk_index(self, length);
         if self.blake2b_accelerator.is_none() {
             self.blake2b_accelerator = Some(BLAKE2BAccelerator {
-                blake2b_requests: Vec::new(),
-                blake2b_responses: Vec::new(),
+                hash_requests: Vec::new(),
+                hash_responses: Vec::new(),
             });
         }
 
@@ -67,12 +69,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .blake2b_accelerator
             .as_mut()
             .expect("blake2b accelerator should exist");
-        accelerator.blake2b_requests.push(BLAKE2BRequest::Variable(
-            input.to_vec(),
-            length,
-            last_chunk,
-        ));
-        accelerator.blake2b_responses.push(digest_array);
+        accelerator
+            .hash_requests
+            .push(HashRequest::Variable(input.to_vec(), length, last_chunk));
+        accelerator.hash_responses.push(digest_array);
 
         digest
     }

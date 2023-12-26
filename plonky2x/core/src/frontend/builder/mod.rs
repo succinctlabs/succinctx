@@ -22,7 +22,7 @@ use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
 use super::ecc::curve25519::curta::accelerator::EcOpAccelerator;
-// use super::hash::blake2::accelerator::BLAKE2BAccelerator;
+use super::hash::blake2::curta::BLAKE2BAccelerator;
 use super::hash::sha::sha256::curta::SHA256Accelerator;
 use super::hash::sha::sha512::curta::SHA512Accelerator;
 use super::hint::HintGenerator;
@@ -46,7 +46,7 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub(crate) async_hints: Vec<AsyncHintDataRef<L, D>>,
     pub(crate) async_hints_indices: Vec<usize>,
 
-    // pub blake2b_accelerator: Option<BLAKE2BAccelerator>,
+    pub blake2b_accelerator: Option<BLAKE2BAccelerator>,
     pub sha256_accelerator: Option<SHA256Accelerator>,
     pub sha512_accelerator: Option<SHA512Accelerator>,
     pub ec_25519_ops_accelerator: Option<EcOpAccelerator>,
@@ -78,7 +78,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             hints: Vec::new(),
             async_hints: Vec::new(),
             async_hints_indices: Vec::new(),
-            // blake2b_accelerator: None,
+            blake2b_accelerator: None,
             sha256_accelerator: None,
             sha512_accelerator: None,
             ec_25519_ops_accelerator: None,
@@ -132,10 +132,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Adds all the constraints nedded before building the circuit and registering hints.
     fn pre_build(&mut self) {
-        // let blake2b_accelerator = self.blake2b_accelerator.clone();
-        // if let Some(accelerator) = blake2b_accelerator {
-        //     self.curta_constrain_blake2b(accelerator);
-        // }
+        let blake2b_accelerator = self.blake2b_accelerator.clone();
+        if let Some(accelerator) = blake2b_accelerator {
+            self.curta_constrain_blake2b(accelerator);
+        }
 
         let sha256_accelerator = self.sha256_accelerator.clone();
         if let Some(accelerator) = sha256_accelerator {
