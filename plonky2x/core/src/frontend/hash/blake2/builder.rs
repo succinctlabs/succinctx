@@ -1,5 +1,4 @@
 use super::curta::BLAKE2BAccelerator;
-use super::digest_hint::BLAKE2BDigestHint;
 use super::proof_hint::BLAKE2BProofHint;
 use super::stark::{get_blake2b_data, stark};
 use crate::frontend::hash::curta::request::HashRequest;
