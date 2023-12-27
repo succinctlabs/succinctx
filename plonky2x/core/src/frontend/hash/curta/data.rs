@@ -36,7 +36,7 @@ pub struct HashInputDataValues<
     const DIGEST_LEN: usize,
 > {
     pub padded_chunks: Vec<S::Integer>,
-    pub t_values: Option<Vec<S::Integer>>,
+    pub t_values: Option<Vec<u32>>,
     pub end_bits: Vec<bool>,
     pub digest_bits: Vec<bool>,
     pub digest_indices: Vec<L::Field>,
@@ -68,7 +68,7 @@ impl VariableStream {
     ) {
         self.write_slice(&input.padded_chunks);
         if input.t_values.is_some() {
-            self.write_slice(input.t_values.as_ref().unwrap());
+            self.write_slice(&input.t_values.clone().unwrap());
         }
         self.write_slice(&input.end_bits);
         self.write_slice(&input.digest_bits);
@@ -96,7 +96,7 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         let padded_chunks = self.read_vec::<S::IntVariable>(num_chunks * 16);
         let mut t_values = None;
         if HAS_T_VALUES {
-            t_values = Some(self.read_vec::<S::IntVariable>(num_chunks * 16));
+            t_values = Some(self.read_vec::<U32Variable>(num_chunks));
         }
         let end_bits = self.read_vec::<BoolVariable>(num_chunks);
         let digest_bits = self.read_vec::<BoolVariable>(num_chunks);

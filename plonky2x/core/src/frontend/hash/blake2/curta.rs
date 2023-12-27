@@ -1,19 +1,23 @@
 use core::marker::PhantomData;
 
 use ::curta::machine::hash::blake::blake2b::BLAKE2B;
+use curta::chip::register::array::ArrayRegister;
+use curta::chip::register::bit::BitRegister;
+use curta::chip::register::element::ElementRegister;
 use curta::chip::uint::operations::instruction::UintInstruction;
 use curta::chip::AirParameters;
+use curta::machine::bytes::builder::BytesBuilder;
 use curta::machine::hash::blake::blake2b;
+use curta::machine::hash::blake::blake2b::builder::BlakeBuilder;
 use curta::machine::hash::blake::blake2b::pure::BLAKE2BPure;
 use curta::machine::hash::blake::blake2b::utils::BLAKE2BUtil;
 use serde::{Deserialize, Serialize};
 
-use super::stark::{compute_blake2b_last_chunk_index, digest_to_array};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::hash::curta::accelerator::HashAccelerator;
 use crate::frontend::hash::curta::request::HashRequest;
 use crate::frontend::hash::curta::Hash;
-use crate::frontend::vars::Bytes32Variable;
+use crate::frontend::vars::{Bytes32Variable, EvmVariable};
 use crate::prelude::*;
 
 pub type BLAKE2BAccelerator = HashAccelerator<U64Variable, 4>;
@@ -31,9 +35,9 @@ impl<L: PlonkParameters<D>, const D: usize> AirParameters for BLAKE2BAirParamete
     const EXTENDED_COLUMNS: usize = 708;
 }
 
-impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 0, true, 4> for BLAKE2B {
+impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 96, true, 4> for BLAKE2B {
     type IntVariable = U64Variable;
-    type DigestVariable = BytesVariable<64>;
+    type DigestVariable = Bytes32Variable;
 
     type AirParameters = BLAKE2BAirParameters<L, D>;
     type AirInstruction = UintInstruction;
@@ -42,29 +46,72 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 0, true, 4> for BLAKE2B {
         builder: &mut CircuitBuilder<L, D>,
         input: &[ByteVariable],
     ) -> Vec<Self::IntVariable> {
-        todo!()
+        let num_pad_bytes = 128 - (input.len() % 128);
+
+        let mut padded_message = Vec::new();
+        padded_message.extend_from_slice(input);
+
+        for _ in 0..num_pad_bytes {
+            padded_message.push(builder.zero());
+        }
+
+        padded_message
+            .chunks_exact(8)
+            .map(|bytes| {
+                let mut bytes_copy = Vec::new();
+                bytes_copy.extend_from_slice(bytes);
+                bytes_copy.reverse();
+                U64Variable::decode(builder, &bytes_copy)
+            })
+            .collect()
     }
 
     fn pad_circuit_variable_length(
         builder: &mut CircuitBuilder<L, D>,
         input: &[ByteVariable],
-        length: U32Variable,
+        _: U32Variable,
     ) -> Vec<Self::IntVariable> {
-        todo!()
+        Self::pad_circuit(builder, input)
     }
 
     fn value_to_variable(
         builder: &mut CircuitBuilder<L, D>,
         value: <Self::IntRegister as curta::chip::register::Register>::Value<Variable>,
     ) -> Self::IntVariable {
-        todo!()
+        let low_limbs = &value[0..4];
+        let high_limbs = &value[4..8];
+        let mut acc_low = builder.zero::<Variable>();
+        let mut acc_high = builder.zero::<Variable>();
+        for (i, (low_byte, high_byte)) in low_limbs.iter().zip(high_limbs).enumerate() {
+            let two_i = builder.constant::<Variable>(L::Field::from_canonical_u32(1 << (8 * i)));
+            let two_i_low_byte = builder.mul(two_i, *low_byte);
+            let two_i_high_byte = builder.mul(two_i, *high_byte);
+            acc_low = builder.add(acc_low, two_i_low_byte);
+            acc_high = builder.add(acc_high, two_i_high_byte);
+        }
+        let low_limb = U32Variable::from_variables_unsafe(&[acc_low]);
+        let high_limb = U32Variable::from_variables_unsafe(&[acc_high]);
+        U64Variable {
+            limbs: [low_limb, high_limb],
+        }
     }
 
     fn digest_to_array(
         builder: &mut CircuitBuilder<L, D>,
         digest: Self::DigestVariable,
     ) -> [Self::IntVariable; 4] {
-        todo!()
+        digest
+            .as_bytes()
+            .chunks_exact(8)
+            .map(|x| {
+                let mut x_copy = Vec::new();
+                x_copy.extend_from_slice(x);
+                x_copy.reverse();
+                U64Variable::decode(builder, &x_copy)
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
     }
 
     fn hash(message: Vec<u8>) -> [Self::Integer; 4] {
@@ -100,21 +147,22 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 0, true, 4> for BLAKE2B {
     }
 
     fn hash_circuit(
-        builder: &mut curta::prelude::BytesBuilder<Self::AirParameters>,
-        padded_chunks: &[curta::chip::register::array::ArrayRegister<Self::IntRegister>],
-        t_values: &Option<curta::chip::register::array::ArrayRegister<Self::IntRegister>>,
-        end_bits: &curta::chip::register::array::ArrayRegister<
-            curta::chip::register::bit::BitRegister,
-        >,
-        digest_bits: &curta::chip::register::array::ArrayRegister<
-            curta::chip::register::bit::BitRegister,
-        >,
-        digest_indices: &curta::chip::register::array::ArrayRegister<
-            curta::chip::register::element::ElementRegister,
-        >,
-        num_messages: &curta::chip::register::element::ElementRegister,
+        builder: &mut BytesBuilder<Self::AirParameters>,
+        padded_chunks: &[ArrayRegister<Self::IntRegister>],
+        t_values: &Option<ArrayRegister<Self::IntRegister>>,
+        end_bits: &ArrayRegister<BitRegister>,
+        digest_bits: &ArrayRegister<BitRegister>,
+        digest_indices: &ArrayRegister<ElementRegister>,
+        num_messages: &ElementRegister,
     ) -> Vec<Self::DigestRegister> {
-        todo!()
+        builder.blake2b::<BLAKE2B>(
+            padded_chunks,
+            &t_values.unwrap(),
+            end_bits,
+            digest_bits,
+            digest_indices,
+            num_messages,
+        )
     }
 }
 
@@ -128,7 +176,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let digest = self.init_unsafe::<Bytes32Variable>();
-        let digest_array = digest_to_array(self, digest);
+        let digest_array = BLAKE2B::digest_to_array(self, digest);
         let accelerator = self
             .blake2b_accelerator
             .as_mut()
@@ -146,7 +194,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         length: U32Variable,
     ) -> Bytes32Variable {
-        let last_chunk = compute_blake2b_last_chunk_index(self, length);
+        let last_chunk = self.compute_blake2b_last_chunk_index(length);
         if self.blake2b_accelerator.is_none() {
             self.blake2b_accelerator = Some(BLAKE2BAccelerator {
                 hash_requests: Vec::new(),
@@ -155,7 +203,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let digest = self.init_unsafe::<Bytes32Variable>();
-        let digest_array = digest_to_array(self, digest);
+        let digest_array = BLAKE2B::digest_to_array(self, digest);
 
         let accelerator = self
             .blake2b_accelerator
@@ -168,10 +216,20 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         digest
     }
+
+    pub fn compute_blake2b_last_chunk_index(
+        &mut self,
+        input_byte_length: U32Variable,
+    ) -> U32Variable {
+        let chunk_size = self.constant::<U32Variable>(128);
+        self.div(input_byte_length, chunk_size)
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use itertools::Itertools;
 
     use crate::backend::circuit::DefaultParameters;
@@ -185,7 +243,9 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_blake2b_curta_empty_string() {
-        let _ = env_logger::builder().is_test(true).try_init();
+        env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
 
         let mut builder = CircuitBuilder::<L, D>::new();
         let zero = builder.zero::<U32Variable>();

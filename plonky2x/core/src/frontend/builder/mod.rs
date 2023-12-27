@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::env;
 
 use backtrace::Backtrace;
+use curta::machine::hash::blake::blake2b::BLAKE2B;
 use curta::machine::hash::sha::sha256::SHA256;
 use curta::machine::hash::sha::sha512::SHA512;
 use ethers::providers::{Http, Middleware, Provider};
@@ -134,7 +135,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     fn pre_build(&mut self) {
         let blake2b_accelerator = self.blake2b_accelerator.clone();
         if let Some(accelerator) = blake2b_accelerator {
-            self.curta_constrain_blake2b(accelerator);
+            self.curta_constrain_hash::<BLAKE2B, 96, true, 4>(accelerator);
         }
 
         let sha256_accelerator = self.sha256_accelerator.clone();

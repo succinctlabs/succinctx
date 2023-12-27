@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
+use curta::machine::hash::blake::blake2b::BLAKE2B;
 use curta::machine::hash::sha::sha256::SHA256;
 use curta::machine::hash::sha::sha512::SHA512;
 use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
@@ -382,6 +383,12 @@ where
 
         r.register_hint::<HashProofHint<SHA512, 80, false, 8>>();
         r.register_async_hint::<Async<HashProofHint<SHA512, 80, false, 8>>>();
+
+        r.register_hint::<HashDigestHint<BLAKE2B, 96, true, 4>>();
+        r.register_async_hint::<Async<HashDigestHint<BLAKE2B, 96, true, 4>>>();
+
+        r.register_hint::<HashProofHint<BLAKE2B, 96, true, 4>>();
+        r.register_async_hint::<Async<HashProofHint<BLAKE2B, 96, true, 4>>>();
 
         r.register_hint::<EcOpProofHint>();
         r.register_async_hint::<Async<EcOpProofHint>>();

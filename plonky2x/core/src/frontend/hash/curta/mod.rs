@@ -5,6 +5,7 @@ use curta::chip::register::bit::BitRegister;
 use curta::chip::register::element::ElementRegister;
 use curta::chip::register::Register;
 use curta::chip::uint::operations::instruction::UintInstructions;
+use curta::chip::uint::register::U64Register;
 use curta::chip::AirParameters;
 use curta::machine::builder::Builder;
 use curta::machine::bytes::builder::BytesBuilder;
@@ -111,7 +112,7 @@ pub trait Hash<
         // `end_bit` - a bit that is true for the last chunk of a message (or the total_message
         // passed in the case of a message of variable length).
         // `digest_bit` - a bit that indicates the hash state is read into the digest list after
-        // processing the chunk. For a message of fioxed length, this is the same as `end_bit`.
+        // processing the chunk. For a message of fixed length, this is the same as `end_bit`.
         // `digest_index` - the index of the digest to be read, corresponding to the location of the
         // chunk in the padded chunks.
         let padded_chunks = accelerator
@@ -167,7 +168,7 @@ pub trait Hash<
 
                     t_var = builder.select(at_digest_chunk, length, t_var);
                     if HAS_T_VALUES {
-                        t_values.clone().unwrap().push(t_var);
+                        t_values.as_mut().unwrap().push(t_var);
                     }
                 }
                 // Increment the current chunk index by the total number of chunks.
@@ -204,7 +205,7 @@ pub trait Hash<
         let mut t_values = None;
         if HAS_T_VALUES {
             // Allocate registers for the t-values.
-            t_values = Some(builder.alloc_array_public::<Self::IntRegister>(parameters.num_chunks));
+            t_values = Some(builder.alloc_array_public::<U64Register>(parameters.num_chunks));
         }
 
         let end_bits = builder.alloc_array_public::<BitRegister>(num_chunks);
@@ -250,7 +251,7 @@ pub trait Hash<
     fn hash_circuit(
         builder: &mut BytesBuilder<Self::AirParameters>,
         padded_chunks: &[ArrayRegister<Self::IntRegister>],
-        t_values: &Option<ArrayRegister<Self::IntRegister>>,
+        t_values: &Option<ArrayRegister<U64Register>>,
         end_bits: &ArrayRegister<BitRegister>,
         digest_bits: &ArrayRegister<BitRegister>,
         digest_indices: &ArrayRegister<ElementRegister>,

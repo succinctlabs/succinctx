@@ -4,6 +4,7 @@ use curta::chip::register::array::ArrayRegister;
 use curta::chip::register::bit::BitRegister;
 use curta::chip::register::element::ElementRegister;
 use curta::chip::uint::operations::instruction::UintInstruction;
+use curta::chip::uint::register::U64Register;
 use curta::chip::AirParameters;
 use curta::machine::bytes::builder::BytesBuilder;
 use curta::machine::hash::sha::algorithm::SHAPure;
@@ -103,7 +104,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 64, false, 8> for SHA256 
     fn hash_circuit(
         builder: &mut BytesBuilder<Self::AirParameters>,
         padded_chunks: &[ArrayRegister<Self::IntRegister>],
-        _: &Option<ArrayRegister<Self::IntRegister>>,
+        _: &Option<ArrayRegister<U64Register>>,
         end_bits: &ArrayRegister<BitRegister>,
         digest_bits: &ArrayRegister<BitRegister>,
         digest_indices: &ArrayRegister<ElementRegister>,

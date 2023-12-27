@@ -3,6 +3,8 @@ use curta::chip::register::bit::BitRegister;
 use curta::chip::register::element::ElementRegister;
 use curta::chip::register::Register;
 use curta::chip::trace::writer::{InnerWriterData, TraceWriter};
+use curta::chip::uint::register::U64Register;
+use curta::chip::uint::util::u64_to_le_field_bytes;
 use curta::chip::Chip;
 use curta::machine::bytes::proof::ByteStarkProof;
 use curta::machine::bytes::stark::ByteStark;
@@ -28,7 +30,7 @@ pub struct HashStark<
 > {
     pub stark: ByteStark<S::AirParameters, L::CurtaConfig, D>,
     pub padded_chunks: Vec<ArrayRegister<S::IntRegister>>,
-    pub t_values: Option<ArrayRegister<S::IntRegister>>,
+    pub t_values: Option<ArrayRegister<U64Register>>,
     pub end_bits: ArrayRegister<BitRegister>,
     pub digest_bits: ArrayRegister<BitRegister>,
     pub digest_indices: ArrayRegister<ElementRegister>,
@@ -79,7 +81,7 @@ where
             let t_values = self.t_values.as_ref().unwrap();
             let t_values_input = input.t_values.as_ref().unwrap();
             for (t_value, t_value_value) in t_values.iter().zip(t_values_input.iter()) {
-                writer.write(&t_value, &S::int_to_field_value(*t_value_value), 0);
+                writer.write(&t_value, &u64_to_le_field_bytes(*t_value_value as u64), 0);
             }
         }
 
