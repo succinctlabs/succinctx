@@ -29,18 +29,18 @@ pub struct HashInputData<T, const DIGEST_LEN: usize> {
 /// This struct represents the values of the variables of `HashInputData`.
 pub struct HashInputDataValues<
     L: PlonkParameters<D>,
-    S: Hash<L, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
+    H: Hash<L, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
     const D: usize,
     const CYCLE_LEN: usize,
     const HAS_T_VALUES: bool,
     const DIGEST_LEN: usize,
 > {
-    pub padded_chunks: Vec<S::Integer>,
+    pub padded_chunks: Vec<H::Integer>,
     pub t_values: Option<Vec<u32>>,
     pub end_bits: Vec<bool>,
     pub digest_bits: Vec<bool>,
     pub digest_indices: Vec<L::Field>,
-    pub digests: Vec<[S::Integer; DIGEST_LEN]>,
+    pub digests: Vec<[H::Integer; DIGEST_LEN]>,
 }
 
 /// The parameters required for reading the input data of a SHA computation from a stream.
@@ -80,20 +80,20 @@ impl VariableStream {
 impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
     /// Read sha input data from the stream.
     pub fn read_hash_input_values<
-        S: Hash<L, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
+        H: Hash<L, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
         const CYCLE_LEN: usize,
         const HAS_T_VALUES: bool,
         const DIGEST_LEN: usize,
     >(
         &mut self,
         parameters: HashInputParameters,
-    ) -> HashInputDataValues<L, S, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN> {
+    ) -> HashInputDataValues<L, H, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN> {
         let HashInputParameters {
             num_chunks,
             num_digests,
         } = parameters;
 
-        let padded_chunks = self.read_vec::<S::IntVariable>(num_chunks * 16);
+        let padded_chunks = self.read_vec::<H::IntVariable>(num_chunks * 16);
         let mut t_values = None;
         if HAS_T_VALUES {
             t_values = Some(self.read_vec::<U32Variable>(num_chunks));
@@ -101,7 +101,7 @@ impl<L: PlonkParameters<D>, const D: usize> ValueStream<L, D> {
         let end_bits = self.read_vec::<BoolVariable>(num_chunks);
         let digest_bits = self.read_vec::<BoolVariable>(num_chunks);
         let digest_indices = self.read_vec::<Variable>(num_digests);
-        let digests = self.read_vec::<[S::IntVariable; DIGEST_LEN]>(num_digests);
+        let digests = self.read_vec::<[H::IntVariable; DIGEST_LEN]>(num_digests);
 
         HashInputDataValues {
             padded_chunks,

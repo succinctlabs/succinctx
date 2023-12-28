@@ -20,21 +20,21 @@ pub struct HashDigestHint<
 
 impl<
         L: PlonkParameters<D>,
-        S: Hash<L, D, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>,
+        H: Hash<L, D, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>,
         const D: usize,
         const CYCLE_LEN: usize,
         const USE_T_VALUES: bool,
         const DIGEST_LEN: usize,
-    > Hint<L, D> for HashDigestHint<S, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>
+    > Hint<L, D> for HashDigestHint<H, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>
 {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let length = input_stream.read_value::<Variable>().as_canonical_u64() as usize;
         // Read the padded chunks from the input stream.
         let message = input_stream.read_vec::<ByteVariable>(length);
 
-        let digest = S::hash(message);
+        let digest = H::hash(message);
         // Write the digest to the output stream.
-        output_stream.write_value::<[S::IntVariable; DIGEST_LEN]>(digest)
+        output_stream.write_value::<[H::IntVariable; DIGEST_LEN]>(digest)
     }
 }
 

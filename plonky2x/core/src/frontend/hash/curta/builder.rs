@@ -12,15 +12,15 @@ use crate::prelude::*;
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The constraints for an accelerated hash computation using Curta.
     pub(crate) fn curta_constrain_hash<
-        S: Hash<L, D, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>,
+        H: Hash<L, D, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>,
         const CYCLE_LEN: usize,
         const USE_T_VALUES: bool,
         const DIGEST_LEN: usize,
     >(
         &mut self,
-        accelerator: HashAccelerator<S::IntVariable, DIGEST_LEN>,
+        accelerator: HashAccelerator<H::IntVariable, DIGEST_LEN>,
     ) where
-        Chip<S::AirParameters>: Plonky2Air<L::Field, D>,
+        Chip<H::AirParameters>: Plonky2Air<L::Field, D>,
     {
         // Get all the digest values using the digest hint.
         for (request, response) in accelerator
@@ -28,7 +28,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .iter()
             .zip(accelerator.hash_responses.iter())
         {
-            let digest_hint = HashDigestHint::<S, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>::new();
+            let digest_hint = HashDigestHint::<H, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>::new();
             let mut input_stream = VariableStream::new();
 
             match &request {
@@ -44,17 +44,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             }
 
             let output_stream = self.hint(input_stream, digest_hint);
-            let digest = output_stream.read::<[S::IntVariable; DIGEST_LEN]>(self);
+            let digest = output_stream.read::<[H::IntVariable; DIGEST_LEN]>(self);
             self.assert_is_equal(digest, *response);
         }
 
         // Prove correctness of the digest using the proof hint.
 
         // Initialize the corresponding stark and hint.
-        let hash_data = S::get_hash_data(self, accelerator);
+        let hash_data = H::get_hash_data(self, accelerator);
         let parameters = hash_data.parameters();
-        let hash_stark = S::stark(parameters);
-        let proof_hint: HashProofHint<S, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN> =
+        let hash_stark = H::stark(parameters);
+        let proof_hint: HashProofHint<H, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN> =
             HashProofHint::new(parameters);
         let mut input_stream = VariableStream::new();
         input_stream.write_hash_input(&hash_data);

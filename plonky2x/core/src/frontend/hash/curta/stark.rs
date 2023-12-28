@@ -22,37 +22,37 @@ use crate::prelude::{CircuitBuilder, PlonkParameters, Variable};
 #[derive(Debug, Clone)]
 pub struct HashStark<
     L: PlonkParameters<D>,
-    S: Hash<L, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
+    H: Hash<L, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
     const D: usize,
     const CYCLE_LEN: usize,
     const HAS_T_VALUES: bool,
     const DIGEST_LEN: usize,
 > {
-    pub stark: ByteStark<S::AirParameters, L::CurtaConfig, D>,
-    pub padded_chunks: Vec<ArrayRegister<S::IntRegister>>,
+    pub stark: ByteStark<H::AirParameters, L::CurtaConfig, D>,
+    pub padded_chunks: Vec<ArrayRegister<H::IntRegister>>,
     pub t_values: Option<ArrayRegister<U64Register>>,
     pub end_bits: ArrayRegister<BitRegister>,
     pub digest_bits: ArrayRegister<BitRegister>,
     pub digest_indices: ArrayRegister<ElementRegister>,
-    pub digests: Vec<S::DigestRegister>,
+    pub digests: Vec<H::DigestRegister>,
     pub num_rows: usize,
 }
 
 impl<
         L: PlonkParameters<D>,
-        S: Hash<L, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
+        H: Hash<L, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
         const D: usize,
         const CYCLE_LEN: usize,
         const HAS_T_VALUES: bool,
         const DIGEST_LEN: usize,
-    > HashStark<L, S, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>
+    > HashStark<L, H, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>
 where
-    Chip<S::AirParameters>: Plonky2Air<L::Field, D>,
+    Chip<H::AirParameters>: Plonky2Air<L::Field, D>,
 {
     fn write_input(
         &self,
         writer: &TraceWriter<L::Field>,
-        input: HashInputDataValues<L, S, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
+        input: HashInputDataValues<L, H, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
     ) {
         for (digest_index_reg, digest_index) in
             self.digest_indices.iter().zip(input.digest_indices.iter())
@@ -62,7 +62,7 @@ where
 
         for (digest_reg, digest_value) in self.digests.iter().zip(input.digests.iter()) {
             let array: ArrayRegister<_> = (*digest_reg).into();
-            writer.write_array(&array, digest_value.map(S::int_to_field_value), 0);
+            writer.write_array(&array, digest_value.map(H::int_to_field_value), 0);
         }
 
         for (chunk, chunk_value) in self
@@ -72,7 +72,7 @@ where
         {
             writer.write_array(
                 chunk,
-                chunk_value.iter().map(|x| S::int_to_field_value(*x)),
+                chunk_value.iter().map(|x| H::int_to_field_value(*x)),
                 0,
             );
         }
@@ -106,7 +106,7 @@ where
     #[allow(clippy::type_complexity)]
     pub fn prove(
         &self,
-        input: HashInputDataValues<L, S, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
+        input: HashInputDataValues<L, H, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN>,
     ) -> (ByteStarkProof<L::Field, L::CurtaConfig, D>, Vec<L::Field>) {
         // Initialize a writer for the trace.
         let writer = TraceWriter::new(&self.stark.air_data, self.num_rows);
@@ -137,7 +137,7 @@ where
         builder: &mut CircuitBuilder<L, D>,
         proof: ByteStarkProofVariable<D>,
         public_inputs: &[Variable],
-        hash_input: HashInputData<S::IntVariable, DIGEST_LEN>,
+        hash_input: HashInputData<H::IntVariable, DIGEST_LEN>,
     ) {
         // Verify the stark proof.
         builder.verify_byte_stark_proof(&self.stark, proof, public_inputs);
@@ -151,7 +151,7 @@ where
             .zip_eq(self.padded_chunks.iter().flat_map(|x| x.iter()))
         {
             let value = register.read_from_slice(public_inputs);
-            let var = S::value_to_variable(builder, value);
+            let var = H::value_to_variable(builder, value);
             builder.assert_is_equal(*int, var);
         }
 
@@ -183,10 +183,10 @@ where
 
         // Connect digests.
         for (digest, &register) in hash_input.digests.iter().zip_eq(self.digests.iter()) {
-            let array: ArrayRegister<S::IntRegister> = register.into();
+            let array: ArrayRegister<H::IntRegister> = register.into();
             for (int, int_reg) in digest.iter().zip_eq(array.iter()) {
                 let value = int_reg.read_from_slice(public_inputs);
-                let var = S::value_to_variable(builder, value);
+                let var = H::value_to_variable(builder, value);
                 builder.assert_is_equal(*int, var);
             }
         }

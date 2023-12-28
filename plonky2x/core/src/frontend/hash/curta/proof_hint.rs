@@ -12,17 +12,17 @@ use crate::prelude::*;
 /// A hint for Curta proof of a SHA stark.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HashProofHint<
-    S,
+    H,
     const CYCLE_LEN: usize,
     const USE_T_VALUES: bool,
     const DIGEST_LEN: usize,
 > {
     parameters: HashInputParameters,
-    _marker: PhantomData<S>,
+    _marker: PhantomData<H>,
 }
 
-impl<S, const CYCLE_LEN: usize, const USE_T_VALUES: bool, const DIGEST_LEN: usize>
-    HashProofHint<S, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>
+impl<H, const CYCLE_LEN: usize, const USE_T_VALUES: bool, const DIGEST_LEN: usize>
+    HashProofHint<H, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>
 {
     pub fn new(parameters: HashInputParameters) -> Self {
         Self {
@@ -34,18 +34,18 @@ impl<S, const CYCLE_LEN: usize, const USE_T_VALUES: bool, const DIGEST_LEN: usiz
 
 impl<
         L: PlonkParameters<D>,
-        S: Hash<L, D, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>,
+        H: Hash<L, D, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>,
         const D: usize,
         const CYCLE_LEN: usize,
         const USE_T_VALUES: bool,
         const DIGEST_LEN: usize,
-    > Hint<L, D> for HashProofHint<S, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>
+    > Hint<L, D> for HashProofHint<H, CYCLE_LEN, USE_T_VALUES, DIGEST_LEN>
 where
-    Chip<S::AirParameters>: Plonky2Air<L::Field, D>,
+    Chip<H::AirParameters>: Plonky2Air<L::Field, D>,
 {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let inputs = input_stream.read_hash_input_values(self.parameters);
-        let stark = S::stark(self.parameters);
+        let stark = H::stark(self.parameters);
 
         // Generate the proof with public inputs and write them to the output stream.
         let (proof, public_inputs) = stark.prove(inputs);

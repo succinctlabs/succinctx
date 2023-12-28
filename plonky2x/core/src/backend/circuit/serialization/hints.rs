@@ -396,12 +396,6 @@ where
         r.register_hint::<EcOpResultHint>();
         r.register_async_hint::<Async<EcOpResultHint>>();
 
-        // r.register_hint::<BLAKE2BDigestHint>();
-        // r.register_async_hint::<Async<BLAKE2BDigestHint>>();
-
-        // r.register_hint::<BLAKE2BProofHint>();
-        // r.register_async_hint::<Async<BLAKE2BProofHint>>();
-
         let dummy_proof_generator_id =
             DummyProofGenerator::<L::Field, L::Config, D>::default().id();
         r.register_simple::<DummyProofGenerator<L::Field, L::Config, D>>(dummy_proof_generator_id);
