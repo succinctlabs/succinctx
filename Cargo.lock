@@ -880,7 +880,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git?branch=kevjue/blake2b_int_types#f6b1748c63399978495034fc2394ef2bf64b2633"
+source = "git+https://github.com/succinctlabs/curta.git#59e489d21622a92b25a2e4a5b710ce322f309b87"
 dependencies = [
  "anyhow",
  "bincode",
