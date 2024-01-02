@@ -1,18 +1,24 @@
 use core::marker::PhantomData;
 
+use curta::chip::register::array::ArrayRegister;
+use curta::chip::register::bit::BitRegister;
+use curta::chip::register::element::ElementRegister;
 use curta::chip::uint::operations::instruction::UintInstruction;
 use curta::chip::uint::register::U64Register;
 use curta::chip::AirParameters;
+use curta::machine::bytes::builder::BytesBuilder;
+use curta::machine::hash::sha::algorithm::SHAPure;
+use curta::machine::hash::sha::builder::SHABuilder;
 use curta::machine::hash::sha::sha512::SHA512;
 use serde::{Deserialize, Serialize};
 
-use crate::frontend::hash::sha::curta::accelerator::SHAAccelerator;
-use crate::frontend::hash::sha::curta::request::SHARequest;
-use crate::frontend::hash::sha::curta::SHA;
+use crate::frontend::hash::curta::accelerator::HashAccelerator;
+use crate::frontend::hash::curta::request::HashRequest;
+use crate::frontend::hash::curta::Hash;
 use crate::frontend::vars::EvmVariable;
 use crate::prelude::*;
 
-pub type SHA512Accelerator = SHAAccelerator<U64Variable>;
+pub type SHA512Accelerator = HashAccelerator<U64Variable, 8>;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct SHA512AirParameters<L, const D: usize>(PhantomData<L>);
@@ -27,7 +33,7 @@ impl<L: PlonkParameters<D>, const D: usize> AirParameters for SHA512AirParameter
     const EXTENDED_COLUMNS: usize = 654;
 }
 
-impl<L: PlonkParameters<D>, const D: usize> SHA<L, D, 80> for SHA512 {
+impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 80, false, 8> for SHA512 {
     type IntVariable = U64Variable;
     type DigestVariable = BytesVariable<64>;
 
@@ -93,6 +99,28 @@ impl<L: PlonkParameters<D>, const D: usize> SHA<L, D, 80> for SHA512 {
             .try_into()
             .unwrap()
     }
+
+    fn hash(message: Vec<u8>) -> [Self::Integer; 8] {
+        let mut current_state = SHA512::INITIAL_HASH;
+        let padded_chunks = SHA512::pad(&message);
+        for chunk in padded_chunks.chunks_exact(16) {
+            let pre_processed = SHA512::pre_process(chunk);
+            current_state = SHA512::process(current_state, &pre_processed);
+        }
+        current_state
+    }
+
+    fn hash_circuit(
+        builder: &mut BytesBuilder<Self::AirParameters>,
+        padded_chunks: &[ArrayRegister<Self::IntRegister>],
+        _: &Option<ArrayRegister<Self::IntRegister>>,
+        end_bits: &ArrayRegister<BitRegister>,
+        digest_bits: &ArrayRegister<BitRegister>,
+        digest_indices: &ArrayRegister<ElementRegister>,
+        _: &ElementRegister,
+    ) -> Vec<Self::DigestRegister> {
+        builder.sha::<SHA512, 80>(padded_chunks, end_bits, digest_bits, *digest_indices)
+    }
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
@@ -100,8 +128,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub fn curta_sha512(&mut self, input: &[ByteVariable]) -> BytesVariable<64> {
         if self.sha512_accelerator.is_none() {
             self.sha512_accelerator = Some(SHA512Accelerator {
-                sha_requests: Vec::new(),
-                sha_responses: Vec::new(),
+                hash_requests: Vec::new(),
+                hash_responses: Vec::new(),
             });
         }
 
@@ -112,9 +140,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .as_mut()
             .expect("sha512 accelerator should exist");
         accelerator
-            .sha_requests
-            .push(SHARequest::Fixed(input.to_vec()));
-        accelerator.sha_responses.push(digest_array);
+            .hash_requests
+            .push(HashRequest::Fixed(input.to_vec()));
+        accelerator.hash_responses.push(digest_array);
 
         digest
     }
@@ -128,8 +156,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         if self.sha512_accelerator.is_none() {
             self.sha512_accelerator = Some(SHA512Accelerator {
-                sha_requests: Vec::new(),
-                sha_responses: Vec::new(),
+                hash_requests: Vec::new(),
+                hash_responses: Vec::new(),
             });
         }
 
@@ -140,9 +168,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .as_mut()
             .expect("sha512 accelerator should exist");
         accelerator
-            .sha_requests
-            .push(SHARequest::Variable(input.to_vec(), length, last_chunk));
-        accelerator.sha_responses.push(digest_array);
+            .hash_requests
+            .push(HashRequest::Variable(input.to_vec(), length, last_chunk));
+        accelerator.hash_responses.push(digest_array);
 
         digest
     }

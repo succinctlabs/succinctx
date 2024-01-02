@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
+use curta::machine::hash::blake::blake2b::BLAKE2B;
 use curta::machine::hash::sha::sha256::SHA256;
 use curta::machine::hash::sha::sha512::SHA512;
 use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
@@ -55,11 +56,9 @@ use crate::frontend::eth::mpt::generators::LteGenerator;
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
-use crate::frontend::hash::blake2::digest_hint::BLAKE2BDigestHint;
-use crate::frontend::hash::blake2::proof_hint::BLAKE2BProofHint;
+use crate::frontend::hash::curta::digest_hint::HashDigestHint;
+use crate::frontend::hash::curta::proof_hint::HashProofHint;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
-use crate::frontend::hash::sha::curta::digest_hint::SHADigestHint;
-use crate::frontend::hash::sha::curta::proof_hint::SHAProofHint;
 use crate::frontend::hint::asynchronous::generator::{AsyncHintDataRef, AsyncHintRef};
 use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
@@ -373,29 +372,29 @@ where
 
         r.register_hint::<BeaconGraffitiHint>();
 
-        r.register_hint::<SHADigestHint<SHA256, 64>>();
-        r.register_async_hint::<Async<SHADigestHint<SHA256, 64>>>();
+        r.register_hint::<HashDigestHint<SHA256, 64, false, 8>>();
+        r.register_async_hint::<Async<HashDigestHint<SHA256, 64, false, 8>>>();
 
-        r.register_hint::<SHAProofHint<SHA256, 64>>();
-        r.register_async_hint::<Async<SHAProofHint<SHA256, 64>>>();
+        r.register_hint::<HashProofHint<SHA256, 64, false, 8>>();
+        r.register_async_hint::<Async<HashProofHint<SHA256, 64, false, 8>>>();
 
-        r.register_hint::<SHADigestHint<SHA512, 80>>();
-        r.register_async_hint::<Async<SHADigestHint<SHA512, 80>>>();
+        r.register_hint::<HashDigestHint<SHA512, 80, false, 8>>();
+        r.register_async_hint::<Async<HashDigestHint<SHA512, 80, false, 8>>>();
 
-        r.register_hint::<SHAProofHint<SHA512, 80>>();
-        r.register_async_hint::<Async<SHAProofHint<SHA512, 80>>>();
+        r.register_hint::<HashProofHint<SHA512, 80, false, 8>>();
+        r.register_async_hint::<Async<HashProofHint<SHA512, 80, false, 8>>>();
+
+        r.register_hint::<HashDigestHint<BLAKE2B, 96, true, 4>>();
+        r.register_async_hint::<Async<HashDigestHint<BLAKE2B, 96, true, 4>>>();
+
+        r.register_hint::<HashProofHint<BLAKE2B, 96, true, 4>>();
+        r.register_async_hint::<Async<HashProofHint<BLAKE2B, 96, true, 4>>>();
 
         r.register_hint::<EcOpProofHint>();
         r.register_async_hint::<Async<EcOpProofHint>>();
 
         r.register_hint::<EcOpResultHint>();
         r.register_async_hint::<Async<EcOpResultHint>>();
-
-        r.register_hint::<BLAKE2BDigestHint>();
-        r.register_async_hint::<Async<BLAKE2BDigestHint>>();
-
-        r.register_hint::<BLAKE2BProofHint>();
-        r.register_async_hint::<Async<BLAKE2BProofHint>>();
 
         let dummy_proof_generator_id =
             DummyProofGenerator::<L::Field, L::Config, D>::default().id();
