@@ -8,28 +8,28 @@ import {TimelockedUpgradeable} from "./upgrades/TimelockedUpgradeable.sol";
 import {IFeeVault} from "./payments/interfaces/IFeeVault.sol";
 
 contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgradeable {
-    /// @dev The address of the fee vault.
+    /// @notice The address of the fee vault.
     address public feeVault;
 
-    /// @dev A nonce for keeping track of requests.
+    /// @notice A nonce for keeping track of requests.
     uint32 public nonce;
 
-    /// @dev A mapping from request nonces to request hashes.
+    /// @notice A mapping from request nonces to request hashes.
     mapping(uint32 => bytes32) public requests;
 
-    /// @dev The currently verified function identifier.
+    /// @notice The currently verified function identifier.
     bytes32 public verifiedFunctionId;
 
-    /// @dev The currently verified function input hash.
+    /// @notice The currently verified function input hash.
     bytes32 public verifiedInputHash;
 
-    /// @dev The currently verified function output.
+    /// @notice The currently verified function output.
     bytes public verifiedOutput;
 
-    /// @dev A flag that indicates whether the contract is currently making a callback.
+    /// @notice A flag that indicates whether the contract is currently making a callback.
     bool public isCallback;
 
-    /// @dev The allowed provers that can fulfill requests.
+    /// @notice The allowed provers that can fulfill requests.
     mapping(address => bool) public allowedProvers;
 
     /// @dev Protects functions from being re-entered during a fullfil call.
@@ -56,7 +56,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         return "1.0.1";
     }
 
-    /// @dev Initializes the contract.
+    /// @notice Initializes the contract.
     /// @param _feeVault The address of the fee vault.
     /// @param _timelock The address of the timelock contract.
     /// @param _guardian The address of the guardian.
@@ -69,8 +69,8 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         __TimelockedUpgradeable_init(_timelock, _guardian);
     }
 
-    /// @dev Creates a onchain request for a proof. The output and proof is fulfilled asynchronously
-    ///      by the provided callback.
+    /// @notice Creates a onchain request for a proof. The output and proof is fulfilled asynchronously
+    ///         by the provided callback.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
     /// @param _context The function context.
@@ -121,8 +121,8 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         return requestHash;
     }
 
-    /// @dev Creates a proof request for a call. This function is equivalent to an off-chain request
-    ///      through an API.
+    /// @notice Creates a proof request for a call. This function is equivalent to an off-chain request
+    ///         through an API.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
     /// @param _entryAddress The address of the callback contract.
@@ -152,8 +152,8 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         }
     }
 
-    /// @dev If the call matches the currently verified function, returns the output. Otherwise,
-    ///      this function reverts.
+    /// @notice If the call matches the currently verified function, returns the output. Otherwise,
+    ///         this function reverts.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
     function verifiedCall(bytes32 _functionId, bytes memory _input)
@@ -169,7 +169,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         }
     }
 
-    /// @dev Fulfills a request by providing the output and proof.
+    /// @notice Fulfills a request by providing the output and proof.
     /// @param _nonce The nonce of the request.
     /// @param _functionId The function identifier.
     /// @param _inputHash The hash of the function input.
@@ -231,7 +231,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         emit RequestFulfilled(_nonce, _functionId, _inputHash, outputHash);
     }
 
-    /// @dev The entrypoint for fulfilling a call.
+    /// @notice The entrypoint for fulfilling a call.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
     /// @param _output The function output.
@@ -273,7 +273,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         emit Call(_functionId, inputHash, outputHash);
     }
 
-    /// @dev Sets the fee vault to a new address. Can be set to address(0) to disable fees.
+    /// @notice Sets the fee vault to a new address. Can be set to address(0) to disable fees.
     /// @param _feeVault The address of the fee vault.
     function setFeeVault(address _feeVault) external onlyGuardian {
         emit SetFeeVault(feeVault, _feeVault);

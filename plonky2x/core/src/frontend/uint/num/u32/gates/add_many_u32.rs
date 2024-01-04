@@ -20,8 +20,8 @@ use plonky2::plonk::vars::{EvaluationTargets, EvaluationVars, EvaluationVarsBase
 use plonky2::util::ceil_div_usize;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
-const LOG2_MAX_NUM_ADDENDS: usize = 4;
-const MAX_NUM_ADDENDS: usize = 16;
+const LOG2_MAX_NUM_ADDENDS: usize = 6;
+const MAX_NUM_ADDENDS: usize = 64;
 
 /// A gate to perform addition on `num_addends` different 32-bit values, plus a small carry
 #[derive(Copy, Clone, Debug, Default)]
@@ -41,28 +41,28 @@ impl<F: RichField + Extendable<D>, const D: usize> U32AddManyGate<F, D> {
     }
 
     pub(crate) fn num_ops(num_addends: usize, config: &CircuitConfig) -> usize {
-        debug_assert!(num_addends <= MAX_NUM_ADDENDS);
+        assert!(num_addends <= MAX_NUM_ADDENDS);
         let wires_per_op = (num_addends + 3) + Self::num_limbs();
         let routed_wires_per_op = num_addends + 3;
         (config.num_wires / wires_per_op).min(config.num_routed_wires / routed_wires_per_op)
     }
 
     pub fn wire_ith_op_jth_addend(&self, i: usize, j: usize) -> usize {
-        debug_assert!(i < self.num_ops);
-        debug_assert!(j < self.num_addends);
+        assert!(i < self.num_ops);
+        assert!(j < self.num_addends);
         (self.num_addends + 3) * i + j
     }
     pub fn wire_ith_carry(&self, i: usize) -> usize {
-        debug_assert!(i < self.num_ops);
+        assert!(i < self.num_ops);
         (self.num_addends + 3) * i + self.num_addends
     }
 
     pub fn wire_ith_output_result(&self, i: usize) -> usize {
-        debug_assert!(i < self.num_ops);
+        assert!(i < self.num_ops);
         (self.num_addends + 3) * i + self.num_addends + 1
     }
     pub fn wire_ith_output_carry(&self, i: usize) -> usize {
-        debug_assert!(i < self.num_ops);
+        assert!(i < self.num_ops);
         (self.num_addends + 3) * i + self.num_addends + 2
     }
 
@@ -80,8 +80,8 @@ impl<F: RichField + Extendable<D>, const D: usize> U32AddManyGate<F, D> {
     }
 
     pub fn wire_ith_output_jth_limb(&self, i: usize, j: usize) -> usize {
-        debug_assert!(i < self.num_ops);
-        debug_assert!(j < Self::num_limbs());
+        assert!(i < self.num_ops);
+        assert!(j < Self::num_limbs());
         (self.num_addends + 3) * self.num_ops + Self::num_limbs() * i + j
     }
 }

@@ -52,6 +52,7 @@ pub struct RemoteRecursiveProofsRequestData {
 #[serde(rename_all = "camelCase")]
 pub struct ProofRequestBase<D> {
     pub release_id: String,
+    pub parent_id: Option<String>,
     pub files: Option<Vec<String>>,
     pub data: D,
 }
@@ -78,9 +79,11 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
     /// Creates a new function request from a circuit and public input.
     pub fn new(circuit_id: &str, input: &PublicInput<L, D>) -> Self {
         let release_id = env::var("RELEASE_ID").unwrap();
+        let parent_id = Some(env::var("PROOF_ID").unwrap());
         match input {
             PublicInput::Bytes(input) => ProofRequest::Bytes(ProofRequestBase {
                 release_id,
+                parent_id,
                 files: Some(vec![format!("main.circuit")]),
                 data: BytesRequestData {
                     input: input.clone(),
@@ -88,6 +91,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
             }),
             PublicInput::Elements(input) => ProofRequest::Elements(ProofRequestBase {
                 release_id,
+                parent_id,
                 files: Some(vec![format!("{}.circuit", circuit_id)]),
                 data: ElementsRequestData {
                     circuit_id: circuit_id.to_string(),
@@ -97,6 +101,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
             PublicInput::RecursiveProofs(input) => {
                 ProofRequest::RecursiveProofs(ProofRequestBase {
                     release_id,
+                    parent_id,
                     files: Some(vec![format!("{}.circuit", circuit_id)]),
                     data: RecursiveProofsRequestData {
                         circuit_id: circuit_id.to_string(),
@@ -107,6 +112,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
             PublicInput::RemoteRecursiveProofs(input) => {
                 ProofRequest::RemoteRecursiveProofs(ProofRequestBase {
                     release_id,
+                    parent_id,
                     files: Some(vec![format!("{}.circuit", circuit_id)]),
                     data: RemoteRecursiveProofsRequestData {
                         circuit_id: circuit_id.to_string(),

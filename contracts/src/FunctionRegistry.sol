@@ -4,21 +4,21 @@ pragma solidity ^0.8.16;
 import {IFunctionRegistry} from "./interfaces/IFunctionRegistry.sol";
 
 abstract contract FunctionRegistry is IFunctionRegistry {
-    /// @dev Maps function identifiers to their corresponding verifiers.
+    /// @notice Maps function IDs to their corresponding verifiers.
     mapping(bytes32 => address) public verifiers;
 
-    /// @dev Maps function identifiers to their corresponding owners.
+    /// @notice Maps function IDs to their corresponding owners.
     mapping(bytes32 => address) public verifierOwners;
 
     /// @notice Registers a function, using a pre-deployed verifier.
     /// @param _owner The owner of the function.
     /// @param _verifier The address of the verifier.
-    /// @param _name The name of the function to be registered.
-    function registerFunction(address _owner, address _verifier, string memory _name)
+    /// @param _salt The salt to use for calculating the function ID.
+    function registerFunction(address _owner, address _verifier, bytes32 _salt)
         external
         returns (bytes32 functionId)
     {
-        functionId = getFunctionId(_owner, _name);
+        functionId = getFunctionId(_owner, _salt);
         if (address(verifiers[functionId]) != address(0)) {
             revert FunctionAlreadyRegistered(functionId); // should call update instead
         }
@@ -28,18 +28,18 @@ abstract contract FunctionRegistry is IFunctionRegistry {
         verifierOwners[functionId] = _owner;
         verifiers[functionId] = _verifier;
 
-        emit FunctionRegistered(functionId, _verifier, _name, _owner);
+        emit FunctionRegistered(functionId, _verifier, _salt, _owner);
     }
 
     /// @notice Registers a function, using CREATE2 to deploy the verifier.
     /// @param _owner The owner of the function.
     /// @param _bytecode The bytecode of the verifier.
-    /// @param _name The name of the function to be registered.
-    function deployAndRegisterFunction(address _owner, bytes memory _bytecode, string memory _name)
+    /// @param _salt The salt to use for calculating the function ID.
+    function deployAndRegisterFunction(address _owner, bytes memory _bytecode, bytes32 _salt)
         external
         returns (bytes32 functionId, address verifier)
     {
-        functionId = getFunctionId(_owner, _name);
+        functionId = getFunctionId(_owner, _salt);
         if (address(verifiers[functionId]) != address(0)) {
             revert FunctionAlreadyRegistered(functionId); // should call update instead
         }
@@ -48,18 +48,18 @@ abstract contract FunctionRegistry is IFunctionRegistry {
         verifier = _deploy(_bytecode, functionId);
         verifiers[functionId] = verifier;
 
-        emit FunctionRegistered(functionId, verifier, _name, _owner);
+        emit FunctionRegistered(functionId, verifier, _salt, _owner);
     }
 
     /// @notice Updates the function, using a pre-deployed verifier.
     /// @dev Only the owner of the function can update it.
     /// @param _verifier The address of the verifier.
-    /// @param _name The name of the function to be updated.
-    function updateFunction(address _verifier, string memory _name)
+    /// @param _salt The salt that was used when registering this function ID.
+    function updateFunction(address _verifier, bytes32 _salt)
         external
         returns (bytes32 functionId)
     {
-        functionId = getFunctionId(msg.sender, _name);
+        functionId = getFunctionId(msg.sender, _salt);
         if (msg.sender != verifierOwners[functionId]) {
             revert NotFunctionOwner(msg.sender, verifierOwners[functionId]);
         }
@@ -77,12 +77,12 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @notice Updates the function, using CREATE2 to deploy the new verifier.
     /// @dev Only the owner of the function can update it.
     /// @param _bytecode The bytecode of the verifier.
-    /// @param _name The name of the function to be updated.
-    function deployAndUpdateFunction(bytes memory _bytecode, string memory _name)
+    /// @param _salt The salt that was used when registering this function ID.
+    function deployAndUpdateFunction(bytes memory _bytecode, bytes32 _salt)
         external
         returns (bytes32 functionId, address verifier)
     {
-        functionId = getFunctionId(msg.sender, _name);
+        functionId = getFunctionId(msg.sender, _salt);
         if (msg.sender != verifierOwners[functionId]) {
             revert NotFunctionOwner(msg.sender, verifierOwners[functionId]);
         }
@@ -92,15 +92,15 @@ abstract contract FunctionRegistry is IFunctionRegistry {
         emit FunctionVerifierUpdated(functionId, verifier);
     }
 
-    /// @notice Returns the functionId for a given owner and function name.
+    /// @notice Returns the function ID for a given owner and salt.
     /// @param _owner The owner of the function.
-    /// @param _name The name of the function.
-    function getFunctionId(address _owner, string memory _name)
+    /// @param _salt The salt to use.
+    function getFunctionId(address _owner, bytes32 _salt)
         public
         pure
         returns (bytes32 functionId)
     {
-        functionId = keccak256(abi.encode(_owner, _name));
+        functionId = keccak256(abi.encode(_owner, _salt));
     }
 
     function _deploy(bytes memory _bytecode, bytes32 _salt)

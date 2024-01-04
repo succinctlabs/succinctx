@@ -1,18 +1,23 @@
+use core::fmt::Debug;
+
+use curta::chip::register::array::ArrayRegister;
 use curta::chip::register::bit::BitRegister;
 use curta::chip::register::element::ElementRegister;
 use curta::chip::register::Register;
 use curta::chip::uint::operations::instruction::UintInstructions;
+use curta::chip::uint::register::U64Register;
 use curta::chip::AirParameters;
 use curta::machine::builder::Builder;
 use curta::machine::bytes::builder::BytesBuilder;
-use curta::machine::hash::sha::algorithm::SHAir;
-use curta::machine::hash::sha::builder::SHABuilder;
+use curta::machine::hash::{HashDigest, HashIntConversion};
 use plonky2::util::log2_ceil;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
-use self::accelerator::SHAAccelerator;
-use self::data::{SHAInputData, SHAInputParameters};
-use self::request::SHARequest;
-use self::stark::SHAStark;
+use self::accelerator::HashAccelerator;
+use self::data::{HashInputData, HashInputParameters};
+use self::request::HashRequest;
+use self::stark::HashStark;
 use crate::prelude::*;
 
 pub mod accelerator;
@@ -23,9 +28,23 @@ pub mod proof_hint;
 pub mod request;
 pub mod stark;
 
-/// An interface for a circuit that computes SHA using Curta.
-pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
-    SHAir<BytesBuilder<Self::AirParameters>, CYCLE_LEN>
+/// An interface for a circuit that computes a hash using Curta.
+pub trait Hash<
+    L: PlonkParameters<D>,
+    const D: usize,
+    const CYCLE_LEN: usize,
+    const HAS_T_VALUES: bool,
+    const DIGEST_LEN: usize,
+>:
+    HashIntConversion<BytesBuilder<Self::AirParameters>>
+    + HashDigest<BytesBuilder<Self::AirParameters>>
+    + Debug
+    + Clone
+    + 'static
+    + Serialize
+    + DeserializeOwned
+    + Send
+    + Sync
 {
     /// A `CircuitVariable` that represents the integer registers used by the hash function.
     ///
@@ -70,14 +89,18 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
     fn digest_to_array(
         builder: &mut CircuitBuilder<L, D>,
         digest: Self::DigestVariable,
-    ) -> [Self::IntVariable; 8];
+    ) -> [Self::IntVariable; DIGEST_LEN];
 
     /// Get the input data for the stark from a `SHAAccelerator`.
-    fn get_sha_data(
+    fn get_hash_data(
         builder: &mut CircuitBuilder<L, D>,
-        accelerator: SHAAccelerator<Self::IntVariable>,
-    ) -> SHAInputData<Self::IntVariable> {
+        accelerator: HashAccelerator<Self::IntVariable, DIGEST_LEN>,
+    ) -> HashInputData<Self::IntVariable, DIGEST_LEN> {
         // Initialze the data struictures of `SHAInputData`.
+        let mut t_values: Option<Vec<_>> = None;
+        if HAS_T_VALUES {
+            t_values = Some(Vec::new());
+        }
         let mut end_bit_values = Vec::new();
         let mut digest_bits = Vec::new();
         let mut current_chunk_index = 0;
@@ -89,11 +112,11 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
         // `end_bit` - a bit that is true for the last chunk of a message (or the total_message
         // passed in the case of a message of variable length).
         // `digest_bit` - a bit that indicates the hash state is read into the digest list after
-        // processing the chunk. For a message of fioxed length, this is the same as `end_bit`.
+        // processing the chunk. For a message of fixed length, this is the same as `end_bit`.
         // `digest_index` - the index of the digest to be read, corresponding to the location of the
         // chunk in the padded chunks.
         let padded_chunks = accelerator
-            .sha_requests
+            .hash_requests
             .iter()
             .flat_map(|req| {
                 // For every request, we read the corresponding messagem, pad it, and compute the
@@ -101,18 +124,20 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
 
                 // Get the padded chunks and the number of chunks in the message, depending on the
                 // type of the request.
-                let (padded_chunks, last_chunk_index) = match req {
-                    SHARequest::Fixed(input) => {
+                let (padded_chunks, length, last_chunk_index) = match req {
+                    HashRequest::Fixed(input) => {
                         // If the length is fixed, the chunk_index is just `number of chunks  - 1``.
                         let padded_chunks = Self::pad_circuit(builder, input);
                         let num_chunks =
                             builder.constant((padded_chunks.len() / 16 - 1).try_into().unwrap());
-                        (padded_chunks, num_chunks)
+                        let length = builder.constant::<U32Variable>(input.len() as u32);
+                        (padded_chunks, length, num_chunks)
                     }
                     // If the length of the message is a variable, we read the chunk index from the
                     // request.
-                    SHARequest::Variable(input, length, last_chunk) => (
+                    HashRequest::Variable(input, length, last_chunk) => (
                         Self::pad_circuit_variable_length(builder, input, *length),
+                        *length,
                         *last_chunk,
                     ),
                 };
@@ -131,14 +156,20 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
                 // The digest bit is equal to zero for all chunks except the one that corresponds to
                 // the `chunk_index`. We find the bits by comparing each value between 0 and the
                 // total number of chunks to the `chunk_index`.
-                let mut flag = builder.constant::<BoolVariable>(true);
+                let mut t_var = builder.constant::<U32Variable>(0);
+                let chunk_size = builder.constant::<U32Variable>(128);
                 for j in 0..total_number_of_chunks {
+                    if HAS_T_VALUES {
+                        t_var = builder.add(t_var, chunk_size);
+                    }
                     let j_var = builder.constant::<U32Variable>(j as u32);
-                    let lte = builder.lte(last_chunk_index, j_var);
-                    let lte_times_flag = builder.and(lte, flag);
-                    digest_bits.push(lte_times_flag);
-                    let not_lte = builder.not(lte);
-                    flag = builder.and(flag, not_lte);
+                    let at_digest_chunk = builder.is_equal(j_var, last_chunk_index);
+                    digest_bits.push(at_digest_chunk);
+
+                    t_var = builder.select(at_digest_chunk, length, t_var);
+                    if HAS_T_VALUES {
+                        t_values.as_mut().unwrap().push(t_var);
+                    }
                 }
                 // Increment the current chunk index by the total number of chunks.
                 current_chunk_index += total_number_of_chunks;
@@ -150,41 +181,59 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
         // Convert end_bits to variables.
         let end_bits = builder.constant_vec(&end_bit_values);
 
-        SHAInputData {
+        HashInputData {
             padded_chunks,
+            t_values,
             digest_bits,
             end_bits,
             digest_indices,
-            digests: accelerator.sha_responses,
+            digests: accelerator.hash_responses,
         }
     }
 
     /// The Curta Stark corresponding to the input data.
-    fn stark(parameters: SHAInputParameters) -> SHAStark<L, Self, D, CYCLE_LEN> {
-        let mut builder = BytesBuilder::<Self::AirParameters>::new();
+    fn stark(
+        parameters: HashInputParameters,
+    ) -> HashStark<L, Self, D, CYCLE_LEN, HAS_T_VALUES, DIGEST_LEN> {
+        let mut builder = Self::curta_builder();
 
         let num_chunks = parameters.num_chunks;
         let padded_chunks = (0..num_chunks)
             .map(|_| builder.alloc_array_public::<Self::IntRegister>(16))
             .collect::<Vec<_>>();
 
-        // Allocate registers for the public inputs to the Stark.
+        let mut t_values = None;
+        if HAS_T_VALUES {
+            // Allocate registers for the t-values.
+            t_values = Some(builder.alloc_array_public::<U64Register>(parameters.num_chunks));
+        }
+
         let end_bits = builder.alloc_array_public::<BitRegister>(num_chunks);
         let digest_bits = builder.alloc_array_public::<BitRegister>(num_chunks);
         let digest_indices = builder.alloc_array_public::<ElementRegister>(parameters.num_digests);
+        let num_messages =
+            builder.constant(&L::Field::from_canonical_usize(parameters.num_digests));
 
         // Hash the padded chunks.
-        let digests =
-            builder.sha::<Self, CYCLE_LEN>(&padded_chunks, &end_bits, &digest_bits, digest_indices);
+        let digests = Self::hash_circuit(
+            &mut builder,
+            &padded_chunks,
+            &t_values,
+            &end_bits,
+            &digest_bits,
+            &digest_indices,
+            &num_messages,
+        );
 
         // Build the stark.
         let num_rows_degree = log2_ceil(CYCLE_LEN * num_chunks);
         let num_rows = 1 << num_rows_degree;
         let stark = builder.build::<L::CurtaConfig, D>(num_rows);
 
-        SHAStark {
+        HashStark {
             stark,
             padded_chunks,
+            t_values,
             end_bits,
             digest_bits,
             digest_indices,
@@ -192,4 +241,20 @@ pub trait SHA<L: PlonkParameters<D>, const D: usize, const CYCLE_LEN: usize>:
             num_rows,
         }
     }
+
+    fn hash(message: Vec<u8>) -> [Self::Integer; DIGEST_LEN];
+
+    fn curta_builder() -> BytesBuilder<Self::AirParameters> {
+        BytesBuilder::<Self::AirParameters>::new()
+    }
+
+    fn hash_circuit(
+        builder: &mut BytesBuilder<Self::AirParameters>,
+        padded_chunks: &[ArrayRegister<Self::IntRegister>],
+        t_values: &Option<ArrayRegister<U64Register>>,
+        end_bits: &ArrayRegister<BitRegister>,
+        digest_bits: &ArrayRegister<BitRegister>,
+        digest_indices: &ArrayRegister<ElementRegister>,
+        num_messages: &ElementRegister,
+    ) -> Vec<Self::DigestRegister>;
 }

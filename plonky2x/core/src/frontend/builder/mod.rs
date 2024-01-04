@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::env;
 
 use backtrace::Backtrace;
+use curta::machine::hash::blake::blake2b::BLAKE2B;
 use curta::machine::hash::sha::sha256::SHA256;
 use curta::machine::hash::sha::sha512::SHA512;
 use ethers::providers::{Http, Middleware, Provider};
@@ -22,7 +23,7 @@ use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
 use super::ecc::curve25519::curta::accelerator::EcOpAccelerator;
-use super::hash::blake2::accelerator::BLAKE2BAccelerator;
+use super::hash::blake2::curta::BLAKE2BAccelerator;
 use super::hash::sha::sha256::curta::SHA256Accelerator;
 use super::hash::sha::sha512::curta::SHA512Accelerator;
 use super::hint::HintGenerator;
@@ -134,17 +135,17 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     fn pre_build(&mut self) {
         let blake2b_accelerator = self.blake2b_accelerator.clone();
         if let Some(accelerator) = blake2b_accelerator {
-            self.curta_constrain_blake2b(accelerator);
+            self.curta_constrain_hash::<BLAKE2B, 96, true, 4>(accelerator);
         }
 
         let sha256_accelerator = self.sha256_accelerator.clone();
         if let Some(accelerator) = sha256_accelerator {
-            self.curta_constrain_sha::<SHA256, 64>(accelerator);
+            self.curta_constrain_hash::<SHA256, 64, false, 8>(accelerator);
         }
 
         let sha512_accelerator = self.sha512_accelerator.clone();
         if let Some(accelerator) = sha512_accelerator {
-            self.curta_constrain_sha::<SHA512, 80>(accelerator);
+            self.curta_constrain_hash::<SHA512, 80, false, 8>(accelerator);
         }
 
         let ec_ops_accelerator = self.ec_25519_ops_accelerator.clone();
