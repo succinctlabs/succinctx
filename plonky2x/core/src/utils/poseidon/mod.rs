@@ -67,7 +67,7 @@ where
 
 pub trait MapReducePoseidonBuilderMethods<L: PlonkParameters<D>, const D: usize> {
     fn mapreduce_merkle_tree_root<Input: CircuitVariable, const B: usize>(
-        &self,
+        &mut self,
         inputs: &[Input],
     ) -> PoseidonHashOutVariable
     where
@@ -79,7 +79,7 @@ impl<L: PlonkParameters<D>, const D: usize> MapReducePoseidonBuilderMethods<L, D
     for CircuitBuilder<L, D>
 {
     fn mapreduce_merkle_tree_root<Input: CircuitVariable, const B: usize>(
-        &self,
+        &mut self,
         inputs: &[Input],
     ) -> PoseidonHashOutVariable
     where
@@ -111,14 +111,14 @@ impl<L: PlonkParameters<D>, const D: usize> MapReducePoseidonBuilderMethods<L, D
         while leafs.len() != 1 {
             let mut tmp = Vec::new();
             for i in 0..leafs.len() / 2 {
-                let left = leafs[i * 2];
-                let right = leafs[i * 2 + 1];
+                let left = leafs[i * 2].clone();
+                let right = leafs[i * 2 + 1].clone();
                 let hash = self.poseidon_hash_pair(left, right);
                 tmp.push(hash);
             }
             leafs = tmp;
         }
 
-        leafs[0]
+        leafs[0].clone()
     }
 }
