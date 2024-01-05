@@ -215,3 +215,210 @@ where
         })
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct MapReduceDynamicGenerator<
+    L,
+    Ctx,
+    Input,
+    Output,
+    Serializer,
+    const B: usize,
+    const D: usize,
+> where
+    L: PlonkParameters<D>,
+    <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
+    <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    Ctx: CircuitVariable,
+    Input: CircuitVariable,
+    Output: CircuitVariable,
+    Serializer: CircuitSerializer,
+{
+    /// The identifier for the compiled map circuit.
+    pub map_circuit_id: String,
+
+    /// The identifiers for the compiled reduce circuits.
+    pub reduce_circuit_ids: Vec<String>,
+
+    /// The global context for all circuits.
+    pub ctx: Ctx,
+
+    /// The dynamic inputs to the map circuit.
+    pub inputs: Vec<Input>,
+
+    /// The proof target for the final circuit proof.
+    pub proof: ProofWithPublicInputsTarget<D>,
+
+    /// Phantom data.
+    pub _phantom: PhantomData<(L, Output, Serializer)>,
+}
+
+impl<L, Ctx, Input, Output, Serializer, const B: usize, const D: usize>
+    MapReduceDynamicGenerator<L, Ctx, Input, Output, Serializer, B, D>
+where
+    L: PlonkParameters<D>,
+    <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
+    <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    Ctx: CircuitVariable,
+    Input: CircuitVariable,
+    Output: CircuitVariable,
+    Serializer: CircuitSerializer,
+{
+    pub fn id() -> String {
+        "MapReduceDynamicGenerator".to_string()
+    }
+}
+
+impl<L, Ctx, Input, Output, Serializer, const B: usize, const D: usize> SimpleGenerator<L::Field, D>
+    for MapReduceDynamicGenerator<L, Ctx, Input, Output, Serializer, B, D>
+where
+    L: PlonkParameters<D>,
+    <L as PlonkParameters<D>>::Config: GenericConfig<D, F = L::Field> + 'static,
+    <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    Ctx: CircuitVariable,
+    Input: CircuitVariable,
+    Output: CircuitVariable,
+    Serializer: CircuitSerializer,
+    <Input as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
+{
+    fn id(&self) -> String {
+        Self::id()
+    }
+
+    fn dependencies(&self) -> Vec<Target> {
+        let mut targets = Vec::new();
+        targets.extend(self.ctx.targets());
+        targets
+    }
+
+    fn run_once(
+        &self,
+        witness: &PartitionWitness<L::Field>,
+        out_buffer: &mut GeneratedValues<L::Field>,
+    ) {
+        // Create the prover and the async runtime.
+        let prover = EnvProver::new();
+
+        // Calculate the inputs to the map.
+        let ctx_value = self.ctx.get(witness);
+        let map_input_values = &self.inputs;
+        let mut map_inputs = Vec::new();
+        for i in 0..map_input_values.len() / B {
+            let mut map_input = PublicInput::Elements(Vec::new());
+            let input = array![j => map_input_values[i * B + j].get(witness).clone(); B];
+            map_input.write::<MapReduceInputVariable<Ctx, Input, B>>(MapReduceInputVariableValue {
+                ctx: ctx_value.clone(),
+                inputs: input.to_vec(),
+            });
+            map_inputs.push(map_input)
+        }
+
+        // Generate the proofs for the map layer.
+        let mut outputs = prover
+            .batch_prove::<L, Serializer, D>(&self.map_circuit_id, &map_inputs)
+            .unwrap();
+
+        // Process each reduce layer.
+        let nb_reduce_layers = ((self.inputs.len() / B) as f64).log2().ceil() as usize;
+        for i in 0..nb_reduce_layers {
+            // Calculate the inputs to the reduce layer.
+            debug!("reduce time");
+            let nb_proofs = (self.inputs.len() / B) / (2usize.pow((i + 1) as u32));
+            let mut reduce_inputs = Vec::new();
+            debug!("nb_proofs {}", nb_proofs);
+            match outputs {
+                ProverOutputs::Local(proofs, _) => {
+                    for j in 0..nb_proofs {
+                        let mut reduce_input = PublicInput::RecursiveProofs(Vec::new());
+                        reduce_input.proof_write(proofs[j * 2].clone());
+                        reduce_input.proof_write(proofs[j * 2 + 1].clone());
+                        reduce_inputs.push(reduce_input);
+                    }
+                }
+                ProverOutputs::Remote(proof_ids) => {
+                    for j in 0..nb_proofs {
+                        let reduce_input = PublicInput::<L, D>::RemoteRecursiveProofs(vec![
+                            proof_ids[j * 2],
+                            proof_ids[j * 2 + 1],
+                        ]);
+                        reduce_inputs.push(reduce_input);
+                    }
+                }
+            }
+
+            // Generate the proofs for the reduce layer and update the proofs buffer.
+            debug!("reduce batch proofs");
+            outputs = prover
+                .batch_prove::<L, Serializer, D>(&self.reduce_circuit_ids[i], &reduce_inputs)
+                .unwrap();
+        }
+
+        // Set the proof target with the final proof.
+        let (proofs, _) = outputs.materialize().unwrap();
+        out_buffer.set_proof_with_pis_target(&self.proof, &proofs[0]);
+    }
+
+    fn serialize(&self, dst: &mut Vec<u8>, _: &CommonCircuitData<L::Field, D>) -> IoResult<()> {
+        // Write map circuit.
+        dst.write_usize(self.map_circuit_id.len())?;
+        dst.write_all(self.map_circuit_id.as_bytes())?;
+
+        // Write vector of reduce circuits.
+        dst.write_usize(self.reduce_circuit_ids.len())?;
+        for i in 0..self.reduce_circuit_ids.len() {
+            dst.write_usize(self.reduce_circuit_ids[i].len())?;
+            dst.write_all(self.reduce_circuit_ids[i].as_bytes())?;
+        }
+
+        // Write context.
+        dst.write_target_vec(&self.ctx.targets())?;
+
+        // Write vector of input values.
+        dst.write_usize(self.inputs.len())?;
+        for i in 0..self.inputs.len() {
+            dst.write_target_vec(&self.inputs[i].targets())?;
+        }
+
+        // Write proof target.
+        dst.write_target_proof_with_public_inputs(&self.proof)
+    }
+
+    fn deserialize(src: &mut Buffer, _: &CommonCircuitData<L::Field, D>) -> IoResult<Self> {
+        // Read map circuit.
+        let map_circuit_id_length = src.read_usize()?;
+        let mut map_circuit_id = vec![0u8; map_circuit_id_length];
+        src.read_exact(&mut map_circuit_id)?;
+
+        // Read vector of reduce circuits.
+        let mut reduce_circuit_ids = Vec::new();
+        let reduce_circuit_ids_len = src.read_usize()?;
+        for _ in 0..reduce_circuit_ids_len {
+            let reduce_circuit_id_length = src.read_usize()?;
+            let mut reduce_circuit_id = vec![0u8; reduce_circuit_id_length];
+            src.read_exact(&mut reduce_circuit_id)?;
+            reduce_circuit_ids.push(String::from_utf8(reduce_circuit_id).unwrap());
+        }
+
+        // Read context.
+        let ctx = Ctx::from_targets(&src.read_target_vec()?);
+
+        // Read vector of input targest.
+        let mut inputs = Vec::new();
+        let inputs_len = src.read_usize()?;
+        for _ in 0..inputs_len {
+            inputs.push(Input::from_targets(&src.read_target_vec()?));
+        }
+
+        // Read proof.
+        let proof = src.read_target_proof_with_public_inputs()?;
+
+        Ok(Self {
+            map_circuit_id: String::from_utf8(map_circuit_id).unwrap(),
+            reduce_circuit_ids,
+            ctx,
+            inputs,
+            proof,
+            _phantom: PhantomData,
+        })
+    }
+}
