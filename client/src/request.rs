@@ -42,6 +42,9 @@ pub struct SuccinctClient {
 
 impl SuccinctClient {
     pub fn new(base_url: String, api_key: String) -> Self {
+        if base_url == "local" {
+            info!("Running SuccinctClient in local mode");
+        }
         Self {
             client: Client::new(),
             base_url,
