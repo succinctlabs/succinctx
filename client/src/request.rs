@@ -87,9 +87,10 @@ impl SuccinctClient {
         fs::write(&input_file, input_data)?;
 
         // Read prove_binary and wrapper_binary from the .env (panic if not present)
-        let prove_binary = env::var("PROVE_BINARY").expect("PROVE_BINARY not found in .env");
+        let prove_binary_env_var = format!("PROVE_BINARY_{}", function_id);
+        let prove_binary = env::var(prove_binary_env_var).expect(format!("{} not found in .env", prove_binary_env_var));
         let wrapper_binary = env::var("WRAPPER_BINARY").expect("WRAPPER_BINARY not found in .env");
-        let prove_binary_dir = Path::new(&prove_binary).parent().expect("PROVE_BINARY should be a file in a directory with all circuit artifacts");
+        let prove_binary_dir = Path::new(&prove_binary).parent().expect(format!("{} should be a file in a directory with all circuit artifacts", prove_binary_env_var));
         let build_dir = prove_binary_dir.to_str().expect("Failed to convert path to string").to_owned();
 
         info!("Running local prove command:\nRUST_LOG=info PROVER=local {} prove {} --build-dir {} --wrapper-path {}", prove_binary, input_file, build_dir, wrapper_binary);
