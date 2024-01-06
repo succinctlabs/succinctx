@@ -1,5 +1,10 @@
 use std::process::Command;
 use std::{env, fs};
+use std::path::Path;
+use std::process::Stdio;
+use std::io::BufReader;
+use std::io::BufRead;
+use std::thread;
 
 use alloy_primitives::{Address, Bytes, B256};
 use anyhow::{Error, Result};
@@ -31,6 +36,8 @@ struct OffchainRequestResponse {
     request_id: String,
 }
 
+const LOCAL_PROOF_FOLDER: &str = "proofs";
+
 /// Client to interact with the Succinct X API.
 pub struct SuccinctClient {
     client: Client,
@@ -60,27 +67,69 @@ impl SuccinctClient {
         function_id: B256,
         input: Bytes,
     ) -> Result<String> {
+        // Create the local proof directory
+        let dir_path = Path::new(LOCAL_PROOF_FOLDER);
+
+        // Create the directory if it does not exist
+        if !dir_path.exists() {
+            fs::create_dir_all(dir_path)?;
+            info!("Local proof folder created at {:?}", dir_path);
+        } else {
+            info!("Local proof folder already exists at {:?}", dir_path);
+        }
+
         // Generate a new request_id randomly using uuid
         let request_id = Uuid::new_v4().to_string();
 
         // Create a file `input.json` with { "input": input } and saves to to {request_id}_input.json
-        let input_file = format!("{}_input.json", request_id);
-        let input_data = serde_json::to_string(&json_macro!({ "input": input }))?;
+        let input_file = format!("{}/{}_input.json", LOCAL_PROOF_FOLDER, request_id);
+        let input_data = serde_json::to_string(&json_macro!({ "type": "req_bytes", "releaseId": "", "parentId": "", "files": [], "data": { "input": input}  }))?;
         fs::write(&input_file, input_data)?;
 
         // Read prove_binary and wrapper_binary from the .env (panic if not present)
         let prove_binary = env::var("PROVE_BINARY").expect("PROVE_BINARY not found in .env");
         let wrapper_binary = env::var("WRAPPER_BINARY").expect("WRAPPER_BINARY not found in .env");
+        let prove_binary_dir = Path::new(&prove_binary).parent().expect("PROVE_BINARY should be a file in a directory with all circuit artifacts");
+        let build_dir = prove_binary_dir.to_str().expect("Failed to convert path to string").to_owned();
 
+        info!("Running local prove command:\nRUST_LOG=info PROVER=local {} prove {} --build-dir {} --wrapper-path {}", prove_binary, input_file, build_dir, wrapper_binary);
         // Execute the command
-        let output = Command::new(&prove_binary)
-            .args(&["prove", &input_file, "--wrapper-path", &wrapper_binary])
-            .env("LOCAL_PROVER", "true")
+        let mut child = Command::new(&prove_binary)
+            .args(&["prove", &input_file, "--build-dir", &build_dir, "--wrapper-path", &wrapper_binary])
+            .env("PROVER", "local")
             .env("RUST_LOG", "info")
-            .output()?;
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
 
-        // Check for command execution error
-        if !output.status.success() {
+        // Create a reader for stdout
+        let stdout = BufReader::new(child.stdout.take().expect("Failed to open stdout"));
+        let stderr = BufReader::new(child.stderr.take().expect("Failed to open stderr"));
+
+        // Handle stdout in a separate thread
+        let stdout_handle = thread::spawn(move || {
+            for line in stdout.lines() {
+                match line {
+                    Ok(line) => println!("stdout: {}", line),
+                    Err(e) => eprintln!("error: {}", e),
+                }
+            }
+        });
+
+        // Handle stderr in the main thread
+        for line in stderr.lines() {
+            match line {
+                Ok(line) => eprintln!("stderr: {}", line),
+                Err(e) => eprintln!("error: {}", e),
+            }
+        }
+
+        // Wait for the stdout thread to finish
+        stdout_handle.join().expect("The stdout thread has panicked");
+
+        // Check for command execution success
+        let status = child.wait()?;
+        if !status.success() {
             error!("Command execution failed");
             return Err(Error::msg("Failed to execute prove command."));
         }
@@ -102,7 +151,7 @@ impl SuccinctClient {
             .to_string();
 
         // Save to {request_id}.json
-        let output_file = format!("{}.json", request_id);
+        let output_file = format!("{}/{}.json", LOCAL_PROOF_FOLDER, request_id);
         let final_data = json_macro!({
             "chain_id": chain_id,
             "to": to,
