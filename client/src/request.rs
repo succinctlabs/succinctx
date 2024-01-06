@@ -94,7 +94,7 @@ impl SuccinctClient {
         // Read prove_binary and wrapper_binary from the .env (panic if not present)
         let prove_binary_env_var = format!("PROVE_BINARY_{}", function_id);
         let prove_binary = env::var(&prove_binary_env_var)
-            .expect(format!("{} not found in .env", prove_binary_env_var).as_str());
+            .expect(format!("{} not found in .env. You must have this env variable set for every function_id you want to generate local proofs for.", prove_binary_env_var).as_str());
         let wrapper_binary = env::var("WRAPPER_BINARY").expect("WRAPPER_BINARY not found in .env");
         let prove_binary_dir = Path::new(&prove_binary).parent().expect(
             format!(
