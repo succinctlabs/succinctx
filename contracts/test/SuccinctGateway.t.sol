@@ -6,29 +6,19 @@ import "forge-std/console.sol";
 import "forge-std/Test.sol";
 
 import {SuccinctGateway} from "src/SuccinctGateway.sol";
-import {
-    ISuccinctGateway,
-    ISuccinctGatewayEvents,
-    ISuccinctGatewayErrors
-} from "src/interfaces/ISuccinctGateway.sol";
-import {
-    TestConsumer,
-    AttackConsumer,
-    TestFunctionVerifier1,
-    TestFunctionVerifier2
-} from "test/TestUtils.sol";
-import {
-    IFunctionRegistry,
-    IFunctionRegistryEvents,
-    IFunctionRegistryErrors
-} from "src/interfaces/IFunctionRegistry.sol";
+import {ISuccinctGateway, ISuccinctGatewayEvents, ISuccinctGatewayErrors} from "src/interfaces/ISuccinctGateway.sol";
+import {TestConsumer, AttackConsumer, TestFunctionVerifier1, TestFunctionVerifier2} from "test/TestUtils.sol";
+import {IFunctionRegistry, IFunctionRegistryEvents, IFunctionRegistryErrors} from "src/interfaces/IFunctionRegistry.sol";
 import {TestConsumer, TestFunctionVerifier1} from "test/TestUtils.sol";
 import {Proxy} from "src/upgrades/Proxy.sol";
 import {SuccinctFeeVault} from "src/payments/SuccinctFeeVault.sol";
-import {AccessControlUpgradeable} from
-    "@openzeppelin-upgradeable/contracts/access/AccessControlUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin-upgradeable/contracts/access/AccessControlUpgradeable.sol";
 
-contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayErrors {
+contract SuccinctGatewayTest is
+    Test,
+    ISuccinctGatewayEvents,
+    ISuccinctGatewayErrors
+{
     // Example Function Request and expected values.
     bytes internal constant INPUT = bytes("function-input");
     bytes32 internal constant INPUT_HASH = sha256(INPUT);
@@ -73,12 +63,17 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         // Deploy Verifier
         bytes32 functionId;
         vm.prank(sender);
-        (functionId, verifier) = IFunctionRegistry(gateway).deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier"
-        );
+        (functionId, verifier) = IFunctionRegistry(gateway)
+            .deployAndRegisterFunction(
+                owner,
+                type(TestFunctionVerifier1).creationCode,
+                "test-verifier"
+            );
 
         // Deploy TestConsumer
-        consumer = payable(address(new TestConsumer(gateway, functionId, INPUT)));
+        consumer = payable(
+            address(new TestConsumer(gateway, functionId, INPUT))
+        );
 
         vm.deal(sender, DEFAULT_FEE);
         vm.deal(consumer, DEFAULT_FEE);
@@ -90,9 +85,22 @@ contract SetupTest is SuccinctGatewayTest {
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
         assertEq(IFunctionRegistry(gateway).verifiers(functionId), verifier);
         assertEq(IFunctionRegistry(gateway).verifierOwners(functionId), owner);
-        assertEq(SuccinctGateway(gateway).allowedProvers(prover), true);
-        assertTrue(AccessControlUpgradeable(gateway).hasRole(keccak256("TIMELOCK_ROLE"), timelock));
-        assertTrue(AccessControlUpgradeable(gateway).hasRole(keccak256("GUARDIAN_ROLE"), guardian));
+        assertEq(
+            SuccinctGateway(gateway).allowedProvers(bytes32(0), prover),
+            true
+        );
+        assertTrue(
+            AccessControlUpgradeable(gateway).hasRole(
+                keccak256("TIMELOCK_ROLE"),
+                timelock
+            )
+        );
+        assertTrue(
+            AccessControlUpgradeable(gateway).hasRole(
+                keccak256("GUARDIAN_ROLE"),
+                guardian
+            )
+        );
     }
 }
 
@@ -317,13 +325,23 @@ contract RequestTest is SuccinctGatewayTest {
         bytes memory output = OUTPUT;
         bytes memory proof = PROOF;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
+        bytes memory callData = abi.encodeWithSelector(
+            TestConsumer.handleCall.selector
+        );
         uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
         uint256 fee = DEFAULT_FEE;
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
-        emit RequestCall(functionId, input, callAddress, callData, callGasLimit, consumer, fee);
+        emit RequestCall(
+            functionId,
+            input,
+            callAddress,
+            callData,
+            callGasLimit,
+            consumer,
+            fee
+        );
         TestConsumer(consumer).requestCall{value: fee}();
 
         assertEq(TestConsumer(consumer).handledRequests(0), false);
@@ -333,7 +351,12 @@ contract RequestTest is SuccinctGatewayTest {
         emit Call(functionId, INPUT_HASH, OUTPUT_HASH);
         vm.prank(prover);
         SuccinctGateway(gateway).fulfillCall(
-            functionId, input, output, proof, callAddress, callData
+            functionId,
+            input,
+            output,
+            proof,
+            callAddress,
+            callData
         );
 
         assertEq(TestConsumer(consumer).handledRequests(0), true);
@@ -345,12 +368,19 @@ contract RequestTest is SuccinctGatewayTest {
         bytes memory output = OUTPUT;
         bytes memory proof = PROOF;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
+        bytes memory callData = abi.encodeWithSelector(
+            TestConsumer.handleCall.selector
+        );
 
         // Fulfill
         vm.prank(prover);
         SuccinctGateway(gateway).fulfillCall(
-            functionId, input, output, proof, callAddress, callData
+            functionId,
+            input,
+            output,
+            proof,
+            callAddress,
+            callData
         );
     }
 
@@ -360,13 +390,23 @@ contract RequestTest is SuccinctGatewayTest {
         bytes memory output = OUTPUT;
         bytes memory proof = PROOF;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
+        bytes memory callData = abi.encodeWithSelector(
+            TestConsumer.handleCall.selector
+        );
         uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
         uint256 fee = 0;
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
-        emit RequestCall(functionId, input, callAddress, callData, callGasLimit, consumer, fee);
+        emit RequestCall(
+            functionId,
+            input,
+            callAddress,
+            callData,
+            callGasLimit,
+            consumer,
+            fee
+        );
         TestConsumer(consumer).requestCall{value: fee}();
 
         assertEq(TestConsumer(consumer).handledRequests(0), false);
@@ -376,7 +416,12 @@ contract RequestTest is SuccinctGatewayTest {
         emit Call(functionId, INPUT_HASH, OUTPUT_HASH);
         vm.prank(prover);
         SuccinctGateway(gateway).fulfillCall(
-            functionId, input, output, proof, callAddress, callData
+            functionId,
+            input,
+            output,
+            proof,
+            callAddress,
+            callData
         );
 
         assertEq(TestConsumer(consumer).handledRequests(0), true);
@@ -391,13 +436,23 @@ contract RequestTest is SuccinctGatewayTest {
         bytes memory output = OUTPUT;
         bytes memory proof = PROOF;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
+        bytes memory callData = abi.encodeWithSelector(
+            TestConsumer.handleCall.selector
+        );
         uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
         uint256 fee = DEFAULT_FEE;
 
         // Request
         vm.expectEmit(true, true, true, true, gateway);
-        emit RequestCall(functionId, input, callAddress, callData, callGasLimit, consumer, fee);
+        emit RequestCall(
+            functionId,
+            input,
+            callAddress,
+            callData,
+            callGasLimit,
+            consumer,
+            fee
+        );
         TestConsumer(consumer).requestCall{value: fee}();
 
         assertEq(TestConsumer(consumer).handledRequests(0), false);
@@ -407,7 +462,12 @@ contract RequestTest is SuccinctGatewayTest {
         emit Call(functionId, INPUT_HASH, OUTPUT_HASH);
         vm.prank(prover);
         SuccinctGateway(gateway).fulfillCall(
-            functionId, input, output, proof, callAddress, callData
+            functionId,
+            input,
+            output,
+            proof,
+            callAddress,
+            callData
         );
 
         assertEq(TestConsumer(consumer).handledRequests(0), true);
@@ -419,7 +479,9 @@ contract RequestTest is SuccinctGatewayTest {
         bytes memory output = OUTPUT;
         bytes memory proof = PROOF;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
+        bytes memory callData = abi.encodeWithSelector(
+            TestConsumer.handleCall.selector
+        );
         uint256 fee = DEFAULT_FEE;
 
         // Request
@@ -429,7 +491,12 @@ contract RequestTest is SuccinctGatewayTest {
         vm.expectRevert(abi.encodeWithSelector(OnlyProver.selector, sender));
         vm.prank(sender);
         SuccinctGateway(gateway).fulfillCall(
-            functionId, input, output, proof, callAddress, callData
+            functionId,
+            input,
+            output,
+            proof,
+            callAddress,
+            callData
         );
     }
 
@@ -453,7 +520,9 @@ contract RequestTest is SuccinctGatewayTest {
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
 
         // Verify call
-        vm.expectRevert(abi.encodeWithSelector(InvalidCall.selector, functionId, input));
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidCall.selector, functionId, input)
+        );
         TestConsumer(consumer).verifiedCall();
     }
 }
@@ -467,12 +536,17 @@ contract AttackSuccinctGatewayTest is SuccinctGatewayTest {
         // Deploy Verifier
         bytes32 functionId;
         vm.prank(sender);
-        (functionId, verifier) = IFunctionRegistry(gateway).deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "attack-verifier"
-        );
+        (functionId, verifier) = IFunctionRegistry(gateway)
+            .deployAndRegisterFunction(
+                owner,
+                type(TestFunctionVerifier1).creationCode,
+                "attack-verifier"
+            );
 
         // Deploy AttackConsumer
-        attackConsumer = payable(address(new AttackConsumer(gateway, functionId, INPUT)));
+        attackConsumer = payable(
+            address(new AttackConsumer(gateway, functionId, INPUT))
+        );
 
         vm.deal(attackConsumer, DEFAULT_FEE);
     }
@@ -483,13 +557,18 @@ contract AttackSuccinctGatewayTest is SuccinctGatewayTest {
         bytes32 functionId = AttackConsumer(attackConsumer).FUNCTION_ID();
         bytes32 inputHash = INPUT_HASH;
         address callbackAddress = attackConsumer;
-        bytes4 callbackSelector = AttackConsumer.handleCallbackReenterCallback.selector;
-        uint32 callbackGasLimit = AttackConsumer(attackConsumer).CALLBACK_GAS_LIMIT();
+        bytes4 callbackSelector = AttackConsumer
+            .handleCallbackReenterCallback
+            .selector;
+        uint32 callbackGasLimit = AttackConsumer(attackConsumer)
+            .CALLBACK_GAS_LIMIT();
         uint256 fee = DEFAULT_FEE;
 
         // Request
         vm.prank(sender);
-        AttackConsumer(attackConsumer).requestCallbackReenterCallback{value: fee}();
+        AttackConsumer(attackConsumer).requestCallbackReenterCallback{
+            value: fee
+        }();
 
         // Fulfill (test fails this doesn't revert with ReentrantFulfill() error)
         vm.prank(prover);
@@ -512,8 +591,11 @@ contract AttackSuccinctGatewayTest is SuccinctGatewayTest {
         bytes32 functionId = AttackConsumer(attackConsumer).FUNCTION_ID();
         bytes32 inputHash = INPUT_HASH;
         address callbackAddress = attackConsumer;
-        bytes4 callbackSelector = AttackConsumer.handleCallbackReenterCall.selector;
-        uint32 callbackGasLimit = AttackConsumer(attackConsumer).CALLBACK_GAS_LIMIT();
+        bytes4 callbackSelector = AttackConsumer
+            .handleCallbackReenterCall
+            .selector;
+        uint32 callbackGasLimit = AttackConsumer(attackConsumer)
+            .CALLBACK_GAS_LIMIT();
         uint256 fee = DEFAULT_FEE;
 
         // Request
@@ -541,8 +623,9 @@ contract AttackSuccinctGatewayTest is SuccinctGatewayTest {
         bytes memory proof = PROOF;
         bytes32 functionId = AttackConsumer(attackConsumer).FUNCTION_ID();
         address callAddress = attackConsumer;
-        bytes memory callData =
-            abi.encodeWithSelector(AttackConsumer.handleCallReenterCallback.selector);
+        bytes memory callData = abi.encodeWithSelector(
+            AttackConsumer.handleCallReenterCallback.selector
+        );
         uint256 fee = DEFAULT_FEE;
 
         // Request
@@ -552,7 +635,12 @@ contract AttackSuccinctGatewayTest is SuccinctGatewayTest {
         // Fulfill (test fails this doesn't revert with ReentrantFulfill() error)
         vm.prank(prover);
         SuccinctGateway(gateway).fulfillCall(
-            functionId, input, output, proof, callAddress, callData
+            functionId,
+            input,
+            output,
+            proof,
+            callAddress,
+            callData
         );
     }
 
@@ -562,8 +650,9 @@ contract AttackSuccinctGatewayTest is SuccinctGatewayTest {
         bytes memory proof = PROOF;
         bytes32 functionId = AttackConsumer(attackConsumer).FUNCTION_ID();
         address callAddress = attackConsumer;
-        bytes memory callData =
-            abi.encodeWithSelector(AttackConsumer.handleCallReenterCall.selector);
+        bytes memory callData = abi.encodeWithSelector(
+            AttackConsumer.handleCallReenterCall.selector
+        );
         uint256 fee = DEFAULT_FEE;
 
         // Request
@@ -573,7 +662,12 @@ contract AttackSuccinctGatewayTest is SuccinctGatewayTest {
         // Fulfill (test fails this doesn't revert with ReentrantFulfill() error)
         vm.prank(prover);
         SuccinctGateway(gateway).fulfillCall(
-            functionId, input, output, proof, callAddress, callData
+            functionId,
+            input,
+            output,
+            proof,
+            callAddress,
+            callData
         );
     }
 }
@@ -584,8 +678,10 @@ contract FunctionRegistryTest is
     IFunctionRegistryErrors
 {
     function test_RegisterFunction() public {
-        bytes32 expectedFunctionId1 =
-            IFunctionRegistry(gateway).getFunctionId(owner, "test-verifier1");
+        bytes32 expectedFunctionId1 = IFunctionRegistry(gateway).getFunctionId(
+            owner,
+            "test-verifier1"
+        );
 
         // Deploy verifier
         address verifier1;
@@ -597,18 +693,34 @@ contract FunctionRegistryTest is
 
         // Register function
         vm.expectEmit(true, true, true, true, gateway);
-        emit FunctionRegistered(expectedFunctionId1, verifier1, "test-verifier1", owner);
-        bytes32 functionId1 =
-            IFunctionRegistry(gateway).registerFunction(owner, verifier1, "test-verifier1");
+        emit FunctionRegistered(
+            expectedFunctionId1,
+            verifier1,
+            "test-verifier1",
+            owner
+        );
+        bytes32 functionId1 = IFunctionRegistry(gateway).registerFunction(
+            owner,
+            verifier1,
+            "test-verifier1"
+        );
 
         assertEq(functionId1, expectedFunctionId1);
-        assertEq(IFunctionRegistry(gateway).verifiers(expectedFunctionId1), verifier1);
-        assertEq(IFunctionRegistry(gateway).verifierOwners(expectedFunctionId1), owner);
+        assertEq(
+            IFunctionRegistry(gateway).verifiers(expectedFunctionId1),
+            verifier1
+        );
+        assertEq(
+            IFunctionRegistry(gateway).verifierOwners(expectedFunctionId1),
+            owner
+        );
     }
 
     function test_RegisterFunction_WhenOwnerIsSender() public {
-        bytes32 expectedFunctionId1 =
-            IFunctionRegistry(gateway).getFunctionId(owner, "test-verifier1");
+        bytes32 expectedFunctionId1 = IFunctionRegistry(gateway).getFunctionId(
+            owner,
+            "test-verifier1"
+        );
 
         // Deploy verifier
         address verifier1;
@@ -620,21 +732,38 @@ contract FunctionRegistryTest is
 
         // Register function
         vm.expectEmit(true, true, true, true, gateway);
-        emit FunctionRegistered(expectedFunctionId1, verifier1, "test-verifier1", owner);
+        emit FunctionRegistered(
+            expectedFunctionId1,
+            verifier1,
+            "test-verifier1",
+            owner
+        );
         vm.prank(owner);
-        bytes32 functionId1 =
-            IFunctionRegistry(gateway).registerFunction(owner, verifier1, "test-verifier1");
+        bytes32 functionId1 = IFunctionRegistry(gateway).registerFunction(
+            owner,
+            verifier1,
+            "test-verifier1"
+        );
 
         assertEq(functionId1, expectedFunctionId1);
-        assertEq(IFunctionRegistry(gateway).verifiers(expectedFunctionId1), verifier1);
-        assertEq(IFunctionRegistry(gateway).verifierOwners(expectedFunctionId1), owner);
+        assertEq(
+            IFunctionRegistry(gateway).verifiers(expectedFunctionId1),
+            verifier1
+        );
+        assertEq(
+            IFunctionRegistry(gateway).verifierOwners(expectedFunctionId1),
+            owner
+        );
     }
 
     function test_RevertRegisterFunction_WhenAlreadyRegistered() public {
         // Deploy verifier
         address verifier1;
         bytes memory bytecode = type(TestFunctionVerifier1).creationCode;
-        bytes32 salt = IFunctionRegistry(gateway).getFunctionId(owner, "test-verifier1");
+        bytes32 salt = IFunctionRegistry(gateway).getFunctionId(
+            owner,
+            "test-verifier1"
+        );
         assembly {
             verifier1 := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
@@ -642,28 +771,49 @@ contract FunctionRegistryTest is
         // Register function
         vm.expectEmit(true, true, true, true, gateway);
         emit FunctionRegistered(salt, verifier1, "test-verifier1", owner);
-        IFunctionRegistry(gateway).registerFunction(owner, verifier1, "test-verifier1");
+        IFunctionRegistry(gateway).registerFunction(
+            owner,
+            verifier1,
+            "test-verifier1"
+        );
 
         // Register function again
-        vm.expectRevert(abi.encodeWithSelector(FunctionAlreadyRegistered.selector, salt));
-        IFunctionRegistry(gateway).registerFunction(owner, verifier1, "test-verifier1");
+        vm.expectRevert(
+            abi.encodeWithSelector(FunctionAlreadyRegistered.selector, salt)
+        );
+        IFunctionRegistry(gateway).registerFunction(
+            owner,
+            verifier1,
+            "test-verifier1"
+        );
     }
 
     function test_DeployAndRegisterFunction() public {
-        bytes32 expectedFunctionId1 =
-            IFunctionRegistry(gateway).getFunctionId(owner, "test-verifier1");
+        bytes32 expectedFunctionId1 = IFunctionRegistry(gateway).getFunctionId(
+            owner,
+            "test-verifier1"
+        );
 
         // Deploy verifier and register function
         vm.expectEmit(true, false, false, true, gateway);
         emit Deployed(
-            keccak256(type(TestFunctionVerifier1).creationCode), expectedFunctionId1, address(0)
+            keccak256(type(TestFunctionVerifier1).creationCode),
+            expectedFunctionId1,
+            address(0)
         );
         vm.expectEmit(true, true, true, false, gateway);
-        emit FunctionRegistered(expectedFunctionId1, address(0), "test-verifier1", owner);
+        emit FunctionRegistered(
+            expectedFunctionId1,
+            address(0),
+            "test-verifier1",
+            owner
+        );
         (bytes32 functionId1, address verifier1) = IFunctionRegistry(gateway)
             .deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
-        );
+                owner,
+                type(TestFunctionVerifier1).creationCode,
+                "test-verifier1"
+            );
 
         assertEq(functionId1, expectedFunctionId1);
         assertEq(IFunctionRegistry(gateway).verifiers(functionId1), verifier1);
@@ -671,47 +821,74 @@ contract FunctionRegistryTest is
     }
 
     function test_DeployAndRegisterFunction_WhenOwnerIsSender() public {
-        bytes32 expectedFunctionId1 =
-            IFunctionRegistry(gateway).getFunctionId(owner, "test-verifier1");
+        bytes32 expectedFunctionId1 = IFunctionRegistry(gateway).getFunctionId(
+            owner,
+            "test-verifier1"
+        );
 
         // Deploy verifier and register function
         vm.expectEmit(true, false, false, true, gateway);
         emit Deployed(
-            keccak256(type(TestFunctionVerifier1).creationCode), expectedFunctionId1, address(0)
+            keccak256(type(TestFunctionVerifier1).creationCode),
+            expectedFunctionId1,
+            address(0)
         );
         vm.expectEmit(true, true, true, false, gateway);
-        emit FunctionRegistered(expectedFunctionId1, address(0), "test-verifier1", owner);
+        emit FunctionRegistered(
+            expectedFunctionId1,
+            address(0),
+            "test-verifier1",
+            owner
+        );
         vm.prank(owner);
         (bytes32 functionId1, address verifier1) = IFunctionRegistry(gateway)
             .deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
-        );
+                owner,
+                type(TestFunctionVerifier1).creationCode,
+                "test-verifier1"
+            );
 
         assertEq(functionId1, expectedFunctionId1);
         assertEq(IFunctionRegistry(gateway).verifiers(functionId1), verifier1);
         assertEq(IFunctionRegistry(gateway).verifierOwners(functionId1), owner);
     }
 
-    function test_RevertDeployAndRegisterFunction_WhenAlreadyRegistered() public {
+    function test_RevertDeployAndRegisterFunction_WhenAlreadyRegistered()
+        public
+    {
         // Deploy verifier and register function
-        (bytes32 functionId1,) = IFunctionRegistry(gateway).deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
-        );
+        (bytes32 functionId1, ) = IFunctionRegistry(gateway)
+            .deployAndRegisterFunction(
+                owner,
+                type(TestFunctionVerifier1).creationCode,
+                "test-verifier1"
+            );
 
         // Deploy verifier and register function again
-        vm.expectRevert(abi.encodeWithSelector(FunctionAlreadyRegistered.selector, functionId1));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FunctionAlreadyRegistered.selector,
+                functionId1
+            )
+        );
         IFunctionRegistry(gateway).deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
+            owner,
+            type(TestFunctionVerifier1).creationCode,
+            "test-verifier1"
         );
     }
 
     function test_UpdateFunction() public {
-        bytes32 expectedFunctionId1 =
-            IFunctionRegistry(gateway).getFunctionId(owner, "test-verifier1");
+        bytes32 expectedFunctionId1 = IFunctionRegistry(gateway).getFunctionId(
+            owner,
+            "test-verifier1"
+        );
 
         // Deploy verifier and register function
         IFunctionRegistry(gateway).deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
+            owner,
+            type(TestFunctionVerifier1).creationCode,
+            "test-verifier1"
         );
 
         // Deploy verifier
@@ -726,7 +903,10 @@ contract FunctionRegistryTest is
         vm.expectEmit(true, true, true, true, gateway);
         emit FunctionVerifierUpdated(expectedFunctionId1, verifier2);
         vm.prank(owner);
-        bytes32 functionId1 = IFunctionRegistry(gateway).updateFunction(verifier2, "test-verifier1");
+        bytes32 functionId1 = IFunctionRegistry(gateway).updateFunction(
+            verifier2,
+            "test-verifier1"
+        );
 
         assertEq(functionId1, expectedFunctionId1);
         assertEq(IFunctionRegistry(gateway).verifiers(functionId1), verifier2);
@@ -735,9 +915,12 @@ contract FunctionRegistryTest is
 
     function test_RevertUpdateFunction_WhenNotOwner() public {
         // Deploy verifier and register function
-        (bytes32 functionId,) = IFunctionRegistry(gateway).deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
-        );
+        (bytes32 functionId, ) = IFunctionRegistry(gateway)
+            .deployAndRegisterFunction(
+                owner,
+                type(TestFunctionVerifier1).creationCode,
+                "test-verifier1"
+            );
 
         // Deploy verifier
         address verifier2;
@@ -749,7 +932,13 @@ contract FunctionRegistryTest is
 
         // Update function
         vm.prank(sender);
-        vm.expectRevert(abi.encodeWithSelector(NotFunctionOwner.selector, sender, address(0)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NotFunctionOwner.selector,
+                sender,
+                address(0)
+            )
+        );
         IFunctionRegistry(gateway).updateFunction(verifier2, "test-verifier1");
     }
 
@@ -763,7 +952,9 @@ contract FunctionRegistryTest is
         }
 
         // Update function
-        vm.expectRevert(abi.encodeWithSelector(NotFunctionOwner.selector, owner, address(0)));
+        vm.expectRevert(
+            abi.encodeWithSelector(NotFunctionOwner.selector, owner, address(0))
+        );
         vm.prank(owner);
         IFunctionRegistry(gateway).updateFunction(verifier2, "test-verifier1");
     }
@@ -772,34 +963,47 @@ contract FunctionRegistryTest is
         // Deploy verifier and register function
         (bytes32 functionId1, address verifier1) = IFunctionRegistry(gateway)
             .deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
-        );
+                owner,
+                type(TestFunctionVerifier1).creationCode,
+                "test-verifier1"
+            );
 
         // Update function
-        vm.expectRevert(abi.encodeWithSelector(VerifierAlreadyUpdated.selector, functionId1));
+        vm.expectRevert(
+            abi.encodeWithSelector(VerifierAlreadyUpdated.selector, functionId1)
+        );
         vm.prank(owner);
         IFunctionRegistry(gateway).updateFunction(verifier1, "test-verifier1");
     }
 
     function test_deployAndUpdateFunction() public {
-        bytes32 expectedFunctionId1 =
-            IFunctionRegistry(gateway).getFunctionId(owner, "test-verifier1");
+        bytes32 expectedFunctionId1 = IFunctionRegistry(gateway).getFunctionId(
+            owner,
+            "test-verifier1"
+        );
 
         // Deploy verifier and register function
         IFunctionRegistry(gateway).deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
+            owner,
+            type(TestFunctionVerifier1).creationCode,
+            "test-verifier1"
         );
 
         // Deploy verifier and update function
         vm.expectEmit(true, false, false, true, gateway);
         emit Deployed(
-            keccak256(type(TestFunctionVerifier2).creationCode), expectedFunctionId1, address(0)
+            keccak256(type(TestFunctionVerifier2).creationCode),
+            expectedFunctionId1,
+            address(0)
         );
         vm.expectEmit(true, true, true, false, gateway);
         emit FunctionVerifierUpdated(expectedFunctionId1, address(0));
         vm.prank(owner);
         (bytes32 functionId1, address verifier2) = IFunctionRegistry(gateway)
-            .deployAndUpdateFunction(type(TestFunctionVerifier2).creationCode, "test-verifier1");
+            .deployAndUpdateFunction(
+                type(TestFunctionVerifier2).creationCode,
+                "test-verifier1"
+            );
 
         assertEq(functionId1, expectedFunctionId1);
         assertEq(IFunctionRegistry(gateway).verifiers(functionId1), verifier2);
@@ -809,37 +1013,52 @@ contract FunctionRegistryTest is
     function test_RevertDeployAndUpdateFunction_WhenNotOwner() public {
         // Deploy verifier and register function
         IFunctionRegistry(gateway).deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
+            owner,
+            type(TestFunctionVerifier1).creationCode,
+            "test-verifier1"
         );
 
         // Deploy verifier and update function
         vm.prank(sender);
-        vm.expectRevert(abi.encodeWithSelector(NotFunctionOwner.selector, sender, address(0)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NotFunctionOwner.selector,
+                sender,
+                address(0)
+            )
+        );
         IFunctionRegistry(gateway).deployAndUpdateFunction(
-            type(TestFunctionVerifier2).creationCode, "test-verifier1"
+            type(TestFunctionVerifier2).creationCode,
+            "test-verifier1"
         );
     }
 
     function test_RevertDeployAndUpdateFunction_WhenNeverRegistered() public {
         // Deploy verifier and update function
-        vm.expectRevert(abi.encodeWithSelector(NotFunctionOwner.selector, owner, address(0)));
+        vm.expectRevert(
+            abi.encodeWithSelector(NotFunctionOwner.selector, owner, address(0))
+        );
         vm.prank(owner);
         IFunctionRegistry(gateway).deployAndUpdateFunction(
-            type(TestFunctionVerifier1).creationCode, "test-verifier1"
+            type(TestFunctionVerifier1).creationCode,
+            "test-verifier1"
         );
     }
 
     function test_RevertDeployAndUpdateFunction_WhenBytecodeSame() public {
         // Deploy verifier and register function
         IFunctionRegistry(gateway).deployAndRegisterFunction(
-            owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
+            owner,
+            type(TestFunctionVerifier1).creationCode,
+            "test-verifier1"
         );
 
         // Deploy verifier and update function
         vm.expectRevert(abi.encodeWithSelector(FailedDeploy.selector));
         vm.prank(owner);
         IFunctionRegistry(gateway).deployAndUpdateFunction(
-            type(TestFunctionVerifier1).creationCode, "test-verifier1"
+            type(TestFunctionVerifier1).creationCode,
+            "test-verifier1"
         );
     }
 }
@@ -850,29 +1069,45 @@ contract UpdateProverTest is SuccinctGatewayTest {
 
         vm.prank(guardian);
         SuccinctGateway(gateway).addProver(newProver);
-        assertEq(SuccinctGateway(gateway).allowedProvers(newProver), true);
+        assertEq(
+            SuccinctGateway(gateway).allowedProvers(bytes32(0), newProver),
+            true
+        );
     }
 
     function test_RevertAddProver_WhenNotGuardian() public {
         address newProver = makeAddr("new-prover");
 
-        vm.expectRevert(abi.encodeWithSignature("OnlyGuardian(address)", sender));
+        vm.expectRevert(
+            abi.encodeWithSignature("OnlyGuardian(address)", sender)
+        );
         vm.prank(sender);
         SuccinctGateway(gateway).addProver(newProver);
-        assertEq(SuccinctGateway(gateway).allowedProvers(newProver), false);
+        assertEq(
+            SuccinctGateway(gateway).allowedProvers(bytes32(0), newProver),
+            false
+        );
     }
 
     function test_RemoveProver() public {
         vm.prank(guardian);
         SuccinctGateway(gateway).removeProver(prover);
-        assertEq(SuccinctGateway(gateway).allowedProvers(prover), false);
+        assertEq(
+            SuccinctGateway(gateway).allowedProvers(bytes32(0), prover),
+            false
+        );
     }
 
     function test_RevertRemoveProver_WhenNotGuardian() public {
-        vm.expectRevert(abi.encodeWithSignature("OnlyGuardian(address)", sender));
+        vm.expectRevert(
+            abi.encodeWithSignature("OnlyGuardian(address)", sender)
+        );
         vm.prank(sender);
         SuccinctGateway(gateway).removeProver(prover);
-        assertEq(SuccinctGateway(gateway).allowedProvers(prover), true);
+        assertEq(
+            SuccinctGateway(gateway).allowedProvers(bytes32(0), prover),
+            true
+        );
     }
 }
 
@@ -881,7 +1116,9 @@ contract SetFeeVaultTest is SuccinctGatewayTest {
         bytes32 functionId = TestConsumer(consumer).FUNCTION_ID();
         bytes memory input = INPUT;
         address callAddress = consumer;
-        bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
+        bytes memory callData = abi.encodeWithSelector(
+            TestConsumer.handleCall.selector
+        );
         uint32 callGasLimit = TestConsumer(consumer).CALLBACK_GAS_LIMIT();
         uint256 fee = DEFAULT_FEE;
         address newFeeVault = address(new SuccinctFeeVault());
@@ -896,7 +1133,15 @@ contract SetFeeVaultTest is SuccinctGatewayTest {
 
         // Request with fee
         vm.expectEmit(true, true, true, true, gateway);
-        emit RequestCall(functionId, input, callAddress, callData, callGasLimit, consumer, fee);
+        emit RequestCall(
+            functionId,
+            input,
+            callAddress,
+            callData,
+            callGasLimit,
+            consumer,
+            fee
+        );
         TestConsumer(consumer).requestCall{value: fee}();
     }
 
