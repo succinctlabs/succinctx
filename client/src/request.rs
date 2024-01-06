@@ -34,6 +34,7 @@ struct OffchainRequestResponse {
 }
 
 const LOCAL_PROOF_FOLDER: &str = "proofs";
+const LOCAL_STRING: &str = "local";
 
 /// Client to interact with the Succinct X API.
 pub struct SuccinctClient {
@@ -46,7 +47,7 @@ pub struct SuccinctClient {
 
 impl SuccinctClient {
     pub fn new(base_url: String, api_key: String) -> Self {
-        if base_url == "local" {
+        if base_url == LOCAL_STRING {
             info!("Running SuccinctClient in local mode");
         }
         Self {
@@ -56,7 +57,11 @@ impl SuccinctClient {
         }
     }
 
-    pub fn local_mode(
+    pub fn local_mode(&self) -> bool {
+        self.base_url == LOCAL_STRING
+    }
+
+    pub fn submit_local_request(
         &self,
         chain_id: u32,
         to: Address,
@@ -198,8 +203,14 @@ impl SuccinctClient {
         function_id: B256,
         input: Bytes,
     ) -> Result<String> {
-        if self.base_url == "local" {
-            return self.local_mode(chain_id, to, calldata.clone(), function_id, input.clone());
+        if self.local_mode() {
+            return self.submit_local_request(
+                chain_id,
+                to,
+                calldata.clone(),
+                function_id,
+                input.clone(),
+            );
         }
 
         let data = OffchainInput {
