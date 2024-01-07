@@ -385,7 +385,7 @@ impl BeaconClient {
     }
 
     /// Gets the partial balances root based on a beacon_id and the number of expected balances.
-    pub fn get_partial_validators_root(
+    pub async fn get_partial_validators_root(
         &self,
         beacon_id: String,
         nb_balances: usize,
@@ -395,12 +395,46 @@ impl BeaconClient {
             self.rpc_url, beacon_id, nb_balances
         );
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client
-            .get(endpoint)
-            .timeout(Duration::from_secs(900))
-            .send()?;
-        let response: CustomResponse<GetBeaconPartialValidatorsRoot> = response.json()?;
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<GetBeaconPartialValidatorsRoot> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets all of the subtree hashes of validators at `beacon_id`, up to `limit`. Each subtree
+    /// contains `batch_size` validators, so the # of hashes returned will be `limit / batch_size`.
+    pub async fn get_validator_subtrees(
+        &self,
+        batch_size: usize,
+        limit: usize,
+        beacon_id: String,
+    ) -> Result<Vec<String>> {
+        let endpoint = format!(
+            "{}/api/beacon/validator/subtree/{}/{}/root/{}",
+            self.rpc_url, batch_size, limit, beacon_id
+        );
+        info!("{}", endpoint);
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<Vec<String>> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets the `batch_size` validators within a subtree. `get_validator_subtrees` should be called
+    /// first to cache data to S3.
+    pub async fn get_validator_subtree(
+        &self,
+        batch_size: usize,
+        limit: usize,
+        subtree_hash: String,
+    ) -> Result<Vec<BeaconValidator>> {
+        let endpoint = format!(
+            "{}/api/beacon/validator/subtree/{}/{}/partial/{}",
+            self.rpc_url, batch_size, limit, subtree_hash
+        );
+        info!("{}", endpoint);
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<Vec<BeaconValidator>> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
@@ -504,7 +538,7 @@ impl BeaconClient {
     }
 
     /// Gets the partial balances root based on a beacon_id and the number of expected balances.
-    pub fn get_partial_balances_root(
+    pub async fn get_partial_balances_root(
         &self,
         beacon_id: String,
         nb_balances: usize,
@@ -514,12 +548,8 @@ impl BeaconClient {
             self.rpc_url, beacon_id, nb_balances
         );
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client
-            .get(endpoint)
-            .timeout(Duration::from_secs(900))
-            .send()?;
-        let response: CustomResponse<GetBeaconPartialBalancesRoot> = response.json()?;
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<GetBeaconPartialBalancesRoot> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }

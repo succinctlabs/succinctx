@@ -1,4 +1,5 @@
 use array_macro::array;
+use log::debug;
 use plonky2::hash::hash_types::RichField;
 
 use super::{CircuitVariable, Variable};
@@ -54,6 +55,41 @@ impl<const N: usize, V: CircuitVariable> CircuitVariable for [V; N] {
             .collect::<Vec<_>>()
             .try_into()
             .unwrap()
+    }
+}
+
+impl CircuitVariable for () {
+    type ValueType<F: RichField> = ();
+
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(_: &mut CircuitBuilder<L, D>) -> Self {
+        ()
+    }
+
+    fn variables(&self) -> Vec<Variable> {
+        vec![]
+    }
+
+    fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        assert_eq!(variables.len(), 0);
+
+        ()
+    }
+
+    fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(&self, _: &mut CircuitBuilder<L, D>) {
+        ()
+    }
+
+    fn nb_elements() -> usize {
+        0
+    }
+
+    fn elements<F: RichField>(_: Self::ValueType<F>) -> Vec<F> {
+        vec![]
+    }
+
+    fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
+        assert_eq!(elements.len(), 0);
+        ()
     }
 }
 
@@ -132,6 +168,13 @@ impl<V1: CircuitVariable, V2: CircuitVariable, V3: CircuitVariable> CircuitVaria
     }
 
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
+        debug!(
+            "V1: {}, V2: {}, V3: {}",
+            V1::nb_elements(),
+            V2::nb_elements(),
+            V3::nb_elements()
+        );
+        debug!("variables: {}", variables.len());
         assert_eq!(
             variables.len(),
             V1::nb_elements() + V2::nb_elements() + V3::nb_elements()

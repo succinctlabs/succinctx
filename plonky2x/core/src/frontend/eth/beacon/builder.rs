@@ -102,7 +102,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut input_stream = VariableStream::new();
         input_stream.write(&block_root);
 
-        let output_stream = self.hint(input_stream, hint);
+        let output_stream = self.async_hint(input_stream, hint);
         let partial_validators_root = output_stream.read::<Bytes32Variable>(self);
         let nb_branches = BALANCES_PROOF_DEPTH + (VALIDATOR_REGISTRY_LIMIT_LOG2 + 1 - b_log2);
         let mut proof = Vec::new();
@@ -257,7 +257,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut input_stream = VariableStream::new();
         input_stream.write(&block_root);
 
-        let output_stream = self.hint(input_stream, hint);
+        let output_stream = self.async_hint(input_stream, hint);
         let partial_balances_root = output_stream.read::<Bytes32Variable>(self);
         let nb_branches = BALANCES_PROOF_DEPTH + (VALIDATOR_REGISTRY_LIMIT_LOG2 + 1 - b_log2);
         let mut proof = Vec::new();
