@@ -701,7 +701,7 @@ contract FunctionRegistryTest is
         // Deploy verifier and register function again
         // Note: Deployment fails instead of hitting "FunctionAlreadyRegistered" because
         // a contract is already deployed to that address.
-        vm.expectRevert(abi.encodeWithSelector(FailedDeploy.selector, functionId1));
+        vm.expectRevert(FailedDeploy.selector);
         IFunctionRegistry(gateway).deployAndRegisterFunction(
             owner, type(TestFunctionVerifier1).creationCode, "test-verifier1"
         );
