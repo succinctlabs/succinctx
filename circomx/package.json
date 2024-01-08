@@ -1,6 +1,6 @@
 {
     "name": "@succinctlabs/circomx",
-    "version": "0.0.16",
+    "version": "0.0.20",
     "packageManager": "yarn@3.3.0",
     "type": "module",
     "exports": {
