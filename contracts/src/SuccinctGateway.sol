@@ -294,6 +294,16 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         emit ProverUpdated(_prover, false);
     }
 
+    /// @notice Recovers stuck ETH from the contract.
+    /// @param _to The address to send the ETH to.
+    /// @param _amount The wei amount of ETH to send.
+    function recover(address _to, uint256 _amount) external onlyGuardian {
+        (bool success,) = _to.call{value: _amount}("");
+        if (!success) {
+            revert RecoverFailed();
+        }
+    }
+
     /// @dev Computes a unique identifier for a request.
     /// @param _functionId The function identifier.
     /// @param _inputHash The hash of the function input.
