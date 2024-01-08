@@ -169,7 +169,7 @@ impl<L: PlonkParameters<D>, const D: usize> TendermintMerkleTree for CircuitBuil
     ) -> Bytes32Variable {
         let empty_bytes = Bytes32Variable::constant(self, H256::from_slice(&[0u8; 32]));
 
-        // Extend leaf_hashes and leaves_enabled to be a power of 2.
+        // Extend leaf_hashes to be a power of 2.
         let padded_nb_leaves = pow(2, log2_ceil_usize(MAX_NB_LEAVES));
         assert!(padded_nb_leaves >= MAX_NB_LEAVES && padded_nb_leaves.is_power_of_two());
 
