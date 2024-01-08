@@ -16,6 +16,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @param _salt The salt to use for calculating the function ID.
     function registerFunction(address _owner, address _verifier, bytes32 _salt)
         external
+        override
         returns (bytes32 functionId)
     {
         functionId = getFunctionId(_owner, _salt);
@@ -37,6 +38,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @param _salt The salt to use for calculating the function ID.
     function deployAndRegisterFunction(address _owner, bytes memory _bytecode, bytes32 _salt)
         external
+        override
         returns (bytes32 functionId, address verifier)
     {
         functionId = getFunctionId(_owner, _salt);
@@ -80,6 +82,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @param _salt The salt that was used when registering this function ID.
     function deployAndUpdateFunction(bytes memory _bytecode, bytes32 _salt)
         external
+        override
         returns (bytes32 functionId, address verifier)
     {
         functionId = getFunctionId(msg.sender, _salt);
@@ -98,6 +101,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     function getFunctionId(address _owner, bytes32 _salt)
         public
         pure
+        override
         returns (bytes32 functionId)
     {
         functionId = keccak256(abi.encode(_owner, _salt));
