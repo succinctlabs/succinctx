@@ -83,7 +83,7 @@ impl SuccinctClient {
         // Generate a new request_id randomly using uuid
         let request_id = Uuid::new_v4().to_string();
 
-        // Create a file `input.json` with { "input": input } and saves to to `LOCAL_PROOF_FOLDER/{request_id}_input.json`
+        // Create a file `input.json` with proof inputs and saves to to `proofs/{request_id}_input.json`
         let input_file = format!("{}/{}_input.json", LOCAL_PROOF_FOLDER, request_id);
         // The input_data should be of the type "ProofRequest" in plonky2x/core/src/backend/function/request.rs
         let input_data = serde_json::to_string(
@@ -121,36 +121,9 @@ impl SuccinctClient {
             ])
             .env("PROVER", "local")
             .env("RUST_LOG", "info")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
             .spawn()?;
-
-        // Create a reader for stdout
-        let stdout = BufReader::new(child.stdout.take().expect("Failed to open stdout"));
-        let stderr = BufReader::new(child.stderr.take().expect("Failed to open stderr"));
-
-        // Handle stdout in a separate thread
-        let stdout_handle = thread::spawn(move || {
-            for line in stdout.lines() {
-                match line {
-                    Ok(line) => println!("stdout: {}", line),
-                    Err(e) => eprintln!("error: {}", e),
-                }
-            }
-        });
-
-        // Handle stderr in the main thread
-        for line in stderr.lines() {
-            match line {
-                Ok(line) => eprintln!("stderr: {}", line),
-                Err(e) => eprintln!("error: {}", e),
-            }
-        }
-
-        // Wait for the stdout thread to finish
-        stdout_handle
-            .join()
-            .expect("The stdout thread has panicked");
 
         // Check for command execution success
         let status = child.wait()?;
@@ -175,7 +148,7 @@ impl SuccinctClient {
             .ok_or_else(|| Error::msg("Output not found in output.json"))?
             .to_string();
 
-        // Save to {request_id}.json
+        // Save to proofs/{request_id}.json
         let output_file = format!("{}/{}.json", LOCAL_PROOF_FOLDER, request_id);
         let final_data = json_macro!({
             "chain_id": chain_id,
@@ -188,8 +161,9 @@ impl SuccinctClient {
         });
         fs::write(output_file, serde_json::to_string(&final_data)?)?;
 
-        // Delete output.json file
+        // Delete the input and output.json file
         fs::remove_file("output.json")?;
+        fs::remove_file(input_file)?;
 
         Ok(request_id)
     }
