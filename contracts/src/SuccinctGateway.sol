@@ -27,7 +27,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     bytes public verifiedOutput;
 
     /// @notice A flag that indicates whether the contract is currently making a callback.
-    bool public isCallback;
+    bool public override isCallback;
 
     /// @notice The allowed provers that can fulfill requests.
     mapping(address => bool) public allowedProvers;
@@ -82,7 +82,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         bytes memory _context,
         bytes4 _callbackSelector,
         uint32 _callbackGasLimit
-    ) external payable returns (bytes32) {
+    ) external payable override returns (bytes32) {
         // Compute the callback hash uniquely associated with this request.
         bytes32 inputHash = sha256(_input);
         bytes32 contextHash = keccak256(_context);
@@ -134,7 +134,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         address _entryAddress,
         bytes memory _entryCalldata,
         uint32 _entryGasLimit
-    ) external payable {
+    ) external payable override {
         // Emit event.
         emit RequestCall(
             _functionId,
@@ -159,6 +159,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     function verifiedCall(bytes32 _functionId, bytes memory _input)
         external
         view
+        override
         returns (bytes memory)
     {
         bytes32 inputHash = sha256(_input);
