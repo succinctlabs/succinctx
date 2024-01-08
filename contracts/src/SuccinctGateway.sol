@@ -290,7 +290,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     /// @notice Remove the specified prover.
     /// @param _prover The address of the prover to remove.
     function removeProver(address _prover) external onlyGuardian {
-        allowedProvers[_prover] = false;
+        delete allowedProvers[_prover];
         emit ProverUpdated(_prover, false);
     }
 
