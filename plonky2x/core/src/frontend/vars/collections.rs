@@ -61,9 +61,7 @@ impl<const N: usize, V: CircuitVariable> CircuitVariable for [V; N] {
 impl CircuitVariable for () {
     type ValueType<F: RichField> = ();
 
-    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(_: &mut CircuitBuilder<L, D>) -> Self {
-        ()
-    }
+    fn init_unsafe<L: PlonkParameters<D>, const D: usize>(_: &mut CircuitBuilder<L, D>) -> Self {}
 
     fn variables(&self) -> Vec<Variable> {
         vec![]
@@ -71,12 +69,9 @@ impl CircuitVariable for () {
 
     fn from_variables_unsafe(variables: &[Variable]) -> Self {
         assert_eq!(variables.len(), 0);
-
-        ()
     }
 
     fn assert_is_valid<L: PlonkParameters<D>, const D: usize>(&self, _: &mut CircuitBuilder<L, D>) {
-        ()
     }
 
     fn nb_elements() -> usize {
@@ -89,7 +84,6 @@ impl CircuitVariable for () {
 
     fn from_elements<F: RichField>(elements: &[F]) -> Self::ValueType<F> {
         assert_eq!(elements.len(), 0);
-        ()
     }
 }
 

@@ -78,18 +78,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
             AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
     {
-        debug!("1");
         let mut builder = CircuitBuilder::<L, D>::new();
         builder.beacon_client = self.beacon_client.clone();
         builder.execution_client = self.execution_client.clone();
 
         // Read the inputs.
         let data = builder.read::<MapReduceInputVariable<Ctx, Input, B>>();
-        debug!("2");
 
         // Apply the map function.
         let output = map_fn(data.clone().ctx, data.clone().inputs, &mut builder);
-        debug!("3");
 
         // Compute the leaf hash for the input.
         let input_variables = data
@@ -100,7 +97,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .flat_map(|i| i.variables())
             .collect_vec();
         let acc = builder.poseidon_hash(&input_variables);
-        debug!("4");
 
         // Write result.
         let result = MapReduceOutputVariable {
@@ -108,9 +104,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             acc,
             output,
         };
-        debug!("5");
         builder.write(result);
-        debug!("6");
         builder.build()
     }
 
@@ -180,7 +174,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         MapFn: Fn(Ctx, ArrayVariable<Input, B>, &mut CircuitBuilder<L, D>) -> Output,
         ReduceFn: Fn(Ctx, Output, Output, &mut CircuitBuilder<L, D>) -> Output,
     {
-        debug!("starting mapreduce");
         // Sanity checks.
         assert_eq!(inputs.len() % B, 0, "inputs length must be a multiple of B");
         assert!(

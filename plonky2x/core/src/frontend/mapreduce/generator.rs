@@ -88,7 +88,6 @@ where
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
     ) {
-        debug!("starting mapreduce static");
         // Create the prover and the async runtime.
         let prover = EnvProver::new();
 
@@ -99,8 +98,6 @@ where
         for i in 0..map_input_values.len() / B {
             let mut map_input = PublicInput::Elements(Vec::new());
             let input = array![j => map_input_values[i * B + j].clone(); B];
-            debug!("ctx {:?}", ctx_value);
-            debug!("input {:?}", input);
             map_input.write::<MapReduceInputVariable<Ctx, Input, B>>(MapReduceInputVariableValue {
                 ctx: ctx_value.clone(),
                 inputs: input.to_vec(),
@@ -302,7 +299,6 @@ where
         witness: &PartitionWitness<L::Field>,
         out_buffer: &mut GeneratedValues<L::Field>,
     ) {
-        debug!("gen 1");
         // Create the prover and the async runtime.
         let prover = EnvProver::new();
 
@@ -319,13 +315,11 @@ where
             });
             map_inputs.push(map_input)
         }
-        debug!("gen 2");
 
         // Generate the proofs for the map layer.
         let mut outputs = prover
             .batch_prove::<L, Serializer, D>(&self.map_circuit_id, &map_inputs)
             .unwrap();
-        debug!("gen 3");
 
         // Process each reduce layer.
         let nb_reduce_layers = ((self.inputs.len() / B) as f64).log2().ceil() as usize;
