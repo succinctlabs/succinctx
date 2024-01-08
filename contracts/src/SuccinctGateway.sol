@@ -314,7 +314,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         if (msg.sender != verifierOwners[_functionId]) {
             revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
         }
-        allowedProvers[_functionId][_prover] = false;
+        delete allowedProvers[_functionId][_prover];
         emit ProverUpdated(_functionId, _prover, false);
     }
 
@@ -328,7 +328,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     /// @notice Remove a default prover.
     /// @param _prover The address of the prover to remove.
     function removeDefaultProver(address _prover) external onlyGuardian {
-        allowedProvers[bytes32(0)][_prover] = false;
+        delete allowedProvers[bytes32(0)][_prover];
         emit ProverUpdated(bytes32(0), _prover, false);
     }
 
@@ -337,6 +337,16 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     function setFeeVault(address _feeVault) external onlyGuardian {
         emit SetFeeVault(feeVault, _feeVault);
         feeVault = _feeVault;
+    }
+
+    /// @notice Recovers stuck ETH from the contract.
+    /// @param _to The address to send the ETH to.
+    /// @param _amount The wei amount of ETH to send.
+    function recover(address _to, uint256 _amount) external onlyGuardian {
+        (bool success,) = _to.call{value: _amount}("");
+        if (!success) {
+            revert RecoverFailed();
+        }
     }
 
     /// @dev Computes a unique identifier for a request.

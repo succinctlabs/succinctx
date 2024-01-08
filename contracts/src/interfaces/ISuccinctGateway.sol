@@ -44,6 +44,7 @@ interface ISuccinctGatewayErrors {
     error InvalidProof(address verifier, bytes32 inputHash, bytes32 outputHash, bytes proof);
     error ReentrantFulfill();
     error OnlyProver(bytes32 functionId, address sender);
+    error RecoverFailed();
 }
 
 interface ISuccinctGateway is ISuccinctGatewayEvents, ISuccinctGatewayErrors {
