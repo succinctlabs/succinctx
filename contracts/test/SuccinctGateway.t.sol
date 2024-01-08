@@ -251,6 +251,12 @@ contract RequestTest is SuccinctGatewayTest {
         );
 
         assertEq(TestConsumer(consumer).handledRequests(0), true);
+
+        // Recover ETH
+        vm.prank(guardian);
+        SuccinctGateway(gateway).recover(guardian, fee);
+
+        assertEq(guardian.balance, fee);
     }
 
     function test_RevertCallback_WhenNoRequest() public {
@@ -906,5 +912,28 @@ contract SetFeeVaultTest is SuccinctGatewayTest {
         // Set FeeVault
         vm.expectRevert();
         SuccinctGateway(gateway).setFeeVault(newFeeVault);
+    }
+}
+
+contract RecoverTest is SuccinctGatewayTest {
+    function test_Recover() public {
+        uint256 fee = DEFAULT_FEE;
+        vm.deal(gateway, fee);
+
+        // Recover ETH
+        vm.prank(guardian);
+        SuccinctGateway(gateway).recover(guardian, fee);
+
+        assertEq(guardian.balance, fee);
+    }
+
+    function test_RevertRecover_WhenNotGuardian() public {
+        uint256 fee = DEFAULT_FEE;
+        vm.deal(gateway, fee);
+
+        // Recover ETH
+        vm.expectRevert(abi.encodeWithSignature("OnlyGuardian(address)", sender));
+        vm.prank(sender);
+        SuccinctGateway(gateway).recover(guardian, fee);
     }
 }
