@@ -729,9 +729,18 @@ impl BeaconClient {
         let endpoint = format!("{}/eth/v1/beacon/headers/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
         let response = self.client.fetch_async(&endpoint).await?;
-        let parsed: BeaconData<BeaconHeaderContainer> = response.json().await?;
+        let data = response.text().await?;
+        debug!("data: {}", data);
+        // let parsed: BeaconData<BeaconHeaderContainer> = response.json().await?;
 
-        Ok(parsed.data.header.message)
+        // Ok(parsed.data.header.message)
+        Ok(BeaconHeader {
+            slot: "0".to_string(),
+            proposer_index: "0".to_string(),
+            parent_root: "0x000000".to_string(),
+            state_root: "0x000000".to_string(),
+            body_root: "0x000000".to_string(),
+        })
     }
 
     pub fn get_block_roots(&self, beacon_id: String) -> Result<GetBeaconBlockRoots> {

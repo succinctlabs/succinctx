@@ -32,7 +32,7 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconHistorical
         let result = client
             .get_historical_block(hex!(block_root.as_bytes()).to_string(), target_slot)
             .await
-            .expect("failed to get validators root");
+            .expect("failed to get historical block root");
 
         output_stream.write_value::<Bytes32Variable>(bytes32!(result.target_block_root));
         output_stream.write_value::<ArrayVariable<Bytes32Variable, CLOSE_SLOT_BLOCK_ROOT_DEPTH>>(
