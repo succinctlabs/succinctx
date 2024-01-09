@@ -283,6 +283,17 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         emit Call(_functionId, inputHash, outputHash);
     }
 
+    /// @notice Sets the whitelist status for a function.
+    /// @param _functionId The function identifier.
+    /// @param _status The whitelist status to set.
+    function setWhitelistStatus(bytes32 _functionId, WhitelistStatus _status) external {
+        if (msg.sender != verifierOwners[_functionId]) {
+            revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
+        }
+        whitelistStatus[_functionId] = _status;
+        emit WhitelistStatusUpdated(_functionId, _status);
+    }
+
     /// @notice Add a custom prover.
     /// @param _functionId The function identifier.
     /// @param _prover The address of the prover to add.
@@ -324,17 +335,6 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     function setFeeVault(address _feeVault) external onlyGuardian {
         emit SetFeeVault(feeVault, _feeVault);
         feeVault = _feeVault;
-    }
-
-    /// @notice Sets the whitelist status for a function.
-    /// @param _functionId The function identifier.
-    /// @param _status The whitelist status to set.
-    function setWhitelistStatus(bytes32 _functionId, WhitelistStatus _status) external {
-        if (msg.sender != verifierOwners[_functionId]) {
-            revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
-        }
-        whitelistStatus[_functionId] = _status;
-        emit WhitelistStatusUpdated(_functionId, _status);
     }
 
     /// @dev Computes a unique identifier for a request.
