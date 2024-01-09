@@ -21,15 +21,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
         returns (bytes32 functionId)
     {
         functionId = getFunctionId(_owner, _salt);
-        if (address(verifiers[functionId]) != address(0)) {
-            revert FunctionAlreadyRegistered(functionId); // should call update instead
-        }
-        if (_verifier == address(0)) {
-            revert VerifierCannotBeZero();
-        }
-        verifierOwners[functionId] = _owner;
-        verifiers[functionId] = _verifier;
-
+        _register(functionId, _owner, _verifier);
         emit FunctionRegistered(functionId, _verifier, _salt, _owner);
     }
 
@@ -44,14 +36,8 @@ abstract contract FunctionRegistry is IFunctionRegistry {
         returns (bytes32 functionId, address verifier)
     {
         functionId = getFunctionId(_owner, _salt);
-        if (address(verifiers[functionId]) != address(0)) {
-            revert FunctionAlreadyRegistered(functionId); // should call update instead
-        }
-
-        verifierOwners[functionId] = _owner;
         verifier = _deploy(_bytecode, functionId);
-        verifiers[functionId] = verifier;
-
+        _register(functionId, _owner, verifier);
         emit FunctionRegistered(functionId, verifier, _salt, _owner);
     }
 
@@ -65,17 +51,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
         returns (bytes32 functionId)
     {
         functionId = getFunctionId(msg.sender, _salt);
-        if (msg.sender != verifierOwners[functionId]) {
-            revert NotFunctionOwner(msg.sender, verifierOwners[functionId]);
-        }
-        if (_verifier == address(0)) {
-            revert VerifierCannotBeZero();
-        }
-        if (_verifier == verifiers[functionId]) {
-            revert VerifierAlreadyUpdated(functionId);
-        }
-        verifiers[functionId] = _verifier;
-
+        _update(functionId, _verifier);
         emit FunctionVerifierUpdated(functionId, _verifier);
     }
 
@@ -89,12 +65,8 @@ abstract contract FunctionRegistry is IFunctionRegistry {
         returns (bytes32 functionId, address verifier)
     {
         functionId = getFunctionId(msg.sender, _salt);
-        if (msg.sender != verifierOwners[functionId]) {
-            revert NotFunctionOwner(msg.sender, verifierOwners[functionId]);
-        }
         verifier = _deploy(_bytecode, functionId);
-        verifiers[functionId] = verifier;
-
+        _update(functionId, verifier);
         emit FunctionVerifierUpdated(functionId, verifier);
     }
 
@@ -122,5 +94,29 @@ abstract contract FunctionRegistry is IFunctionRegistry {
         if (deployedAddr == address(0)) revert FailedDeploy();
 
         emit Deployed(keccak256(_bytecode), _salt, deployedAddr);
+    }
+
+    function _register(bytes32 functionId, address _owner, address _verifier) internal {
+        if (_verifier == address(0)) {
+            revert VerifierCannotBeZero();
+        }
+        if (address(verifiers[functionId]) != address(0)) {
+            revert FunctionAlreadyRegistered(functionId); // should call update instead
+        }
+        verifierOwners[functionId] = _owner;
+        verifiers[functionId] = _verifier;
+    }
+
+    function _update(bytes32 functionId, address _verifier) internal {
+        if (_verifier == address(0)) {
+            revert VerifierCannotBeZero();
+        }
+        if (msg.sender != verifierOwners[functionId]) {
+            revert NotFunctionOwner(msg.sender, verifierOwners[functionId]);
+        }
+        if (_verifier == verifiers[functionId]) {
+            revert VerifierAlreadyUpdated(functionId);
+        }
+        verifiers[functionId] = _verifier;
     }
 }
