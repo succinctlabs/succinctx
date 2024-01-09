@@ -1,7 +1,6 @@
-use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::{env, fs, thread};
+use std::{env, fs};
 
 use alloy_primitives::{Address, Bytes, B256};
 use anyhow::{Error, Result};
@@ -33,7 +32,7 @@ struct OffchainRequestResponse {
     request_id: String,
 }
 
-const LOCAL_PROOF_FOLDER: &str = "proofs";
+const LOCAL_PROOF_FOLDER: &str = "./proofs";
 const LOCAL_STRING: &str = "local";
 
 /// Client to interact with the Succinct X API.
