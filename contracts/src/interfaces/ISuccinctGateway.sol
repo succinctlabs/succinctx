@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
+enum WhitelistStatus {
+    Default,
+    Custom,
+    Disabled
+}
+
 interface ISuccinctGatewayEvents {
     event RequestCallback(
         uint32 indexed nonce,
@@ -26,7 +32,8 @@ interface ISuccinctGatewayEvents {
     );
     event Call(bytes32 indexed functionId, bytes32 inputHash, bytes32 outputHash);
     event SetFeeVault(address indexed oldFeeVault, address indexed newFeeVault);
-    event ProverUpdated(address indexed prover, bool added);
+    event ProverUpdated(bytes32 indexed functionId, address indexed prover, bool added);
+    event WhitelistStatusUpdated(bytes32 indexed functionId, WhitelistStatus status);
 }
 
 interface ISuccinctGatewayErrors {
@@ -36,7 +43,7 @@ interface ISuccinctGatewayErrors {
     error CallFailed(address callbackAddress, bytes callbackData);
     error InvalidProof(address verifier, bytes32 inputHash, bytes32 outputHash, bytes proof);
     error ReentrantFulfill();
-    error OnlyProver(address sender);
+    error OnlyProver(bytes32 functionId, address sender);
 }
 
 interface ISuccinctGateway is ISuccinctGatewayEvents, ISuccinctGatewayErrors {
