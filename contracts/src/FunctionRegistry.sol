@@ -5,10 +5,10 @@ import {IFunctionRegistry} from "./interfaces/IFunctionRegistry.sol";
 
 abstract contract FunctionRegistry is IFunctionRegistry {
     /// @notice Maps function IDs to their corresponding verifiers.
-    mapping(bytes32 => address) public verifiers;
+    mapping(bytes32 => address) public override verifiers;
 
     /// @notice Maps function IDs to their corresponding owners.
-    mapping(bytes32 => address) public verifierOwners;
+    mapping(bytes32 => address) public override verifierOwners;
 
     /// @notice Registers a function, using a pre-deployed verifier.
     /// @param _owner The owner of the function.
@@ -59,6 +59,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @param _salt The salt that was used when registering this function ID.
     function updateFunction(address _verifier, bytes32 _salt)
         external
+        override
         returns (bytes32 functionId)
     {
         functionId = getFunctionId(msg.sender, _salt);
