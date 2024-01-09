@@ -1,9 +1,10 @@
+use itertools::Itertools;
 use plonky2::hash::hash_types::HashOut;
 use plonky2::hash::hashing::hash_n_to_hash_no_pad;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 
 use crate::frontend::hash::poseidon::poseidon256::PoseidonHashOutVariable;
-use crate::prelude::{CircuitVariable, PlonkParameters};
+use crate::prelude::{CircuitBuilder, CircuitVariable, PlonkParameters};
 
 pub fn mapreduce_merkle_tree_root<
     L: PlonkParameters<D>,
@@ -62,4 +63,62 @@ where
     }
 
     PoseidonHashOutVariable::from_elements::<L::Field>(&leafs[0])
+}
+
+pub trait MapReducePoseidonBuilderMethods<L: PlonkParameters<D>, const D: usize> {
+    fn mapreduce_merkle_tree_root<Input: CircuitVariable, const B: usize>(
+        &mut self,
+        inputs: &[Input],
+    ) -> PoseidonHashOutVariable
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>;
+}
+
+impl<L: PlonkParameters<D>, const D: usize> MapReducePoseidonBuilderMethods<L, D>
+    for CircuitBuilder<L, D>
+{
+    fn mapreduce_merkle_tree_root<Input: CircuitVariable, const B: usize>(
+        &mut self,
+        inputs: &[Input],
+    ) -> PoseidonHashOutVariable
+    where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+    {
+        assert_eq!(inputs.len() % B, 0, "inputs length must be a multiple of B");
+        let inputs = inputs.to_vec();
+
+        // Calculate leafs.
+        let mut leafs = Vec::new();
+        for i in 0..inputs.len() / B {
+            let input_variables = inputs
+                .iter()
+                .skip(i * B)
+                .take(B)
+                .flat_map(|input| input.variables())
+                .collect_vec();
+            let hash = self.poseidon_hash(&input_variables);
+            leafs.push(hash);
+        }
+
+        assert!(
+            leafs.len().is_power_of_two(),
+            "leafs length must be a power of two"
+        );
+
+        // Calculate the root.
+        while leafs.len() != 1 {
+            let mut tmp = Vec::new();
+            for i in 0..leafs.len() / 2 {
+                let left = leafs[i * 2].clone();
+                let right = leafs[i * 2 + 1].clone();
+                let hash = self.poseidon_hash_pair(left, right);
+                tmp.push(hash);
+            }
+            leafs = tmp;
+        }
+
+        leafs[0].clone()
+    }
 }
