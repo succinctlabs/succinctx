@@ -141,7 +141,7 @@ impl<C: Circuit> Plonky2xFunction for C {
         OuterParameters::Config: Serialize,
     {
         // Setup enviroment variables.
-        env::set_var("BUILD_DIR", args.build_dir);
+        env::set_var("BUILD_DIR", args.build_dir.clone());
 
         // If the request is of type bytes and the wrapper path is not empty, then we need to
         // start the gnark wrapper process.
