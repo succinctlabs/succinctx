@@ -229,8 +229,9 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
 
         // Execute the callback.
         isCallback = true;
-        (bool status,) =
-            _callbackAddress.call(abi.encodeWithSelector(_callbackSelector, _output, _context));
+        (bool status,) = _callbackAddress.call{gas: _callbackGasLimit}(
+            abi.encodeWithSelector(_callbackSelector, _output, _context)
+        );
         isCallback = false;
 
         // If the callback failed, revert.

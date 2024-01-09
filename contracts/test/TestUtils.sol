@@ -32,7 +32,6 @@ contract TestConsumer {
     address public immutable SUCCINCT_GATEWAY;
     bytes32 public immutable FUNCTION_ID;
     bytes public INPUT;
-    uint32 public constant CALLBACK_GAS_LIMIT = 2000000;
 
     uint32 public nonce;
     mapping(uint32 => bool) public handledRequests;
@@ -47,9 +46,9 @@ contract TestConsumer {
         INPUT = _input;
     }
 
-    function requestCallback() external payable {
+    function requestCallback(uint32 _callbackGasLimit) external payable {
         ISuccinctGateway(SUCCINCT_GATEWAY).requestCallback{value: msg.value}(
-            FUNCTION_ID, INPUT, abi.encode(nonce), this.handleCallback.selector, CALLBACK_GAS_LIMIT
+            FUNCTION_ID, INPUT, abi.encode(nonce), this.handleCallback.selector, _callbackGasLimit
         );
 
         nonce++;
@@ -71,13 +70,13 @@ contract TestConsumer {
         handledRequests[nonce - 1] = result;
     }
 
-    function requestCall() external payable {
+    function requestCall(uint32 _callGasLimit) external payable {
         ISuccinctGateway(SUCCINCT_GATEWAY).requestCall{value: msg.value}(
             FUNCTION_ID,
             INPUT,
             address(this),
             abi.encodeWithSelector(this.handleCall.selector),
-            CALLBACK_GAS_LIMIT
+            _callGasLimit
         );
     }
 
