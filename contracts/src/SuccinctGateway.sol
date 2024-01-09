@@ -1,17 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import {ISuccinctGateway} from "./interfaces/ISuccinctGateway.sol";
+import {ISuccinctGateway, WhitelistStatus} from "./interfaces/ISuccinctGateway.sol";
 import {IFunctionVerifier} from "./interfaces/IFunctionVerifier.sol";
 import {FunctionRegistry} from "./FunctionRegistry.sol";
 import {TimelockedUpgradeable} from "./upgrades/TimelockedUpgradeable.sol";
 import {IFeeVault} from "./payments/interfaces/IFeeVault.sol";
-
-enum WhitelistStatus {
-    Default,
-    Custom,
-    Disabled
-}
 
 contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgradeable {
     /// @notice The address of the fee vault.
@@ -52,17 +46,17 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     }
 
     /// @dev Protects functions from being called by anyone other than the prover.
-    modifier onlyProver(bytes32 functionId) {
+    modifier onlyProver(bytes32 _functionId) {
         if (
-            whitelistStatus[functionId] == WhitelistStatus.Default
+            whitelistStatus[_functionId] == WhitelistStatus.Default
                 && !allowedProvers[bytes32(0)][msg.sender]
         ) {
-            revert OnlyProver(functionId, msg.sender);
+            revert OnlyProver(_functionId, msg.sender);
         } else if (
-            whitelistStatus[functionId] == WhitelistStatus.Custom
-                && !allowedProvers[functionId][msg.sender]
+            whitelistStatus[_functionId] == WhitelistStatus.Custom
+                && !allowedProvers[_functionId][msg.sender]
         ) {
-            revert OnlyProver(functionId, msg.sender);
+            revert OnlyProver(_functionId, msg.sender);
         }
         _;
     }
@@ -289,6 +283,42 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         emit Call(_functionId, inputHash, outputHash);
     }
 
+    /// @notice Add a custom prover.
+    /// @param _functionId The function identifier.
+    /// @param _prover The address of the prover to add.
+    function addCustomProver(bytes32 _functionId, address _prover) external {
+        if (msg.sender != verifierOwners[_functionId]) {
+            revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
+        }
+        allowedProvers[_functionId][_prover] = true;
+        emit ProverUpdated(_functionId, _prover, true);
+    }
+
+    /// @notice Remove a custom prover.
+    /// @param _functionId The function identifier.
+    /// @param _prover The address of the prover to remove.
+    function removeCustomProver(bytes32 _functionId, address _prover) external {
+        if (msg.sender != verifierOwners[_functionId]) {
+            revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
+        }
+        allowedProvers[_functionId][_prover] = false;
+        emit ProverUpdated(_functionId, _prover, false);
+    }
+
+    /// @notice Add a default prover.
+    /// @param _prover The address of the prover to add.
+    function addDefaultProver(address _prover) external onlyGuardian {
+        allowedProvers[bytes32(0)][_prover] = true;
+        emit ProverUpdated(bytes32(0), _prover, true);
+    }
+
+    /// @notice Remove a default prover.
+    /// @param _prover The address of the prover to remove.
+    function removeDefaultProver(address _prover) external onlyGuardian {
+        allowedProvers[bytes32(0)][_prover] = false;
+        emit ProverUpdated(bytes32(0), _prover, false);
+    }
+
     /// @notice Sets the fee vault to a new address. Can be set to address(0) to disable fees.
     /// @param _feeVault The address of the fee vault.
     function setFeeVault(address _feeVault) external onlyGuardian {
@@ -296,34 +326,15 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         feeVault = _feeVault;
     }
 
-    /// @notice Add the specified prover.
-    /// @param _prover The address of the prover to add.
-    function addCustomProver(bytes32 functionId, address _prover) external {
-        if (msg.sender != verifierOwners[functionId]) {
-            revert NotFunctionOwner(msg.sender, verifierOwners[functionId]);
+    /// @notice Sets the whitelist status for a function.
+    /// @param _functionId The function identifier.
+    /// @param _status The whitelist status to set.
+    function setWhitelistStatus(bytes32 _functionId, WhitelistStatus _status) external {
+        if (msg.sender != verifierOwners[_functionId]) {
+            revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
         }
-        allowedProvers[functionId][_prover] = true;
-        emit ProverUpdated(functionId, _prover, true);
-    }
-
-    function addProver(address _prover) external onlyGuardian {
-        allowedProvers[bytes32(0)][_prover] = true;
-        emit ProverUpdated(bytes32(0), _prover, true);
-    }
-
-    /// @notice Remove the specified prover.
-    /// @param _prover The address of the prover to remove.
-    function removeCustomProver(bytes32 functionId, address _prover) external {
-        if (msg.sender != verifierOwners[functionId]) {
-            revert NotFunctionOwner(msg.sender, verifierOwners[functionId]);
-        }
-        allowedProvers[functionId][_prover] = false;
-        emit ProverUpdated(functionId, _prover, false);
-    }
-
-    function removeProver(address _prover) external onlyGuardian {
-        allowedProvers[bytes32(0)][_prover] = false;
-        emit ProverUpdated(bytes32(0), _prover, false);
+        whitelistStatus[_functionId] = _status;
+        emit WhitelistStatusUpdated(_functionId, _status);
     }
 
     /// @dev Computes a unique identifier for a request.
