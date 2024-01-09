@@ -11,6 +11,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     mapping(bytes32 => address) public verifierOwners;
 
     /// @notice Registers a function, using a pre-deployed verifier.
+    /// @dev The _owner can be set to address 0 to remove any update capabilities.
     /// @param _owner The owner of the function.
     /// @param _verifier The address of the verifier.
     /// @param _salt The salt to use for calculating the function ID.
@@ -32,6 +33,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     }
 
     /// @notice Registers a function, using CREATE2 to deploy the verifier.
+    /// @dev The _owner can be set to address 0 to remove any update capabilities.
     /// @param _owner The owner of the function.
     /// @param _bytecode The bytecode of the verifier.
     /// @param _salt The salt to use for calculating the function ID.
