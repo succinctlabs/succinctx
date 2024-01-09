@@ -5,10 +5,10 @@ import {IFunctionRegistry} from "./interfaces/IFunctionRegistry.sol";
 
 abstract contract FunctionRegistry is IFunctionRegistry {
     /// @notice Maps function IDs to their corresponding verifiers.
-    mapping(bytes32 => address) public verifiers;
+    mapping(bytes32 => address) public override verifiers;
 
     /// @notice Maps function IDs to their corresponding owners.
-    mapping(bytes32 => address) public verifierOwners;
+    mapping(bytes32 => address) public override verifierOwners;
 
     /// @notice Registers a function, using a pre-deployed verifier.
     /// @dev The _owner can be set to address 0 to remove any update capabilities.
@@ -17,6 +17,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @param _salt The salt to use for calculating the function ID.
     function registerFunction(address _owner, address _verifier, bytes32 _salt)
         external
+        override
         returns (bytes32 functionId)
     {
         functionId = getFunctionId(_owner, _salt);
@@ -39,6 +40,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @param _salt The salt to use for calculating the function ID.
     function deployAndRegisterFunction(address _owner, bytes memory _bytecode, bytes32 _salt)
         external
+        override
         returns (bytes32 functionId, address verifier)
     {
         functionId = getFunctionId(_owner, _salt);
@@ -59,6 +61,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @param _salt The salt that was used when registering this function ID.
     function updateFunction(address _verifier, bytes32 _salt)
         external
+        override
         returns (bytes32 functionId)
     {
         functionId = getFunctionId(msg.sender, _salt);
@@ -82,6 +85,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     /// @param _salt The salt that was used when registering this function ID.
     function deployAndUpdateFunction(bytes memory _bytecode, bytes32 _salt)
         external
+        override
         returns (bytes32 functionId, address verifier)
     {
         functionId = getFunctionId(msg.sender, _salt);
@@ -100,6 +104,7 @@ abstract contract FunctionRegistry is IFunctionRegistry {
     function getFunctionId(address _owner, bytes32 _salt)
         public
         pure
+        override
         returns (bytes32 functionId)
     {
         functionId = keccak256(abi.encode(_owner, _salt));
