@@ -72,7 +72,7 @@ impl SuccinctClient {
         let mount_prove_binary_dir = format!("{}/{}:/build", current_dir_str, prove_binary_dir);
         let mount_verifier_build_dir =
             format!("{}/verifier-build:/verifier-build", current_dir_str);
-        let mount_env_file = format!("{}/.env:.env", current_dir_str);
+        let mount_env_file = format!("{}/.env:/.env", current_dir_str);
 
         let mut child = Command::new("docker")
             .args([
