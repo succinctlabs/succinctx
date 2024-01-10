@@ -60,35 +60,35 @@ impl SuccinctClient {
         self.base_url == LOCAL_STRING
     }
 
-    pub fn build_local_prover_docker_image() -> Result<(), Error> {
-        Command::new("docker")
-            .args(["build", "-t", "local_prover", "./Dockerfile.local_prover"])
-            .status()?;
-
-        Ok(())
-    }
-
     pub fn run_local_prover_docker_image(
         prove_binary_dir: &str,
         prove_file_name: &str,
         input_file: &str,
     ) -> Result<(), Error> {
+        let current_dir = env::current_dir()?;
+        let current_dir_str = current_dir.to_str().unwrap();
+
+        let mount_proofs_dir = format!("{}/proofs:/proofs", current_dir_str);
+        let mount_prove_binary_dir = format!("{}/{}:/build", current_dir_str, prove_binary_dir);
+        let mount_verifier_build_dir =
+            format!("{}/verifier-build:/verifier-build", current_dir_str);
+
         let mut child = Command::new("docker")
             .args([
                 "run",
                 "-it",
                 "--rm",
                 "-v",
-                "$(pwd)/proofs:/proofs",
+                &mount_proofs_dir,
                 "-v",
-                format!("$(pwd)/{}$:/build", prove_binary_dir).as_str(),
+                &mount_prove_binary_dir,
                 "-v",
-                "$(pwd)/verifier-build:/verifier-build",
+                &mount_verifier_build_dir,
                 "-e",
                 format!("PROVE_FILE={}", prove_file_name).as_str(),
                 "-e",
                 format!("INPUT_FILE={}", input_file).as_str(),
-                "local_prover",
+                "ratansuccinct/succinct-local-prover",
             ])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
@@ -158,8 +158,6 @@ impl SuccinctClient {
 
         info!("Running local prove command:\nRUST_LOG=info PROVER=local {} prove {} --build-dir {} --wrapper-path {}", prove_binary, input_file, build_dir, wrapper_binary);
 
-        // Build the docker image
-        Self::build_local_prover_docker_image()?;
         // Run the docker image
         Self::run_local_prover_docker_image(
             prove_binary_dir.to_str().unwrap(),
