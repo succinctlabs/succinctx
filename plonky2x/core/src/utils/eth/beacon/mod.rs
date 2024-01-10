@@ -729,7 +729,6 @@ impl BeaconClient {
         let endpoint = format!("{}/eth/v1/beacon/headers/{}", self.rpc_url, beacon_id);
         info!("{}", endpoint);
         let response = self.client.fetch_async(&endpoint).await?;
-        let data = response.text().await?;
         let parsed: BeaconData<BeaconHeaderContainer> = response.json().await?;
 
         Ok(parsed.data.header.message)
