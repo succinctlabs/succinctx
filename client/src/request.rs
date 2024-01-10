@@ -113,7 +113,7 @@ impl SuccinctClient {
             .args([
                 "cp",
                 "succinct-local-prover:/output.json",
-                "output/output.json",
+                "proofs/output.json",
             ])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
@@ -123,7 +123,7 @@ impl SuccinctClient {
             .args([
                 "cp",
                 "succinct-local-prover:/proof.json",
-                "output/proof.json",
+                "proofs/proof.json",
             ])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
