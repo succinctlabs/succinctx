@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::{env, fs};
 
 use alloy_primitives::{Address, Bytes, B256};
@@ -60,6 +60,60 @@ impl SuccinctClient {
         self.base_url == LOCAL_STRING
     }
 
+    pub fn check_command_success(mut child: Child, error_msg: String) -> Result<(), Error> {
+        // Check for command execution success
+        let status = child.wait()?;
+        if !status.success() {
+            error!("Command execution failed");
+            return Err(Error::msg(error_msg));
+        }
+        Ok(())
+    }
+
+    pub fn run_local_prover_docker_image(
+        prove_binary_dir: &str,
+        prove_file_name: &str,
+        input_file: &str,
+    ) -> Result<(), Error> {
+        let current_dir = env::current_dir()?;
+        let current_dir_str = current_dir.to_str().unwrap();
+
+        let mount_proofs_dir = format!("{}/proofs:/proofs", current_dir_str);
+        let mount_prove_binary_dir = format!("{}/{}:/build", current_dir_str, prove_binary_dir);
+        let mount_verifier_build_dir =
+            format!("{}/verifier-build:/verifier-build", current_dir_str);
+        let mount_env_file = format!("{}/.env:/.env", current_dir_str);
+
+        let prove = Command::new("docker")
+            .args([
+                "run",
+                "--rm",
+                "-it",
+                "--name",
+                "succinct-local-prover",
+                "-v",
+                &mount_proofs_dir,
+                "-v",
+                &mount_prove_binary_dir,
+                "-v",
+                &mount_verifier_build_dir,
+                "-v",
+                &mount_env_file,
+                "-e",
+                format!("PROVE_FILE={}", prove_file_name).as_str(),
+                "-e",
+                format!("INPUT_FILE={}", input_file).as_str(),
+                "ratansuccinct/succinct-local-prover",
+            ])
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()?;
+
+        Self::check_command_success(prove, "Failed to execute prove command.".to_string())?;
+
+        Ok(())
+    }
+
     pub fn submit_local_request(
         &self,
         chain_id: u32,
@@ -92,44 +146,34 @@ impl SuccinctClient {
 
         // Read prove_binary and wrapper_binary from the .env (panic if not present)
         let prove_binary_env_var = format!("PROVE_BINARY_{}", function_id);
-        let prove_binary = env::var(&prove_binary_env_var)
-            .expect(format!("{} not found in .env. You must have this env variable set for every function_id you want to generate local proofs for.", prove_binary_env_var).as_str());
+        let prove_binary = env::var(&prove_binary_env_var).unwrap_or_else(|_| panic!("{} not found in .env. You must have this env variable set for every function_id you want to generate local proofs for.", prove_binary_env_var));
         let wrapper_binary = env::var("WRAPPER_BINARY").expect("WRAPPER_BINARY not found in .env");
-        let prove_binary_dir = Path::new(&prove_binary).parent().expect(
-            format!(
+        let prove_binary_dir = Path::new(&prove_binary).parent().unwrap_or_else(|| {
+            panic!(
                 "{} should be a file in a directory with all circuit artifacts",
                 prove_binary_env_var
             )
-            .as_str(),
-        );
+        });
+        let prove_file_name = Path::new(&prove_binary).file_name().unwrap_or_else(|| {
+            panic!(
+                "{} should be a file in a directory with all circuit artifacts",
+                prove_binary_env_var
+            )
+        });
+
         let build_dir = prove_binary_dir
             .to_str()
             .expect("Failed to convert prove_binary_dir to string")
             .to_owned();
 
         info!("Running local prove command:\nRUST_LOG=info PROVER=local {} prove {} --build-dir {} --wrapper-path {}", prove_binary, input_file, build_dir, wrapper_binary);
-        // Execute the command
-        let mut child = Command::new(&prove_binary)
-            .args([
-                "prove",
-                &input_file,
-                "--build-dir",
-                &build_dir,
-                "--wrapper-path",
-                &wrapper_binary,
-            ])
-            .env("PROVER", "local")
-            .env("RUST_LOG", "info")
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .spawn()?;
 
-        // Check for command execution success
-        let status = child.wait()?;
-        if !status.success() {
-            error!("Command execution failed");
-            return Err(Error::msg("Failed to execute prove command."));
-        }
+        // Run the docker image
+        Self::run_local_prover_docker_image(
+            prove_binary_dir.to_str().unwrap(),
+            prove_file_name.to_str().unwrap(),
+            &input_file,
+        )?;
 
         // The proof should be located at output.json.
         let proof_data = fs::read_to_string("output.json")?;
