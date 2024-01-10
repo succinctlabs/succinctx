@@ -13,4 +13,4 @@ RUN apt-get update -qq -y \
 
 # Run the local prover
 CMD RUST_LOG=info PROVER=local ./build/$PROVE_FILE prove $INPUT_FILE
-CMD cp output.json /proofs/
+CMD cp output.json /proofs/ && mv /proofs/output.json /proofs/$PROOF_OUTPUT_FILE.json

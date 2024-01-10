@@ -75,6 +75,7 @@ impl SuccinctClient {
         prove_binary_dir: &str,
         prove_file_name: &str,
         input_file: &str,
+        output_file_name: &str,
     ) -> Result<(), Error> {
         let current_dir = env::current_dir()?;
         let current_dir_str = current_dir.to_str().unwrap();
@@ -104,7 +105,9 @@ impl SuccinctClient {
                 format!("PROVE_FILE={}", prove_file_name).as_str(),
                 "-e",
                 format!("INPUT_FILE={}", input_file).as_str(),
-                "ratansuccinct/succinct-local-prover",
+                "-e",
+                format!("PROOF_OUTPUT_FILE={}", output_file_name).as_str(),
+                "succinctlabs/succinct-local-prover",
             ])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
@@ -162,6 +165,8 @@ impl SuccinctClient {
             )
         });
 
+        let output_file_name = format!("output_{}.json", request_id);
+
         let build_dir = prove_binary_dir
             .to_str()
             .expect("Failed to convert prove_binary_dir to string")
@@ -175,6 +180,7 @@ impl SuccinctClient {
             prove_binary_dir.to_str().unwrap(),
             prove_file_name.to_str().unwrap(),
             &input_file,
+            output_file_name.as_str(),
         )?;
 
         // The proof should be located at output.json.
