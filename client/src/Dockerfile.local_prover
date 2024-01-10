@@ -12,5 +12,4 @@ RUN apt-get update -qq -y \
     && rm -rf /var/lib/apt/* /var/cache/apt/archives/
 
 # Run the local prover
-CMD RUST_LOG=info PROVER=local ./build/$PROVE_FILE prove $INPUT_FILE
-CMD cp output.json /proofs/
+CMD RUST_LOG=info PROVER=local ./build/$PROVE_FILE prove $INPUT_FILE && mv output.json /proofs/output.json

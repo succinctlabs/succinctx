@@ -85,13 +85,16 @@ impl SuccinctClient {
             format!("{}/{}:/verifier-build", current_dir_str, wrapper_binary);
         let mount_env_file = format!("{}/.env:/.env", current_dir_str);
 
+        info!(
+            "Running local prove command with Docker:\ndocker run --rm -it -v {} -v {} -v {} -v {} -e PROVE_FILE={} -e INPUT_FILE={} succinctlabs/succinct-local-prover",
+            mount_proofs_dir, mount_prove_binary_dir, mount_verifier_build_dir, mount_env_file, prove_file_name, input_file
+        );
+
         let prove = Command::new("docker")
             .args([
                 "run",
                 "--rm",
                 "-it",
-                "--name",
-                "succinct-local-prover",
                 "-v",
                 &mount_proofs_dir,
                 "-v",
@@ -104,7 +107,7 @@ impl SuccinctClient {
                 format!("PROVE_FILE={}", prove_file_name).as_str(),
                 "-e",
                 format!("INPUT_FILE={}", input_file).as_str(),
-                "ratansuccinct/succinct-local-prover",
+                "succinctlabs/succinct-local-prover",
             ])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
@@ -115,6 +118,7 @@ impl SuccinctClient {
         Ok(())
     }
 
+    /// Generate and submit a local proof for a Succinct X function call.
     pub fn submit_local_request(
         &self,
         chain_id: u32,
@@ -145,7 +149,7 @@ impl SuccinctClient {
         )?;
         fs::write(&input_file, input_data)?;
 
-        // Read prove_binary and wrapper_binary from the .env (panic if not present)
+        // Read prove_binary and wrapper_binary from the .env file.
         let prove_binary_env_var = format!("PROVE_BINARY_{}", function_id);
         let prove_binary = env::var(&prove_binary_env_var).unwrap_or_else(|_| panic!("{} not found in .env. You must have this env variable set for every function_id you want to generate local proofs for.", prove_binary_env_var));
         let wrapper_binary = env::var("WRAPPER_BINARY").expect("WRAPPER_BINARY not found in .env");
@@ -162,14 +166,7 @@ impl SuccinctClient {
             )
         });
 
-        let build_dir = prove_binary_dir
-            .to_str()
-            .expect("Failed to convert prove_binary_dir to string")
-            .to_owned();
-
-        info!("Running local prove command:\nRUST_LOG=info PROVER=local {} prove {} --build-dir {} --wrapper-path {}", prove_binary, input_file, build_dir, wrapper_binary);
-
-        // Run the docker image
+        // Generate the proof locally using the Succinct X local prover docker image.
         Self::run_local_prover_docker_image(
             &wrapper_binary,
             prove_binary_dir.to_str().unwrap(),
@@ -177,10 +174,10 @@ impl SuccinctClient {
             &input_file,
         )?;
 
-        // The proof should be located at output.json.
-        let proof_data = fs::read_to_string("output.json")?;
+        // The proof should be located at proofs/output.json.
+        let proof_data = fs::read_to_string("./proofs/output.json")?;
 
-        // Parse proof data
+        // Parse the proof data.
         let proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
         let proof = proof_json
             .get("data")
@@ -193,8 +190,8 @@ impl SuccinctClient {
             .ok_or_else(|| Error::msg("Output not found in output.json"))?
             .to_string();
 
-        // Save to proofs/{request_id}.json
-        let output_file = format!("{}/{}.json", LOCAL_PROOF_FOLDER, request_id);
+        // Save to proofs/output_{request_id}.json
+        let output_file = format!("{}/output_{}.json", LOCAL_PROOF_FOLDER, request_id);
         let final_data = json_macro!({
             "chain_id": chain_id,
             "to": to,
@@ -206,8 +203,13 @@ impl SuccinctClient {
         });
         fs::write(output_file, serde_json::to_string(&final_data)?)?;
 
-        // Delete the input and output.json file
-        fs::remove_file("output.json")?;
+        info!(
+            "Local proof generated successfully! Request ID: {}",
+            request_id
+        );
+
+        // Delete the input and output.json file.
+        fs::remove_file("./proofs/output.json")?;
         fs::remove_file(input_file)?;
 
         Ok(request_id)
