@@ -142,10 +142,9 @@ impl RemoteProver {
                         *count,
                     ));
                 }
-            } else if let Some(success) = request.statuses.get(&ProofRequestStatus::Success) {
-                if *success as usize != inputs.len() {
-                    continue;
-                }
+            } else if request.statuses.len() == 1
+                && request.statuses.contains_key(&ProofRequestStatus::Success)
+            {
                 return Ok(ProverOutputs::Remote(proof_ids));
             }
         }
