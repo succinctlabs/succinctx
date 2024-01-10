@@ -75,7 +75,6 @@ impl SuccinctClient {
         prove_binary_dir: &str,
         prove_file_name: &str,
         input_file: &str,
-        output_file_name: &str,
     ) -> Result<(), Error> {
         let current_dir = env::current_dir()?;
         let current_dir_str = current_dir.to_str().unwrap();
@@ -105,8 +104,6 @@ impl SuccinctClient {
                 format!("PROVE_FILE={}", prove_file_name).as_str(),
                 "-e",
                 format!("INPUT_FILE={}", input_file).as_str(),
-                "-e",
-                format!("PROOF_OUTPUT_FILE={}", output_file_name).as_str(),
                 "succinctlabs/succinct-local-prover",
             ])
             .stdout(Stdio::inherit())
@@ -165,8 +162,6 @@ impl SuccinctClient {
             )
         });
 
-        let output_file_name = format!("output_{}.json", request_id);
-
         let build_dir = prove_binary_dir
             .to_str()
             .expect("Failed to convert prove_binary_dir to string")
@@ -180,11 +175,10 @@ impl SuccinctClient {
             prove_binary_dir.to_str().unwrap(),
             prove_file_name.to_str().unwrap(),
             &input_file,
-            output_file_name.as_str(),
         )?;
 
-        // The proof should be located at output.json.
-        let proof_data = fs::read_to_string("output.json")?;
+        // The proof should be located at proofs/output.json.
+        let proof_data = fs::read_to_string("proofs/output.json")?;
 
         // Parse proof data
         let proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
@@ -199,8 +193,8 @@ impl SuccinctClient {
             .ok_or_else(|| Error::msg("Output not found in output.json"))?
             .to_string();
 
-        // Save to proofs/{request_id}.json
-        let output_file = format!("{}/{}.json", LOCAL_PROOF_FOLDER, request_id);
+        // Save to proofs/output/{request_id}.json
+        let output_file = format!("{}/output/{}.json", LOCAL_PROOF_FOLDER, request_id);
         let final_data = json_macro!({
             "chain_id": chain_id,
             "to": to,
@@ -213,7 +207,7 @@ impl SuccinctClient {
         fs::write(output_file, serde_json::to_string(&final_data)?)?;
 
         // Delete the input and output.json file
-        fs::remove_file("output.json")?;
+        fs::remove_file("proofs/output.json")?;
         fs::remove_file(input_file)?;
 
         Ok(request_id)
