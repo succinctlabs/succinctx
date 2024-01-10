@@ -71,6 +71,7 @@ impl SuccinctClient {
     }
 
     pub fn run_local_prover_docker_image(
+        wrapper_binary: &str,
         prove_binary_dir: &str,
         prove_file_name: &str,
         input_file: &str,
@@ -81,7 +82,7 @@ impl SuccinctClient {
         let mount_proofs_dir = format!("{}/proofs:/proofs", current_dir_str);
         let mount_prove_binary_dir = format!("{}/{}:/build", current_dir_str, prove_binary_dir);
         let mount_verifier_build_dir =
-            format!("{}/verifier-build:/verifier-build", current_dir_str);
+            format!("{}/{}:/verifier-build", current_dir_str, wrapper_binary);
         let mount_env_file = format!("{}/.env:/.env", current_dir_str);
 
         let prove = Command::new("docker")
@@ -170,6 +171,7 @@ impl SuccinctClient {
 
         // Run the docker image
         Self::run_local_prover_docker_image(
+            &wrapper_binary,
             prove_binary_dir.to_str().unwrap(),
             prove_file_name.to_str().unwrap(),
             &input_file,
