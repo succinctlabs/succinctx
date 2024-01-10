@@ -87,6 +87,7 @@ impl SuccinctClient {
         let prove = Command::new("docker")
             .args([
                 "run",
+                "--rm",
                 "-it",
                 "--name",
                 "succinct-local-prover",
@@ -110,31 +111,31 @@ impl SuccinctClient {
 
         Self::check_command_success(prove, "Failed to execute prove command.".to_string())?;
 
-        let host_output_path = format!("{}/proofs/output.json", current_dir_str);
-        let copy_output = Command::new("docker")
-            .args([
-                "cp",
-                "succinct-local-prover:/output.json",
-                &host_output_path,
-            ])
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .spawn()?;
+        // let host_output_path = format!("{}/proofs/output.json", current_dir_str);
+        // let copy_output = Command::new("docker")
+        //     .args([
+        //         "cp",
+        //         "succinct-local-prover:/output.json",
+        //         &host_output_path,
+        //     ])
+        //     .stdout(Stdio::inherit())
+        //     .stderr(Stdio::inherit())
+        //     .spawn()?;
 
-        Self::check_command_success(copy_output, "Failed to copy output.json".to_string())?;
+        // Self::check_command_success(copy_output, "Failed to copy output.json".to_string())?;
 
-        let proof_output_path = format!("{}/proofs/output.json", current_dir_str);
-        let copy_proof = Command::new("docker")
-            .args([
-                "cp",
-                "succinct-local-prover:/proof.json",
-                &proof_output_path,
-            ])
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .spawn()?;
+        // let proof_output_path = format!("{}/proofs/output.json", current_dir_str);
+        // let copy_proof = Command::new("docker")
+        //     .args([
+        //         "cp",
+        //         "succinct-local-prover:/proof.json",
+        //         &proof_output_path,
+        //     ])
+        //     .stdout(Stdio::inherit())
+        //     .stderr(Stdio::inherit())
+        //     .spawn()?;
 
-        Self::check_command_success(copy_proof, "Failed to copy proof.json".to_string())?;
+        // Self::check_command_success(copy_proof, "Failed to copy proof.json".to_string())?;
 
         Ok(())
     }
