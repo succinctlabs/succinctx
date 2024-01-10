@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::{env, fs};
 
 use alloy_primitives::{Address, Bytes, B256};
@@ -60,6 +60,16 @@ impl SuccinctClient {
         self.base_url == LOCAL_STRING
     }
 
+    pub fn check_command_success(mut child: Child, error_msg: String) -> Result<(), Error> {
+        // Check for command execution success
+        let status = child.wait()?;
+        if !status.success() {
+            error!("Command execution failed");
+            return Err(Error::msg(error_msg));
+        }
+        Ok(())
+    }
+
     pub fn run_local_prover_docker_image(
         prove_binary_dir: &str,
         prove_file_name: &str,
@@ -74,11 +84,13 @@ impl SuccinctClient {
             format!("{}/verifier-build:/verifier-build", current_dir_str);
         let mount_env_file = format!("{}/.env:/.env", current_dir_str);
 
-        let mut child = Command::new("docker")
+        let prove = Command::new("docker")
             .args([
                 "run",
                 "-it",
                 "--rm",
+                "--name",
+                "succinct-local-prover",
                 "-v",
                 &mount_proofs_dir,
                 "-v",
@@ -97,12 +109,29 @@ impl SuccinctClient {
             .stderr(Stdio::inherit())
             .spawn()?;
 
-        // Check for command execution success
-        let status = child.wait()?;
-        if !status.success() {
-            error!("Command execution failed");
-            return Err(Error::msg("Failed to execute prove command."));
-        }
+        let copy_output = Command::new("docker")
+            .args([
+                "cp",
+                "succinct-local-prover:/output.json",
+                "output/output.json",
+            ])
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()?;
+
+        let copy_proof = Command::new("docker")
+            .args([
+                "cp",
+                "succinct-local-prover:/proof.json",
+                "output/proof.json",
+            ])
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()?;
+
+        Self::check_command_success(prove, "Failed to execute prove command.".to_string())?;
+        Self::check_command_success(copy_output, "Failed to copy output.json".to_string())?;
+        Self::check_command_success(copy_proof, "Failed to copy proof.json".to_string())?;
 
         Ok(())
     }
