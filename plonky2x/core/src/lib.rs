@@ -15,6 +15,8 @@ pub mod utils;
 
 pub mod prelude {
     pub use curta::math::prelude::cubic::element::CubicElement;
+    // Re-export plonky2
+    pub use plonky2;
     pub use plonky2::field::extension::Extendable;
     pub use plonky2::field::goldilocks_field::GoldilocksField;
     pub use plonky2::field::types::Field;
