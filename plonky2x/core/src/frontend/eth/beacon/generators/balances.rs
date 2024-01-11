@@ -66,7 +66,7 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
         let result = self
             .client
             .get_balances_root(hex!(block_root.as_bytes()).to_string())
-            .expect("failed to get validators root");
+            .expect("failed to get balances root");
 
         self.balances_root
             .set(out_buffer, bytes32!(result.balances_root));

@@ -59,6 +59,7 @@ use crate::frontend::eth::storage::generators::{
 use crate::frontend::hash::curta::digest_hint::HashDigestHint;
 use crate::frontend::hash::curta::proof_hint::HashProofHint;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
+use crate::frontend::hash::poseidon::poseidon256::PoseidonHashOutVariable;
 use crate::frontend::hint::asynchronous::generator::{AsyncHintDataRef, AsyncHintRef};
 use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
@@ -191,6 +192,33 @@ macro_rules! register_powers_of_two {
         $r.register_hint::<$hint<262144>>();
         $r.register_hint::<$hint<524288>>();
         $r.register_hint::<$hint<1048576>>();
+        $r.register_hint::<$hint<2097152>>();
+    };
+}
+
+macro_rules! register_powers_of_two_async {
+    ($r:ident, $hint:ident) => {
+        $r.register_async_hint::<$hint<2>>();
+        $r.register_async_hint::<$hint<4>>();
+        $r.register_async_hint::<$hint<8>>();
+        $r.register_async_hint::<$hint<16>>();
+        $r.register_async_hint::<$hint<32>>();
+        $r.register_async_hint::<$hint<64>>();
+        $r.register_async_hint::<$hint<128>>();
+        $r.register_async_hint::<$hint<256>>();
+        $r.register_async_hint::<$hint<512>>();
+        $r.register_async_hint::<$hint<1024>>();
+        $r.register_async_hint::<$hint<2048>>();
+        $r.register_async_hint::<$hint<4096>>();
+        $r.register_async_hint::<$hint<8192>>();
+        $r.register_async_hint::<$hint<16384>>();
+        $r.register_async_hint::<$hint<32768>>();
+        $r.register_async_hint::<$hint<65536>>();
+        $r.register_async_hint::<$hint<131072>>();
+        $r.register_async_hint::<$hint<262144>>();
+        $r.register_async_hint::<$hint<524288>>();
+        $r.register_async_hint::<$hint<1048576>>();
+        $r.register_async_hint::<$hint<2097152>>();
     };
 }
 
@@ -352,10 +380,11 @@ where
         r.register_async_hint::<BeaconValidatorsHint>();
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
-        register_powers_of_two!(r, BeaconPartialBalancesHint);
         register_powers_of_two!(r, BeaconValidatorBatchHint);
-        register_powers_of_two!(r, BeaconPartialValidatorsHint);
         register_powers_of_two!(r, CompressedBeaconValidatorBatchHint);
+
+        register_powers_of_two_async!(r, BeaconPartialBalancesHint);
+        register_powers_of_two_async!(r, BeaconPartialValidatorsHint);
 
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
@@ -418,6 +447,7 @@ where
             BeaconWithdrawalVariable,
             BeaconValidatorVariable,
             BeaconHeaderVariable,
+            PoseidonHashOutVariable,
             ArrayVariable<Bytes32Variable, 8192>
         );
 

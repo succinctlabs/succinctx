@@ -10,6 +10,7 @@ mod historical;
 mod partial_balances;
 mod partial_validators;
 mod validator;
+mod validator_subtree;
 mod validator_witness;
 mod validators;
 mod withdrawal;
@@ -29,6 +30,9 @@ pub use historical::{
 pub use partial_balances::BeaconPartialBalancesHint;
 pub use partial_validators::BeaconPartialValidatorsHint;
 pub use validator::BeaconValidatorGenerator;
+pub use validator_subtree::{
+    BeaconValidatorSubtreeHint, BeaconValidatorSubtreePoseidonHint, BeaconValidatorSubtreesHint,
+};
 pub use validator_witness::{
     BeaconValidatorBatchHint, BeaconValidatorHint, CompressedBeaconValidatorBatchHint,
 };

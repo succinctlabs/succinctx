@@ -1,9 +1,10 @@
 use std::env;
 
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::backend::circuit::PlonkParameters;
-use crate::frontend::hint::simple::hint::Hint;
+use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::vars::{Bytes32Variable, ValueStream};
 use crate::utils::eth::beacon::BeaconClient;
 use crate::utils::{bytes32, hex};
@@ -14,14 +15,20 @@ const DEPTH: usize = 8;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BeaconPartialBalancesHint<const B: usize> {}
 
-impl<L: PlonkParameters<D>, const D: usize, const B: usize> Hint<L, D>
+#[async_trait]
+impl<L: PlonkParameters<D>, const D: usize, const B: usize> AsyncHint<L, D>
     for BeaconPartialBalancesHint<B>
 {
-    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
+    async fn hint(
+        &self,
+        input_stream: &mut ValueStream<L, D>,
+        output_stream: &mut ValueStream<L, D>,
+    ) {
         let client = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap());
         let header_root = input_stream.read_value::<Bytes32Variable>();
         let response = client
             .get_partial_balances_root(hex!(header_root), B)
+            .await
             .unwrap();
         output_stream.write_value::<Bytes32Variable>(bytes32!(response.partial_balances_root));
         let nb_branches =

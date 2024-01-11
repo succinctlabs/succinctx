@@ -6,7 +6,8 @@ use super::generators::{
     BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint, BeaconGraffitiHint,
     BeaconHeaderHint, BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint,
     BeaconPartialBalancesHint, BeaconPartialValidatorsHint, BeaconValidatorBatchHint,
-    BeaconValidatorGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
+    BeaconValidatorGenerator, BeaconValidatorSubtreeHint, BeaconValidatorSubtreePoseidonHint,
+    BeaconValidatorSubtreesHint, BeaconValidatorsHint, BeaconWithdrawalGenerator,
     BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint, CLOSE_SLOT_BLOCK_ROOT_DEPTH,
     FAR_SLOT_BLOCK_ROOT_DEPTH, FAR_SLOT_HISTORICAL_SUMMARY_DEPTH,
 };
@@ -22,7 +23,7 @@ use crate::frontend::uint::uint64::U64Variable;
 use crate::frontend::vars::{
     Bytes32Variable, CircuitVariable, EvmVariable, SSZVariable, VariableStream,
 };
-use crate::prelude::{ArrayVariable, BoolVariable, ByteVariable, BytesVariable};
+use crate::prelude::{ArrayVariable, BoolVariable, ByteVariable, BytesVariable, U256Variable};
 use crate::utils::eth::concat_g_indices;
 
 /// The gindex for blockRoot -> validatorsRoot.
@@ -102,7 +103,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut input_stream = VariableStream::new();
         input_stream.write(&block_root);
 
-        let output_stream = self.hint(input_stream, hint);
+        let output_stream = self.async_hint(input_stream, hint);
         let partial_validators_root = output_stream.read::<Bytes32Variable>(self);
         let nb_branches = BALANCES_PROOF_DEPTH + (VALIDATOR_REGISTRY_LIMIT_LOG2 + 1 - b_log2);
         let mut proof = Vec::new();
@@ -257,7 +258,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut input_stream = VariableStream::new();
         input_stream.write(&block_root);
 
-        let output_stream = self.hint(input_stream, hint);
+        let output_stream = self.async_hint(input_stream, hint);
         let partial_balances_root = output_stream.read::<Bytes32Variable>(self);
         let nb_branches = BALANCES_PROOF_DEPTH + (VALIDATOR_REGISTRY_LIMIT_LOG2 + 1 - b_log2);
         let mut proof = Vec::new();
@@ -272,6 +273,64 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             block_root,
             root: partial_balances_root,
         }
+    }
+
+    /// Given a batch size, limit, and block root, return the hash of all subtrees of the validator
+    /// tree. The subtrees will all contain `B` validators, and `N`/`B` subtrees will be returned.
+    pub fn beacon_witness_validator_subtrees<const B: usize, const N: usize>(
+        &mut self,
+        block_root: Bytes32Variable,
+    ) -> Vec<Bytes32Variable> {
+        let mut input_stream = VariableStream::new();
+        input_stream.write::<Bytes32Variable>(&block_root);
+        let hint = BeaconValidatorSubtreesHint::<B, N> {};
+        let output_stream = self.async_hint(input_stream, hint);
+        let num_batches = N / B;
+        let mut subtrees = Vec::new();
+        for _i in 0..num_batches {
+            let batch = output_stream.read::<Bytes32Variable>(self);
+            subtrees.push(batch);
+        }
+        subtrees
+    }
+
+    /// Given a batch size, limit, and subtree root, witness the `B` validators within that subtree.
+    pub fn beacon_witness_validator_subtree<const B: usize, const N: usize>(
+        &mut self,
+        subtree_hash: Bytes32Variable,
+    ) -> Vec<BeaconValidatorVariable> {
+        let mut input_stream = VariableStream::new();
+        input_stream.write::<Bytes32Variable>(&subtree_hash);
+        let hint = BeaconValidatorSubtreeHint::<B, N> {};
+        let output_stream = self.async_hint(input_stream, hint);
+        let mut subtrees = Vec::new();
+        for _i in 0..B {
+            let batch = output_stream.read::<BeaconValidatorVariable>(self);
+            subtrees.push(batch);
+        }
+        subtrees
+    }
+
+    /// Returns a vec of `B` tuples of (withdrawal_credentials_match, exit_epoch) for the first `B`
+    /// validators at `start_index`.
+    pub fn beacon_witness_validator_subtree_poseidon<const B: usize>(
+        &mut self,
+        block_root: Bytes32Variable,
+        withdrawal_credentials: Bytes32Variable,
+        start_index: U64Variable,
+    ) -> Vec<(BoolVariable, U256Variable)> {
+        let mut input_stream = VariableStream::new();
+        input_stream.write::<Bytes32Variable>(&block_root);
+        input_stream.write::<Bytes32Variable>(&withdrawal_credentials);
+        input_stream.write::<U64Variable>(&start_index);
+        let hint = BeaconValidatorSubtreePoseidonHint::<B> {};
+        let output_stream = self.async_hint(input_stream, hint);
+        let mut subtrees = Vec::new();
+        for _ in 0..B {
+            let batch = output_stream.read::<(BoolVariable, U256Variable)>(self);
+            subtrees.push(batch);
+        }
+        subtrees
     }
 
     /// Serializes a list of u64s into a single leaf according to the SSZ spec.

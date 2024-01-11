@@ -30,9 +30,10 @@ use self::generator::MapReduceGenerator;
 use super::hash::poseidon::poseidon256::PoseidonHashOutVariable;
 use crate::backend::circuit::{CircuitBuild, CircuitSerializer};
 use crate::frontend::builder::CircuitBuilder;
+use crate::frontend::mapreduce::generator::MapReduceDynamicGenerator;
 use crate::frontend::vars::CircuitVariable;
 use crate::prelude::{ArrayVariable, PlonkParameters, Variable};
-use crate::utils::poseidon::mapreduce_merkle_tree_root;
+use crate::utils::poseidon::{mapreduce_merkle_tree_root, MapReducePoseidonBuilderMethods};
 use crate::utils::proof::ProofWithPublicInputsTargetUtils;
 
 /// The input to the map or reduce circuit.
@@ -191,6 +192,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let generator_serializer = Serializer::generator_registry::<L, D>();
 
         // Build a map circuit which maps from I -> O using the closure `m`.
+        debug!("building map");
         let map_circuit = self.build_map(&map_fn);
         debug!("succesfully built map circuit: id={}", map_circuit.id());
 
@@ -227,6 +229,103 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let final_circuit = &reduce_circuits[reduce_circuits.len() - 1];
         let final_proof = self.add_virtual_proof_with_pis(&final_circuit.data.common);
         let generator = MapReduceGenerator::<L, Ctx, Input, Output, Serializer, B, D> {
+            map_circuit_id,
+            reduce_circuit_ids,
+            ctx: ctx.clone(),
+            inputs: inputs.clone(),
+            proof: final_proof.clone(),
+            _phantom: PhantomData,
+        };
+        self.add_simple_generator(generator);
+
+        // Verify the final proof.
+        let final_verifier_data = self.constant_verifier_data::<L>(&final_circuit.data);
+        self.verify_proof::<L>(
+            &final_proof,
+            &final_verifier_data,
+            &final_circuit.data.common,
+        );
+
+        // Verify the inputs accumulator.
+        let output = final_proof.read_end_from_pis::<MapReduceOutputVariable<Ctx, Output>>();
+        self.assert_is_equal(output.acc, expected_acc);
+
+        // Verify the context.
+        self.assert_is_equal(output.ctx, ctx);
+
+        // Return the output.
+        output.output
+    }
+
+    pub fn mapreduce_dynamic<Ctx, Input, Output, Serializer, const B: usize, MapFn, ReduceFn>(
+        &mut self,
+        ctx: Ctx,
+        inputs: Vec<Input>,
+        map_fn: MapFn,
+        reduce_fn: ReduceFn,
+    ) -> Output
+    where
+        Ctx: CircuitVariable,
+        Input: CircuitVariable,
+        Output: CircuitVariable,
+        Serializer: CircuitSerializer,
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher:
+            AlgebraicHasher<<L as PlonkParameters<D>>::Field>,
+        <Input as CircuitVariable>::ValueType<<L as PlonkParameters<D>>::Field>: Sync + Send,
+        MapFn: Fn(Ctx, ArrayVariable<Input, B>, &mut CircuitBuilder<L, D>) -> Output,
+        ReduceFn: Fn(Ctx, Output, Output, &mut CircuitBuilder<L, D>) -> Output,
+    {
+        // Sanity checks.
+        assert_eq!(inputs.len() % B, 0, "inputs length must be a multiple of B");
+        assert!(
+            (inputs.len() / B).is_power_of_two(),
+            "inputs.len() / B must be a power of two"
+        );
+
+        // Compute the expected inputs accumulator.
+        let expected_acc = self.mapreduce_merkle_tree_root::<Input, B>(&inputs);
+
+        // The gate and witness generator serializers.
+        let gate_serializer = Serializer::gate_registry::<L, D>();
+        let generator_serializer = Serializer::generator_registry::<L, D>();
+
+        // Build a map circuit which maps from I -> O using the closure `m`.
+        let map_circuit = self.build_map(&map_fn);
+        debug!("succesfully built map circuit: id={}", map_circuit.id());
+
+        // Save map circuit and map circuit input target to build folder.
+        let map_circuit_id = map_circuit.id();
+        let map_circuit_path = format!("./build/{}.circuit", map_circuit_id);
+        map_circuit.save(&map_circuit_path, &gate_serializer, &generator_serializer);
+
+        // For each reduce layer, we build a reduce circuit which reduces two input proofs
+        // to an output O.
+        let nb_reduce_layers = ((inputs.len() / B) as f64).log2().ceil() as usize;
+        let mut reduce_circuits = Vec::new();
+        for i in 0..nb_reduce_layers {
+            let child_circuit = if i == 0 {
+                &map_circuit
+            } else {
+                &reduce_circuits[i - 1]
+            };
+            let reduce_circuit =
+                self.build_reduce::<Ctx, Output, ReduceFn>(child_circuit, &reduce_fn);
+            let reduce_circuit_id = reduce_circuit.id();
+            let reduce_circuit_path = format!("./build/{}.circuit", reduce_circuit_id);
+            reduce_circuit.save(
+                &reduce_circuit_path,
+                &gate_serializer,
+                &generator_serializer,
+            );
+            reduce_circuits.push(reduce_circuit);
+            debug!("succesfully built reduce circuit: id={}", reduce_circuit_id);
+        }
+
+        // Create generator to generate map and reduce proofs for each layer.
+        let reduce_circuit_ids = reduce_circuits.iter().map(|c| c.id()).collect_vec();
+        let final_circuit = &reduce_circuits[reduce_circuits.len() - 1];
+        let final_proof = self.add_virtual_proof_with_pis(&final_circuit.data.common);
+        let generator = MapReduceDynamicGenerator::<L, Ctx, Input, Output, Serializer, B, D> {
             map_circuit_id,
             reduce_circuit_ids,
             ctx: ctx.clone(),
