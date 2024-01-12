@@ -364,7 +364,7 @@ impl SuccinctClient {
             // Strip alphanumeric characters from each of the proof_data fields.
             for (_, value) in proof_json.as_object_mut().unwrap().iter_mut() {
                 if let serde_json::Value::String(s) = value {
-                    let re = Regex::new(r"[A-Za-z0-9]").unwrap();
+                    let re = Regex::new(r"[^a-zA-Z0-9 -]").unwrap();
                     *value = serde_json::Value::String(re.replace_all(s, "").to_string());
                 }
             }
