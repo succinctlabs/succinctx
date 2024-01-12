@@ -2,13 +2,21 @@ use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::{env, fs};
 
-use alloy_primitives::{Address, Bytes, B256};
+use alloy_primitives::{hex, Address, Bytes, B256};
 use anyhow::{Error, Result};
+use ethers::contract::abigen;
+use ethers::providers::{Http, Provider};
+use ethers::types::H160;
 use log::{error, info};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json as json_macro;
 use uuid::Uuid;
+
+use crate::utils::get_gateway_address;
+
+// Note: Update ABI when updating contract.
+abigen!(SuccinctGateway, "./abi/SuccinctGateway.abi.json");
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
@@ -24,6 +32,27 @@ struct OffchainInput {
     functionId: B256,
     /// The input to be used in the Succinct X function call.
     input: Bytes,
+}
+
+#[allow(non_snake_case)]
+#[derive(Serialize, Deserialize)]
+/// Proof data for a Succinct X function call.
+/// This is the data that is returned from the Succinct X API.
+struct SuccinctProofData {
+    /// The chain id of the network to be used.
+    chain_id: u32,
+    /// The address of the contract to call.
+    to: Address,
+    /// The Succinct X function id to be called.
+    function_id: B256,
+    /// The calldata to be used in the contract call.
+    calldata: Bytes,
+    /// The input to be used in the Succinct X function call.
+    input: Bytes,
+    /// The proof for the Succinct X function call.
+    proof: Bytes,
+    /// The output of the Succinct X function call.
+    output: Bytes,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -224,16 +253,6 @@ impl SuccinctClient {
         function_id: B256,
         input: Bytes,
     ) -> Result<String> {
-        if self.local_mode() {
-            return self.submit_local_request(
-                chain_id,
-                to,
-                calldata.clone(),
-                function_id,
-                input.clone(),
-            );
-        }
-
         let data = OffchainInput {
             chainId: chain_id,
             to,
@@ -266,5 +285,79 @@ impl SuccinctClient {
             error!("Request failed!");
             Err(Error::msg("Failed to submit request to Succinct X API."))
         }
+    }
+
+    pub async fn submit_request(
+        &self,
+        chain_id: u32,
+        to: Address,
+        calldata: Bytes,
+        function_id: B256,
+        input: Bytes,
+    ) -> Result<String> {
+        if self.local_mode() {
+            return self.submit_local_request(
+                chain_id,
+                to,
+                calldata.clone(),
+                function_id,
+                input.clone(),
+            );
+        }
+
+        self.submit_platform_request(chain_id, to, calldata, function_id, input)
+            .await
+    }
+
+    pub async fn submit_proof(&self, ethereum_rpc_url: String, request_id: String) -> Result<()> {
+        // If local mode, submit proof from local directory at proofs/output_{request_id}.json
+        if self.local_mode() {
+            // Check if the proof file exists.
+            let proof_file = format!("{}/output_{}.json", LOCAL_PROOF_FOLDER, request_id);
+            if !Path::new(&proof_file).exists() {
+                return Err(Error::msg(format!(
+                    "Proof file {} does not exist.",
+                    proof_file
+                )));
+            }
+
+            // If it exists, attempt to submit the proof.
+            let proof_data = fs::read_to_string(proof_file)?;
+            let proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
+
+            let succinct_proof_data: SuccinctProofData = serde_json::from_value(proof_json)?;
+            let provider =
+                Provider::<Http>::try_from(ethereum_rpc_url).expect("could not connect to client");
+
+            match get_gateway_address(succinct_proof_data.chain_id) {
+                Some(address) => {
+                    let gateway_address_bytes: [u8; 20] =
+                        hex::decode(address).unwrap().try_into().unwrap();
+                    let contract =
+                        SuccinctGateway::new(H160::from(gateway_address_bytes), provider.into());
+
+                    // Submit the proof to the Succinct X API.
+                    contract
+                        .fulfill_call(
+                            succinct_proof_data.function_id.0,
+                            ethers::types::Bytes(succinct_proof_data.input.0),
+                            ethers::types::Bytes(succinct_proof_data.output.0),
+                            ethers::types::Bytes(succinct_proof_data.proof.0),
+                            H160(succinct_proof_data.to.0 .0),
+                            ethers::types::Bytes(succinct_proof_data.calldata.0),
+                        )
+                        .await?;
+                    return Ok(());
+                }
+                None => {
+                    return Err(Error::msg(format!(
+                        "No gateway address found for chain id {}",
+                        succinct_proof_data.chain_id
+                    )));
+                }
+            }
+        }
+
+        Ok(())
     }
 }
