@@ -396,8 +396,8 @@ impl SuccinctClient {
             let relayer_address = client.address();
             info!("Relayer address: {}", relayer_address);
 
-            let nonce = contract.nonce().call().await?;
-            info!("Nonce: {}", nonce);
+            let version = contract.version().call().await?;
+            info!("Version: {}", version);
 
             // Submit the proof to the Succinct X API.
             let tx = contract
