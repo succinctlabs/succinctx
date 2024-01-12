@@ -143,11 +143,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         length: U32Variable,
     ) -> Bytes32Variable {
-        assert_eq!(
-            input.len() % 64,
-            0,
-            "input length should be a multiple of 64"
-        );
+        // Extend input's length to the nearest multiple of 64 (if it is not already).
+        let mut input = input.to_vec();
+        if (input.len() % 64) != 0 {
+            input.resize(
+                input.len() + 64 - (input.len() % 64),
+                self.constant::<ByteVariable>(0),
+            );
+        }
+
         let last_chunk = self.compute_sha256_last_chunk(length);
         if self.sha256_accelerator.is_none() {
             self.sha256_accelerator = Some(SHA256Accelerator {
