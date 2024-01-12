@@ -392,7 +392,7 @@ impl SuccinctClient {
             let contract = SuccinctGateway::new(H160::from(gateway_address_bytes), client);
 
             // Submit the proof to the Succinct X API.
-            contract
+            let tx = contract
                 .fulfill_call(
                     succinct_proof_data.function_id.0,
                     ethers::types::Bytes(succinct_proof_data.input.0),
@@ -402,10 +402,9 @@ impl SuccinctClient {
                     ethers::types::Bytes(succinct_proof_data.calldata.0),
                 )
                 .await?;
+
+            info!("Proof relayed successfully!");
         }
-
-        info!("Proof relayed successfully!");
-
         Ok(())
     }
 }
