@@ -401,7 +401,11 @@ impl SuccinctClient {
                     H160(succinct_proof_data.to.0 .0),
                     ethers::types::Bytes(succinct_proof_data.calldata.0),
                 )
+                .send()
+                .await?
                 .await?;
+
+            info!("Transaction Receipt: {:?}", tx);
 
             info!("Proof relayed successfully!");
         }
