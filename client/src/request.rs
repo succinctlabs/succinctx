@@ -75,27 +75,27 @@ pub struct SuccinctClient {
     /// API key for the Succinct X API.
     succinct_api_key: String,
     /// Local prove mode flag.
-    local_prove_mode: Option<bool>,
+    local_prove_mode: bool,
     /// Local relay mode flag.
-    local_relay_mode: Option<bool>,
+    local_relay_mode: bool,
 }
 
 impl SuccinctClient {
     pub fn new(
         succinct_api_url: String,
         succinct_api_key: String,
-        local_prove_mode: Option<bool>,
-        local_relay_mode: Option<bool>,
+        local_prove_mode: bool,
+        local_relay_mode: bool,
     ) -> Self {
-        if local_prove_mode == Some(true) {
+        if local_prove_mode == true {
             info!("Running SuccinctClient in local prover mode");
         }
-        if local_relay_mode == Some(true) {
+        if local_relay_mode == true {
             info!("Running SuccinctClient in local relay mode");
         }
         // TODO: For now, if local_relay_mode is true, local_prove_mode must also be true. Once
         // local_relay_mode fetches from the Succinct X API, this can be removed.
-        if local_relay_mode == Some(true) && local_prove_mode != Some(true) {
+        if local_relay_mode && !local_prove_mode {
             panic!("local_relay_mode must be true if local_prove_mode is true")
         }
 
@@ -316,7 +316,7 @@ impl SuccinctClient {
         function_id: B256,
         input: Bytes,
     ) -> Result<String> {
-        if Some(true) == self.local_prove_mode {
+        if self.local_prove_mode {
             return self.submit_local_request(
                 chain_id,
                 to,
@@ -342,7 +342,7 @@ impl SuccinctClient {
         gateway_address: Option<&str>,
     ) -> Result<()> {
         // If local mode, submit proof from local directory at proofs/output_{request_id}.json
-        if Some(true) == self.local_relay_mode {
+        if self.local_relay_mode {
             let ethereum_rpc_url = ethereum_rpc_url
                 .expect("Ethereum RPC URL must be provided when relaying a proof in local mode.");
             let wallet =
@@ -390,6 +390,9 @@ impl SuccinctClient {
                 )
                 .await?;
         }
+
+        info!("Proof relayed successfully!");
+
         Ok(())
     }
 }
