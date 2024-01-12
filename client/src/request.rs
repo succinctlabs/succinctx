@@ -389,7 +389,12 @@ impl SuccinctClient {
 
             let gateway_address_bytes: [u8; 20] =
                 hex::decode(gateway_address).unwrap().try_into().unwrap();
-            let contract = SuccinctGateway::new(H160::from(gateway_address_bytes), client);
+            let contract = SuccinctGateway::new(H160::from(gateway_address_bytes), client.clone());
+
+            info!("Relaying proof to gateway address: {}", gateway_address);
+
+            let relayer_address = client.address();
+            info!("Relayer address: {}", relayer_address);
 
             // Submit the proof to the Succinct X API.
             let tx = contract
