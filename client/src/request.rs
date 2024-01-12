@@ -377,10 +377,15 @@ impl SuccinctClient {
 
             let address = get_gateway_address(succinct_proof_data.chain_id);
             // If gateway_address is provided, use that instead of the canonical gateway address.
-            let gateway_address = gateway_address.or(address).expect(
+            let mut gateway_address = gateway_address.or(address).expect(
                 "Gateway address must be provided when relaying a proof in local mode
                 if the chain does not have a canonical gateway address.",
             );
+
+            // Strip the 0x prefix from the gateway address.
+            if gateway_address.starts_with("0x") {
+                gateway_address = gateway_address.strip_prefix("0x").unwrap();
+            }
 
             let gateway_address_bytes: [u8; 20] =
                 hex::decode(gateway_address).unwrap().try_into().unwrap();
