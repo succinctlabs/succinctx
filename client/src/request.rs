@@ -343,6 +343,11 @@ impl SuccinctClient {
     ) -> Result<()> {
         // If local mode, submit proof from local directory at proofs/output_{request_id}.json
         if Some(true) == self.local_relay_mode {
+            let ethereum_rpc_url = ethereum_rpc_url
+                .expect("Ethereum RPC URL must be provided when relaying a proof in local mode.");
+            let wallet =
+                wallet.expect("Local wallet must be provided when relaying a proof in local mode.");
+
             // Check if the proof file exists.
             let proof_file = format!("{}/output_{}.json", LOCAL_PROOF_FOLDER, request_id);
             if !Path::new(&proof_file).exists() {
@@ -357,11 +362,6 @@ impl SuccinctClient {
             let proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
 
             let succinct_proof_data: SuccinctProofData = serde_json::from_value(proof_json)?;
-
-            let ethereum_rpc_url = ethereum_rpc_url
-                .expect("Ethereum RPC URL must be provided when relaying a proof in local mode.");
-            let wallet =
-                wallet.expect("Wallet must be provided when relaying a proof in local mode.");
 
             let provider =
                 Provider::<Http>::try_from(ethereum_rpc_url).expect("could not connect to client");
