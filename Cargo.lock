@@ -3984,6 +3984,7 @@ dependencies = [
  "anyhow",
  "ethers",
  "log",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

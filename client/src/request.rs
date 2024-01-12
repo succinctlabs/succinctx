@@ -11,6 +11,7 @@ use ethers::providers::{Http, Provider};
 use ethers::signers::LocalWallet;
 use ethers::types::H160;
 use log::{error, info};
+use regex::Regex;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json as json_macro;
@@ -359,7 +360,14 @@ impl SuccinctClient {
 
             // If it exists, attempt to submit the proof.
             let proof_data = fs::read_to_string(proof_file)?;
-            let proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
+            let mut proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
+            // Strip alphanumeric characters from each of the proof_data fields.
+            for (_, value) in proof_json.as_object_mut().unwrap().iter_mut() {
+                if let serde_json::Value::String(s) = value {
+                    let re = Regex::new(r"[A-Za-z0-9]").unwrap();
+                    *value = serde_json::Value::String(re.replace_all(s, "").to_string());
+                }
+            }
 
             let succinct_proof_data: SuccinctProofData = serde_json::from_value(proof_json)?;
 
