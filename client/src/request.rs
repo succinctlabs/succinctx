@@ -9,7 +9,7 @@ use ethers::contract::abigen;
 use ethers::middleware::SignerMiddleware;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::signers::{LocalWallet, Signer};
-use ethers::types::H160;
+use ethers::types::{TransactionReceipt, H160};
 use log::{error, info};
 use regex::Regex;
 use reqwest::Client;
@@ -392,19 +392,8 @@ impl SuccinctClient {
                 hex::decode(gateway_address).unwrap().try_into().unwrap();
             let contract = SuccinctGateway::new(H160::from(gateway_address_bytes), client.clone());
 
-            info!("Relaying proof to gateway address: {}", gateway_address);
-
-            let relayer_address = client.address();
-            info!("Relayer address: {}", relayer_address);
-
-            let version = contract.version().call().await?;
-            info!("Version: {}", version);
-
-            let balance = client.get_balance(wallet.address(), None).await?;
-            info!("Balance: {}", balance);
-
             // Submit the proof to the Succinct X API.
-            let tx = contract
+            let tx: Option<TransactionReceipt> = contract
                 .fulfill_call(
                     succinct_proof_data.function_id.0,
                     ethers::types::Bytes(succinct_proof_data.input.0),
@@ -417,7 +406,9 @@ impl SuccinctClient {
                 .await?
                 .await?;
 
-            info!("Transaction Receipt: {:?}", tx);
+            if let Some(tx) = tx {
+                info!("Transaction Hash: {:?}", tx.transaction_hash);
+            }
 
             info!("Proof relayed successfully!");
         }
