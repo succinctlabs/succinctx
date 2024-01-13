@@ -361,7 +361,9 @@ impl SuccinctClient {
             // If it exists, attempt to submit the proof.
             let proof_data = fs::read_to_string(proof_file)?;
             let mut proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
-            // Strip alphanumeric characters from each of the proof_data fields.
+
+            // Strip alphanumeric characters from each of the proof_data fields (some are formatted
+            // with non-alphanumeric characters, which causes issues when serializing to JSON).
             for (_, value) in proof_json.as_object_mut().unwrap().iter_mut() {
                 if let serde_json::Value::String(s) = value {
                     let re = Regex::new(r"[^a-zA-Z0-9 -]").unwrap();
