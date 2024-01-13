@@ -370,6 +370,7 @@ impl SuccinctClient {
             }
 
             let succinct_proof_data: SuccinctProofData = serde_json::from_value(proof_json)?;
+            let wallet = wallet.with_chain_id(succinct_proof_data.chain_id);
 
             let provider =
                 Provider::<Http>::try_from(ethereum_rpc_url).expect("could not connect to client");
