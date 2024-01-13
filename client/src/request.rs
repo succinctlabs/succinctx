@@ -7,7 +7,7 @@ use alloy_primitives::{hex, Address, Bytes, B256};
 use anyhow::{Error, Result};
 use ethers::contract::abigen;
 use ethers::middleware::SignerMiddleware;
-use ethers::providers::{Http, Middleware, Provider};
+use ethers::providers::{Http, Provider};
 use ethers::signers::{LocalWallet, Signer};
 use ethers::types::{TransactionReceipt, H160};
 use log::{error, info};
@@ -88,10 +88,10 @@ impl SuccinctClient {
         local_prove_mode: bool,
         local_relay_mode: bool,
     ) -> Self {
-        if local_prove_mode == true {
+        if local_prove_mode {
             info!("Running SuccinctClient in local prover mode");
         }
-        if local_relay_mode == true {
+        if local_relay_mode {
             info!("Running SuccinctClient in local relay mode");
         }
         // TODO: For now, if local_relay_mode is true, local_prove_mode must also be true. Once
