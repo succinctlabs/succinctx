@@ -409,10 +409,11 @@ impl SuccinctClient {
                 .await?;
 
             if let Some(tx) = tx {
-                info!("Transaction Hash: {:?}", tx.transaction_hash);
+                info!(
+                    "Proof relayed successfully! Transaction Hash: {:?}",
+                    tx.transaction_hash
+                );
             }
-
-            info!("Proof relayed successfully!");
         }
         Ok(())
     }
