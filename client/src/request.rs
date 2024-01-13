@@ -7,8 +7,8 @@ use alloy_primitives::{hex, Address, Bytes, B256};
 use anyhow::{Error, Result};
 use ethers::contract::abigen;
 use ethers::middleware::SignerMiddleware;
-use ethers::providers::{Http, Provider};
-use ethers::signers::LocalWallet;
+use ethers::providers::{Http, Middleware, Provider};
+use ethers::signers::{LocalWallet, Signer};
 use ethers::types::H160;
 use log::{error, info};
 use regex::Regex;
@@ -373,7 +373,7 @@ impl SuccinctClient {
 
             let provider =
                 Provider::<Http>::try_from(ethereum_rpc_url).expect("could not connect to client");
-            let client = Arc::new(SignerMiddleware::new(provider, wallet));
+            let client = Arc::new(SignerMiddleware::new(provider, wallet.clone()));
 
             let address = get_gateway_address(succinct_proof_data.chain_id);
             // If gateway_address is provided, use that instead of the canonical gateway address.
@@ -398,6 +398,9 @@ impl SuccinctClient {
 
             let version = contract.version().call().await?;
             info!("Version: {}", version);
+
+            let balance = client.get_balance(wallet.address(), None).await?;
+            info!("Balance: {}", balance);
 
             // Submit the proof to the Succinct X API.
             let tx = contract
