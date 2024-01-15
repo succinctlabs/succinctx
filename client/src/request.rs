@@ -11,7 +11,6 @@ use ethers::providers::{Http, Provider};
 use ethers::signers::{LocalWallet, Signer};
 use ethers::types::{TransactionReceipt, H160};
 use log::{error, info};
-use regex::Regex;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json as json_macro;
@@ -233,11 +232,13 @@ impl SuccinctClient {
             .and_then(|d| d.get("proof"))
             .ok_or_else(|| Error::msg("Proof not found in output.json"))?
             .to_string();
+        let proof = Bytes::from(hex::decode(proof)?);
         let output_value = proof_json
             .get("data")
             .and_then(|d| d.get("output"))
             .ok_or_else(|| Error::msg("Output not found in output.json"))?
             .to_string();
+        let output_value = Bytes::from(hex::decode(output_value)?);
 
         // Save to proofs/output_{request_id}.json
         let output_file = format!("{}/output_{}.json", LOCAL_PROOF_FOLDER, request_id);
@@ -250,7 +251,7 @@ impl SuccinctClient {
             "proof": proof,
             "output": output_value,
         });
-        fs::write(output_file, serde_json::to_string(&final_data)?)?;
+        fs::write(output_file, serde_json::to_string_pretty(&final_data)?)?;
 
         info!(
             "Local proof generated successfully! Request ID: {}",
@@ -360,16 +361,7 @@ impl SuccinctClient {
 
             // If it exists, attempt to submit the proof.
             let proof_data = fs::read_to_string(proof_file)?;
-            let mut proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
-
-            // Strip alphanumeric characters from each of the proof_data fields (some are formatted
-            // with non-alphanumeric characters, which causes issues when serializing to JSON).
-            for (_, value) in proof_json.as_object_mut().unwrap().iter_mut() {
-                if let serde_json::Value::String(s) = value {
-                    let re = Regex::new(r"[^a-zA-Z0-9 -]").unwrap();
-                    *value = serde_json::Value::String(re.replace_all(s, "").to_string());
-                }
-            }
+            let proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
 
             let succinct_proof_data: SuccinctProofData = serde_json::from_value(proof_json)?;
             let wallet = wallet.with_chain_id(succinct_proof_data.chain_id);
