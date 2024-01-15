@@ -344,7 +344,7 @@ impl SuccinctClient {
         gateway_address: Option<&str>,
     ) -> Result<()> {
         // If local mode, submit proof from local directory at proofs/output_{request_id}.json
-        if self.local_relay_mode {
+        if self.local_prove_mode {
             let ethereum_rpc_url = ethereum_rpc_url
                 .expect("Ethereum RPC URL must be provided when relaying a proof in local mode.");
             let wallet =
