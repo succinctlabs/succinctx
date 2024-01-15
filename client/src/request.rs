@@ -232,12 +232,21 @@ impl SuccinctClient {
             .and_then(|d| d.get("proof"))
             .ok_or_else(|| Error::msg("Proof not found in output.json"))?
             .to_string();
+        // Strip the 0x prefix from the proof if it exists.
+        let proof = proof
+            .strip_prefix("0x")
+            .map_or(proof.clone(), |stripped| stripped.to_string());
+
         let proof = Bytes::from(hex::decode(proof)?);
         let output_value = proof_json
             .get("data")
             .and_then(|d| d.get("output"))
             .ok_or_else(|| Error::msg("Output not found in output.json"))?
             .to_string();
+        // Strip the 0x prefix from the output if it exists.
+        let output_value = output_value
+            .strip_prefix("0x")
+            .map_or(output_value.clone(), |stripped| stripped.to_string());
         let output_value = Bytes::from(hex::decode(output_value)?);
 
         // Save to proofs/output_{request_id}.json
