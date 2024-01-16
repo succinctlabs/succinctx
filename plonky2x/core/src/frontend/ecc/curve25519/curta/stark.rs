@@ -263,8 +263,6 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
                         pos_sqrt_var,
                         public_inputs,
                     );
-                    // Verify that the square root is a valid field element.
-                    builder.assert_is_valid(pos_sqrt_var.clone());
                 }
                 (Ed25519CurtaOp::IsValid(point), Ed25519OpVariable::IsValid(point_var)) => {
                     Self::assert_point_equal(builder, point, point_var, public_inputs);

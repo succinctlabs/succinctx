@@ -65,16 +65,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         }
 
         let response = match request.req_type() {
-            EcOpRequestType::Add => {
-                EcOpResponse::Add(self.init_unsafe::<AffinePointVariable<Ed25519>>())
-            }
+            EcOpRequestType::Add => EcOpResponse::Add(self.init::<AffinePointVariable<Ed25519>>()),
             EcOpRequestType::ScalarMul => {
-                EcOpResponse::ScalarMul(self.init_unsafe::<AffinePointVariable<Ed25519>>())
+                EcOpResponse::ScalarMul(self.init::<AffinePointVariable<Ed25519>>())
             }
             EcOpRequestType::Decompress => EcOpResponse::Decompress(
-                self.init_unsafe::<AffinePointVariable<Ed25519>>(),
-                self.init_unsafe::<FieldVariable<<Ed25519 as EllipticCurveParameters>::BaseField>>(
-                ),
+                self.init::<AffinePointVariable<Ed25519>>(),
+                self.init::<FieldVariable<<Ed25519 as EllipticCurveParameters>::BaseField>>(),
             ),
             EcOpRequestType::IsValid => EcOpResponse::IsValid,
         };
