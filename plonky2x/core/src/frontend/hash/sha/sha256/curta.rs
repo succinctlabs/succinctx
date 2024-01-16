@@ -29,8 +29,8 @@ impl<L: PlonkParameters<D>, const D: usize> AirParameters for SHA256AirParameter
 
     type Instruction = UintInstruction;
 
-    const NUM_FREE_COLUMNS: usize = 605;
-    const EXTENDED_COLUMNS: usize = 351;
+    const NUM_FREE_COLUMNS: usize = 418;
+    const EXTENDED_COLUMNS: usize = 912;
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 64, false, 8> for SHA256 {

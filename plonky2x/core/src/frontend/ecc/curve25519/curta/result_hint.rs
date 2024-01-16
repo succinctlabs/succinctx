@@ -1,11 +1,12 @@
 use curta::chip::ec::edwards::ed25519::decompress::decompress;
-use curta::chip::ec::point::AffinePoint;
+use curta::chip::ec::EllipticCurveParameters;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
 use super::request::EcOpRequestType;
 use super::Curve;
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
+use crate::frontend::curta::field::variable::FieldVariable;
 use crate::frontend::hint::simple::hint::Hint;
 use crate::frontend::uint::Uint;
 use crate::prelude::{PlonkParameters, U256Variable, ValueStream};
@@ -18,12 +19,11 @@ pub struct EcOpResultHint {
 
 impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for EcOpResultHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
-        let mut result: Option<AffinePoint<Curve>> = None;
         match &self.ec_op {
             EcOpRequestType::Add => {
                 let a = input_stream.read_value::<AffinePointVariable<Curve>>();
                 let b = input_stream.read_value::<AffinePointVariable<Curve>>();
-                result = Some(a + b);
+                output_stream.write_value::<AffinePointVariable<Curve>>(a + b);
             }
             EcOpRequestType::ScalarMul => {
                 let scalar = BigUint::new(
@@ -33,17 +33,18 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for EcOpResultHint {
                         .to_vec(),
                 );
                 let point = input_stream.read_value::<AffinePointVariable<Curve>>();
-                result = Some(point * scalar);
+                output_stream.write_value::<AffinePointVariable<Curve>>(point * scalar);
             }
             EcOpRequestType::Decompress => {
                 let compressed_point = input_stream.read_value::<CompressedEdwardsYVariable>();
-                result = Some(decompress(&compressed_point));
+                let (point, root) = decompress(&compressed_point);
+                output_stream.write_value::<AffinePointVariable<Curve>>(point);
+                output_stream
+                    .write_value::<FieldVariable<<Curve as EllipticCurveParameters>::BaseField>>(
+                        root,
+                    );
             }
             EcOpRequestType::IsValid => {}
-        }
-
-        if let Some(return_val) = result {
-            output_stream.write_value::<AffinePointVariable<Curve>>(return_val);
         }
     }
 }

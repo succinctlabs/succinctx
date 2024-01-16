@@ -2,6 +2,7 @@ use curta::chip::ec::EllipticCurve;
 use serde::{Deserialize, Serialize};
 
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
+use crate::frontend::curta::field::variable::FieldVariable;
 use crate::prelude::U256Variable;
 
 #[derive(Clone, Debug, Copy, Serialize, Deserialize)]
@@ -23,6 +24,14 @@ pub enum EcOpRequest<E: EllipticCurve> {
     Decompress(Box<CompressedEdwardsYVariable>),
     /// IsValid
     IsValid(Box<AffinePointVariable<E>>),
+}
+
+#[derive(Debug, Clone)]
+pub enum EcOpResponse<E: EllipticCurve> {
+    Add(AffinePointVariable<E>),
+    ScalarMul(AffinePointVariable<E>),
+    Decompress(AffinePointVariable<E>, FieldVariable<E::BaseField>),
+    IsValid,
 }
 
 impl<E: EllipticCurve> EcOpRequest<E> {

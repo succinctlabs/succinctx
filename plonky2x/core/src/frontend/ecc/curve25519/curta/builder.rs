@@ -1,10 +1,13 @@
+use curta::chip::ec::EllipticCurveParameters;
+
 use super::accelerator::EcOpAccelerator;
 use super::proof_hint::EcOpProofHint;
-use super::request::EcOpRequest;
+use super::request::{EcOpRequest, EcOpResponse};
 use super::result_hint::EcOpResultHint;
 use super::stark::{Ed25519OpVariable, Ed25519Stark};
 use super::Curve;
 use crate::frontend::curta::ec::point::AffinePointVariable;
+use crate::frontend::curta::field::variable::FieldVariable;
 use crate::frontend::hint::synchronous::Async;
 use crate::prelude::{CircuitBuilder, PlonkParameters, VariableStream};
 
@@ -39,17 +42,23 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             let output_stream = self.hint(input_stream, result_hint);
 
-            match &request {
-                EcOpRequest::Add(_, _)
-                | EcOpRequest::ScalarMul(_, _)
-                | EcOpRequest::Decompress(_) => {
-                    let result = output_stream.read::<AffinePointVariable<Curve>>(self);
-                    self.assert_is_equal(
-                        result,
-                        response.clone().expect("response should not be None"),
-                    );
+            match response {
+                EcOpResponse::Add(c) => {
+                    let c_hint = output_stream.read::<AffinePointVariable<Curve>>(self);
+                    self.assert_is_equal(c_hint, c.clone());
                 }
-                EcOpRequest::IsValid(_) => {}
+                EcOpResponse::ScalarMul(c) => {
+                    let c_hint = output_stream.read::<AffinePointVariable<Curve>>(self);
+                    self.assert_is_equal(c_hint, c.clone());
+                }
+                EcOpResponse::Decompress(point, root) => {
+                    let point_hint = output_stream.read::<AffinePointVariable<Curve>>(self);
+                    let root_hint = output_stream
+                        .read::<FieldVariable<<Curve as EllipticCurveParameters>::BaseField>>(self);
+                    self.assert_is_equal(point_hint, point.clone());
+                    self.assert_is_equal(root_hint, root.clone());
+                }
+                EcOpResponse::IsValid => {}
             }
         }
 
@@ -63,22 +72,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             .zip(accelerator.ec_op_responses.iter())
         {
             requests.push(request.req_type());
-            match &request {
-                EcOpRequest::Add(a, b) => {
-                    let response = response.as_ref().unwrap();
-                    input_stream.write(&**a);
-                    input_stream.write(&**b);
-                    input_stream.write(response);
-                    ec_ops.push(Ed25519OpVariable::Add(
-                        *a.clone(),
-                        *b.clone(),
-                        response.clone(),
-                    ))
+            match (request, response) {
+                (EcOpRequest::Add(a, b), EcOpResponse::Add(c)) => {
+                    input_stream.write(a.as_ref());
+                    input_stream.write(b.as_ref());
+                    input_stream.write(c);
+                    ec_ops.push(Ed25519OpVariable::Add(*a.clone(), *b.clone(), c.clone()))
                 }
-                EcOpRequest::ScalarMul(scalar, point) => {
-                    let response = response.as_ref().unwrap();
-                    input_stream.write(&**scalar);
-                    input_stream.write(&**point);
+                (EcOpRequest::ScalarMul(scalar, point), EcOpResponse::ScalarMul(response)) => {
+                    input_stream.write(scalar.as_ref());
+                    input_stream.write(point.as_ref());
                     input_stream.write(response);
                     ec_ops.push(Ed25519OpVariable::ScalarMul(
                         *scalar.clone(),
@@ -86,19 +89,23 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                         response.clone(),
                     ))
                 }
-                EcOpRequest::Decompress(compressed_point) => {
-                    let point = response.as_ref().unwrap();
-                    input_stream.write(&**compressed_point);
+                (
+                    EcOpRequest::Decompress(compressed_point),
+                    EcOpResponse::Decompress(point, root),
+                ) => {
+                    input_stream.write(compressed_point.as_ref());
                     input_stream.write(point);
                     ec_ops.push(Ed25519OpVariable::Decompress(
                         compressed_point.clone(),
                         point.clone(),
+                        root.clone(),
                     ))
                 }
-                EcOpRequest::IsValid(point) => {
-                    input_stream.write(&**point);
+                (EcOpRequest::IsValid(point), EcOpResponse::IsValid) => {
+                    input_stream.write(point.as_ref());
                     ec_ops.push(Ed25519OpVariable::IsValid(*point.clone()))
                 }
+                _ => panic!("invalid request/response pair"),
             }
         }
 
