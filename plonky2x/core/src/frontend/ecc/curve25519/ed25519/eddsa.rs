@@ -196,7 +196,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             self.curta_25519_is_valid(pubkey_affine.clone());
             let mut p2 = self.curta_25519_scalar_mul(h_scalar, pubkey_affine);
             let sigr_affine = self.curta_25519_decompress(signatures[i].r.clone());
-            // Assert that `r` is canonical, namely, r.y is a valid field element.
             self.curta_25519_is_valid(sigr_affine.clone());
             p2 = self.curta_25519_add(sigr_affine, p2);
 
