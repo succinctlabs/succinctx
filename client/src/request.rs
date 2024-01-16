@@ -58,6 +58,19 @@ struct SuccinctProofData {
     output: Bytes,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct ProofOutput {
+    #[serde(rename = "type")]
+    field_type: String,
+    data: ProofOutputData,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ProofOutputData {
+    output: String,
+    proof: String,
+}
+
 #[derive(Serialize, Deserialize)]
 /// Data received from the Succinct X API from an offchain request.
 struct OffchainRequestResponse {
@@ -226,27 +239,19 @@ impl SuccinctClient {
         let proof_data = fs::read_to_string("./proofs/output.json")?;
 
         // Parse the proof data.
-        let proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
-        let proof = proof_json
-            .get("data")
-            .and_then(|d| d.get("proof"))
-            .ok_or_else(|| Error::msg("Proof not found in output.json"))?
-            .to_string();
+        let proof_json: ProofOutput = serde_json::from_str(&proof_data)?;
+        let mut proof = proof_json.data.proof;
         // Strip the 0x prefix from the proof if it exists.
-        let proof = proof
-            .strip_prefix("0x")
-            .map_or(proof.clone(), |stripped| stripped.to_string());
+        if proof.starts_with("0x") {
+            proof = proof.strip_prefix("0x").unwrap().to_string();
+        }
 
         let proof = Bytes::from(hex::decode(proof)?);
-        let output_value = proof_json
-            .get("data")
-            .and_then(|d| d.get("output"))
-            .ok_or_else(|| Error::msg("Output not found in output.json"))?
-            .to_string();
+        let mut output_value = proof_json.data.output;
         // Strip the 0x prefix from the output if it exists.
-        let output_value = output_value
-            .strip_prefix("0x")
-            .map_or(output_value.clone(), |stripped| stripped.to_string());
+        if output_value.starts_with("0x") {
+            output_value = output_value.strip_prefix("0x").unwrap().to_string();
+        }
         let output_value = Bytes::from(hex::decode(output_value)?);
 
         // Save to proofs/output_{request_id}.json
