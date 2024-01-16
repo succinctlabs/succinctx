@@ -90,7 +90,7 @@ mod tests {
 
         const NUM_ARITHMETIC_COLUMNS: usize = 0;
         const NUM_FREE_COLUMNS: usize = 18;
-        const EXTENDED_COLUMNS: usize = 24;
+        const EXTENDED_COLUMNS: usize = 36;
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
