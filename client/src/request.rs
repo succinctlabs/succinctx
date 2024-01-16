@@ -1,14 +1,25 @@
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
+use std::sync::Arc;
 use std::{env, fs};
 
-use alloy_primitives::{Address, Bytes, B256};
+use alloy_primitives::{hex, Address, Bytes, B256};
 use anyhow::{Error, Result};
+use ethers::contract::abigen;
+use ethers::middleware::SignerMiddleware;
+use ethers::providers::{Http, Provider};
+use ethers::signers::{LocalWallet, Signer};
+use ethers::types::{TransactionReceipt, H160};
 use log::{error, info};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json as json_macro;
 use uuid::Uuid;
+
+use crate::utils::get_gateway_address;
+
+// Note: Update ABI when updating contract.
+abigen!(SuccinctGateway, "./abi/SuccinctGateway.abi.json");
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
@@ -26,6 +37,40 @@ struct OffchainInput {
     input: Bytes,
 }
 
+#[allow(non_snake_case)]
+#[derive(Serialize, Deserialize)]
+/// Proof data for a Succinct X function call.
+/// This is the data that is returned from the Succinct X API.
+struct SuccinctProofData {
+    /// The chain id of the network to be used.
+    chain_id: u32,
+    /// The address of the contract to call.
+    to: Address,
+    /// The Succinct X function id to be called.
+    function_id: B256,
+    /// The calldata to be used in the contract call.
+    calldata: Bytes,
+    /// The input to be used in the Succinct X function call.
+    input: Bytes,
+    /// The proof for the Succinct X function call.
+    proof: Bytes,
+    /// The output of the Succinct X function call.
+    output: Bytes,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ProofOutput {
+    #[serde(rename = "type")]
+    field_type: String,
+    data: ProofOutputData,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ProofOutputData {
+    output: String,
+    proof: String,
+}
+
 #[derive(Serialize, Deserialize)]
 /// Data received from the Succinct X API from an offchain request.
 struct OffchainRequestResponse {
@@ -33,31 +78,47 @@ struct OffchainRequestResponse {
 }
 
 const LOCAL_PROOF_FOLDER: &str = "./proofs";
-const LOCAL_STRING: &str = "local";
 
 /// Client to interact with the Succinct X API.
 pub struct SuccinctClient {
+    /// HTTP client.
     client: Client,
     /// The base url for the Succinct X API. (ex. https://alpha.succinct.xyz/api)
-    base_url: String,
+    succinct_api_url: String,
     /// API key for the Succinct X API.
-    api_key: String,
+    succinct_api_key: String,
+    /// Local prove mode flag.
+    local_prove_mode: bool,
+    /// Local relay mode flag.
+    local_relay_mode: bool,
 }
 
 impl SuccinctClient {
-    pub fn new(base_url: String, api_key: String) -> Self {
-        if base_url == LOCAL_STRING {
-            info!("Running SuccinctClient in local mode");
+    pub fn new(
+        succinct_api_url: String,
+        succinct_api_key: String,
+        local_prove_mode: bool,
+        local_relay_mode: bool,
+    ) -> Self {
+        if local_prove_mode {
+            info!("Running SuccinctClient in local prover mode");
         }
+        if local_relay_mode {
+            info!("Running SuccinctClient in local relay mode");
+        }
+        // TODO: For now, if local_relay_mode is true, local_prove_mode must also be true. Once
+        // local_relay_mode fetches from the Succinct X API, this can be removed.
+        if local_relay_mode && !local_prove_mode {
+            panic!("local_relay_mode must be true if local_prove_mode is true")
+        }
+
         Self {
             client: Client::new(),
-            base_url,
-            api_key,
+            succinct_api_url,
+            succinct_api_key,
+            local_prove_mode,
+            local_relay_mode,
         }
-    }
-
-    pub fn local_mode(&self) -> bool {
-        self.base_url == LOCAL_STRING
     }
 
     pub fn check_command_success(mut child: Child, error_msg: String) -> Result<(), Error> {
@@ -178,17 +239,20 @@ impl SuccinctClient {
         let proof_data = fs::read_to_string("./proofs/output.json")?;
 
         // Parse the proof data.
-        let proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
-        let proof = proof_json
-            .get("data")
-            .and_then(|d| d.get("proof"))
-            .ok_or_else(|| Error::msg("Proof not found in output.json"))?
-            .to_string();
-        let output_value = proof_json
-            .get("data")
-            .and_then(|d| d.get("output"))
-            .ok_or_else(|| Error::msg("Output not found in output.json"))?
-            .to_string();
+        let proof_json: ProofOutput = serde_json::from_str(&proof_data)?;
+        let mut proof = proof_json.data.proof;
+        // Strip the 0x prefix from the proof if it exists.
+        if proof.starts_with("0x") {
+            proof = proof.strip_prefix("0x").unwrap().to_string();
+        }
+
+        let proof = Bytes::from(hex::decode(proof)?);
+        let mut output_value = proof_json.data.output;
+        // Strip the 0x prefix from the output if it exists.
+        if output_value.starts_with("0x") {
+            output_value = output_value.strip_prefix("0x").unwrap().to_string();
+        }
+        let output_value = Bytes::from(hex::decode(output_value)?);
 
         // Save to proofs/output_{request_id}.json
         let output_file = format!("{}/output_{}.json", LOCAL_PROOF_FOLDER, request_id);
@@ -201,7 +265,7 @@ impl SuccinctClient {
             "proof": proof,
             "output": output_value,
         });
-        fs::write(output_file, serde_json::to_string(&final_data)?)?;
+        fs::write(output_file, serde_json::to_string_pretty(&final_data)?)?;
 
         info!(
             "Local proof generated successfully! Request ID: {}",
@@ -224,16 +288,6 @@ impl SuccinctClient {
         function_id: B256,
         input: Bytes,
     ) -> Result<String> {
-        if self.local_mode() {
-            return self.submit_local_request(
-                chain_id,
-                to,
-                calldata.clone(),
-                function_id,
-                input.clone(),
-            );
-        }
-
         let data = OffchainInput {
             chainId: chain_id,
             to,
@@ -246,12 +300,12 @@ impl SuccinctClient {
         let serialized_data = serde_json::to_string(&data).unwrap();
 
         // Make off-chain request.
-        let request_url = format!("{}{}", self.base_url, "/request/new");
+        let request_url = format!("{}{}", self.succinct_api_url, "/request/new");
         let res = self
             .client
             .post(request_url)
             .header("Content-Type", "application/json")
-            .bearer_auth(self.api_key.clone())
+            .bearer_auth(self.succinct_api_key.clone())
             .body(serialized_data)
             .send()
             .await
@@ -266,5 +320,107 @@ impl SuccinctClient {
             error!("Request failed!");
             Err(Error::msg("Failed to submit request to Succinct X API."))
         }
+    }
+
+    /// Submit a request to the Succinct X API.
+    /// If in local prove mode, generates a local proof and returns the request_id after completion.
+    pub async fn submit_request(
+        &self,
+        chain_id: u32,
+        to: Address,
+        calldata: Bytes,
+        function_id: B256,
+        input: Bytes,
+    ) -> Result<String> {
+        if self.local_prove_mode {
+            return self.submit_local_request(
+                chain_id,
+                to,
+                calldata.clone(),
+                function_id,
+                input.clone(),
+            );
+        }
+
+        self.submit_platform_request(chain_id, to, calldata, function_id, input)
+            .await
+    }
+
+    /// If in local relay mode, ethereum_rpc_url and wallet must be provided. If you wish to submit
+    /// to your own gateway (ex. on a chain that doesn't have a canonical gateway), gateway_address
+    /// must be provided.
+    // TODO: Add support for hosted proving + local relaying.
+    pub async fn relay_proof(
+        &self,
+        request_id: String,
+        ethereum_rpc_url: Option<&str>,
+        wallet: Option<LocalWallet>,
+        gateway_address: Option<&str>,
+    ) -> Result<()> {
+        // If local mode, submit proof from local directory at proofs/output_{request_id}.json
+        if self.local_prove_mode {
+            let ethereum_rpc_url = ethereum_rpc_url
+                .expect("Ethereum RPC URL must be provided when relaying a proof in local mode.");
+            let wallet =
+                wallet.expect("Local wallet must be provided when relaying a proof in local mode.");
+
+            // Check if the proof file exists.
+            let proof_file = format!("{}/output_{}.json", LOCAL_PROOF_FOLDER, request_id);
+            if !Path::new(&proof_file).exists() {
+                return Err(Error::msg(format!(
+                    "Proof file {} does not exist.",
+                    proof_file
+                )));
+            }
+
+            // If it exists, attempt to submit the proof.
+            let proof_data = fs::read_to_string(proof_file)?;
+            let proof_json: serde_json::Value = serde_json::from_str(&proof_data)?;
+
+            let succinct_proof_data: SuccinctProofData = serde_json::from_value(proof_json)?;
+            let wallet = wallet.with_chain_id(succinct_proof_data.chain_id);
+
+            let provider =
+                Provider::<Http>::try_from(ethereum_rpc_url).expect("could not connect to client");
+            let client = Arc::new(SignerMiddleware::new(provider, wallet.clone()));
+
+            let address = get_gateway_address(succinct_proof_data.chain_id);
+            // If gateway_address is provided, use that instead of the canonical gateway address.
+            let mut gateway_address = gateway_address.or(address).expect(
+                "Gateway address must be provided when relaying a proof in local mode
+                if the chain does not have a canonical gateway address.",
+            );
+
+            // Strip the 0x prefix from the gateway address.
+            if gateway_address.starts_with("0x") {
+                gateway_address = gateway_address.strip_prefix("0x").unwrap();
+            }
+
+            let gateway_address_bytes: [u8; 20] =
+                hex::decode(gateway_address).unwrap().try_into().unwrap();
+            let contract = SuccinctGateway::new(H160::from(gateway_address_bytes), client.clone());
+
+            // Submit the proof to the Succinct X API.
+            let tx: Option<TransactionReceipt> = contract
+                .fulfill_call(
+                    succinct_proof_data.function_id.0,
+                    ethers::types::Bytes(succinct_proof_data.input.0),
+                    ethers::types::Bytes(succinct_proof_data.output.0),
+                    ethers::types::Bytes(succinct_proof_data.proof.0),
+                    H160(succinct_proof_data.to.0 .0),
+                    ethers::types::Bytes(succinct_proof_data.calldata.0),
+                )
+                .send()
+                .await?
+                .await?;
+
+            if let Some(tx) = tx {
+                info!(
+                    "Proof relayed successfully! Transaction Hash: {:?}",
+                    tx.transaction_hash
+                );
+            }
+        }
+        Ok(())
     }
 }
