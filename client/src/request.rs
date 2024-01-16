@@ -90,7 +90,7 @@ pub struct SuccinctClient {
     /// Local prove mode flag.
     local_prove_mode: bool,
     /// Local relay mode flag.
-    local_relay_mode: bool,
+    _local_relay_mode: bool,
 }
 
 impl SuccinctClient {
@@ -117,7 +117,7 @@ impl SuccinctClient {
             succinct_api_url,
             succinct_api_key,
             local_prove_mode,
-            local_relay_mode,
+            _local_relay_mode: local_relay_mode,
         }
     }
 
