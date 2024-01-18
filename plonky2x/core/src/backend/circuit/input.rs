@@ -14,7 +14,10 @@ use crate::prelude::{ByteVariable, CircuitVariable};
 pub enum PublicInput<L: PlonkParameters<D>, const D: usize> {
     Bytes(Vec<u8>),
     Elements(Vec<L::Field>),
-    RecursiveProofs(Vec<ProofWithPublicInputs<L::Field, L::Config, D>>),
+    RecursiveProofs(
+        Vec<ProofWithPublicInputs<L::Field, L::Config, D>>,
+        Vec<L::Field>,
+    ),
     RemoteRecursiveProofs(Vec<ProofId>),
     CyclicProof(
         Vec<L::Field>,
@@ -30,7 +33,7 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
         match io {
             CircuitIO::Bytes(_) => PublicInput::Bytes(vec![]),
             CircuitIO::Elements(_) => PublicInput::Elements(vec![]),
-            CircuitIO::RecursiveProofs(_) => PublicInput::RecursiveProofs(vec![]),
+            CircuitIO::RecursiveProofs(_) => PublicInput::RecursiveProofs(vec![], vec![]),
             CircuitIO::CyclicProof(_) => {
                 PublicInput::CyclicProof(vec![], Box::new(None), Box::new(None))
             }
@@ -72,6 +75,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     pub fn write<V: CircuitVariable>(&mut self, value: V::ValueType<L::Field>) {
         match self {
             PublicInput::Elements(input) => {
+                input.extend(V::elements::<L::Field>(value));
+            }
+            PublicInput::RecursiveProofs(_, input) => {
                 input.extend(V::elements::<L::Field>(value));
             }
             PublicInput::CyclicProof(input, _, _) => {
@@ -120,8 +126,8 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     /// Writes a proof to the public circuit input.
     pub fn proof_write(&mut self, proof: ProofWithPublicInputs<L::Field, L::Config, D>) {
         match self {
-            PublicInput::RecursiveProofs(input) => {
-                input.push(proof);
+            PublicInput::RecursiveProofs(proof_input, _) => {
+                proof_input.push(proof);
             }
             PublicInput::CyclicProof(_input, ref mut io_proof, ref _data) => {
                 if io_proof.is_some() {

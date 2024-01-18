@@ -98,7 +98,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
                     input: input.clone(),
                 },
             }),
-            PublicInput::RecursiveProofs(input) => {
+            PublicInput::RecursiveProofs(input, _) => {
                 ProofRequest::RecursiveProofs(ProofRequestBase {
                     release_id,
                     parent_id,
@@ -142,7 +142,7 @@ impl<L: PlonkParameters<D>, const D: usize> ProofRequest<L, D> {
                 PublicInput::Elements(data.input.clone())
             }
             ProofRequest::RecursiveProofs(ProofRequestBase { data, .. }) => {
-                PublicInput::RecursiveProofs(data.proofs.clone())
+                PublicInput::RecursiveProofs(data.proofs.clone(), vec![])
             }
             _ => panic!("invalid proof request type"),
         }
