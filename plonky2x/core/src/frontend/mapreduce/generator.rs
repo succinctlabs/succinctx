@@ -121,7 +121,7 @@ where
             match outputs {
                 ProverOutputs::Local(proofs, _) => {
                     for j in 0..nb_proofs {
-                        let mut reduce_input = PublicInput::RecursiveProofs(Vec::new());
+                        let mut reduce_input = PublicInput::RecursiveProofs(Vec::new(), Vec::new());
                         reduce_input.proof_write(proofs[j * 2].clone());
                         reduce_input.proof_write(proofs[j * 2 + 1].clone());
                         reduce_inputs.push(reduce_input);
@@ -332,7 +332,7 @@ where
             match outputs {
                 ProverOutputs::Local(proofs, _) => {
                     for j in 0..nb_proofs {
-                        let mut reduce_input = PublicInput::RecursiveProofs(Vec::new());
+                        let mut reduce_input = PublicInput::RecursiveProofs(Vec::new(), Vec::new());
                         reduce_input.proof_write(proofs[j * 2].clone());
                         reduce_input.proof_write(proofs[j * 2 + 1].clone());
                         reduce_inputs.push(reduce_input);

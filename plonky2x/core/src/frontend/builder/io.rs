@@ -33,7 +33,8 @@ pub struct ElementsIO {
 pub struct RecursiveProofsIO<const D: usize> {
     #[serde(serialize_with = "serialize_proof_with_pis_target_vec")]
     #[serde(deserialize_with = "deserialize_proof_with_pis_target_vec")]
-    pub input: Vec<ProofWithPublicInputsTarget<D>>,
+    pub proof_input: Vec<ProofWithPublicInputsTarget<D>>,
+    pub input: Vec<Variable>,
     pub output: Vec<Variable>,
 }
 
@@ -119,10 +120,14 @@ impl<const D: usize> CircuitIO<D> {
                 }
             }
             CircuitIO::RecursiveProofs(io) => {
-                let proof_with_pis_targets = &io.input;
-                if let PublicInput::RecursiveProofs(input) = input {
+                let proof_with_pis_targets = &io.proof_input;
+                let variables = &io.input;
+                if let PublicInput::RecursiveProofs(proof_input, input) = input {
                     for i in 0..proof_with_pis_targets.len() {
-                        pw.set_proof_with_pis_target(&proof_with_pis_targets[i], &input[i]);
+                        pw.set_proof_with_pis_target(&proof_with_pis_targets[i], &proof_input[i]);
+                    }
+                    for i in 0..variables.len() {
+                        variables[i].set(pw, input[i]);
                     }
                 } else {
                     panic!("circuit io type is recursive proofs but circuit input is not")
@@ -159,6 +164,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 })
             }
             CircuitIO::Elements(_) => {}
+            CircuitIO::RecursiveProofs(_) => {}
             CircuitIO::CyclicProof(_) => {}
             _ => panic!("already set io type"),
         };
@@ -181,6 +187,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         match self.io {
             CircuitIO::None() => {
                 self.io = CircuitIO::RecursiveProofs(RecursiveProofsIO {
+                    proof_input: Vec::new(),
                     input: Vec::new(),
                     output: Vec::new(),
                 })
@@ -248,6 +255,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let variable = self.init::<V>();
         match self.io {
             CircuitIO::Elements(ref mut io) => io.input.extend(variable.variables()),
+            CircuitIO::RecursiveProofs(ref mut io) => io.input.extend(variable.variables()),
             CircuitIO::CyclicProof(ref mut io) => io.input.extend(variable.variables()),
             _ => panic!("field io is not enabled"),
         }
@@ -279,7 +287,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let proof = self.add_virtual_proof_with_pis(data);
         match self.io {
             CircuitIO::RecursiveProofs(ref mut io) => {
-                io.input.push(proof.clone());
+                io.proof_input.push(proof.clone());
             }
             CircuitIO::CyclicProof(ref mut io) => {
                 if io.proof.is_some() {
