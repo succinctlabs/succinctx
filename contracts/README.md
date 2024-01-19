@@ -25,16 +25,17 @@ forge test
 SUCCINCT_GATEWAY=[0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)
 SUCCINCT_FEE_VAULT=[0x5999d401444f15d262fdce310bb68bd234de11aa](https://etherscan.io/address/0x5999d401444f15d262fdce310bb68bd234de11aa)
 
-| Chain            | Address                                                                                                                          |
-|------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| Mainnet          | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)            |
-| Goerli           | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://goerli.etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)     |
-| Sepolia          | [0xaea9288f0b7a8c605c4d474c56e5e74f96bfd4b3](https://sepolia.etherscan.io/address/0xaea9288f0b7a8c605c4d474c56e5e74f96bfd4b3)    |
-| Holesky          | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://holesky.etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)    |
-| Optimism         | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://optimistic.etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803) |
-| Arbitrum         | [0x2d27182206f0442885989626934ca9dd5290f979](https://arbiscan.io/address/0x2d27182206f0442885989626934ca9dd5290f979)             |
-| Arbitrum Sepolia | [0x2d27182206f0442885989626934ca9dd5290f979](https://sepolia.arbiscan.io/address/0x2d27182206f0442885989626934ca9dd5290f979)     |
-| Gnosis           | [0x6e4f1e9eA315EBFd69d18C2DB974EEf6105FB803](https://gnosisscan.io/address/0x6e4f1e9eA315EBFd69d18C2DB974EEf6105FB803)           |
+| Chain            | Chain ID | Address                                                                                                          |
+|------------------|----------|------------------------------------------------------------------------------------------------------------------|
+| Mainnet          | 1        | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)            |
+| Goerli           | 5        | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://goerli.etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)     |
+| Sepolia          | 11155111 | [0xaea9288f0b7a8c605c4d474c56e5e74f96bfd4b3](https://sepolia.etherscan.io/address/0xaea9288f0b7a8c605c4d474c56e5e74f96bfd4b3)    |
+| Holesky          | 17000    | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://holesky.etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)    |
+| Optimism         | 420      | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://optimistic.etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803) |
+| Arbitrum         | 42161    | [0x2d27182206f0442885989626934ca9dd5290f979](https://arbiscan.io/address/0x2d27182206f0442885989626934ca9dd5290f979)             |
+| Arbitrum Sepolia | 421614   | [0x2d27182206f0442885989626934ca9dd5290f979](https://sepolia.arbiscan.io/address/0x2d27182206f0442885989626934ca9dd5290f979)     |
+| Gnosis           | 100      | [0x6e4f1e9eA315EBFd69d18C2DB974EEf6105FB803](https://gnosisscan.io/address/0x6e4f1e9eA315EBFd69d18C2DB974EEf6105FB803)           |
+
 
 ## Deploying
 
