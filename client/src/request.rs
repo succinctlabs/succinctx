@@ -386,6 +386,11 @@ impl SuccinctClient {
             let client = Arc::new(SignerMiddleware::new(provider, wallet.clone()));
 
             let address = get_gateway_address(succinct_proof_data.chain_id);
+            info!(
+                "Could not find canonical gateway address for chain {}",
+                succinct_proof_data.chain_id
+            );
+
             // If gateway_address is provided, use that instead of the canonical gateway address.
             let mut gateway_address = gateway_address.or(address).expect(
                 "Gateway address must be provided when relaying a proof in local mode
