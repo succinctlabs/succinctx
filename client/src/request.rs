@@ -81,6 +81,7 @@ const LOCAL_PROOF_FOLDER: &str = "./proofs";
 
 /// Client to interact with the Succinct X API.
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct SuccinctClient {
     /// HTTP client.
     client: Client,
