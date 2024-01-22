@@ -38,7 +38,7 @@ struct OffchainInput {
 }
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 /// Proof data for a Succinct X function call.
 /// This is the data that is returned from the Succinct X API.
 struct SuccinctProofData {
@@ -387,10 +387,12 @@ impl SuccinctClient {
             let client = Arc::new(SignerMiddleware::new(provider, wallet.clone()));
 
             let address = get_gateway_address(succinct_proof_data.chain_id);
-            info!(
-                "Could not find canonical gateway address for chain {}",
-                succinct_proof_data.chain_id
-            );
+            if address.is_none() {
+                info!(
+                    "Could not find canonical gateway address for chain {}",
+                    succinct_proof_data.chain_id
+                );
+            }
 
             // If gateway_address is provided, use that instead of the canonical gateway address.
             let mut gateway_address = gateway_address.or(address).expect(
