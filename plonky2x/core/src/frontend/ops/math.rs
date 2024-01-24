@@ -171,7 +171,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The less than operation (<).
     pub fn lt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
-        Lhs: LessThanOrEqual<L, D, Lhs>,
+        Rhs: LessThanOrEqual<L, D, Lhs>,
     {
         let lte = rhs.lte(lhs, self);
         self.not(lte)
@@ -180,8 +180,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The greater than operation (>).
     pub fn gt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
-        Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
-        Rhs: LessThanOrEqual<L, D, Rhs>,
+        Lhs: LessThanOrEqual<L, D, Rhs>,
     {
         self.lt(rhs, lhs)
     }
@@ -189,7 +188,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The greater than or equal to operation (>=).
     pub fn gte<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
-        Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
         Rhs: LessThanOrEqual<L, D, Lhs>,
     {
         self.lte(rhs, lhs)
@@ -219,7 +217,6 @@ impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
         generator.output
     }
 }
-
 mod tests {
     #[allow(unused_imports)]
     use crate::prelude::{BoolVariable, DefaultBuilder, U32Variable};
