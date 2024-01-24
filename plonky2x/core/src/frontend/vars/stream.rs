@@ -51,7 +51,6 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
     }
 
     /// Read a single variable from the stream.
-    ///
     /// The output value is asserted to be a valid circuit variable.
     pub fn read<V: CircuitVariable>(&self, builder: &mut CircuitBuilder<L, D>) -> V {
         let variables = self.read_exact(builder, V::nb_elements());

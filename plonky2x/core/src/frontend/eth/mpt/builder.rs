@@ -187,7 +187,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             finished = self.or(finished, m);
         }
 
-        // Can be unsafe because we know that `current_node_id` comes from a ByteVariable
+        // Can be unsafe because `current_node_id` comes from a ByteVariable.
         let current_node_id_u32 =
             U32Variable::from_variables_unsafe(&[current_node_id[0].to_variable(self)]);
         let current_node_len = self.sub(current_node_id_u32, const_128);
