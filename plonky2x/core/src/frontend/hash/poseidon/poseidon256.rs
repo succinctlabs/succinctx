@@ -20,7 +20,7 @@ impl CircuitVariable for PoseidonHashOutVariable {
         builder: &mut CircuitBuilder<L, D>,
     ) -> Self {
         Self {
-            elements: ArrayVariable::new([builder.init(); 4].to_vec()),
+            elements: ArrayVariable::new(array![_ => builder.init(); 4].to_vec()),
         }
     }
 

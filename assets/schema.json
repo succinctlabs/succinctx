@@ -12,7 +12,13 @@
                     },
                     "framework": {
                         "type": "string",
-                        "enum": ["rustx", "gnarkx", "circomx", "plonky2x"]
+                        "enum": [
+                            "rustx",
+                            "gnarkx",
+                            "circomx",
+                            "plonky2x",
+                            "noir"
+                        ]
                     },
                     "baseDir": {
                         "type": "string"
@@ -24,9 +30,17 @@
                         "type": "string"
                     }
                 },
-                "required": ["name", "framework", "baseDir", "buildCommand", "proveCommand"]
+                "required": [
+                    "name",
+                    "framework",
+                    "baseDir",
+                    "buildCommand",
+                    "proveCommand"
+                ]
             }
         }
     },
-    "required": ["entrypoints"]
+    "required": [
+        "entrypoints"
+    ]
 }

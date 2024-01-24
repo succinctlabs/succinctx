@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::env;
 
 use backtrace::Backtrace;
+use curta::machine::hash::blake::blake2b::BLAKE2B;
 use curta::machine::hash::sha::sha256::SHA256;
 use curta::machine::hash::sha::sha512::SHA512;
 use ethers::providers::{Http, Middleware, Provider};
@@ -22,7 +23,7 @@ use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;
 use super::ecc::curve25519::curta::accelerator::EcOpAccelerator;
-use super::hash::blake2::curta::Blake2bAccelerator;
+use super::hash::blake2::curta::BLAKE2BAccelerator;
 use super::hash::sha::sha256::curta::SHA256Accelerator;
 use super::hash::sha::sha512::curta::SHA512Accelerator;
 use super::hint::HintGenerator;
@@ -32,7 +33,6 @@ use crate::frontend::hint::asynchronous::generator::AsyncHintDataRef;
 use crate::frontend::vars::{BoolVariable, CircuitVariable, Variable};
 use crate::prelude::ArrayVariable;
 use crate::utils::eth::beacon::BeaconClient;
-use crate::utils::eth::beaconchain::BeaconchainAPIClient;
 
 /// The universal builder for building circuits using `plonky2x`.
 pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
@@ -41,14 +41,13 @@ pub struct CircuitBuilder<L: PlonkParameters<D>, const D: usize> {
     pub execution_client: Option<Provider<Http>>,
     pub chain_id: Option<u64>,
     pub beacon_client: Option<BeaconClient>,
-    pub beaconchain_api_client: Option<BeaconchainAPIClient>,
     pub debug: bool,
     pub debug_variables: HashMap<usize, String>,
     pub(crate) hints: Vec<Box<dyn HintGenerator<L, D>>>,
     pub(crate) async_hints: Vec<AsyncHintDataRef<L, D>>,
     pub(crate) async_hints_indices: Vec<usize>,
 
-    pub blake2b_accelerator: Option<Blake2bAccelerator<L, D>>,
+    pub blake2b_accelerator: Option<BLAKE2BAccelerator>,
     pub sha256_accelerator: Option<SHA256Accelerator>,
     pub sha512_accelerator: Option<SHA512Accelerator>,
     pub ec_25519_ops_accelerator: Option<EcOpAccelerator>,
@@ -73,7 +72,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             api,
             io: CircuitIO::new(),
             beacon_client: None,
-            beaconchain_api_client: None,
             execution_client: None,
             chain_id: None,
             debug: false,
@@ -87,16 +85,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             ec_25519_ops_accelerator: None,
         };
 
-        if let Ok(rpc_url) = env::var("CONSENSUS_RPC_1") {
+        if let Ok(rpc_url) = env::var("CONSENSUS_RPC_URL") {
             let client = BeaconClient::new(rpc_url);
             builder.set_beacon_client(client);
-        }
-
-        if let Ok(api_url) = env::var("BEACONCHAIN_API_URL_1") {
-            if let Ok(api_key) = env::var("BEACONCHAIN_API_KEY_1") {
-                let client = BeaconchainAPIClient::new(api_url, api_key);
-                builder.set_beaconchain_api_client(client);
-            }
         }
 
         builder
@@ -140,25 +131,21 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.beacon_client = Some(client);
     }
 
-    pub fn set_beaconchain_api_client(&mut self, client: BeaconchainAPIClient) {
-        self.beaconchain_api_client = Some(client);
-    }
-
     /// Adds all the constraints nedded before building the circuit and registering hints.
     fn pre_build(&mut self) {
         let blake2b_accelerator = self.blake2b_accelerator.clone();
         if let Some(accelerator) = blake2b_accelerator {
-            accelerator.build(self);
+            self.curta_constrain_hash::<BLAKE2B, 96, true, 4>(accelerator);
         }
 
         let sha256_accelerator = self.sha256_accelerator.clone();
         if let Some(accelerator) = sha256_accelerator {
-            self.curta_constrain_sha::<SHA256, 64>(accelerator);
+            self.curta_constrain_hash::<SHA256, 64, false, 8>(accelerator);
         }
 
         let sha512_accelerator = self.sha512_accelerator.clone();
         if let Some(accelerator) = sha512_accelerator {
-            self.curta_constrain_sha::<SHA512, 80>(accelerator);
+            self.curta_constrain_hash::<SHA512, 80, false, 8>(accelerator);
         }
 
         let ec_ops_accelerator = self.ec_25519_ops_accelerator.clone();
@@ -220,6 +207,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     .collect::<Vec<_>>();
                 self.register_public_inputs(output.as_slice());
             }
+            CircuitIO::CyclicProof(ref io) => {
+                if !io.closed {
+                    panic!("close_cyclic_io should have been called");
+                }
+            }
             CircuitIO::None() => {}
         };
     }
@@ -257,6 +249,22 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             io: self.io,
             async_hints,
         }
+    }
+
+    /// Try to build the circuit, returning data and success. If it fails due to unexpected cyclic
+    /// common_data, if will still return the data and success as false.
+    pub fn try_build(mut self) -> (CircuitBuild<L, D>, bool) {
+        self.pre_build();
+        let (data, success) = self.api.try_build_with_options(true);
+        let async_hints = Self::async_hint_map(&data.prover_only.generators, self.async_hints);
+        (
+            CircuitBuild {
+                data,
+                io: self.io,
+                async_hints,
+            },
+            success,
+        )
     }
 
     pub fn mock_build(mut self) -> MockCircuitBuild<L, D> {

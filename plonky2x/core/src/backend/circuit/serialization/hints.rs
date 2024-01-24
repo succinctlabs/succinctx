@@ -1,9 +1,7 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use curta::chip::hash::blake::blake2b::generator::{
-    BLAKE2BAirParameters, BLAKE2BGenerator, BLAKE2BHintGenerator,
-};
+use curta::machine::hash::blake::blake2b::BLAKE2B;
 use curta::machine::hash::sha::sha256::SHA256;
 use curta::machine::hash::sha::sha512::SHA512;
 use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
@@ -34,6 +32,7 @@ use plonky2::iop::generator::{
 };
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSerializer, Write};
 
 use super::registry::{SerializationRegistry, Serializer};
@@ -43,12 +42,11 @@ use crate::frontend::ecc::curve25519::curta::proof_hint::EcOpProofHint;
 use crate::frontend::ecc::curve25519::curta::result_hint::EcOpResultHint;
 use crate::frontend::eth::beacon::generators::{
     BeaconAllWithdrawalsHint, BeaconBalanceBatchWitnessHint, BeaconBalanceGenerator,
-    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint,
-    BeaconExecutionPayloadHint, BeaconGraffitiHint, BeaconHeaderHint,
-    BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint, BeaconPartialBalancesHint,
-    BeaconPartialValidatorsHint, BeaconValidatorBatchHint, BeaconValidatorGenerator,
-    BeaconValidatorsGenerator, BeaconValidatorsHint, BeaconWithdrawalGenerator,
-    BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint, Eth1BlockToSlotHint,
+    BeaconBalanceWitnessHint, BeaconBalancesGenerator, BeaconBlockRootsHint, BeaconGraffitiHint,
+    BeaconHeaderHint, BeaconHeadersFromOffsetRangeHint, BeaconHistoricalBlockHint,
+    BeaconPartialBalancesHint, BeaconPartialValidatorsHint, BeaconValidatorBatchHint,
+    BeaconValidatorGenerator, BeaconValidatorsGenerator, BeaconValidatorsHint,
+    BeaconWithdrawalGenerator, BeaconWithdrawalsGenerator, CompressedBeaconValidatorBatchHint,
 };
 use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
@@ -57,10 +55,10 @@ use crate::frontend::eth::beacon::vars::{
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
-use crate::frontend::hash::blake2::curta::MAX_NUM_CURTA_CHUNKS;
+use crate::frontend::hash::curta::digest_hint::HashDigestHint;
+use crate::frontend::hash::curta::proof_hint::HashProofHint;
 use crate::frontend::hash::keccak::keccak256::Keccak256Generator;
-use crate::frontend::hash::sha::curta::digest_hint::SHADigestHint;
-use crate::frontend::hash::sha::curta::proof_hint::SHAProofHint;
+use crate::frontend::hash::poseidon::poseidon256::PoseidonHashOutVariable;
 use crate::frontend::hint::asynchronous::generator::{AsyncHintDataRef, AsyncHintRef};
 use crate::frontend::hint::asynchronous::hint::AsyncHint;
 use crate::frontend::hint::asynchronous::serializer::AsyncHintSerializer;
@@ -193,6 +191,33 @@ macro_rules! register_powers_of_two {
         $r.register_hint::<$hint<262144>>();
         $r.register_hint::<$hint<524288>>();
         $r.register_hint::<$hint<1048576>>();
+        $r.register_hint::<$hint<2097152>>();
+    };
+}
+
+macro_rules! register_powers_of_two_async {
+    ($r:ident, $hint:ident) => {
+        $r.register_async_hint::<$hint<2>>();
+        $r.register_async_hint::<$hint<4>>();
+        $r.register_async_hint::<$hint<8>>();
+        $r.register_async_hint::<$hint<16>>();
+        $r.register_async_hint::<$hint<32>>();
+        $r.register_async_hint::<$hint<64>>();
+        $r.register_async_hint::<$hint<128>>();
+        $r.register_async_hint::<$hint<256>>();
+        $r.register_async_hint::<$hint<512>>();
+        $r.register_async_hint::<$hint<1024>>();
+        $r.register_async_hint::<$hint<2048>>();
+        $r.register_async_hint::<$hint<4096>>();
+        $r.register_async_hint::<$hint<8192>>();
+        $r.register_async_hint::<$hint<16384>>();
+        $r.register_async_hint::<$hint<32768>>();
+        $r.register_async_hint::<$hint<65536>>();
+        $r.register_async_hint::<$hint<131072>>();
+        $r.register_async_hint::<$hint<262144>>();
+        $r.register_async_hint::<$hint<524288>>();
+        $r.register_async_hint::<$hint<1048576>>();
+        $r.register_async_hint::<$hint<2097152>>();
     };
 }
 
@@ -343,20 +368,19 @@ where
         r.register_simple::<ComparisonGenerator<L::Field, D>>(comparison_generator_id);
 
         r.register_hint::<BeaconBalanceWitnessHint>();
-        r.register_hint::<BeaconExecutionPayloadHint>();
 
         r.register_async_hint::<BeaconAllWithdrawalsHint>();
         r.register_async_hint::<BeaconHeaderHint>();
-        r.register_async_hint::<Eth1BlockToSlotHint>();
         r.register_async_hint::<BeaconHistoricalBlockHint>();
         r.register_async_hint::<EthStorageProofHint<L, D>>();
         r.register_async_hint::<BeaconValidatorsHint>();
 
         register_powers_of_two!(r, BeaconBalanceBatchWitnessHint);
-        register_powers_of_two!(r, BeaconPartialBalancesHint);
         register_powers_of_two!(r, BeaconValidatorBatchHint);
-        register_powers_of_two!(r, BeaconPartialValidatorsHint);
         register_powers_of_two!(r, CompressedBeaconValidatorBatchHint);
+
+        register_powers_of_two_async!(r, BeaconPartialBalancesHint);
+        register_powers_of_two_async!(r, BeaconPartialValidatorsHint);
 
         let id = U32RangeCheckGenerator::<L::Field, D>::id();
         r.register_simple::<U32RangeCheckGenerator<L::Field, D>>(id);
@@ -367,49 +391,39 @@ where
         let id = MulCubicGenerator::<L::Field, D>::id();
         r.register_simple::<MulCubicGenerator<L::Field, D>>(id);
 
-        let blake2b_hint_generator_id = BLAKE2BHintGenerator::id();
-        r.register_simple::<BLAKE2BHintGenerator>(blake2b_hint_generator_id);
-
-        let blake2b_generator = BLAKE2BGenerator::<
-            L::Field,
-            L::CubicParams,
-            L::CurtaConfig,
-            D,
-            BLAKE2BAirParameters<L::Field, L::CubicParams>,
-            MAX_NUM_CURTA_CHUNKS,
-        >::id();
-        r.register_simple::<BLAKE2BGenerator<
-            L::Field,
-            L::CubicParams,
-            L::CurtaConfig,
-            D,
-            BLAKE2BAirParameters<L::Field, L::CubicParams>,
-            MAX_NUM_CURTA_CHUNKS,
-        >>(blake2b_generator);
-
         r.register_hint::<SubArrayExtractorHint>();
 
         r.register_hint::<BeaconBlockRootsHint>();
 
         r.register_hint::<BeaconGraffitiHint>();
 
-        r.register_hint::<SHADigestHint<SHA256, 64>>();
-        r.register_async_hint::<Async<SHADigestHint<SHA256, 64>>>();
+        r.register_hint::<HashDigestHint<SHA256, 64, false, 8>>();
+        r.register_async_hint::<Async<HashDigestHint<SHA256, 64, false, 8>>>();
 
-        r.register_hint::<SHAProofHint<SHA256, 64>>();
-        r.register_async_hint::<Async<SHAProofHint<SHA256, 64>>>();
+        r.register_hint::<HashProofHint<SHA256, 64, false, 8>>();
+        r.register_async_hint::<Async<HashProofHint<SHA256, 64, false, 8>>>();
 
-        r.register_hint::<SHADigestHint<SHA512, 80>>();
-        r.register_async_hint::<Async<SHADigestHint<SHA512, 80>>>();
+        r.register_hint::<HashDigestHint<SHA512, 80, false, 8>>();
+        r.register_async_hint::<Async<HashDigestHint<SHA512, 80, false, 8>>>();
 
-        r.register_hint::<SHAProofHint<SHA512, 80>>();
-        r.register_async_hint::<Async<SHAProofHint<SHA512, 80>>>();
+        r.register_hint::<HashProofHint<SHA512, 80, false, 8>>();
+        r.register_async_hint::<Async<HashProofHint<SHA512, 80, false, 8>>>();
+
+        r.register_hint::<HashDigestHint<BLAKE2B, 96, true, 4>>();
+        r.register_async_hint::<Async<HashDigestHint<BLAKE2B, 96, true, 4>>>();
+
+        r.register_hint::<HashProofHint<BLAKE2B, 96, true, 4>>();
+        r.register_async_hint::<Async<HashProofHint<BLAKE2B, 96, true, 4>>>();
 
         r.register_hint::<EcOpProofHint>();
         r.register_async_hint::<Async<EcOpProofHint>>();
 
         r.register_hint::<EcOpResultHint>();
         r.register_async_hint::<Async<EcOpResultHint>>();
+
+        let dummy_proof_generator_id =
+            DummyProofGenerator::<L::Field, L::Config, D>::default().id();
+        r.register_simple::<DummyProofGenerator<L::Field, L::Config, D>>(dummy_proof_generator_id);
 
         register_powers_of_two!(r, BeaconHeadersFromOffsetRangeHint);
 
@@ -429,6 +443,7 @@ where
             BeaconWithdrawalVariable,
             BeaconValidatorVariable,
             BeaconHeaderVariable,
+            PoseidonHashOutVariable,
             ArrayVariable<Bytes32Variable, 8192>
         );
 

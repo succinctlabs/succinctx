@@ -1,36 +1,38 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import {ISuccinctGateway} from "./interfaces/ISuccinctGateway.sol";
+import {ISuccinctGateway, WhitelistStatus} from "./interfaces/ISuccinctGateway.sol";
 import {IFunctionVerifier} from "./interfaces/IFunctionVerifier.sol";
 import {FunctionRegistry} from "./FunctionRegistry.sol";
 import {TimelockedUpgradeable} from "./upgrades/TimelockedUpgradeable.sol";
 import {IFeeVault} from "./payments/interfaces/IFeeVault.sol";
 
 contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgradeable {
-    /// @dev The address of the fee vault.
+    /// @notice The address of the fee vault.
     address public feeVault;
 
-    /// @dev A nonce for keeping track of requests.
+    /// @notice A nonce for keeping track of requests.
     uint32 public nonce;
 
-    /// @dev A mapping from request nonces to request hashes.
+    /// @notice A mapping from request nonces to request hashes.
     mapping(uint32 => bytes32) public requests;
 
-    /// @dev The currently verified function identifier.
+    /// @notice The currently verified function identifier.
     bytes32 public verifiedFunctionId;
 
-    /// @dev The currently verified function input hash.
+    /// @notice The currently verified function input hash.
     bytes32 public verifiedInputHash;
 
-    /// @dev The currently verified function output.
+    /// @notice The currently verified function output.
     bytes public verifiedOutput;
 
-    /// @dev A flag that indicates whether the contract is currently making a callback.
-    bool public isCallback;
+    /// @notice A flag that indicates whether the contract is currently making a callback.
+    bool public override isCallback;
 
-    /// @dev The allowed provers that can fulfill requests.
-    mapping(address => bool) public allowedProvers;
+    mapping(bytes32 => WhitelistStatus) public whitelistStatus;
+
+    /// @notice The allowed provers that can fulfill requests.
+    mapping(bytes32 => mapping(address => bool)) public allowedProvers;
 
     /// @dev Protects functions from being re-entered during a fullfil call.
     modifier nonReentrant() {
@@ -44,14 +46,27 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     }
 
     /// @dev Protects functions from being called by anyone other than the prover.
-    modifier onlyProver() {
-        if (!allowedProvers[msg.sender]) {
-            revert OnlyProver(msg.sender);
+    modifier onlyProver(bytes32 _functionId) {
+        if (
+            whitelistStatus[_functionId] == WhitelistStatus.Default
+                && !allowedProvers[bytes32(0)][msg.sender]
+        ) {
+            revert OnlyProver(_functionId, msg.sender);
+        } else if (
+            whitelistStatus[_functionId] == WhitelistStatus.Custom
+                && !allowedProvers[_functionId][msg.sender]
+        ) {
+            revert OnlyProver(_functionId, msg.sender);
         }
         _;
     }
 
-    /// @dev Initializes the contract.
+    /// @dev Version of the contract, used for tracking upgrades.
+    function VERSION() external pure override returns (string memory) {
+        return "1.0.1";
+    }
+
+    /// @notice Initializes the contract.
     /// @param _feeVault The address of the fee vault.
     /// @param _timelock The address of the timelock contract.
     /// @param _guardian The address of the guardian.
@@ -64,8 +79,8 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         __TimelockedUpgradeable_init(_timelock, _guardian);
     }
 
-    /// @dev Creates a onchain request for a proof. The output and proof is fulfilled asynchronously
-    ///      by the provided callback.
+    /// @notice Creates a onchain request for a proof. The output and proof is fulfilled asynchronously
+    ///         by the provided callback.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
     /// @param _context The function context.
@@ -77,7 +92,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         bytes memory _context,
         bytes4 _callbackSelector,
         uint32 _callbackGasLimit
-    ) external payable returns (bytes32) {
+    ) external payable override returns (bytes32) {
         // Compute the callback hash uniquely associated with this request.
         bytes32 inputHash = sha256(_input);
         bytes32 contextHash = keccak256(_context);
@@ -116,8 +131,8 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         return requestHash;
     }
 
-    /// @dev Creates a proof request for a call. This function is equivalent to an off-chain request
-    ///      through an API.
+    /// @notice Creates a proof request for a call. This function is equivalent to an off-chain request
+    ///         through an API.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
     /// @param _entryAddress The address of the callback contract.
@@ -129,7 +144,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         address _entryAddress,
         bytes memory _entryCalldata,
         uint32 _entryGasLimit
-    ) external payable {
+    ) external payable override {
         // Emit event.
         emit RequestCall(
             _functionId,
@@ -147,13 +162,14 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         }
     }
 
-    /// @dev If the call matches the currently verified function, returns the output. Otherwise,
-    ///      this function reverts.
+    /// @notice If the call matches the currently verified function, returns the output. Otherwise,
+    ///         this function reverts.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
     function verifiedCall(bytes32 _functionId, bytes memory _input)
         external
         view
+        override
         returns (bytes memory)
     {
         bytes32 inputHash = sha256(_input);
@@ -164,7 +180,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         }
     }
 
-    /// @dev Fulfills a request by providing the output and proof.
+    /// @notice Fulfills a request by providing the output and proof.
     /// @param _nonce The nonce of the request.
     /// @param _functionId The function identifier.
     /// @param _inputHash The hash of the function input.
@@ -184,7 +200,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         bytes memory _context,
         bytes memory _output,
         bytes memory _proof
-    ) external nonReentrant onlyProver {
+    ) external nonReentrant onlyProver(_functionId) {
         // Reconstruct the callback hash.
         bytes32 contextHash = keccak256(_context);
         bytes32 requestHash = _requestHash(
@@ -213,8 +229,9 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
 
         // Execute the callback.
         isCallback = true;
-        (bool status,) =
-            _callbackAddress.call(abi.encodeWithSelector(_callbackSelector, _output, _context));
+        (bool status,) = _callbackAddress.call{gas: _callbackGasLimit}(
+            abi.encodeWithSelector(_callbackSelector, _output, _context)
+        );
         isCallback = false;
 
         // If the callback failed, revert.
@@ -226,7 +243,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         emit RequestFulfilled(_nonce, _functionId, _inputHash, outputHash);
     }
 
-    /// @dev The entrypoint for fulfilling a call.
+    /// @notice The entrypoint for fulfilling a call.
     /// @param _functionId The function identifier.
     /// @param _input The function input.
     /// @param _output The function output.
@@ -240,7 +257,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         bytes memory _proof,
         address _callbackAddress,
         bytes memory _callbackData
-    ) external nonReentrant onlyProver {
+    ) external nonReentrant onlyProver(_functionId) {
         // Compute the input and output hashes.
         bytes32 inputHash = sha256(_input);
         bytes32 outputHash = sha256(_output);
@@ -268,25 +285,68 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         emit Call(_functionId, inputHash, outputHash);
     }
 
-    /// @dev Sets the fee vault to a new address. Can be set to address(0) to disable fees.
+    /// @notice Sets the whitelist status for a function.
+    /// @param _functionId The function identifier.
+    /// @param _status The whitelist status to set.
+    function setWhitelistStatus(bytes32 _functionId, WhitelistStatus _status) external {
+        if (msg.sender != verifierOwners[_functionId]) {
+            revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
+        }
+        whitelistStatus[_functionId] = _status;
+        emit WhitelistStatusUpdated(_functionId, _status);
+    }
+
+    /// @notice Add a custom prover.
+    /// @param _functionId The function identifier.
+    /// @param _prover The address of the prover to add.
+    function addCustomProver(bytes32 _functionId, address _prover) external {
+        if (msg.sender != verifierOwners[_functionId]) {
+            revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
+        }
+        allowedProvers[_functionId][_prover] = true;
+        emit ProverUpdated(_functionId, _prover, true);
+    }
+
+    /// @notice Remove a custom prover.
+    /// @param _functionId The function identifier.
+    /// @param _prover The address of the prover to remove.
+    function removeCustomProver(bytes32 _functionId, address _prover) external {
+        if (msg.sender != verifierOwners[_functionId]) {
+            revert NotFunctionOwner(msg.sender, verifierOwners[_functionId]);
+        }
+        delete allowedProvers[_functionId][_prover];
+        emit ProverUpdated(_functionId, _prover, false);
+    }
+
+    /// @notice Add a default prover.
+    /// @param _prover The address of the prover to add.
+    function addDefaultProver(address _prover) external onlyGuardian {
+        allowedProvers[bytes32(0)][_prover] = true;
+        emit ProverUpdated(bytes32(0), _prover, true);
+    }
+
+    /// @notice Remove a default prover.
+    /// @param _prover The address of the prover to remove.
+    function removeDefaultProver(address _prover) external onlyGuardian {
+        delete allowedProvers[bytes32(0)][_prover];
+        emit ProverUpdated(bytes32(0), _prover, false);
+    }
+
+    /// @notice Sets the fee vault to a new address. Can be set to address(0) to disable fees.
     /// @param _feeVault The address of the fee vault.
     function setFeeVault(address _feeVault) external onlyGuardian {
         emit SetFeeVault(feeVault, _feeVault);
         feeVault = _feeVault;
     }
 
-    /// @notice Add the specified prover.
-    /// @param _prover The address of the prover to add.
-    function addProver(address _prover) external onlyGuardian {
-        allowedProvers[_prover] = true;
-        emit ProverUpdated(_prover, true);
-    }
-
-    /// @notice Remove the specified prover.
-    /// @param _prover The address of the prover to remove.
-    function removeProver(address _prover) external onlyGuardian {
-        allowedProvers[_prover] = false;
-        emit ProverUpdated(_prover, false);
+    /// @notice Recovers stuck ETH from the contract.
+    /// @param _to The address to send the ETH to.
+    /// @param _amount The wei amount of ETH to send.
+    function recover(address _to, uint256 _amount) external onlyGuardian {
+        (bool success,) = _to.call{value: _amount}("");
+        if (!success) {
+            revert RecoverFailed();
+        }
     }
 
     /// @dev Computes a unique identifier for a request.

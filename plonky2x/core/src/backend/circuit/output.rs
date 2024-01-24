@@ -42,6 +42,11 @@ impl<L: PlonkParameters<D>, const D: usize> PublicOutput<L, D> {
                 assert_eq!(io.output.len(), proof_with_pis.public_inputs.len());
                 PublicOutput::Proofs(proof_with_pis.public_inputs.clone())
             }
+            CircuitIO::CyclicProof(io) => {
+                let offset = io.input.len();
+                let elements = proof_with_pis.public_inputs[offset..].to_vec();
+                PublicOutput::Elements(elements)
+            }
             CircuitIO::None() => PublicOutput::None(),
         }
     }
@@ -58,6 +63,7 @@ impl<L: PlonkParameters<D>, const D: usize> PublicOutput<L, D> {
                 PublicOutput::Elements(output)
             }
             CircuitIO::RecursiveProofs(_) => todo!(),
+            CircuitIO::CyclicProof(_) => todo!(),
             CircuitIO::None() => PublicOutput::None(),
         }
     }

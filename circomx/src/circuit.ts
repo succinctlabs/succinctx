@@ -49,13 +49,17 @@ export abstract class Circuit {
     const buildDirName = `${circuitName}_cpp`;
     executeCommand(`make -C build/${buildDirName}/`);
     executeCommand(
-      `cp build/${buildDirName}/${circuitName} build/${circuitName}`
+      `mv build/${buildDirName}/${circuitName} build/${circuitName}`
     );
     executeCommand(
       `cp build/${buildDirName}/${circuitName}.dat build/${circuitName}.dat`
     );
+    // Tar build dir
+    executeCommand(
+      `tar -czvf build/${buildDirName}.tar.gz -C build ${buildDirName}`
+    );
+    // Remove build dir
     executeCommand(`rm -rf build/${buildDirName}`);
-    executeCommand(`rm -rf build/${circuit}_cpp`);
     if (!noZkey) {
       executeCommand(
         `node ${NODE_OPTIONS} ${snarkjsPath} zkey new build/${circuitName}.r1cs ${ptauPath} build/p1.zkey`
@@ -122,7 +126,7 @@ contract FunctionVerifier is IFunctionVerifier, Groth16Verifier {
     }
   }
 
-  async prove(rapidsnarkPath: string, inputJsonPath: string) {
+  async prove(rapidsnarkPath: string, inputJsonPath: string, zkeyName: string) {
     const circuit = this.circuitName();
     const circuitName = circuit === "main" ? "main_c" : circuit;
 
@@ -145,7 +149,7 @@ contract FunctionVerifier is IFunctionVerifier, Groth16Verifier {
 
     executeCommand(`./build/${circuitName} witness.json witness.wtns`);
     executeCommand(
-      `${rapidsnarkPath} build/p1.zkey witness.wtns proof.json public.json`
+      `${rapidsnarkPath} build/${zkeyName} witness.wtns proof.json public.json`
     );
 
     const publicData = fs.readFileSync("public.json", "utf8");
@@ -228,13 +232,19 @@ contract FunctionVerifier is IFunctionVerifier, Groth16Verifier {
               describe: "Rapidsnark command",
               type: "string",
               default: "rapidsnark",
+            })
+            .option("zkey", {
+              describe: "Name of the zkey to use",
+              type: "string",
+              default: "p1.zkey",
             });
         },
         async (args) => {
           const rapidsnarkPath = args.rapidsnark as string;
           const inputJsonPath = args["input-json"] as string;
+          const zkeyName = args["zkey"] as string;
 
-          await this.prove(rapidsnarkPath, inputJsonPath);
+          await this.prove(rapidsnarkPath, inputJsonPath, zkeyName);
         }
       )
       .demandCommand(1, "You need to provide a command (either build or prove)")

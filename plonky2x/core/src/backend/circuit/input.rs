@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use plonky2::plonk::circuit_data::VerifierCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +16,11 @@ pub enum PublicInput<L: PlonkParameters<D>, const D: usize> {
     Elements(Vec<L::Field>),
     RecursiveProofs(Vec<ProofWithPublicInputs<L::Field, L::Config, D>>),
     RemoteRecursiveProofs(Vec<ProofId>),
+    CyclicProof(
+        Vec<L::Field>,
+        Box<Option<ProofWithPublicInputs<L::Field, L::Config, D>>>,
+        #[serde(skip)] Box<Option<VerifierCircuitData<L::Field, L::Config, D>>>,
+    ),
     None(),
 }
 
@@ -25,6 +31,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
             CircuitIO::Bytes(_) => PublicInput::Bytes(vec![]),
             CircuitIO::Elements(_) => PublicInput::Elements(vec![]),
             CircuitIO::RecursiveProofs(_) => PublicInput::RecursiveProofs(vec![]),
+            CircuitIO::CyclicProof(_) => {
+                PublicInput::CyclicProof(vec![], Box::new(None), Box::new(None))
+            }
             CircuitIO::None() => PublicInput::None(),
         }
     }
@@ -52,6 +61,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
             CircuitIO::RecursiveProofs(_) => {
                 todo!()
             }
+            CircuitIO::CyclicProof(_) => {
+                todo!()
+            }
             CircuitIO::None() => PublicInput::None(),
         }
     }
@@ -62,6 +74,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
             PublicInput::Elements(input) => {
                 input.extend(V::elements::<L::Field>(value));
             }
+            PublicInput::CyclicProof(input, _, _) => {
+                input.extend(V::elements::<L::Field>(value));
+            }
             _ => panic!("field io is not enabled"),
         };
     }
@@ -70,6 +85,9 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
     pub fn write_all(&mut self, value: &[L::Field]) {
         match self {
             PublicInput::Elements(input) => {
+                input.extend(value);
+            }
+            PublicInput::CyclicProof(input, _, _) => {
                 input.extend(value);
             }
             _ => panic!("field io is not enabled"),
@@ -105,7 +123,31 @@ impl<L: PlonkParameters<D>, const D: usize> PublicInput<L, D> {
             PublicInput::RecursiveProofs(input) => {
                 input.push(proof);
             }
-            _ => panic!("proof io is not enabled"),
+            PublicInput::CyclicProof(_input, ref mut io_proof, ref _data) => {
+                if io_proof.is_some() {
+                    panic!("cyclic proof already has data");
+                } else {
+                    *io_proof = Box::new(Some(proof));
+                }
+            }
+            _ => panic!("cyclic io is not enabled"),
+        };
+    }
+
+    pub fn data_write(&mut self, data: VerifierCircuitData<L::Field, L::Config, D>) {
+        match self {
+            PublicInput::CyclicProof(_, _, ref mut io_data) => {
+                if io_data.as_ref().is_some() {
+                    panic!("cyclic proof already has data");
+                } else {
+                    let wrapped = VerifierCircuitData {
+                        verifier_only: data.verifier_only,
+                        common: data.common,
+                    };
+                    *io_data = Box::new(Some(wrapped));
+                }
+            }
+            _ => panic!("cyclic io is not enabled"),
         };
     }
 

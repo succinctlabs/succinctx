@@ -24,7 +24,7 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
     /// @notice Tracks the amount of active balance that an account has for Succinct services.
     /// @dev balances[token][account] returns the amount of balance for token the account has. To
     ///      check native currency balance, use address(0) as the token address.
-    mapping(address => mapping(address => uint256)) public balances;
+    mapping(address => mapping(address => uint256)) public override balances;
     /// @notice The allowed senders for the deduct functions.
     mapping(address => bool) public allowedDeductors;
 
@@ -33,6 +33,11 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
             revert OnlyDeductor(msg.sender);
         }
         _;
+    }
+
+    /// @dev Version of the contract, used for tracking upgrades.
+    function VERSION() external pure override returns (string memory) {
+        return "1.0.1";
     }
 
     /// @dev Initializes the contract.
@@ -57,7 +62,7 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
     /// @notice Deposit the specified amount of native currency from the caller.
     /// @dev The native currency is represented by address(0) in balances.
     /// @param _account The account to deposit the native currency for.
-    function depositNative(address _account) external payable {
+    function depositNative(address _account) external payable override {
         if (_account == address(0)) {
             revert InvalidAccount(_account);
         }
@@ -72,7 +77,7 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
     /// @param _account The account to deposit the tokens to.
     /// @param _token The address of the token to deposit.
     /// @param _amount The amount of the token to deposit.
-    function deposit(address _account, address _token, uint256 _amount) external {
+    function deposit(address _account, address _token, uint256 _amount) external override {
         if (_account == address(0)) {
             revert InvalidAccount(_account);
         }

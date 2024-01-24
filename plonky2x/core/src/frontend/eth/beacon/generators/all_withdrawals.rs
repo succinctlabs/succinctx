@@ -26,7 +26,7 @@ impl<L: PlonkParameters<D>, const D: usize> AsyncHint<L, D> for BeaconAllWithdra
         input_stream: &mut ValueStream<L, D>,
         output_stream: &mut ValueStream<L, D>,
     ) {
-        let client = BeaconClient::new(env::var("CONSENSUS_RPC_1").unwrap());
+        let client = BeaconClient::new(env::var("CONSENSUS_RPC_URL").unwrap());
 
         let block_root = input_stream.read_value::<Bytes32Variable>();
         let withdrawals_res = client

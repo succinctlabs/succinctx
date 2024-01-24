@@ -1,18 +1,20 @@
 use curta::chip::builder::AirBuilder;
-use curta::chip::ec::edwards::ed25519::gadget::{CompressedPointGadget, CompressedPointWriter};
+use curta::chip::ec::edwards::ed25519::gadget::{CompressedPointAirWriter, CompressedPointGadget};
 use curta::chip::ec::edwards::ed25519::instruction::Ed25519FpInstruction;
 use curta::chip::ec::edwards::ed25519::point::CompressedPointRegister;
-use curta::chip::ec::gadget::EllipticCurveWriter;
+use curta::chip::ec::gadget::EllipticCurveAirWriter;
 use curta::chip::ec::point::{AffinePoint, AffinePointRegister};
 use curta::chip::ec::scalar::ECScalarRegister;
 use curta::chip::register::Register;
-use curta::chip::trace::writer::{InnerWriterData, TraceWriter};
+use curta::chip::trace::writer::data::AirWriterData;
+use curta::chip::trace::writer::AirWriter;
 use curta::chip::AirParameters;
 use curta::machine::builder::Builder;
 use curta::machine::ec::builder::EllipticCurveBuilder;
 use curta::machine::emulated::builder::EmulatedBuilder;
 use curta::machine::emulated::proof::EmulatedStarkProof;
 use curta::machine::emulated::stark::EmulatedStark;
+use curta::maybe_rayon::*;
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use itertools::Itertools;
 use log::debug;
@@ -114,15 +116,19 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
         }
     }
 
-    pub fn write_input(&self, writer: &TraceWriter<L::Field>, input: &[Ed25519CurtaOpValue]) {
+    pub fn write_input(
+        &self,
+        writer: &mut impl AirWriter<Field = L::Field>,
+        input: &[Ed25519CurtaOpValue],
+    ) {
         self.operations
             .iter()
             .zip(input.iter())
             .for_each(|(op, op_value)| match &op {
                 Ed25519CurtaOp::Add(a, b, _) => {
                     if let Ed25519CurtaOpValue::Add(a_val, b_val, _) = &op_value {
-                        writer.write_ec_point(a, a_val, 0);
-                        writer.write_ec_point(b, b_val, 0);
+                        writer.write_ec_point(a, a_val);
+                        writer.write_ec_point(b, b_val);
                     } else {
                         panic!("invalid input");
                     }
@@ -134,24 +140,24 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
                         let mut limb_values = scalar_val.to_u32_digits();
                         limb_values.resize(8, 0);
                         for (limb_reg, limb) in scalar.limbs.iter().zip_eq(limb_values) {
-                            writer.write(&limb_reg, &L::Field::from_canonical_u32(limb), 0);
+                            writer.write(&limb_reg, &L::Field::from_canonical_u32(limb));
                         }
-                        writer.write_ec_point(point, point_val, 0);
-                        writer.write_ec_point(result, result_val, 0);
+                        writer.write_ec_point(point, point_val);
+                        writer.write_ec_point(result, result_val);
                     } else {
                         panic!("invalid input");
                     }
                 }
                 Ed25519CurtaOp::Decompress(compressed_point, _) => {
                     if let Ed25519CurtaOpValue::Decompress(compressed_point_val, _) = &op_value {
-                        writer.write_ec_compressed_point(compressed_point, compressed_point_val, 0);
+                        writer.write_ec_compressed_point(compressed_point, compressed_point_val);
                     } else {
                         panic!("invalid input");
                     }
                 }
                 Ed25519CurtaOp::IsValid(point) => {
                     if let Ed25519CurtaOpValue::IsValid(point_val) = &op_value {
-                        writer.write_ec_point(point, point_val, 0);
+                        writer.write_ec_point(point, point_val);
                     } else {
                         panic!("invalid input");
                     }
@@ -168,21 +174,24 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
         Vec<L::Field>,
     ) {
         let num_rows = self.degree;
-        let writer = TraceWriter::new(&self.stark.air_data, num_rows);
+
+        let mut writer_data = AirWriterData::new(&self.stark.air_data, num_rows);
 
         debug!("Writing EC stark input");
-        self.write_input(&writer, input);
+        let mut writer = writer_data.public_writer();
+        self.write_input(&mut writer, input);
 
         debug!("Writing EC execusion trace");
-        writer.write_global_instructions(&self.stark.air_data);
-        for i in 0..num_rows {
-            writer.write_row_instructions(&self.stark.air_data, i);
-        }
-
-        let public_inputs: Vec<L::Field> = writer.public().unwrap().clone();
+        self.stark.air_data.write_global_instructions(&mut writer);
+        writer_data.chunks_par(256).for_each(|mut chunk| {
+            for i in 0..256 {
+                let mut writer = chunk.window_writer(i);
+                self.stark.air_data.write_trace_instructions(&mut writer);
+            }
+        });
 
         debug!("EC stark proof generation");
-        let InnerWriterData { trace, public, .. } = writer.into_inner().unwrap();
+        let (trace, public) = (writer_data.trace, writer_data.public);
         let proof = self
             .stark
             .prove(&trace, &public, &mut TimingTree::default())
@@ -193,7 +202,7 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
 
         debug!("EC stark proof verified");
 
-        (proof, public_inputs)
+        (proof, public)
     }
 
     pub fn verify_proof(
@@ -347,6 +356,7 @@ impl Ed25519CurtaOp {
             }
             EcOpRequestType::IsValid => {
                 let point = builder.alloc_public_ec_point();
+                builder.ed_assert_valid(&point);
                 Self::IsValid(point)
             }
         }

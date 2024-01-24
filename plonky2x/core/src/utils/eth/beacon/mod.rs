@@ -78,6 +78,15 @@ pub struct BeaconValidator {
 }
 
 impl BeaconValidator {
+    pub fn pubkey_hash(&self) -> H256 {
+        let pubkey_bytes = hex::decode(&self.pubkey.as_str()[2..]).unwrap();
+        let mut pubkey_p1 = [0u8; 32];
+        pubkey_p1.copy_from_slice(&pubkey_bytes[..32]);
+        let mut pubkey_p2 = [0u8; 32];
+        pubkey_p2[0..16].copy_from_slice(&pubkey_bytes[32..]);
+        H256::from(sha256(&[pubkey_p1, pubkey_p2].concat()))
+    }
+
     pub fn ssz_merkleize(&self) -> (H256, Vec<H256>) {
         let pubkey_bytes = hex::decode(&self.pubkey.as_str()[2..]).unwrap();
         let mut pubkey_p1 = [0u8; 32];
@@ -376,7 +385,7 @@ impl BeaconClient {
     }
 
     /// Gets the partial balances root based on a beacon_id and the number of expected balances.
-    pub fn get_partial_validators_root(
+    pub async fn get_partial_validators_root(
         &self,
         beacon_id: String,
         nb_balances: usize,
@@ -386,12 +395,46 @@ impl BeaconClient {
             self.rpc_url, beacon_id, nb_balances
         );
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client
-            .get(endpoint)
-            .timeout(Duration::from_secs(300))
-            .send()?;
-        let response: CustomResponse<GetBeaconPartialValidatorsRoot> = response.json()?;
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<GetBeaconPartialValidatorsRoot> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets all of the subtree hashes of validators at `beacon_id`, up to `limit`. Each subtree
+    /// contains `batch_size` validators, so the # of hashes returned will be `limit / batch_size`.
+    pub async fn get_validator_subtrees(
+        &self,
+        batch_size: usize,
+        limit: usize,
+        beacon_id: String,
+    ) -> Result<Vec<String>> {
+        let endpoint = format!(
+            "{}/api/beacon/validator/subtree/{}/{}/root/{}",
+            self.rpc_url, batch_size, limit, beacon_id
+        );
+        info!("{}", endpoint);
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<Vec<String>> = response.json().await?;
+        assert!(response.success);
+        Ok(response.result)
+    }
+
+    /// Gets the `batch_size` validators within a subtree. `get_validator_subtrees` should be called
+    /// first to cache data to S3.
+    pub async fn get_validator_subtree(
+        &self,
+        batch_size: usize,
+        limit: usize,
+        subtree_hash: String,
+    ) -> Result<Vec<BeaconValidator>> {
+        let endpoint = format!(
+            "{}/api/beacon/validator/subtree/{}/{}/partial/{}",
+            self.rpc_url, batch_size, limit, subtree_hash
+        );
+        info!("{}", endpoint);
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<Vec<BeaconValidator>> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
@@ -400,10 +443,15 @@ impl BeaconClient {
     /// `stateRoot -> validatorsRoot`.
     pub fn get_validators_root(&self, beacon_id: String) -> Result<GetBeaconValidatorsRoot> {
         let endpoint = format!("{}/api/beacon/proof/validator/{}", self.rpc_url, beacon_id);
+        debug!("{}", endpoint);
         let client = Client::new();
-        let response = client.get(endpoint).timeout(Duration::new(120, 0)).send()?;
+        let response = client
+            .get(&endpoint)
+            .timeout(Duration::new(120, 0))
+            .send()?;
         let response: CustomResponse<GetBeaconValidatorsRoot> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -418,6 +466,7 @@ impl BeaconClient {
             "{}/api/beacon/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
+        debug!("{}", endpoint);
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconValidatorWitness> = response.json()?;
         assert!(response.success);
@@ -451,9 +500,11 @@ impl BeaconClient {
             "{}/api/beacon/proof/validator/{}/{}",
             self.rpc_url, beacon_id, validator_idx
         );
+        debug!("{}", endpoint);
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconValidator> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -487,7 +538,7 @@ impl BeaconClient {
     }
 
     /// Gets the partial balances root based on a beacon_id and the number of expected balances.
-    pub fn get_partial_balances_root(
+    pub async fn get_partial_balances_root(
         &self,
         beacon_id: String,
         nb_balances: usize,
@@ -497,12 +548,8 @@ impl BeaconClient {
             self.rpc_url, beacon_id, nb_balances
         );
         info!("{}", endpoint);
-        let client = Client::new();
-        let response = client
-            .get(endpoint)
-            .timeout(Duration::from_secs(300))
-            .send()?;
-        let response: CustomResponse<GetBeaconPartialBalancesRoot> = response.json()?;
+        let response = self.client.fetch_async(&endpoint).await?;
+        let response: CustomResponse<GetBeaconPartialBalancesRoot> = response.json().await?;
         assert!(response.success);
         Ok(response.result)
     }
@@ -610,6 +657,7 @@ impl BeaconClient {
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconWithdrawals> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -627,9 +675,11 @@ impl BeaconClient {
             "{}/api/beacon/proof/withdrawal/{}/{}",
             self.rpc_url, beacon_id, idx
         );
+        info!("{}", endpoint);
         let response = self.client.fetch(&endpoint)?;
         let response: CustomResponse<GetBeaconWithdrawal> = response.json()?;
         assert!(response.success);
+        debug!("done {}", endpoint);
         Ok(response.result)
     }
 
@@ -753,7 +803,7 @@ mod tests {
     fn test_get_validators_root_by_slot() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_validators_root(slot.to_string())?;
@@ -766,7 +816,7 @@ mod tests {
     fn test_get_validators_root_by_block_root() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
         let result = client.get_validators_root(block_root.to_string())?;
@@ -779,7 +829,7 @@ mod tests {
     fn test_get_validator_by_slot() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_validator(slot.to_string(), 0)?;
@@ -792,7 +842,7 @@ mod tests {
     fn test_get_validator_by_block_root() -> Result<()> {
         utils::setup_logger();
         dotenv::dotenv()?;
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let block_root = "0x6b6964f45d0aeff741260ec4faaf76bb79a009fc18ae17979784d92aec374946";
         let result = client.get_validator(block_root.to_string(), 0)?;
@@ -804,7 +854,7 @@ mod tests {
     #[test]
     fn test_get_block_roots() -> Result<()> {
         utils::setup_logger();
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_block_roots(slot.to_string())?;
@@ -816,7 +866,7 @@ mod tests {
     #[test]
     fn test_get_headers_from_offset_range() -> Result<()> {
         utils::setup_logger();
-        let rpc = env::var("CONSENSUS_RPC_1").unwrap();
+        let rpc = env::var("CONSENSUS_RPC_URL").unwrap();
         let client = BeaconClient::new(rpc.to_string());
         let slot = 7052735;
         let result = client.get_headers_from_offset_range(slot.to_string(), 0, 16)?;

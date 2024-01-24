@@ -37,7 +37,7 @@ impl ReqwestClient {
             let response = self
                 .client_async
                 .get(endpoint)
-                .timeout(core::time::Duration::from_secs(60))
+                .timeout(core::time::Duration::from_secs(900))
                 .send()
                 .await;
             match response {
@@ -78,7 +78,7 @@ impl ReqwestClient {
             let response = self
                 .client
                 .get(endpoint)
-                .timeout(core::time::Duration::from_secs(60))
+                .timeout(core::time::Duration::from_secs(300))
                 .send();
 
             match response {
