@@ -929,7 +929,7 @@ mod tests {
         let hint = ProofReadHint { proof };
         let output_stream = builder.hint(input_stream, hint);
         let proof_variable = output_stream.read_stark_proof(&mut builder, &stark, &config);
-        let public_input_variable = output_stream.read_exact_unsafe(&mut builder, 3);
+        let public_input_variable = output_stream.read_exact(&mut builder, 3);
 
         builder.verify_stark_proof(
             &config,
