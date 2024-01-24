@@ -43,7 +43,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 EcOpRequest::Add(_, _)
                 | EcOpRequest::ScalarMul(_, _)
                 | EcOpRequest::Decompress(_) => {
-                    let result = output_stream.read_unsafe::<AffinePointVariable<Curve>>(self);
+                    let result = output_stream.read::<AffinePointVariable<Curve>>(self);
                     self.assert_is_equal(
                         result,
                         response.clone().expect("response should not be None"),

@@ -52,6 +52,7 @@ use crate::frontend::eth::beacon::vars::{
     BeaconBalancesVariable, BeaconHeaderVariable, BeaconValidatorVariable,
     BeaconValidatorsVariable, BeaconWithdrawalVariable, BeaconWithdrawalsVariable,
 };
+use crate::frontend::eth::mpt::generators::LteGenerator;
 use crate::frontend::eth::storage::generators::{
     EthBlockGenerator, EthLogGenerator, EthStorageKeyGenerator, EthStorageProofHint,
 };
@@ -366,6 +367,9 @@ where
 
         let comparison_generator_id = ComparisonGenerator::<L::Field, D>::id();
         r.register_simple::<ComparisonGenerator<L::Field, D>>(comparison_generator_id);
+
+        let le_generator_id = LteGenerator::<L, D>::id();
+        r.register_simple::<LteGenerator<L, D>>(le_generator_id);
 
         r.register_hint::<BeaconBalanceWitnessHint>();
 

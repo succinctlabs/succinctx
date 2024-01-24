@@ -35,7 +35,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         b_offset: Variable,
         len: Variable,
     ) {
-        // TODO: Need to constrain generator result.
+        // TODO: implement
         let generator: SubarrayEqualGenerator<L, D> = SubarrayEqualGenerator {
             a: a.to_vec(),
             a_offset,
