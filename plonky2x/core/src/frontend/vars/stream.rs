@@ -38,6 +38,27 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
 
     pub fn read_exact(&self, builder: &mut CircuitBuilder<L, D>, len: usize) -> Vec<Variable> {
         let variables = (0..len)
+            .map(|_| builder.init::<Variable>())
+            .collect::<Vec<_>>();
+        let stream = &mut builder
+            .hints
+            .get_mut(self.hint_id)
+            .expect("Hint not found")
+            .output_stream_mut();
+        stream.0.write_slice(&variables);
+
+        variables
+    }
+
+    // Some hints already do validity checks on elements that they write to their output stream.
+    // Those instances can use this unsafe version of read_exact.  E.g. hints that call curta can
+    // use this for their curta public inputs.
+    pub fn read_exact_unsafe(
+        &self,
+        builder: &mut CircuitBuilder<L, D>,
+        len: usize,
+    ) -> Vec<Variable> {
+        let variables = (0..len)
             .map(|_| builder.init_unsafe::<Variable>())
             .collect::<Vec<_>>();
         let stream = &mut builder
@@ -50,18 +71,10 @@ impl<L: PlonkParameters<D>, const D: usize> OutputVariableStream<L, D> {
         variables
     }
 
-    /// Read a single variable from the stream.
-    /// The output value is asserted to be a valid circuit variable.
     pub fn read<V: CircuitVariable>(&self, builder: &mut CircuitBuilder<L, D>) -> V {
         let variables = self.read_exact(builder, V::nb_elements());
 
-        V::from_variables(builder, &variables)
-    }
-
-    /// Read a circuit variable from the output stream without doing any validity checks.
-    pub fn read_unsafe<V: CircuitVariable>(&self, builder: &mut CircuitBuilder<L, D>) -> V {
-        let variables = self.read_exact(builder, V::nb_elements());
-
+        // "read_exact" will have already done validity checks on the circuit variables.
         V::from_variables_unsafe(&variables)
     }
 
