@@ -126,7 +126,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let padding_start_byte = self.constant::<ByteVariable>(0x80);
 
                 // If message_byte_selector is true, select the message byte.
-                let mut byte = self.select(message_byte_selector, input[idx], zero_byte);
+                let mut byte = self.select(message_byte_selector, padded_input[idx], zero_byte);
                 // If idx == length_bytes, select the padding start byte.
                 byte = self.select(is_last_msg_byte, padding_start_byte, byte);
 
