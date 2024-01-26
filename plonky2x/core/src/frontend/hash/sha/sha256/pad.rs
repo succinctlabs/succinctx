@@ -59,6 +59,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         input_byte_length: U32Variable,
     ) -> Vec<ByteVariable> {
+        let true_t = self._true();
+        let false_t = self._false();
+
         let max_number_of_chunks = input.len() / 64;
         assert_eq!(
             max_number_of_chunks * 64,
@@ -90,7 +93,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let mut padded_bytes = Vec::new();
 
-        let mut message_byte_selector = self.constant::<BoolVariable>(true);
+        let mut message_byte_selector = true_t;
         for i in 0..max_number_of_chunks {
             let chunk_offset = 64 * i;
             let curr_chunk = self.constant::<U32Variable>(i as u32);
@@ -123,8 +126,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 padded_bytes.push(byte);
             }
         }
-
-        // self.watch_slice(&padded_bytes, "padded bytes");
+        self.is_equal(message_byte_selector, false_t);
 
         assert_eq!(padded_bytes.len(), max_number_of_chunks * 64);
         padded_bytes
