@@ -239,7 +239,7 @@ mod tests {
                 .map(|b| builder.constant::<ByteVariable>(*b))
                 .collect::<Vec<_>>();
 
-            let padding = builder.pad_message_sha256_variable(&message, length);
+            let padding = builder.pad_sha256_variable_length(&message, length);
 
             for (value, expected) in padding.iter().zip(expected_padding.iter()) {
                 builder.assert_is_equal(*value, *expected);

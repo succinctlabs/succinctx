@@ -57,7 +57,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 64, false, 8> for SHA256 
         input: &[ByteVariable],
         length: U32Variable,
     ) -> Vec<Self::IntVariable> {
-        let padded_bytes = builder.pad_message_sha256_variable(input, length);
+        let padded_bytes = builder.pad_sha256_variable_length(input, length);
 
         padded_bytes
             .chunks_exact(4)

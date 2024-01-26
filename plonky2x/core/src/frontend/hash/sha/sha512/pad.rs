@@ -1,46 +1,43 @@
-use plonky2::iop::target::BoolTarget;
+use array_macro::array;
 use plonky2::util::ceil_div_usize;
 
 use crate::prelude::*;
 
-pub const SELECT_CHUNK_SIZE_64: usize = 64;
-pub const LENGTH_BITS_128: usize = 128;
-pub const SHA512_CHUNK_SIZE_BYTES_128: usize = 128;
-pub const CHUNK_BITS_1024: usize = 1024;
+pub const SHA512_CHUNK_SIZE_BYTES: usize = 128;
+pub const SHA512_INPUT_LENGTH_BYTE_SIZE: usize = 16;
+
+pub const SHA512_CHUNK_SIZE_BITS: usize = SHA512_CHUNK_SIZE_BYTES * 8;
+pub const SHA512_INPUT_LENGTH_BIT_SIZE: usize = SHA512_INPUT_LENGTH_BYTE_SIZE * 8;
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     pub(crate) fn pad_message_sha512(&mut self, input: &[ByteVariable]) -> Vec<ByteVariable> {
-        let bits = input
+        let mut bits = input
             .iter()
-            .flat_map(|b| b.as_bool_targets().map(|x| x.target).to_vec())
+            .flat_map(|b| b.as_bool_targets().to_vec())
             .collect::<Vec<_>>();
+        bits.push(self.api._true());
 
-        let mut bit_targets = Vec::new();
-        bit_targets.extend_from_slice(&bits);
-
-        // TODO: Range check size of msg_bit_len?
-        // Cast to u128 for bitmask
-        let msg_bit_len: u128 = bits.len().try_into().expect("message too long");
-
-        // minimum_padding = 1 + 128 (min 1 bit for the pad, and 128 bit for the msg size)
-        let msg_with_min_padding_len = msg_bit_len as usize + LENGTH_BITS_128 + 1;
-
-        let additional_padding_len = CHUNK_BITS_1024 - (msg_with_min_padding_len % CHUNK_BITS_1024);
-
-        bit_targets.push(self.api.constant_bool(true).target);
-        for _i in 0..additional_padding_len {
-            bit_targets.push(self.api.constant_bool(false).target);
+        let l = bits.len() - 1;
+        let k = SHA512_CHUNK_SIZE_BITS
+            - (l + 1 + SHA512_INPUT_LENGTH_BIT_SIZE) % SHA512_CHUNK_SIZE_BITS;
+        for _ in 0..k {
+            bits.push(self.api._false());
         }
 
-        for i in (0..128).rev() {
-            let has_bit = (msg_bit_len & (1 << i)) != 0;
-            bit_targets.push(self.api.constant_bool(has_bit).target);
-        }
+        (l as u128)
+            .to_be_bytes()
+            .iter()
+            .map(|b| self.constant::<ByteVariable>(*b))
+            .for_each(|b| {
+                bits.extend_from_slice(&b.as_bool_targets());
+            });
+
+        let bit_targets = bits.iter().map(|b| b.target).collect::<Vec<_>>();
 
         // Combine the bits into ByteVariable
         (0..bit_targets.len() / 8)
             .map(|i| ByteVariable::from_targets(&bit_targets[i * 8..(i + 1) * 8]))
-            .collect::<Vec<_>>()
+            .collect()
     }
 
     /// Calculates the last valid SHA512 chunk of an input_byte_length long message.
@@ -60,6 +57,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// Pads the input according to the SHA512 specification.
+    /// input_byte_length gives the real length of the input in bytes.
     pub(crate) fn pad_sha512_variable_length(
         &mut self,
         input: &[ByteVariable],
@@ -67,93 +65,80 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ) -> Vec<ByteVariable> {
         let last_chunk = self.compute_sha512_last_chunk(input_byte_length);
 
-        // Calculate the number of chunks needed to store the input. 17 is the number of bytes added
-        // by the padding and LE length representation.
-        let max_num_chunks = ceil_div_usize(input.len() + 17, SHA512_CHUNK_SIZE_BYTES_128);
+        // Calculate the number of chunks needed to store the input. 9 bytes are added by the
+        // padding and LE length representation.
+        let max_num_chunks = ceil_div_usize(
+            input.len() + SHA512_INPUT_LENGTH_BYTE_SIZE + 1,
+            SHA512_CHUNK_SIZE_BYTES,
+        );
 
         // Extend input to size max_num_chunks * 128 before padding.
         let mut padded_input = input.to_vec();
-        padded_input.resize(max_num_chunks * SHA512_CHUNK_SIZE_BYTES_128, self.zero());
+        padded_input.resize(max_num_chunks * SHA512_CHUNK_SIZE_BYTES, self.zero());
 
-        let message = padded_input
-            .iter()
-            .flat_map(|b| b.as_bool_targets().to_vec())
-            .collect::<Vec<_>>();
+        // Compute the length bytes (big-endian representation of the length in bits).
+        let zero_byte = self.constant::<ByteVariable>(0x00);
+        let mut length_bytes = vec![zero_byte; 12];
 
-        let mut msg_input = Vec::new();
+        let bits_per_byte = self.constant::<U32Variable>(8);
+        let input_bit_length = self.mul(input_byte_length, bits_per_byte);
 
-        let eight = self.constant::<U32Variable>(8);
-        let hash_msg_length_bits = self.mul(input_byte_length, eight).variable.0;
-
-        let mut length_bits = self.api.split_le(hash_msg_length_bits, 128);
-        // Convert length to BE bits
+        let mut length_bits = self.to_le_bits(input_bit_length);
+        // Convert length to BE bits.
         length_bits.reverse();
 
-        let last_chunk = last_chunk.variable.0;
-        let mut add_message_bit_selector = self.api.constant_bool(true);
+        // Prepend 12 zero bytes to length_bytes as abi.encodePacked(U32Variable) is 4 bytes.
+        length_bytes.extend_from_slice(
+            &length_bits
+                .chunks(8)
+                .map(|chunk| {
+                    let bits = array![x => chunk[x]; 8];
+                    ByteVariable(bits)
+                })
+                .collect::<Vec<_>>(),
+        );
+
+        let mut padded_bytes = Vec::new();
+
+        let mut message_byte_selector = self._true();
         for i in 0..max_num_chunks {
-            let chunk_offset = CHUNK_BITS_1024 * i;
-            let curr_chunk_t = self.api.constant(L::Field::from_canonical_usize(i));
-            // Check if this is the chunk where length should be added
-            let add_length_bit_selector = self.api.is_equal(last_chunk, curr_chunk_t);
-            // Always message || padding || nil
-            for j in 0..CHUNK_BITS_1024 - LENGTH_BITS_128 {
+            let chunk_offset = SHA512_CHUNK_SIZE_BYTES * i;
+            let curr_chunk = self.constant::<U32Variable>(i as u32);
+
+            // Check if this is the chunk where length should be added.
+            let is_last_chunk = self.is_equal(curr_chunk, last_chunk);
+
+            for j in 0..SHA512_CHUNK_SIZE_BYTES {
+                // First 128 - 16 bytes are either message | padding | nil bytes.
                 let idx = chunk_offset + j;
+                let idx_t = self.constant::<U32Variable>(idx as u32);
+                let is_last_msg_byte = self.is_equal(idx_t, input_byte_length);
+                let not_last_msg_byte = self.not(is_last_msg_byte);
 
-                let idx_t = self.api.constant(L::Field::from_canonical_usize(idx));
-                let idx_length_eq_t = self.api.is_equal(idx_t, hash_msg_length_bits);
+                message_byte_selector = self.select(
+                    message_byte_selector,
+                    not_last_msg_byte,
+                    message_byte_selector,
+                );
 
-                // select_bit AND NOT(idx_length_eq_t)
-                let not_idx_length_eq_t = self.api.not(idx_length_eq_t);
-                add_message_bit_selector = BoolTarget::new_unsafe(self.api.select(
-                    add_message_bit_selector,
-                    not_idx_length_eq_t.target,
-                    add_message_bit_selector.target,
-                ));
+                let padding_start_byte = self.constant::<ByteVariable>(0x80);
 
-                // Set bit to push: (select_bit && message[i]) || idx_length_eq_t
-                let bit_to_push = self.api.and(add_message_bit_selector, message[idx]);
-                let bit_to_push = self.api.or(idx_length_eq_t, bit_to_push);
-                msg_input.push(bit_to_push);
-            }
+                // If message_byte_selector is true, select the message byte.
+                let mut byte = self.select(message_byte_selector, input[idx], zero_byte);
+                // If idx == length_bytes, select the padding start byte.
+                byte = self.select(is_last_msg_byte, padding_start_byte, byte);
 
-            // Message || padding || length || nil
-            for j in CHUNK_BITS_1024 - LENGTH_BITS_128..CHUNK_BITS_1024 {
-                let idx = chunk_offset + j;
+                if j >= SHA512_CHUNK_SIZE_BYTES - SHA512_INPUT_LENGTH_BYTE_SIZE {
+                    // If in last chunk, this is a length byte.
+                    byte = self.select(is_last_chunk, length_bytes[j % 8], byte);
+                }
 
-                // Only true if in the last valid chunk
-                let length_bit = self
-                    .api
-                    .and(length_bits[j % LENGTH_BITS_128], add_length_bit_selector);
-
-                // TODO: add_length_bit_selector && (add_message_bit_selector || length_bit) should never be true concurrently -> add constraint for this?
-
-                let idx_t = self.api.constant(L::Field::from_canonical_usize(idx));
-                let idx_length_eq_t = self.api.is_equal(idx_t, hash_msg_length_bits);
-
-                // select_bit AND NOT(idx_length_eq_t)
-                let not_idx_length_eq_t = self.api.not(idx_length_eq_t);
-                add_message_bit_selector = BoolTarget::new_unsafe(self.api.select(
-                    add_message_bit_selector,
-                    not_idx_length_eq_t.target,
-                    add_message_bit_selector.target,
-                ));
-
-                // Set bit to push: (select_bit && message[i]) || idx_length_eq_t
-                let bit_to_push = self.api.and(add_message_bit_selector, message[idx]);
-                let bit_to_push = self.api.or(idx_length_eq_t, bit_to_push);
-
-                let bit_to_push = self.api.or(length_bit, bit_to_push);
-
-                // Either length bit || (message[i] || idx_length_eq_t)
-                msg_input.push(bit_to_push);
+                padded_bytes.push(byte);
             }
         }
+        let false_t = self._false();
+        self.is_equal(message_byte_selector, false_t);
 
-        // Combine the bits into ByteVariable
-        let output_bits = msg_input.iter().map(|b| b.target).collect::<Vec<_>>();
-        (0..output_bits.len() / 8)
-            .map(|i| ByteVariable::from_targets(&output_bits[i * 8..(i + 1) * 8]))
-            .collect::<Vec<_>>()
+        padded_bytes
     }
 }
