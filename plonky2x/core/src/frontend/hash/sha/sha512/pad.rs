@@ -80,7 +80,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // Compute the length bytes (big-endian representation of the length in bits).
         let zero_byte = self.constant::<ByteVariable>(0x00);
-        let mut length_bytes = Vec::new();
 
         let bits_per_byte = self.constant::<U32Variable>(8);
         let input_bit_length = self.mul(input_byte_length, bits_per_byte);
@@ -92,15 +91,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         // Convert length to BE bits
         length_bits.reverse();
 
-        length_bytes.extend_from_slice(
-            &length_bits
-                .chunks(8)
-                .map(|chunk| {
-                    let bits = array![x => BoolVariable::from_targets(&[chunk[x].target]); 8];
-                    ByteVariable(bits)
-                })
-                .collect::<Vec<_>>(),
-        );
+        let length_bytes = &length_bits
+            .chunks(8)
+            .map(|chunk| {
+                let bits = array![x => BoolVariable::from_targets(&[chunk[x].target]); 8];
+                ByteVariable(bits)
+            })
+            .collect::<Vec<_>>();
 
         let mut padded_bytes = Vec::new();
 
