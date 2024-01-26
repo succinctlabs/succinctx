@@ -17,7 +17,7 @@ use plonky2::util::timing::TimingTree;
 use super::data::{HashInputData, HashInputDataValues};
 use super::Hash;
 use crate::frontend::curta::proof::ByteStarkProofVariable;
-use crate::prelude::{CircuitBuilder, PlonkParameters, Variable};
+use crate::prelude::{CircuitBuilder, CircuitVariable, PlonkParameters, U32Variable, Variable};
 
 #[derive(Debug, Clone)]
 pub struct HashStark<
@@ -188,6 +188,28 @@ where
                 let value = int_reg.read_from_slice(public_inputs);
                 let var = H::value_to_variable(builder, value);
                 builder.assert_is_equal(*int, var);
+            }
+        }
+
+        if HAS_T_VALUES {
+            for (t_value, register) in hash_input
+                .t_values
+                .unwrap()
+                .iter()
+                .zip_eq(self.t_values.as_ref().unwrap().iter())
+            {
+                let value = register.read_from_slice(public_inputs);
+
+                let mut acc = builder.zero::<Variable>();
+                for (i, byte) in value.into_iter().enumerate() {
+                    let two_i =
+                        builder.constant::<Variable>(L::Field::from_canonical_u32(1 << (8 * i)));
+                    let two_i_byte = builder.mul(two_i, byte);
+                    acc = builder.add(acc, two_i_byte);
+                }
+                let variable = U32Variable::from_variables_unsafe(&[acc]);
+
+                builder.assert_is_equal(*t_value, variable);
             }
         }
     }
