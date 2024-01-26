@@ -68,6 +68,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let true_t = self._true();
         let false_t = self._false();
 
+        // Check that input_byte_length <= input.len(). This is needed to ensure that users cannot
+        // prove the hash of a longer message than they supplied.
+        let supplied_input_length = self.constant::<U32Variable>(input.len() as u32);
+        self.lte(input_byte_length, supplied_input_length);
+
         let last_chunk = self.compute_sha256_last_chunk(input_byte_length);
 
         // Calculate the number of chunks needed to store the input. 9 bytes are added by the
