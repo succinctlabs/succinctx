@@ -88,16 +88,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let bits_per_byte = self.constant::<U32Variable>(8);
         let input_bit_length = self.mul(input_byte_length, bits_per_byte);
 
-        let mut length_bits = self.to_le_bits(input_bit_length);
-        // Convert length to BE bits.
+        // Get the length bits in LE order, padded to 64 bits.
+        let mut length_bits = self
+            .api
+            .split_le(input_bit_length.variable.0, SHA256_INPUT_LENGTH_BIT_SIZE);
+        // Convert length to BE bits
         length_bits.reverse();
 
-        // Prepend 4 zero bytes to length_bytes as abi.encodePacked(U32Variable) is 4 bytes.
         length_bytes.extend_from_slice(
             &length_bits
                 .chunks(8)
                 .map(|chunk| {
-                    let bits = array![x => chunk[x]; 8];
+                    let bits = array![x => BoolVariable::from_targets(&[chunk[x].target]); 8];
                     ByteVariable(bits)
                 })
                 .collect::<Vec<_>>(),
@@ -140,7 +142,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 if j >= SHA256_CHUNK_SIZE_BYTES - SHA256_INPUT_LENGTH_BYTE_SIZE {
                     // If in last chunk, this is a length byte.
-                    byte = self.select(is_last_chunk, length_bytes[j % 8], byte);
+                    byte = self.select(
+                        is_last_chunk,
+                        length_bytes[j % SHA256_INPUT_LENGTH_BYTE_SIZE],
+                        byte,
+                    );
                 }
 
                 padded_bytes.push(byte);
