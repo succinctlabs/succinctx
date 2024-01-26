@@ -133,7 +133,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             });
         }
 
-        let digest = self.init_unsafe::<BytesVariable<64>>();
+        let digest = self.init::<BytesVariable<64>>();
         let digest_array = SHA512::digest_to_array(self, digest);
         let accelerator = self
             .sha512_accelerator
