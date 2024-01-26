@@ -65,6 +65,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         input_byte_length: U32Variable,
     ) -> Vec<ByteVariable> {
+        let true_t = self._true();
+        let false_t = self._false();
+
         let last_chunk = self.compute_sha256_last_chunk(input_byte_length);
 
         // Calculate the number of chunks needed to store the input. 9 bytes are added by the
@@ -102,13 +105,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         let mut padded_bytes = Vec::new();
 
-        let mut message_byte_selector = self._true();
+        // Set to true if the last chunk has been reached. This is used to verify that
+        // input_byte_length is <= input.len().
+        let mut reached_last_chunk = false_t;
+
+        let mut message_byte_selector = true_t;
         for i in 0..max_num_chunks {
             let chunk_offset = SHA256_CHUNK_SIZE_BYTES * i;
             let curr_chunk = self.constant::<U32Variable>(i as u32);
 
             // Check if this is the chunk where length should be added.
             let is_last_chunk = self.is_equal(curr_chunk, last_chunk);
+            reached_last_chunk = self.or(reached_last_chunk, is_last_chunk);
 
             for j in 0..SHA256_CHUNK_SIZE_BYTES {
                 // First 64 - 8 bytes are either message | padding | nil bytes.
@@ -138,8 +146,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 padded_bytes.push(byte);
             }
         }
-        let false_t = self._false();
+        // These checks verify input_byte_length <= input.len().
         self.is_equal(message_byte_selector, false_t);
+        self.is_equal(reached_last_chunk, true_t);
 
         padded_bytes
     }

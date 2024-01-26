@@ -182,10 +182,8 @@ mod tests {
 
     use crate::prelude::*;
     use crate::utils::hash::sha512;
-    use crate::utils::setup_logger;
 
     fn test_sha512_fixed(msg: &[u8], expected_digest: [u8; 64]) {
-        setup_logger();
         let mut builder = DefaultBuilder::new();
         let message = msg
             .iter()
@@ -203,7 +201,6 @@ mod tests {
     }
 
     fn test_sha512_variable_length(message: &[u8], input_length: u32, expected_digest: [u8; 64]) {
-        setup_logger();
         let mut builder = DefaultBuilder::new();
 
         let input_length = builder.constant::<U32Variable>(input_length);
@@ -304,7 +301,6 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_fixed_length() {
-        setup_logger();
         let mut builder = DefaultBuilder::new();
 
         let max_len = 300;
@@ -331,7 +327,6 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_variable_length_random() {
-        setup_logger();
         let mut builder = DefaultBuilder::new();
 
         let max_number_of_chunks = 2;
@@ -367,7 +362,6 @@ mod tests {
     fn test_sha512_variable_length_max_size() {
         // This test checks that sha512_variable_pad works as intended, especially when the max
         // input length is (length % 128 > 128 - 17).
-        setup_logger();
         let mut builder = DefaultBuilder::new();
 
         let max_number_of_chunks = 1;
