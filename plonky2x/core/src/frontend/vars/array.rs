@@ -252,6 +252,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let one: Variable = self.one();
 
             let mut accumulator1 = self.zero::<Variable>();
+            let mut subarray_size: Variable = self.zero();
 
             // r is the source of randomness from the challenger for this loop.
             let mut r = one;
@@ -261,6 +262,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 // If at the start_idx, then set within_sub_array to true.
                 let at_start_idx = self.is_equal(idx, start_idx);
                 within_sub_array = self.select(at_start_idx, true_v, within_sub_array);
+
+                subarray_size = self.add(subarray_size, within_sub_array.variable);
 
                 // If at the end_idx, then set within_sub_array to false.
                 let at_end_idx = self.is_equal(idx, end_idx);
@@ -279,6 +282,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
                 accumulator1 = self.add(accumulator1, temp_accum);
             }
+
+            // Assert that the returned subarray's length is == SUB_ARRAY_SIZE.
+            let expected_subarray_size =
+                self.constant(L::Field::from_canonical_usize(SUB_ARRAY_SIZE));
+            self.assert_is_equal(subarray_size, expected_subarray_size);
 
             let mut accumulator2 = self.zero();
             let mut r = one;
@@ -497,5 +505,50 @@ mod tests {
             output.read::<ArrayVariable<Variable, SUB_ARRAY_SIZE>>(),
             expected_sub_array
         );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_get_fixed_subarray_bad_case() {
+        utils::setup_logger();
+        type F = GoldilocksField;
+        const ARRAY_SIZE: usize = 12800;
+        const SUB_ARRAY_SIZE: usize = 3200;
+        const START_IDX: usize = 12000;
+
+        let mut builder = DefaultBuilder::new();
+
+        let array = builder.read::<ArrayVariable<Variable, ARRAY_SIZE>>();
+        let start_idx = builder.constant(F::from_canonical_usize(START_IDX));
+        let seed = builder.read::<Bytes32Variable>();
+        let result = builder.get_fixed_subarray::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
+            &array,
+            start_idx,
+            &seed.as_bytes(),
+        );
+        builder.write(result);
+
+        let circuit = builder.build();
+
+        // The last 20 elements are dummy
+        let mut rng = OsRng;
+        let mut array_input = [F::default(); ARRAY_SIZE];
+        for elem in array_input.iter_mut() {
+            *elem = F::from_canonical_u64(rng.gen());
+        }
+
+        let mut seed_input = [0u8; 15];
+        for elem in seed_input.iter_mut() {
+            *elem = rng.gen();
+        }
+
+        let mut input = circuit.input();
+        input.write::<ArrayVariable<Variable, ARRAY_SIZE>>(array_input.to_vec());
+        input.write::<Bytes32Variable>(bytes32!(
+            "0x7c38fc8356aa20394c7f538e3cee3f924e6d9252494c8138d1a6aabfc253118f"
+        ));
+
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
     }
 }
