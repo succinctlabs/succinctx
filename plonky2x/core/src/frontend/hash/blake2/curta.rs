@@ -202,7 +202,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             });
         }
 
-        let digest = self.init_unsafe::<Bytes32Variable>();
+        let digest = self.init::<Bytes32Variable>();
         let digest_array = BLAKE2B::digest_to_array(self, digest);
 
         let accelerator = self
