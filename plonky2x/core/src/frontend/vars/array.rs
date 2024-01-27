@@ -9,7 +9,7 @@ use plonky2::iop::challenger::RecursiveChallenger;
 use plonky2::iop::target::Target;
 use serde::{Deserialize, Serialize};
 
-use super::{BoolVariable, ByteVariable, CircuitVariable, ValueStream, Variable, VariableStream};
+use super::{ByteVariable, CircuitVariable, ValueStream, Variable, VariableStream};
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::hint::simple::hint::Hint;
@@ -264,11 +264,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 let at_start_idx = self.is_equal(idx, start_idx);
                 within_sub_array = self.select(at_start_idx, true_v, within_sub_array);
 
-                subarray_size = self.add(subarray_size, within_sub_array.variable);
-
                 // If at the end_idx, then set within_sub_array to false.
                 let at_end_idx = self.is_equal(idx, end_idx);
                 within_sub_array = self.select(at_end_idx, false_v, within_sub_array);
+
+                subarray_size = self.add(subarray_size, within_sub_array.variable);
 
                 // If within the subarray, multiply the current r by the challenge.
                 let multiplier = self.select(within_sub_array, challenges[i], one);
