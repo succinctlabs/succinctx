@@ -180,7 +180,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Given an `array` of variables, and a dynamic `index` start_idx, returns
     /// `array[start_idx..start_idx+sub_array_size]` as an `array`.
     ///
-    /// `seed` is used to generate randomness for the proof.
+    /// `seed` is used to generate randomness for the proof.  Note that the seed should be the
+    /// Fiat-Shamir of the entire array and claimed subarray.
     ///
     /// The security of each challenge is log2(field_size) - log2(array_size), so the total security
     /// is (log2(field_size) - log2(array_size)) * num_loops.
