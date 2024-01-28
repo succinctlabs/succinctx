@@ -194,6 +194,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         length: U32Variable,
     ) -> Bytes32Variable {
+        // Check that length <= input.len(). This is needed to ensure that users cannot
+        // prove the hash of a longer message than they supplied.
+        let supplied_input_length = self.constant::<U32Variable>(input.len() as u32);
+        self.lte(length, supplied_input_length);
+
         let last_chunk = self.compute_blake2b_last_chunk_index(length);
         if self.blake2b_accelerator.is_none() {
             self.blake2b_accelerator = Some(BLAKE2BAccelerator {
