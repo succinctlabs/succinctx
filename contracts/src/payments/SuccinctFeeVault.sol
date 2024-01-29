@@ -2,7 +2,8 @@
 pragma solidity ^0.8.16;
 
 import {IFeeVault} from "./interfaces/IFeeVault.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Initializable} from "@openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -18,7 +19,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 ///         Any overspent fees will be used for future requests, so it may be more suitable to
 ///         make a bulk deposit.
 /// @dev Address(0) is used to represent native currency in places where token address is specified.
-contract SuccinctFeeVault is IFeeVault, Ownable {
+contract SuccinctFeeVault is IFeeVault, Initializable, OwnableUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @notice Tracks the amount of active balance that an account has for Succinct services.
@@ -35,10 +36,10 @@ contract SuccinctFeeVault is IFeeVault, Ownable {
         _;
     }
 
-    /// @dev Initializes the contract.
+    /// @notice Initializes the contract.
     /// @param _owner The address of the owner of the contract.
-    constructor(address _owner) {
-        transferOwnership(_owner);
+    function initialize(address _owner) external initializer {
+        _transferOwnership(_owner);
     }
 
     /// @notice Add the specified deductor.

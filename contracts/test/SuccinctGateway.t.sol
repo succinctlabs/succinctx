@@ -56,10 +56,12 @@ contract SuccinctGatewayTest is Test, ISuccinctGatewayEvents, ISuccinctGatewayEr
         defaultProver = makeAddr("default-prover");
 
         // Deploy FeeVault
-        feeVault = address(new SuccinctFeeVault(owner));
+        feeVault = address(new SuccinctFeeVault());
+        SuccinctFeeVault(feeVault).initialize(owner);
 
         // Deploy SuccinctGateway
-        gateway = address(new SuccinctGateway(owner, feeVault, defaultProver));
+        gateway = address(new SuccinctGateway());
+        SuccinctGateway(gateway).initialize(owner, feeVault, defaultProver);
 
         // Deploy Verifier
         bytes32 functionId;
@@ -87,6 +89,11 @@ contract SetupTest is SuccinctGatewayTest {
         assertEq(IFunctionRegistry(gateway).verifiers(functionId), verifier);
         assertEq(IFunctionRegistry(gateway).verifierOwners(functionId), functionOwner);
         assertEq(IFunctionRegistry(gateway).getFunctionId(functionOwner, VERIFIER_SALT), functionId);
+    }
+
+    function test_RevertInitialize() public {
+        vm.expectRevert("Initializable: contract is already initialized");
+        SuccinctGateway(gateway).initialize(owner, feeVault, defaultProver);
     }
 }
 
@@ -306,8 +313,8 @@ contract RequestTest is SuccinctGatewayTest {
     }
 
     function test_Callback_WhenNoFeeVault() public {
-        // Set feeVault (first 20 bytes of slot 3) to 0x0
-        vm.store(gateway, bytes32(uint256(3)), bytes20(address(0)));
+        // Set feeVault (first 20 bytes of slot 103) to 0x0
+        vm.store(gateway, bytes32(uint256(103)), bytes20(address(0)));
 
         uint32 prevNonce = SuccinctGateway(gateway).nonce();
         assertEq(prevNonce, 0);
@@ -601,11 +608,11 @@ contract RequestTest is SuccinctGatewayTest {
         bytes32 inputHash = INPUT_HASH;
 
         // Set the SuccinctGateway's storage slots to avoid revert:
-        // verifiedFunctionId | bytes32 | 5
-        // verifiedInputHash  | bytes32 | 6
-        // verifiedOutput     | bytes   | 7
-        vm.store(gateway, bytes32(uint256(5)), functionId);
-        vm.store(gateway, bytes32(uint256(6)), inputHash);
+        // verifiedFunctionId | bytes32 | 105
+        // verifiedInputHash  | bytes32 | 106
+        // verifiedOutput     | bytes   | 107
+        vm.store(gateway, bytes32(uint256(105)), functionId);
+        vm.store(gateway, bytes32(uint256(106)), inputHash);
 
         // Verifiy call
         TestConsumer(consumer).verifiedCall();
@@ -1025,7 +1032,7 @@ contract UpdateProverTest is SuccinctGatewayTest {
         assertEq(SuccinctGateway(gateway).allowedProvers(bytes32(0), newDefaultProver), true);
     }
 
-    function test_RevertAddDefaultProver_WhenNotGuardian() public {
+    function test_RevertAddDefaultProver_WhenNotOwner() public {
         address newDefaultProver = makeAddr("new-default-prover");
 
         vm.expectRevert("Ownable: caller is not the owner");
@@ -1042,7 +1049,7 @@ contract UpdateProverTest is SuccinctGatewayTest {
         assertEq(SuccinctGateway(gateway).allowedProvers(bytes32(0), defaultProver), false);
     }
 
-    function test_RevertRemoveDefaultProver_WhenNotGuardian() public {
+    function test_RevertRemoveDefaultProver_WhenNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(sender);
         SuccinctGateway(gateway).removeDefaultProver(defaultProver);
@@ -1125,7 +1132,8 @@ contract SetFeeVaultTest is SuccinctGatewayTest {
         bytes memory callData = abi.encodeWithSelector(TestConsumer.handleCall.selector);
         uint32 callGasLimit = DEFAULT_GAS_LIMIT;
         uint256 fee = DEFAULT_FEE;
-        address newFeeVault = address(new SuccinctFeeVault(functionOwner));
+        address newFeeVault = address(new SuccinctFeeVault());
+        SuccinctFeeVault(newFeeVault).initialize(functionOwner);
 
         // Set FeeVault
         vm.expectEmit(true, true, true, true, gateway);
@@ -1141,8 +1149,9 @@ contract SetFeeVaultTest is SuccinctGatewayTest {
         TestConsumer(consumer).requestCall{value: fee}(callGasLimit);
     }
 
-    function test_RevertSetFeeVault_WhenNotGuardian() public {
-        address newFeeVault = address(new SuccinctFeeVault(functionOwner));
+    function test_RevertSetFeeVault_WhenNotOwner() public {
+        address newFeeVault = address(new SuccinctFeeVault());
+        SuccinctFeeVault(newFeeVault).initialize(functionOwner);
 
         // Set FeeVault
         vm.expectRevert();
@@ -1162,7 +1171,7 @@ contract RecoverTest is SuccinctGatewayTest {
         assertEq(owner.balance, fee);
     }
 
-    function test_RevertRecover_WhenNotGuardian() public {
+    function test_RevertRecover_WhenNotOwner() public {
         uint256 fee = DEFAULT_FEE;
         vm.deal(gateway, fee);
 

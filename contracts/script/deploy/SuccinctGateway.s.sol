@@ -18,8 +18,8 @@ contract DeploySuccinctGateway is BaseScript {
         address PROVER = envAddress("PROVER", block.chainid);
 
         // Deploy contract
-        SuccinctGateway gateway =
-            new SuccinctGateway{salt: CREATE2_SALT}(GUARDIAN, SUCCINCT_FEE_VAULT, PROVER);
+        SuccinctGateway gateway = new SuccinctGateway{salt: CREATE2_SALT}();
+        gateway.initialize(GUARDIAN, SUCCINCT_FEE_VAULT, PROVER);
 
         // Write address
         writeEnvAddress(DEPLOYMENT_FILE, "SUCCINCT_GATEWAY", address(gateway));

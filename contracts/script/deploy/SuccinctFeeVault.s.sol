@@ -17,7 +17,8 @@ contract DeploySuccinctFeeVault is BaseScript {
         address GUARDIAN = envAddress("GUARDIAN", block.chainid);
 
         // Deploy contract
-        SuccinctFeeVault vault = new SuccinctFeeVault{salt: CREATE2_SALT}(GUARDIAN);
+        SuccinctFeeVault vault = new SuccinctFeeVault{salt: CREATE2_SALT}();
+        vault.initialize(GUARDIAN);
 
         // Write address
         writeEnvAddress(DEPLOYMENT_FILE, "SUCCINCT_FEE_VAULT", address(vault));

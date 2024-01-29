@@ -5,9 +5,15 @@ import {ISuccinctGateway, WhitelistStatus} from "./interfaces/ISuccinctGateway.s
 import {IFunctionVerifier} from "./interfaces/IFunctionVerifier.sol";
 import {FunctionRegistry} from "./FunctionRegistry.sol";
 import {IFeeVault} from "./payments/interfaces/IFeeVault.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Initializable} from "@openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
-contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, Ownable {
+contract SuccinctGateway is
+    ISuccinctGateway,
+    FunctionRegistry,
+    Initializable,
+    OwnableUpgradeable
+{
     /// @notice The address of the fee vault.
     address public feeVault;
 
@@ -61,11 +67,14 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, Ownable {
         _;
     }
 
-    /// @dev Initializes the contract.
+    /// @notice Initializes the contract. Only callable once, and only callable by deployer.
     /// @param _owner The address of the owner of the contract.
     /// @param _feeVault The address of the fee vault.
     /// @param _defaultProver The address of the default prover.
-    constructor(address _owner, address _feeVault, address _defaultProver) {
+    function initialize(address _owner, address _feeVault, address _defaultProver)
+        external
+        initializer
+    {
         _transferOwnership(_owner);
         feeVault = _feeVault;
         allowedProvers[bytes32(0)][_defaultProver] = true;

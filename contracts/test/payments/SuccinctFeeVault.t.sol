@@ -37,7 +37,8 @@ contract SuccinctFeeVaultTest is Test, IFeeVaultEvents, IFeeVaultErrors {
         account2 = makeAddr("account2");
 
         // Deploy FeeVault
-        feeVault = address(new SuccinctFeeVault(owner));
+        feeVault = address(new SuccinctFeeVault());
+        SuccinctFeeVault(feeVault).initialize(owner);
 
         // Add deductor
         vm.prank(owner);
@@ -77,6 +78,11 @@ contract SetUpTest is SuccinctFeeVaultTest {
         assertEq(ERC20(token2).balanceOf(spender1), FEE);
         assertEq(ERC20(token1).balanceOf(spender2), FEE);
         assertEq(ERC20(token2).balanceOf(spender2), FEE);
+    }
+
+    function test_RevertInitialize() public {
+        vm.expectRevert("Initializable: contract is already initialized");
+        SuccinctFeeVault(feeVault).initialize(owner);
     }
 }
 
