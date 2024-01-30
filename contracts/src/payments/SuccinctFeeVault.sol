@@ -2,7 +2,8 @@
 pragma solidity ^0.8.16;
 
 import {IFeeVault} from "./interfaces/IFeeVault.sol";
-import {TimelockedUpgradeable} from "../upgrades/TimelockedUpgradeable.sol";
+import {Initializable} from "@openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -18,7 +19,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 ///         Any overspent fees will be used for future requests, so it may be more suitable to
 ///         make a bulk deposit.
 /// @dev Address(0) is used to represent native currency in places where token address is specified.
-contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
+contract SuccinctFeeVault is IFeeVault, Initializable, OwnableUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @notice Tracks the amount of active balance that an account has for Succinct services.
@@ -35,27 +36,21 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
         _;
     }
 
-    /// @dev Version of the contract, used for tracking upgrades.
-    function VERSION() external pure override returns (string memory) {
-        return "1.0.1";
-    }
-
-    /// @dev Initializes the contract.
-    /// @param _timelock The address of the timelock contract.
-    /// @param _guardian The address of the guardian.
-    function initialize(address _timelock, address _guardian) external initializer {
-        __TimelockedUpgradeable_init(_timelock, _guardian);
+    /// @notice Initializes the contract.
+    /// @param _owner The address of the owner of the contract.
+    function initialize(address _owner) external initializer {
+        _transferOwnership(_owner);
     }
 
     /// @notice Add the specified deductor.
     /// @param _deductor The address of the deductor to add.
-    function addDeductor(address _deductor) external onlyGuardian {
+    function addDeductor(address _deductor) external onlyOwner {
         allowedDeductors[_deductor] = true;
     }
 
     /// @notice Remove the specified deductor.
     /// @param _deductor The address of the deductor to remove.
-    function removeDeductor(address _deductor) external onlyGuardian {
+    function removeDeductor(address _deductor) external onlyOwner {
         allowedDeductors[_deductor] = false;
     }
 
@@ -136,7 +131,7 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
     /// @notice Collect the specified amount of native currency.
     /// @param _to The address to send the collected native currency to.
     /// @param _amount The amount of native currency to collect.
-    function collectNative(address _to, uint256 _amount) external onlyGuardian {
+    function collectNative(address _to, uint256 _amount) external onlyOwner {
         if (address(this).balance < _amount) {
             revert InsufficientBalance(address(0), _amount);
         }
@@ -153,7 +148,7 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
     /// @param _to The address to send the collected tokens to.
     /// @param _token The address of the token to collect.
     /// @param _amount The amount of the token to collect.
-    function collect(address _to, address _token, uint256 _amount) external onlyGuardian {
+    function collect(address _to, address _token, uint256 _amount) external onlyOwner {
         if (_token == address(0)) {
             revert InvalidToken(_token);
         }
@@ -165,8 +160,4 @@ contract SuccinctFeeVault is IFeeVault, TimelockedUpgradeable {
 
         emit Collected(_to, _token, _amount);
     }
-
-    /// @dev This empty reserved space to add new variables without shifting down storage.
-    ///      See: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-    uint256[50] private __gap;
 }

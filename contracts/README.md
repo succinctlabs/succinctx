@@ -22,8 +22,10 @@ forge test
 
 ## Addresses
 
-SUCCINCT_GATEWAY=[0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)
-SUCCINCT_FEE_VAULT=[0x5999d401444f15d262fdce310bb68bd234de11aa](https://etherscan.io/address/0x5999d401444f15d262fdce310bb68bd234de11aa)
+`SUCCINCT_GATEWAY`=[0x6c7a05e0AE641c6559fD76ac56641778B6eCd776](https://etherscan.io/address/0x6c7a05e0AE641c6559fD76ac56641778B6eCd776)
+`SUCCINCT_FEE_VAULT`=[0x296666e937b270193B960a7cEC526B351F353166](https://etherscan.io/address/0x296666e937b270193B960a7cEC526B351F353166)
+
+If the contracts are not deployed on a chain you need, you can deploy them yourself using the deployment instructions below or by contracting Succinct.
 
 | Chain            | Chain ID | Address                                                                                                          |
 |------------------|----------|------------------------------------------------------------------------------------------------------------------|

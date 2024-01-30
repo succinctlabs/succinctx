@@ -5,18 +5,14 @@ import "forge-std/Vm.sol";
 import "forge-std/console.sol";
 import "forge-std/Test.sol";
 
-import {IFeeVault, IFeeVaultEvents, IFeeVaultErrors} from "src/payments/interfaces/IFeeVault.sol";
+import {IFeeVaultEvents, IFeeVaultErrors} from "src/payments/interfaces/IFeeVault.sol";
 import {SuccinctFeeVault} from "src/payments/SuccinctFeeVault.sol";
-import {Proxy} from "src/upgrades/Proxy.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {AccessControlUpgradeable} from
-    "@openzeppelin-upgradeable/contracts/access/AccessControlUpgradeable.sol";
 
 contract SuccinctFeeVaultTest is Test, IFeeVaultEvents, IFeeVaultErrors {
     uint256 constant FEE = 1 ether;
 
-    address internal timelock;
-    address internal guardian;
+    address internal owner;
     address internal feeVault;
     address internal token1;
     address internal token2;
@@ -29,8 +25,7 @@ contract SuccinctFeeVaultTest is Test, IFeeVaultEvents, IFeeVaultErrors {
 
     function setUp() public {
         // Init variables
-        timelock = makeAddr("timelock");
-        guardian = makeAddr("guardian");
+        owner = makeAddr("owner");
 
         token1 = address(new ERC20("UnicornToken", "UNI"));
         token2 = address(new ERC20("DragonToken", "DRG"));
@@ -42,12 +37,11 @@ contract SuccinctFeeVaultTest is Test, IFeeVaultEvents, IFeeVaultErrors {
         account2 = makeAddr("account2");
 
         // Deploy FeeVault
-        address feeVaultImpl = address(new SuccinctFeeVault());
-        feeVault = address(new Proxy(feeVaultImpl, ""));
-        SuccinctFeeVault(feeVault).initialize(timelock, guardian);
+        feeVault = address(new SuccinctFeeVault());
+        SuccinctFeeVault(feeVault).initialize(owner);
 
         // Add deductor
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).addDeductor(deductor);
 
         // Give spenders some native
@@ -64,8 +58,7 @@ contract SuccinctFeeVaultTest is Test, IFeeVaultEvents, IFeeVaultErrors {
 
 contract SetUpTest is SuccinctFeeVaultTest {
     function test_SetUp() public {
-        assertTrue(AccessControlUpgradeable(feeVault).hasRole(keccak256("TIMELOCK_ROLE"), timelock));
-        assertTrue(AccessControlUpgradeable(feeVault).hasRole(keccak256("GUARDIAN_ROLE"), guardian));
+        assertEq(SuccinctFeeVault(feeVault).owner(), owner);
         assertEq(SuccinctFeeVault(feeVault).allowedDeductors(deductor), true);
         assertEq(SuccinctFeeVault(feeVault).balances(address(0), spender1), 0);
         assertEq(SuccinctFeeVault(feeVault).balances(address(0), spender2), 0);
@@ -86,30 +79,35 @@ contract SetUpTest is SuccinctFeeVaultTest {
         assertEq(ERC20(token1).balanceOf(spender2), FEE);
         assertEq(ERC20(token2).balanceOf(spender2), FEE);
     }
+
+    function test_RevertInitialize() public {
+        vm.expectRevert("Initializable: contract is already initialized");
+        SuccinctFeeVault(feeVault).initialize(owner);
+    }
 }
 
 contract DeductorTest is SuccinctFeeVaultTest {
     function test_AddDeductor() public {
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).addDeductor(spender1);
         assertEq(SuccinctFeeVault(feeVault).allowedDeductors(spender1), true);
     }
 
     function test_RevertAddDeductor_WhenNotGuardian() public {
-        vm.expectRevert(abi.encodeWithSignature("OnlyGuardian(address)", spender1));
+        vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(spender1);
         SuccinctFeeVault(feeVault).addDeductor(spender1);
         assertEq(SuccinctFeeVault(feeVault).allowedDeductors(spender1), false);
     }
 
     function test_RemoveDeductor() public {
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).removeDeductor(deductor);
         assertEq(SuccinctFeeVault(feeVault).allowedDeductors(deductor), false);
     }
 
     function test_RevertRemoveDeductor_WhenNotGuardian() public {
-        vm.expectRevert(abi.encodeWithSignature("OnlyGuardian(address)", spender1));
+        vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(spender1);
         SuccinctFeeVault(feeVault).removeDeductor(deductor);
         assertEq(SuccinctFeeVault(feeVault).allowedDeductors(deductor), true);
@@ -537,7 +535,7 @@ contract CollectNativeTest is SuccinctFeeVaultTest {
 
         vm.expectEmit(true, true, true, true);
         emit Collected(collector, address(0), FEE);
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).collectNative(collector, FEE);
         assertEq(address(feeVault).balance, 0);
         assertEq(collector.balance, FEE);
@@ -551,7 +549,7 @@ contract CollectNativeTest is SuccinctFeeVaultTest {
 
         vm.expectEmit(true, true, true, true);
         emit Collected(collector, address(0), FEE / 2);
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).collectNative(collector, FEE / 2);
         assertEq(address(feeVault).balance, FEE / 2);
         assertEq(collector.balance, FEE / 2);
@@ -565,21 +563,21 @@ contract CollectNativeTest is SuccinctFeeVaultTest {
 
         vm.expectEmit(true, true, true, true);
         emit Collected(collector, address(0), 0);
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).collectNative(collector, 0);
         assertEq(address(feeVault).balance, FEE);
         assertEq(collector.balance, 0);
     }
 
     function test_RevertCollectNative_WhenNotOwner() public {
-        vm.expectRevert(abi.encodeWithSignature("OnlyGuardian(address)", spender1));
+        vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(spender1);
         SuccinctFeeVault(feeVault).collectNative(collector, FEE);
     }
 
     function test_RevertCollectNative_WhenNotEnoughBalance() public {
         vm.expectRevert(abi.encodeWithSelector(InsufficientBalance.selector, address(0), FEE));
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).collectNative(collector, FEE);
     }
 }
@@ -595,7 +593,7 @@ contract CollectTest is SuccinctFeeVaultTest {
 
         vm.expectEmit(true, true, true, true);
         emit Collected(collector, token1, FEE);
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).collect(collector, token1, FEE);
         assertEq(ERC20(token1).balanceOf(address(feeVault)), 0);
         assertEq(ERC20(token1).balanceOf(collector), FEE);
@@ -611,7 +609,7 @@ contract CollectTest is SuccinctFeeVaultTest {
 
         vm.expectEmit(true, true, true, true);
         emit Collected(collector, token1, FEE / 2);
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).collect(collector, token1, FEE / 2);
         assertEq(ERC20(token1).balanceOf(address(feeVault)), FEE / 2);
         assertEq(ERC20(token1).balanceOf(collector), FEE / 2);
@@ -627,21 +625,21 @@ contract CollectTest is SuccinctFeeVaultTest {
 
         vm.expectEmit(true, true, true, true);
         emit Collected(collector, token1, 0);
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).collect(collector, token1, 0);
         assertEq(ERC20(token1).balanceOf(address(feeVault)), FEE);
         assertEq(ERC20(token1).balanceOf(collector), 0);
     }
 
     function test_RevertCollect_WhenNotGuardian() public {
-        vm.expectRevert(abi.encodeWithSignature("OnlyGuardian(address)", spender1));
+        vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(spender1);
         SuccinctFeeVault(feeVault).collect(collector, token1, FEE);
     }
 
     function test_RevertCollect_WhenNotEnoughBalance() public {
         vm.expectRevert(abi.encodeWithSelector(InsufficientBalance.selector, token1, FEE));
-        vm.prank(guardian);
+        vm.prank(owner);
         SuccinctFeeVault(feeVault).collect(collector, token1, FEE);
     }
 }

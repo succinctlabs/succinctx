@@ -4,10 +4,16 @@ pragma solidity ^0.8.16;
 import {ISuccinctGateway, WhitelistStatus} from "./interfaces/ISuccinctGateway.sol";
 import {IFunctionVerifier} from "./interfaces/IFunctionVerifier.sol";
 import {FunctionRegistry} from "./FunctionRegistry.sol";
-import {TimelockedUpgradeable} from "./upgrades/TimelockedUpgradeable.sol";
 import {IFeeVault} from "./payments/interfaces/IFeeVault.sol";
+import {Initializable} from "@openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
-contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgradeable {
+contract SuccinctGateway is
+    ISuccinctGateway,
+    FunctionRegistry,
+    Initializable,
+    OwnableUpgradeable
+{
     /// @notice The address of the fee vault.
     address public feeVault;
 
@@ -61,22 +67,17 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
         _;
     }
 
-    /// @dev Version of the contract, used for tracking upgrades.
-    function VERSION() external pure override returns (string memory) {
-        return "1.0.1";
-    }
-
-    /// @notice Initializes the contract.
+    /// @notice Initializes the contract. Only callable once, and only callable by deployer.
+    /// @param _owner The address of the owner of the contract.
     /// @param _feeVault The address of the fee vault.
-    /// @param _timelock The address of the timelock contract.
-    /// @param _guardian The address of the guardian.
-    function initialize(address _feeVault, address _timelock, address _guardian)
+    /// @param _defaultProver The address of the default prover.
+    function initialize(address _owner, address _feeVault, address _defaultProver)
         external
         initializer
     {
+        _transferOwnership(_owner);
         feeVault = _feeVault;
-        isCallback = false;
-        __TimelockedUpgradeable_init(_timelock, _guardian);
+        allowedProvers[bytes32(0)][_defaultProver] = true;
     }
 
     /// @notice Creates a onchain request for a proof. The output and proof is fulfilled asynchronously
@@ -320,21 +321,21 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
 
     /// @notice Add a default prover.
     /// @param _prover The address of the prover to add.
-    function addDefaultProver(address _prover) external onlyGuardian {
+    function addDefaultProver(address _prover) external onlyOwner {
         allowedProvers[bytes32(0)][_prover] = true;
         emit ProverUpdated(bytes32(0), _prover, true);
     }
 
     /// @notice Remove a default prover.
     /// @param _prover The address of the prover to remove.
-    function removeDefaultProver(address _prover) external onlyGuardian {
+    function removeDefaultProver(address _prover) external onlyOwner {
         delete allowedProvers[bytes32(0)][_prover];
         emit ProverUpdated(bytes32(0), _prover, false);
     }
 
     /// @notice Sets the fee vault to a new address. Can be set to address(0) to disable fees.
     /// @param _feeVault The address of the fee vault.
-    function setFeeVault(address _feeVault) external onlyGuardian {
+    function setFeeVault(address _feeVault) external onlyOwner {
         emit SetFeeVault(feeVault, _feeVault);
         feeVault = _feeVault;
     }
@@ -342,7 +343,7 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
     /// @notice Recovers stuck ETH from the contract.
     /// @param _to The address to send the ETH to.
     /// @param _amount The wei amount of ETH to send.
-    function recover(address _to, uint256 _amount) external onlyGuardian {
+    function recover(address _to, uint256 _amount) external onlyOwner {
         (bool success,) = _to.call{value: _amount}("");
         if (!success) {
             revert RecoverFailed();
@@ -394,8 +395,4 @@ contract SuccinctGateway is ISuccinctGateway, FunctionRegistry, TimelockedUpgrad
             revert InvalidProof(address(verifier), _inputHash, _outputHash, _proof);
         }
     }
-
-    /// @dev This empty reserved space to add new variables without shifting down storage.
-    ///      See: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-    uint256[49] private __gap;
 }
