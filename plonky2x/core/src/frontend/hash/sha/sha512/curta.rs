@@ -152,6 +152,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         length: U32Variable,
     ) -> BytesVariable<64> {
+        // Check that length <= input.len(). This is needed to ensure that users cannot prove the
+        // hash of a longer message than they supplied.
+        let supplied_input_length = self.constant::<U32Variable>(input.len() as u32);
+        self.lte(length, supplied_input_length);
+
         let last_chunk = self.compute_sha512_last_chunk(length);
 
         if self.sha512_accelerator.is_none() {
