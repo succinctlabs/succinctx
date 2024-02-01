@@ -188,6 +188,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         subarray_bytes: &ArrayVariable<ByteVariable, SUB_ARRAY_SIZE>,
         start_idx: Variable,
     ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
+        // The seed is generated from the array_bytes and subarray_bytes. It is Vec<ByteVariable>
+        // because passing in ByteVariable as the seed lets you pack 7 ByteVariable's into
+        // a single Variable, which is what get_fixed_subarray_unsafe does before poseidon hashing.
+        let mut seed = Vec::new();
+        seed.extend_from_slice(array_bytes.as_slice());
+        seed.extend_from_slice(subarray_bytes.as_slice());
+
+        // get_fixed_subarray_unsafe expects the array to contain variables, so we convert the bytes
+        // to variables (with each variable containing a single byte).
         let array_variables = ArrayVariable::<Variable, ARRAY_SIZE>::from(
             array_bytes
                 .as_slice()
@@ -195,10 +204,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 .map(|x| x.to_variable(self))
                 .collect_vec(),
         );
-
-        let mut seed = Vec::new();
-        seed.extend_from_slice(array_bytes.as_slice());
-        seed.extend_from_slice(subarray_bytes.as_slice());
 
         self.get_fixed_subarray_unsafe::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
             &array_variables,
