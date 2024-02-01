@@ -31,8 +31,8 @@ impl<L: PlonkParameters<D>, const D: usize> AirParameters for BLAKE2BAirParamete
 
     type Instruction = UintInstruction;
 
-    const NUM_FREE_COLUMNS: usize = 1527;
-    const EXTENDED_COLUMNS: usize = 708;
+    const NUM_FREE_COLUMNS: usize = 1271;
+    const EXTENDED_COLUMNS: usize = 1476;
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 96, true, 4> for BLAKE2B {
