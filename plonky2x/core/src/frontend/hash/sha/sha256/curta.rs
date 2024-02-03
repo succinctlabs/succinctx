@@ -143,16 +143,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         length: U32Variable,
     ) -> Bytes32Variable {
-        assert_eq!(
-            input.len() % 64,
-            0,
-            "input length should be a multiple of 64"
-        );
-
         // Check that length <= input.len(). This is needed to ensure that users cannot prove the
         // hash of a longer message than they supplied.
         let supplied_input_length = self.constant::<U32Variable>(input.len() as u32);
         self.lte(length, supplied_input_length);
+        // Extend input's length to the nearest multiple of 64 (if it is not already).
+        let mut input = input.to_vec();
+        if (input.len() % 64) != 0 {
+            input.resize(
+                input.len() + 64 - (input.len() % 64),
+                self.constant::<ByteVariable>(0),
+            );
+        }
 
         let last_chunk = self.compute_sha256_last_chunk(length);
         if self.sha256_accelerator.is_none() {
