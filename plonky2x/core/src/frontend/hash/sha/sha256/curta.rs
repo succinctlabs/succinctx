@@ -57,7 +57,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 64, false, 8> for SHA256 
         input: &[ByteVariable],
         length: U32Variable,
     ) -> Vec<Self::IntVariable> {
-        let padded_bytes = builder.pad_message_sha256_variable(input, length);
+        let padded_bytes = builder.pad_sha256_variable_length(input, length);
 
         padded_bytes
             .chunks_exact(4)
@@ -148,6 +148,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             0,
             "input length should be a multiple of 64"
         );
+
+        // Check that length <= input.len(). This is needed to ensure that users cannot prove the
+        // hash of a longer message than they supplied.
+        let supplied_input_length = self.constant::<U32Variable>(input.len() as u32);
+        self.lte(length, supplied_input_length);
+
         let last_chunk = self.compute_sha256_last_chunk(length);
         if self.sha256_accelerator.is_none() {
             self.sha256_accelerator = Some(SHA256Accelerator {
