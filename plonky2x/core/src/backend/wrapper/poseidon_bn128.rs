@@ -9,8 +9,8 @@ use crate::backend::wrapper::utils::Fr;
 
 pub const RATE: usize = 3;
 pub const WIDTH: usize = 4;
-const FULL_ROUNDS: usize = 8;
-const PARTIAL_ROUNDS: usize = 56;
+pub const FULL_ROUNDS: usize = 8;
+pub const PARTIAL_ROUNDS: usize = 56;
 pub const GOLDILOCKS_ELEMENTS: usize = 3;
 
 pub type PoseidonState = [Fr; WIDTH];
