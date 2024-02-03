@@ -1,81 +1,12 @@
 use core::marker::PhantomData;
 
-use curta::math::field::Field;
 use plonky2::field::types::PrimeField64;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::witness::PartitionWitness;
 use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use plonky2::util::serialization::{Buffer, IoResult};
 
-use crate::prelude::{
-    BoolVariable, ByteVariable, CircuitVariable, PlonkParameters, Target, Variable,
-};
-
-#[derive(Debug, Clone)]
-pub struct LteGenerator<L: PlonkParameters<D>, const D: usize> {
-    pub lhs: Variable,
-    pub rhs: Variable,
-    pub output: BoolVariable,
-    pub _phantom: PhantomData<L>,
-}
-
-impl<L: PlonkParameters<D>, const D: usize> LteGenerator<L, D> {
-    pub fn id() -> String {
-        "LeGenerator".to_string()
-    }
-}
-
-// TODO: add LeGenerator to macro
-impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D> for LteGenerator<L, D> {
-    fn id(&self) -> String {
-        Self::id()
-    }
-
-    fn dependencies(&self) -> Vec<Target> {
-        let mut targets: Vec<Target> = Vec::new();
-        targets.extend(self.lhs.targets());
-        targets.extend(self.rhs.targets());
-        targets
-    }
-
-    fn run_once(
-        &self,
-        witness: &PartitionWitness<L::Field>,
-        out_buffer: &mut GeneratedValues<L::Field>,
-    ) {
-        let lhs = self.lhs.get(witness).to_canonical_u64() as usize;
-        let rhs = self.rhs.get(witness).to_canonical_u64() as usize;
-        self.output.set(out_buffer, lhs <= rhs);
-    }
-
-    #[allow(unused_variables)]
-    fn serialize(
-        &self,
-        dst: &mut Vec<u8>,
-        common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<()> {
-        dst.write_target_vec(&self.lhs.targets())?;
-        dst.write_target_vec(&self.rhs.targets())?;
-        dst.write_target_vec(&self.output.targets())?;
-        Ok(())
-    }
-
-    #[allow(unused_variables)]
-    fn deserialize(
-        src: &mut Buffer,
-        common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<Self> {
-        let lhs = src.read_target_vec()?;
-        let rhs = src.read_target_vec()?;
-        let output = src.read_target_vec()?;
-        Ok(Self {
-            lhs: Variable::from_targets(&lhs),
-            rhs: Variable::from_targets(&rhs),
-            output: BoolVariable::from_targets(&output),
-            _phantom: PhantomData,
-        })
-    }
-}
+use crate::prelude::{ByteVariable, CircuitVariable, PlonkParameters, Target, Variable};
 
 #[derive(Debug, Clone)]
 pub struct SubarrayEqualGenerator<L: PlonkParameters<D>, const D: usize> {
@@ -120,104 +51,6 @@ impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
                 panic!("SubarrayEqualGenerator failed at index {}", i);
             }
         }
-    }
-
-    #[allow(unused_variables)]
-    fn serialize(
-        &self,
-        dst: &mut Vec<u8>,
-        common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<()> {
-        todo!()
-    }
-
-    #[allow(unused_variables)]
-    fn deserialize(
-        src: &mut Buffer,
-        common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<Self> {
-        todo!()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ByteSubGenerator<L: PlonkParameters<D>, const D: usize> {
-    pub lhs: ByteVariable,
-    pub rhs: ByteVariable,
-    pub output: ByteVariable,
-    pub _phantom: PhantomData<L::Field>,
-}
-
-impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
-    for ByteSubGenerator<L, D>
-{
-    fn id(&self) -> String {
-        "ByteToVariableGenerator".to_string()
-    }
-
-    fn dependencies(&self) -> Vec<Target> {
-        let mut targets: Vec<Target> = Vec::new();
-        targets.extend(self.lhs.targets());
-        targets.extend(self.rhs.targets());
-        targets
-    }
-
-    fn run_once(
-        &self,
-        witness: &PartitionWitness<L::Field>,
-        out_buffer: &mut GeneratedValues<L::Field>,
-    ) {
-        let lhs = self.lhs.get(witness);
-        let rhs = self.rhs.get(witness);
-        self.output.set(out_buffer, lhs - rhs);
-    }
-
-    #[allow(unused_variables)]
-    fn serialize(
-        &self,
-        dst: &mut Vec<u8>,
-        common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<()> {
-        todo!()
-    }
-
-    #[allow(unused_variables)]
-    fn deserialize(
-        src: &mut Buffer,
-        common_data: &CommonCircuitData<L::Field, D>,
-    ) -> IoResult<Self> {
-        todo!()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ByteToVariableGenerator<L: PlonkParameters<D>, const D: usize> {
-    pub lhs: ByteVariable,
-    pub output: Variable,
-    pub _phantom: PhantomData<L::Field>,
-}
-
-impl<L: PlonkParameters<D>, const D: usize> SimpleGenerator<L::Field, D>
-    for ByteToVariableGenerator<L, D>
-{
-    fn id(&self) -> String {
-        "ByteToVariableGenerator".to_string()
-    }
-
-    fn dependencies(&self) -> Vec<Target> {
-        let mut targets: Vec<Target> = Vec::new();
-        targets.extend(self.lhs.targets());
-        targets
-    }
-
-    fn run_once(
-        &self,
-        witness: &PartitionWitness<L::Field>,
-        out_buffer: &mut GeneratedValues<L::Field>,
-    ) {
-        let lhs = self.lhs.get(witness);
-        self.output
-            .set(out_buffer, L::Field::from_canonical_u8(lhs));
     }
 
     #[allow(unused_variables)]

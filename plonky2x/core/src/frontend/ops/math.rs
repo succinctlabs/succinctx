@@ -1,11 +1,8 @@
 //! Arithmetic operations.
 
-use std::marker::PhantomData;
-
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::mpt::generators::LteGenerator;
-use crate::prelude::{BoolVariable, Variable};
+use crate::prelude::BoolVariable;
 
 /// The addition operation.
 ///
@@ -204,19 +201,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
-    fn lte(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
-        // TODO: FIX
-        let generator: LteGenerator<L, D> = LteGenerator {
-            lhs: self,
-            rhs,
-            output: builder.init::<BoolVariable>(),
-            _phantom: PhantomData,
-        };
-        builder.add_simple_generator(generator.clone());
-        generator.output
-    }
-}
 mod tests {
     #[allow(unused_imports)]
     use crate::prelude::{BoolVariable, DefaultBuilder, U32Variable};

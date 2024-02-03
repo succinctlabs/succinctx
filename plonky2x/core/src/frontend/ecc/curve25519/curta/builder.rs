@@ -44,15 +44,15 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             match response {
                 EcOpResponse::Add(c) => {
-                    let c_hint = output_stream.read::<AffinePointVariable<Curve>>(self);
+                    let c_hint = output_stream.read_unsafe::<AffinePointVariable<Curve>>(self);
                     self.assert_is_equal(c_hint, c.clone());
                 }
                 EcOpResponse::ScalarMul(c) => {
-                    let c_hint = output_stream.read::<AffinePointVariable<Curve>>(self);
+                    let c_hint = output_stream.read_unsafe::<AffinePointVariable<Curve>>(self);
                     self.assert_is_equal(c_hint, c.clone());
                 }
                 EcOpResponse::Decompress(point, root) => {
-                    let point_hint = output_stream.read::<AffinePointVariable<Curve>>(self);
+                    let point_hint = output_stream.read_unsafe::<AffinePointVariable<Curve>>(self);
                     let root_hint = output_stream
                         .read::<FieldVariable<<Curve as EllipticCurveParameters>::BaseField>>(self);
                     self.assert_is_equal(point_hint, point.clone());
