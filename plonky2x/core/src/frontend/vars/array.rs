@@ -179,9 +179,49 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
     /// Given an `array` of variables, and a dynamic `index` start_idx, returns
     /// `array[start_idx..start_idx+sub_array_size]` as an `array`.
+    /// `seed` is used to generate randomness for the proof. This function generates a Fiat-Shamir
+    /// seed from the array and subarray, so the seed is not needed as an input.
+    pub fn get_fixed_subarray<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
+        &mut self,
+        array_bytes: &ArrayVariable<ByteVariable, ARRAY_SIZE>,
+        subarray_bytes: &ArrayVariable<ByteVariable, SUB_ARRAY_SIZE>,
+        start_idx: Variable,
+    ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
+        // The seed is generated from the array_bytes and subarray_bytes. It is Vec<ByteVariable>
+        // because passing in ByteVariable as the seed lets you pack 7 ByteVariable's into
+        // a single Variable, which is what get_fixed_subarray_unsafe does before poseidon hashing.
+        let mut seed = Vec::new();
+        seed.extend_from_slice(array_bytes.as_slice());
+        seed.extend_from_slice(subarray_bytes.as_slice());
+
+        // get_fixed_subarray_unsafe expects the array to contain variables, so we convert the bytes
+        // to variables (with each variable containing a single byte).
+        let array_variables = ArrayVariable::<Variable, ARRAY_SIZE>::from(
+            array_bytes
+                .as_slice()
+                .iter()
+                .map(|x| x.to_variable(self))
+                .collect_vec(),
+        );
+
+        self.get_fixed_subarray_unsafe::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
+            &array_variables,
+            start_idx,
+            &seed,
+        )
+    }
+
+    /// Given an `array` of variables, and a dynamic `index` start_idx, returns
+    /// `array[start_idx..start_idx+sub_array_size]` as an `array`.
     ///
-    /// `seed` is used to generate randomness for the proof.  Note that the seed should be the
-    /// Fiat-Shamir of the entire array and claimed subarray.
+    /// `seed` is used to generate randomness for the proof. IMPORTANT: The seed
+    /// should be the Fiat-Shamir of the entire array and claimed subarray.
+    /// Ex.
+    /// The array is s and the subarray is s[0..10].
+    /// The seed MUST BE some combination of s || s[0..10]. For example, you could concatenate
+    /// the hashes of s and s[0..10] to get the seed: hash(s) || hash(s[0..10]). This is useful if
+    /// you are already hashing the array or subarray and want to avoid additional poseidon hashing
+    /// for longer arrays.
     ///
     /// The security of each challenge is log2(field_size) - log2(array_size), so the total security
     /// is (log2(field_size) - log2(array_size)) * num_loops.
@@ -193,7 +233,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ///         b) r^i is the challenge raised to the power of i.
     ///     3) If outside of the subarray, don't add to the accumulator.
     ///     4) Assert that the accumulator is equal to the accumulator from the hinted subarray.
-    pub fn get_fixed_subarray<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
+    pub fn get_fixed_subarray_unsafe<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
         array: &ArrayVariable<Variable, ARRAY_SIZE>,
         start_idx: Variable,
@@ -471,7 +511,7 @@ mod tests {
         let array = builder.read::<ArrayVariable<Variable, ARRAY_SIZE>>();
         let start_idx = builder.constant(F::from_canonical_usize(START_IDX));
         let seed = builder.read::<Bytes32Variable>();
-        let result = builder.get_fixed_subarray::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
+        let result = builder.get_fixed_subarray_unsafe::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
             &array,
             start_idx,
             &seed.as_bytes(),
@@ -522,7 +562,7 @@ mod tests {
         let array = builder.read::<ArrayVariable<Variable, ARRAY_SIZE>>();
         let start_idx = builder.constant(F::from_canonical_usize(START_IDX));
         let seed = builder.read::<Bytes32Variable>();
-        let result = builder.get_fixed_subarray::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
+        let result = builder.get_fixed_subarray_unsafe::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
             &array,
             start_idx,
             &seed.as_bytes(),
