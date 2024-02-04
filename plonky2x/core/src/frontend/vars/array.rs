@@ -204,11 +204,21 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 .collect_vec(),
         );
 
-        self.get_fixed_subarray_unsafe::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
+        let expected_subarray_variables = ArrayVariable::<Variable, SUB_ARRAY_SIZE>::from(
+            subarray_bytes
+                .as_slice()
+                .iter()
+                .map(|x| x.to_variable(self))
+                .collect_vec(),
+        );
+
+        self.extract_subarray(
             &array_variables,
+            &expected_subarray_variables,
             start_idx,
             &seed,
-        )
+        );
+        expected_subarray_variables
     }
 
     /// Given an `array` of variables, and a dynamic `index` start_idx, returns
@@ -222,26 +232,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// the hashes of s and s[0..10] to get the seed: hash(s) || hash(s[0..10]). This is useful if
     /// you are already hashing the array or subarray and want to avoid additional poseidon hashing
     /// for longer arrays.
-    ///
-    /// The security of each challenge is log2(field_size) - log2(array_size), so the total security
-    /// is (log2(field_size) - log2(array_size)) * num_loops.
-    ///
-    /// This function does the following to extract the subarray:
-    ///     1) Generate a random challenge for each loop, which is referred to as r.
-    ///     2) If within the subarray, multiply subarray[i] by r^i and add to the accumulator.
-    ///         a) i is the index within the subarray.
-    ///         b) r^i is the challenge raised to the power of i.
-    ///     3) If outside of the subarray, don't add to the accumulator.
-    ///     4) Assert that the accumulator is equal to the accumulator from the hinted subarray.
     pub fn get_fixed_subarray_unsafe<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
         array: &ArrayVariable<Variable, ARRAY_SIZE>,
         start_idx: Variable,
         seed: &[ByteVariable],
     ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
-        // TODO: Seed with 120 bits. Check if this is enough bits of security.
-        const MIN_SEED_BITS: usize = 120;
-
         let mut input_stream = VariableStream::new();
         input_stream.write(array);
         input_stream.write(&start_idx);
@@ -253,6 +249,29 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let output_stream = self.hint(input_stream, hint);
         let sub_array = output_stream.read::<ArrayVariable<Variable, SUB_ARRAY_SIZE>>(self);
 
+        self.extract_subarray(array, &sub_array, start_idx, seed);
+        sub_array
+    }
+
+    /// Verify that the subarray is a valid subarray of the array given the start_idx.
+    ///
+    /// The security of each challenge is log2(field_size) - log2(array_size), so the total security
+    /// is (log2(field_size) - log2(array_size)) * num_loops.
+    ///
+    /// This function does the following to extract the subarray:
+    ///     1) Generate a random challenge for each loop, which is referred to as r.
+    ///     2) If within the subarray, multiply subarray[i] by r^i and add to the accumulator.
+    ///         a) i is the index within the subarray.
+    ///         b) r^i is the challenge raised to the power of i.
+    ///     3) If outside of the subarray, don't add to the accumulator.
+    ///     4) Assert that the accumulator is equal to the accumulator from the hinted subarray.
+    pub fn extract_subarray<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
+        &mut self,
+        array: &ArrayVariable<Variable, ARRAY_SIZE>,
+        sub_array: &ArrayVariable<Variable, SUB_ARRAY_SIZE>,
+        start_idx: Variable,
+        seed: &[ByteVariable],
+    ) {
         let mut seed_targets = Vec::new();
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
 
@@ -267,6 +286,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             seed_bit_len += seed_element_bits.len();
             seed_targets.push(seed_element);
         }
+        // TODO: Seed with 120 bits. Check if this is enough bits of security.
+        const MIN_SEED_BITS: usize = 120;
 
         assert!(seed_bit_len >= MIN_SEED_BITS);
 
@@ -339,8 +360,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
             self.assert_is_equal(accumulator1, accumulator2);
         }
-
-        sub_array
     }
 }
 
