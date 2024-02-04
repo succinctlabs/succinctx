@@ -253,7 +253,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         sub_array
     }
 
-    /// Verify that the subarray is a valid subarray of the array given the start_idx.
+    /// Verify that sub_array is a valid subarray of the array given the start_idx.
     ///
     /// The security of each challenge is log2(field_size) - log2(array_size), so the total security
     /// is (log2(field_size) - log2(array_size)) * num_loops.
