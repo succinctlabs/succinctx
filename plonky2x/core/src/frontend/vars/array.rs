@@ -286,7 +286,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             seed_bit_len += seed_element_bits.len();
             seed_targets.push(seed_element);
         }
-        // TODO: Seed with 120 bits. Check if this is enough bits of security.
+        // Seed with at least 120 bits. Check if this is enough bits of security.
         const MIN_SEED_BITS: usize = 120;
 
         assert!(seed_bit_len >= MIN_SEED_BITS);
