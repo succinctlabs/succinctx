@@ -264,7 +264,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ///         a) i is the index within the subarray.
     ///         b) r^i is the challenge raised to the power of i.
     ///     3) If outside of the subarray, don't add to the accumulator.
-    ///     4) Assert that the accumulator is equal to the accumulator from the hinted subarray.
+    ///     4) Assert that the accumulator is equal to the accumulator from the given subarray.
     pub fn extract_subarray<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
         array: &ArrayVariable<Variable, ARRAY_SIZE>,
