@@ -7,12 +7,11 @@ import (
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/backend/plonk"
+	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/frontend/cs/scs"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/consensys/gnark/logger"
-	"github.com/consensys/gnark/test"
 	"github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 	"github.com/succinctlabs/gnark-plonky2-verifier/verifier"
@@ -75,7 +74,7 @@ func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func CompileVerifierCircuit(dummyCircuitPath string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, error) {
+func CompileVerifierCircuit(dummyCircuitPath string) (constraint.ConstraintSystem, groth16.ProvingKey, groth16.VerifyingKey, error) {
 	log := logger.Logger()
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
 		types.ReadVerifierOnlyCircuitData(dummyCircuitPath + "/verifier_only_circuit_data.json"),
@@ -93,18 +92,14 @@ func CompileVerifierCircuit(dummyCircuitPath string) (constraint.ConstraintSyste
 		OutputHash:        new(frontend.Variable),
 		CommonCircuitData: commonCircuitData,
 	}
-	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), scs.NewBuilder, &circuit)
+	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to compile circuit: %w", err)
 	}
 
 	log.Info().Msg("Running circuit setup")
 	start := time.Now()
-	srs, err := test.NewKZGSRS(r1cs)
-	if err != nil {
-		panic(err)
-	}
-	pk, vk, err := plonk.Setup(r1cs, srs)
+	pk, vk, err := groth16.Setup(r1cs)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -114,7 +109,7 @@ func CompileVerifierCircuit(dummyCircuitPath string) (constraint.ConstraintSyste
 	return r1cs, pk, vk, nil
 }
 
-func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk plonk.ProvingKey, vk plonk.VerifyingKey) error {
+func SaveVerifierCircuit(path string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey, vk groth16.VerifyingKey) error {
 	log := logger.Logger()
 	os.MkdirAll(path, 0755)
 	log.Info().Msg("Saving circuit constraints to " + path + "/r1cs.bin")
