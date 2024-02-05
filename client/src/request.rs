@@ -39,6 +39,21 @@ struct SuccinctProofInput {
     data: ProofInputData,
 }
 
+#[allow(non_snake_case)]
+#[derive(Serialize, Deserialize)]
+/// Data to be sent to the Succinct X API to generate a hosted proof.
+struct SuccinctProofWithDeploymentInput {
+    /// Request type
+    #[serde(rename = "type")]
+    type_field: String,
+    /// The Succinct X function id to be called.
+    functionId: B256,
+    /// The chain id of the network with the functionId.
+    chainId: u32,
+    /// The input to be used in the Succinct X function call.
+    data: ProofInputData,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProofOutputData {
     pub output: String,
@@ -381,6 +396,46 @@ impl SuccinctClient {
             Ok(response.proof_id)
         } else {
             error!("Proof request failed!");
+            Err(Error::msg("Failed to submit request to Succinct X API."))
+        }
+    }
+
+    /// Request for a proof from a deployment to be generated on the platform. Returns the proof_id.
+    pub async fn generate_platform_proof_with_deployment(
+        &self,
+        function_id: B256,
+        chain_id: u32,
+        input: Bytes,
+    ) -> Result<String> {
+        let data = SuccinctProofWithDeploymentInput {
+            type_field: "req_bytes".to_string(),
+            functionId: function_id,
+            chainId: chain_id,
+            data: ProofInputData { input },
+        };
+
+        // Serialize the data to JSON.
+        let serialized_data = serde_json::to_string(&data).unwrap();
+
+        // Make off-chain request.
+        let request_url = format!("{}{}", self.succinct_api_url, "/proofWithDeployment/new");
+        let res = self
+            .client
+            .post(request_url)
+            .header("Content-Type", "application/json")
+            .bearer_auth(self.succinct_api_key.clone())
+            .body(serialized_data)
+            .send()
+            .await
+            .unwrap();
+
+        // Check if the request was successful.
+        if res.status().is_success() {
+            info!("Proof with deployment request successful!");
+            let response: SuccinctProofResponse = res.json().await.unwrap();
+            Ok(response.proof_id)
+        } else {
+            error!("Proof with deployment request failed!");
             Err(Error::msg("Failed to submit request to Succinct X API."))
         }
     }
