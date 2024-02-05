@@ -177,25 +177,35 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         V::from_variables_unsafe(&selected_vars)
     }
 
-    /// Given an `array` of variables, and a dynamic `index` start_idx, returns
-    /// `array[start_idx..start_idx+sub_array_size]` as an `array`.
-    /// `seed` is used to generate randomness for the proof. This function generates a Fiat-Shamir
-    /// seed from the array and subarray, so the seed is not needed as an input.
+    /// Given an `array` of ByteVariable's, a dynamic `index` start_idx, and a commitment to the
+    /// `array`, 'seed', return `array[start_idx..start_idx+sub_array_size]` as an `array`.
+    /// `seed` is used to generate randomness for the proof, and must contain a valid commitment to
+    /// array_bytes (i.e. either the bytes themselves or a hash of the bytes). This function
+    /// generates a Fiat-Shamir seed from the supplied commitmnet to the array and subarray.
     pub fn get_fixed_subarray<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
         array_bytes: &ArrayVariable<ByteVariable, ARRAY_SIZE>,
-        subarray_bytes: &ArrayVariable<ByteVariable, SUB_ARRAY_SIZE>,
         start_idx: Variable,
-    ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
-        // The seed is generated from the array_bytes and subarray_bytes. It is Vec<ByteVariable>
-        // because passing in ByteVariable as the seed lets you pack 7 ByteVariable's into
-        // a single Variable, which is what get_fixed_subarray_unsafe does before poseidon hashing.
-        let mut seed = Vec::new();
-        seed.extend_from_slice(array_bytes.as_slice());
-        seed.extend_from_slice(subarray_bytes.as_slice());
+        seed: &[ByteVariable],
+    ) -> ArrayVariable<ByteVariable, SUB_ARRAY_SIZE> {
+        let mut input_stream = VariableStream::new();
+        input_stream.write(array_bytes);
+        input_stream.write(&start_idx);
+        let hint = SubArrayExtractorHint {
+            array_size: ARRAY_SIZE,
+            sub_array_size: SUB_ARRAY_SIZE,
+        };
+        let output_stream = self.hint(input_stream, hint);
+        let sub_array = output_stream.read::<ArrayVariable<ByteVariable, SUB_ARRAY_SIZE>>(self);
 
-        // get_fixed_subarray_unsafe expects the array to contain variables, so we convert the bytes
-        // to variables (with each variable containing a single byte).
+        // The final seed is generated from the seed (which is a commitment to the array)
+        // concatenated to the sub_array. seed is Vec<ByteVariable> because it enables packing
+        // 7 ByteVariable's into a single Variable, which is useful for the seed's poseidon hashing.
+        let mut final_seed = seed.to_vec();
+        final_seed.extend_from_slice(sub_array.as_slice());
+
+        // extract_subarray expect the array and subarray to contain variables, so convert
+        // the bytes to variables (with each variable containing a single byte).
         let array_variables = ArrayVariable::<Variable, ARRAY_SIZE>::from(
             array_bytes
                 .as_slice()
@@ -203,9 +213,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 .map(|x| x.to_variable(self))
                 .collect_vec(),
         );
-
-        let expected_subarray_variables = ArrayVariable::<Variable, SUB_ARRAY_SIZE>::from(
-            subarray_bytes
+        let subarray_variables = ArrayVariable::<Variable, SUB_ARRAY_SIZE>::from(
+            sub_array
                 .as_slice()
                 .iter()
                 .map(|x| x.to_variable(self))
@@ -214,42 +223,10 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         self.extract_subarray(
             &array_variables,
-            &expected_subarray_variables,
+            &subarray_variables,
             start_idx,
-            &seed,
+            &final_seed,
         );
-        expected_subarray_variables
-    }
-
-    /// Given an `array` of variables, and a dynamic `index` start_idx, returns
-    /// `array[start_idx..start_idx+sub_array_size]` as an `array`.
-    ///
-    /// `seed` is used to generate randomness for the proof. IMPORTANT: The seed
-    /// should be the Fiat-Shamir of the entire array and claimed subarray.
-    /// Ex.
-    /// The array is s and the subarray is s[0..10].
-    /// The seed MUST BE some combination of s || s[0..10]. For example, you could concatenate
-    /// the hashes of s and s[0..10] to get the seed: hash(s) || hash(s[0..10]). This is useful if
-    /// you are already hashing the array or subarray and want to avoid additional poseidon hashing
-    /// for longer arrays.
-    pub fn get_fixed_subarray_unsafe<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
-        &mut self,
-        array: &ArrayVariable<Variable, ARRAY_SIZE>,
-        start_idx: Variable,
-        seed: &[ByteVariable],
-    ) -> ArrayVariable<Variable, SUB_ARRAY_SIZE> {
-        let mut input_stream = VariableStream::new();
-        input_stream.write(array);
-        input_stream.write(&start_idx);
-
-        let hint = SubArrayExtractorHint {
-            array_size: ARRAY_SIZE,
-            sub_array_size: SUB_ARRAY_SIZE,
-        };
-        let output_stream = self.hint(input_stream, hint);
-        let sub_array = output_stream.read::<ArrayVariable<Variable, SUB_ARRAY_SIZE>>(self);
-
-        self.extract_subarray(array, &sub_array, start_idx, seed);
         sub_array
     }
 
@@ -374,7 +351,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for SubArrayExtractorHint
         let mut array_elements = Vec::new();
 
         for _i in 0..self.array_size {
-            let element = input_stream.read_value::<Variable>();
+            let element = input_stream.read_value::<ByteVariable>();
             array_elements.push(element);
         }
 
@@ -385,7 +362,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for SubArrayExtractorHint
 
         for i in 0..self.sub_array_size {
             let element = array_elements[start_idx as usize + i];
-            output_stream.write_value::<Variable>(element);
+            output_stream.write_value::<ByteVariable>(element);
         }
     }
 }
@@ -527,10 +504,10 @@ mod tests {
 
         let mut builder = DefaultBuilder::new();
 
-        let array = builder.read::<ArrayVariable<Variable, ARRAY_SIZE>>();
+        let array = builder.read::<ArrayVariable<ByteVariable, ARRAY_SIZE>>();
         let start_idx = builder.constant(F::from_canonical_usize(START_IDX));
         let seed = builder.read::<Bytes32Variable>();
-        let result = builder.get_fixed_subarray_unsafe::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
+        let result = builder.get_fixed_subarray::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
             &array,
             start_idx,
             &seed.as_bytes(),
@@ -541,9 +518,9 @@ mod tests {
 
         // The last 20 elements are dummy
         let mut rng = OsRng;
-        let mut array_input = [F::default(); ARRAY_SIZE];
+        let mut array_input = [0u8; ARRAY_SIZE];
         for elem in array_input.iter_mut() {
-            *elem = F::from_canonical_u64(rng.gen());
+            *elem = rng.gen();
         }
 
         let mut seed_input = [0u8; 15];
@@ -552,7 +529,7 @@ mod tests {
         }
 
         let mut input = circuit.input();
-        input.write::<ArrayVariable<Variable, ARRAY_SIZE>>(array_input.to_vec());
+        input.write::<ArrayVariable<ByteVariable, ARRAY_SIZE>>(array_input.to_vec());
         input.write::<Bytes32Variable>(bytes32!(
             "0x7c38fc8356aa20394c7f538e3cee3f924e6d9252494c8138d1a6aabfc253118f"
         ));
@@ -562,7 +539,7 @@ mod tests {
 
         let expected_sub_array = array_input[START_IDX..START_IDX + SUB_ARRAY_SIZE].to_vec();
         assert_eq!(
-            output.read::<ArrayVariable<Variable, SUB_ARRAY_SIZE>>(),
+            output.read::<ArrayVariable<ByteVariable, SUB_ARRAY_SIZE>>(),
             expected_sub_array
         );
     }
@@ -578,10 +555,10 @@ mod tests {
 
         let mut builder = DefaultBuilder::new();
 
-        let array = builder.read::<ArrayVariable<Variable, ARRAY_SIZE>>();
+        let array = builder.read::<ArrayVariable<ByteVariable, ARRAY_SIZE>>();
         let start_idx = builder.constant(F::from_canonical_usize(START_IDX));
         let seed = builder.read::<Bytes32Variable>();
-        let result = builder.get_fixed_subarray_unsafe::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
+        let result = builder.get_fixed_subarray::<ARRAY_SIZE, SUB_ARRAY_SIZE>(
             &array,
             start_idx,
             &seed.as_bytes(),
@@ -592,9 +569,9 @@ mod tests {
 
         // The last 20 elements are dummy
         let mut rng = OsRng;
-        let mut array_input = [F::default(); ARRAY_SIZE];
+        let mut array_input = [0u8; ARRAY_SIZE];
         for elem in array_input.iter_mut() {
-            *elem = F::from_canonical_u64(rng.gen());
+            *elem = rng.gen();
         }
 
         let mut seed_input = [0u8; 15];
@@ -603,7 +580,7 @@ mod tests {
         }
 
         let mut input = circuit.input();
-        input.write::<ArrayVariable<Variable, ARRAY_SIZE>>(array_input.to_vec());
+        input.write::<ArrayVariable<ByteVariable, ARRAY_SIZE>>(array_input.to_vec());
         input.write::<Bytes32Variable>(bytes32!(
             "0x7c38fc8356aa20394c7f538e3cee3f924e6d9252494c8138d1a6aabfc253118f"
         ));
