@@ -348,6 +348,42 @@ impl SuccinctClient {
             .await
     }
 
+    pub async fn relay_hosted_proof(
+        &self,
+        chain_id: u32,
+        to: Address,
+        function_id: B256,
+        calldata: Bytes,
+    ) -> Result<()> {
+        let request_url = format!("{}{}", self.succinct_api_url, "/request/submit");
+        let data = json_macro!({
+            "request_id": request_id,
+            "proof": proof,
+            "output": output,
+            "chain_id": chain_id,
+            "to": to,
+            "function_id": function_id,
+            "calldata": calldata,
+        });
+
+        let res = self
+            .client
+            .post(request_url)
+            .header("Content-Type", "application/json")
+            .bearer_auth(self.succinct_api_key.clone())
+            .body(data.to_string())
+            .send()
+            .await?;
+
+        if res.status().is_success() {
+            info!("Proof relayed successfully!");
+            Ok(())
+        } else {
+            error!("Proof relay failed!");
+            Err(Error::msg("Failed to relay proof to Succinct X API."))
+        }
+    }
+
     /// If in local relay mode, ethereum_rpc_url and wallet must be provided. If you wish to submit
     /// to your own gateway (ex. on a chain that doesn't have a canonical gateway), gateway_address
     /// must be provided.
