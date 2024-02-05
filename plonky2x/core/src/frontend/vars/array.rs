@@ -180,16 +180,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// Given an `array` of ByteVariable's, a dynamic `index` start_idx, and a commitment to the
     /// `array`, 'seed', return `array[start_idx..start_idx+sub_array_size]` as an `array`.
     /// `seed` is used to generate randomness for the proof, and must contain a valid commitment to
-    /// array_bytes (i.e. either the bytes themselves or a hash of the bytes). This function
+    /// array (i.e. either the bytes themselves or a hash of the bytes). This function
     /// generates a Fiat-Shamir seed from the supplied commitmnet to the array and subarray.
     pub fn get_fixed_subarray<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
-        array_bytes: &ArrayVariable<ByteVariable, ARRAY_SIZE>,
+        array: &ArrayVariable<ByteVariable, ARRAY_SIZE>,
         start_idx: Variable,
         seed: &[ByteVariable],
     ) -> ArrayVariable<ByteVariable, SUB_ARRAY_SIZE> {
         let mut input_stream = VariableStream::new();
-        input_stream.write(array_bytes);
+        input_stream.write(array);
         input_stream.write(&start_idx);
         let hint = SubArrayExtractorHint {
             array_size: ARRAY_SIZE,
@@ -204,29 +204,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let mut final_seed = seed.to_vec();
         final_seed.extend_from_slice(sub_array.as_slice());
 
-        // extract_subarray expect the array and subarray to contain variables, so convert
-        // the bytes to variables (with each variable containing a single byte).
-        let array_variables = ArrayVariable::<Variable, ARRAY_SIZE>::from(
-            array_bytes
-                .as_slice()
-                .iter()
-                .map(|x| x.to_variable(self))
-                .collect_vec(),
-        );
-        let subarray_variables = ArrayVariable::<Variable, SUB_ARRAY_SIZE>::from(
-            sub_array
-                .as_slice()
-                .iter()
-                .map(|x| x.to_variable(self))
-                .collect_vec(),
-        );
-
-        self.extract_subarray(
-            &array_variables,
-            &subarray_variables,
-            start_idx,
-            &final_seed,
-        );
+        self.extract_subarray(array, &sub_array, start_idx, &final_seed);
         sub_array
     }
 
@@ -244,11 +222,28 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     ///     4) Assert that the accumulator is equal to the accumulator from the given subarray.
     pub fn extract_subarray<const ARRAY_SIZE: usize, const SUB_ARRAY_SIZE: usize>(
         &mut self,
-        array: &ArrayVariable<Variable, ARRAY_SIZE>,
-        sub_array: &ArrayVariable<Variable, SUB_ARRAY_SIZE>,
+        array: &ArrayVariable<ByteVariable, ARRAY_SIZE>,
+        sub_array: &ArrayVariable<ByteVariable, SUB_ARRAY_SIZE>,
         start_idx: Variable,
         seed: &[ByteVariable],
     ) {
+        // extract_subarray needs the array and subarray to contain variables, so convert
+        // the bytes to variables (with each variable containing a single byte).
+        let array_variables = ArrayVariable::<Variable, ARRAY_SIZE>::from(
+            array
+                .as_slice()
+                .iter()
+                .map(|x| x.to_variable(self))
+                .collect_vec(),
+        );
+        let subarray_variables = ArrayVariable::<Variable, SUB_ARRAY_SIZE>::from(
+            sub_array
+                .as_slice()
+                .iter()
+                .map(|x| x.to_variable(self))
+                .collect_vec(),
+        );
+
         let mut seed_targets = Vec::new();
         let mut challenger = RecursiveChallenger::<L::Field, PoseidonHash, D>::new(&mut self.api);
 
@@ -315,7 +310,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 r = self.mul(r, multiplier);
 
                 // Multiply the current r by the current array element.
-                let temp_accum = self.mul(r, array[j]);
+                let temp_accum = self.mul(r, array_variables[j]);
                 // If outside of the subarray, don't add to the accumulator.
                 let temp_accum = self.mul(within_sub_array.variable, temp_accum);
 
@@ -331,7 +326,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let mut r = one;
             for j in 0..SUB_ARRAY_SIZE {
                 r = self.mul(r, challenges[i]);
-                let product = self.mul(r, sub_array[j]);
+                let product = self.mul(r, subarray_variables[j]);
                 accumulator2 = self.add(accumulator2, product);
             }
 
