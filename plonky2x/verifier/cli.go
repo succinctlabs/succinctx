@@ -24,6 +24,8 @@ func main() {
 	systemFlag := flag.String("system", "groth16", "proving system to use (groth16, plonk)")
 	flag.Parse()
 
+	_ = systemFlag
+
 	log := logger.Logger()
 
 	if *circuitPath == "" {
@@ -34,6 +36,11 @@ func main() {
 		log.Error().Msg("please specify a path to data dir (where the compiled gnark circuit data will be)")
 		os.Exit(1)
 	}
+
+	// var system ProvingSystem
+	// if *systemFlag != "groth16" {
+	// 	system = NewGroth16System()
+	// }
 
 	log.Debug().Msg("Circuit path: " + *circuitPath)
 	log.Debug().Msg("Data path: " + *dataPath)
