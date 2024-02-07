@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/backend/plonk"
-	plonk_bn254 "github.com/consensys/gnark/backend/plonk/bn254"
+	groth16_bn254 "github.com/consensys/gnark/backend/groth16/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
+	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
@@ -23,13 +23,25 @@ import (
 	"github.com/succinctlabs/succinctx/gnarkx/types"
 )
 
-func LoadProverData(path string) (constraint.ConstraintSystem, plonk.ProvingKey, error) {
+func LoadProvingKey(filepath string) (pk groth16.ProvingKey, err error) {
+	pk = groth16.NewProvingKey(ecc.BN254)
+	f, _ := os.Open(filepath + "/pk.bin")
+	_, err = pk.ReadFrom(f)
+	if err != nil {
+		return pk, fmt.Errorf("read file error")
+	}
+	f.Close()
+
+	return pk, nil
+}
+
+func LoadProverData(path string) (constraint.ConstraintSystem, groth16.ProvingKey, error) {
 	log := logger.Logger()
 	r1csFile, err := os.Open(path + "/r1cs.bin")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open r1cs file: %w", err)
 	}
-	r1cs := plonk.NewCS(ecc.BN254)
+	r1cs := groth16.NewCS(ecc.BN254)
 	start := time.Now()
 	r1csReader := bufio.NewReader(r1csFile)
 	_, err = r1cs.ReadFrom(r1csReader)
@@ -44,13 +56,13 @@ func LoadProverData(path string) (constraint.ConstraintSystem, plonk.ProvingKey,
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open pk file: %w", err)
 	}
-	pk := plonk.NewProvingKey(ecc.BN254)
+	pk := groth16.NewProvingKey(ecc.BN254)
 	start = time.Now()
-	pkReader := bufio.NewReader(pkFile)
-	_, err = pk.ReadFrom(pkReader)
+	_, err = pk.ReadFrom(pkFile)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read pk file: %w", err)
 	}
+
 	pkFile.Close()
 	elapsed = time.Since(start)
 	log.Debug().Msg("Successfully loaded proving key, time: " + elapsed.String())
@@ -78,7 +90,7 @@ func GetInputHashOutputHash(proofWithPis gnark_verifier_types.ProofWithPublicInp
 	return inputHash, outputHash
 }
 
-func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk plonk.ProvingKey) (plonk.Proof, witness.Witness, error) {
+func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk groth16.ProvingKey) (groth16.Proof, witness.Witness, error) {
 	log := logger.Logger()
 
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
@@ -109,19 +121,19 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk plonk.Provin
 
 	log.Debug().Msg("Creating proof")
 	start = time.Now()
-	proof, err := plonk.Prove(r1cs, pk, witness)
+	proof, err := groth16.Prove(r1cs, pk, witness)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create proof: %w", err)
 	}
 	elapsed = time.Since(start)
 	log.Info().Msg("Successfully created proof, time: " + elapsed.String())
 
-	_proof := proof.(*plonk_bn254.Proof)
+	_proof := proof.(*groth16_bn254.Proof)
 	log.Info().Msg("Saving proof to proof.json")
 	jsonProof, err := json.Marshal(types.ProofResult{
 		// Output will be filled in by plonky2x CLI
 		Output: []byte{},
-		Proof:  _proof.MarshalSolidity(),
+		Proof:  _proof.Ar.Marshal(),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to marshal proof: %w", err)
@@ -147,7 +159,7 @@ func Prove(circuitPath string, r1cs constraint.ConstraintSystem, pk plonk.Provin
 		InputHash:      inputHash.Bytes(),
 		OutputHash:     outputHash.Bytes(),
 		VerifierDigest: (verifierOnlyCircuitData.CircuitDigest).(*big.Int).Bytes(),
-		Proof:          _proof.MarshalSolidity(),
+		Proof:          _proof.Ar.Marshal(),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to marshal proof with witness: %w", err)

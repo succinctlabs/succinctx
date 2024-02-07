@@ -8,17 +8,20 @@ import (
 	"os"
 	"strings"
 
-	"github.com/consensys/gnark/backend/plonk"
+	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/logger"
 )
 
 func main() {
+	os.Setenv("USE_BIT_DECOMPOSITION_RANGE_CHECK", "true") // doesn't seem to work
+
 	circuitPath := flag.String("circuit", "", "circuit data directory")
 	dataPath := flag.String("data", "", "data directory")
 	proofFlag := flag.Bool("prove", false, "create a proof")
 	verifyFlag := flag.Bool("verify", false, "verify a proof")
 	compileFlag := flag.Bool("compile", false, "Compile and save the universal verifier circuit")
 	contractFlag := flag.Bool("contract", true, "Generate solidity contract")
+	systemFlag := flag.String("system", "groth16", "proving system to use (groth16, plonk)")
 	flag.Parse()
 
 	log := logger.Logger()
@@ -37,15 +40,23 @@ func main() {
 
 	if *compileFlag {
 		log.Info().Msg("compiling verifier circuit")
-		r1cs, pk, vk, err := CompileVerifierCircuit("./data/dummy")
+		// r1cs, _, _, err := CompileVerifierCircuit("./data/dummy")
+		// if err != nil {
+		// 	log.Error().Msg("failed to compile verifier circuit:" + err.Error())
+		// 	os.Exit(1)
+		// }
+
+		// pk, vk := getExistingKeys(*dataPath)
+
+		// err = SaveVerifierCircuit(*dataPath, r1cs, pk, vk)
+		// if err != nil {
+		// 	log.Error().Msg("failed to save verifier circuit:" + err.Error())
+		// 	os.Exit(1)
+		// }
+
+		vk, err := LoadVerifierKey(*dataPath)
 		if err != nil {
-			log.Error().Msg("failed to compile verifier circuit:" + err.Error())
-			os.Exit(1)
-		}
-		err = SaveVerifierCircuit(*dataPath, r1cs, pk, vk)
-		if err != nil {
-			log.Error().Msg("failed to save verifier circuit:" + err.Error())
-			os.Exit(1)
+			panic(err)
 		}
 
 		if *contractFlag {
@@ -92,7 +103,7 @@ func main() {
 		}
 
 		log.Info().Msg("Verifying proof")
-		err = plonk.Verify(proof, vk, publicWitness)
+		err = groth16.Verify(proof, vk, publicWitness)
 		if err != nil {
 			log.Err(err).Msg("failed to verify proof")
 			os.Exit(1)
@@ -118,7 +129,7 @@ func main() {
 			log.Err(err).Msg("failed to load the proof")
 			os.Exit(1)
 		}
-		err = plonk.Verify(proof, vk, publicWitness)
+		err = groth16.Verify(proof, vk, publicWitness)
 		if err != nil {
 			log.Err(err).Msg("failed to verify proof")
 			os.Exit(1)

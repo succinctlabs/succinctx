@@ -38,7 +38,8 @@ type Plonky2xVerifierCircuit struct {
 func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error {
 	// initialize the verifier chip
 	verifierChip := verifier.NewVerifierChip(api, c.CommonCircuitData)
-	// verify the plonky2 proof
+	// verify the plonky2 proofD
+	// _ = verifierChip
 	verifierChip.Verify(c.ProofWithPis.Proof, c.ProofWithPis.PublicInputs, c.VerifierData)
 
 	// We assume that the publicInputs have 64 bytes
