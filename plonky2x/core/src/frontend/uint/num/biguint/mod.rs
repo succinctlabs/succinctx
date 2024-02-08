@@ -310,8 +310,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
         let div_b_plus_rem = self.add_biguint(&div_b, &rem);
         self.connect_biguint(a, &div_b_plus_rem);
 
-        let cmp_rem_b = self.cmp_biguint(&rem, b);
-        self.assert_one(cmp_rem_b.target);
+        // Assert that `r < b`. We do that by asserting that the result of `b \leq r` is `false`.
+        let cmp_b_rem = self.cmp_biguint(b, &rem);
+        self.assert_zero(cmp_b_rem.target);
 
         (div, rem)
     }

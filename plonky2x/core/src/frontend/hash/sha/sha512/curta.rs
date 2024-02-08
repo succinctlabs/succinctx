@@ -29,8 +29,8 @@ impl<L: PlonkParameters<D>, const D: usize> AirParameters for SHA512AirParameter
 
     type Instruction = UintInstruction;
 
-    const NUM_FREE_COLUMNS: usize = 1191;
-    const EXTENDED_COLUMNS: usize = 654;
+    const NUM_FREE_COLUMNS: usize = 815;
+    const EXTENDED_COLUMNS: usize = 1782;
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 80, false, 8> for SHA512 {
@@ -133,7 +133,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             });
         }
 
-        let digest = self.init_unsafe::<BytesVariable<64>>();
+        let digest = self.init::<BytesVariable<64>>();
         let digest_array = SHA512::digest_to_array(self, digest);
         let accelerator = self
             .sha512_accelerator
@@ -152,6 +152,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         length: U32Variable,
     ) -> BytesVariable<64> {
+        // Check that length <= input.len(). This is needed to ensure that users cannot prove the
+        // hash of a longer message than they supplied.
+        let supplied_input_length = self.constant::<U32Variable>(input.len() as u32);
+        self.lte(length, supplied_input_length);
+
         let last_chunk = self.compute_sha512_last_chunk(length);
 
         if self.sha512_accelerator.is_none() {
@@ -161,7 +166,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             });
         }
 
-        let digest = self.init_unsafe::<BytesVariable<64>>();
+        let digest = self.init::<BytesVariable<64>>();
         let digest_array = SHA512::digest_to_array(self, digest);
         let accelerator = self
             .sha512_accelerator
@@ -178,14 +183,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use rand::{thread_rng, Rng};
 
     use crate::prelude::*;
     use crate::utils::hash::sha512;
-    use crate::utils::setup_logger;
 
     fn test_sha512_fixed(msg: &[u8], expected_digest: [u8; 64]) {
-        setup_logger();
         let mut builder = DefaultBuilder::new();
         let message = msg
             .iter()
@@ -203,7 +208,6 @@ mod tests {
     }
 
     fn test_sha512_variable_length(message: &[u8], input_length: u32, expected_digest: [u8; 64]) {
-        setup_logger();
         let mut builder = DefaultBuilder::new();
 
         let input_length = builder.constant::<U32Variable>(input_length);
@@ -268,9 +272,14 @@ mod tests {
         test_sha512_variable_length(&msg, 0, expected_digest);
     }
 
+    // FAILED
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_curta_variable_large_message() {
+        env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
         let mut msg : Vec<u8> = bytes!("35c323757c20640a294345c89c0bfcebe3d554fdb0c7b7a0bdb72222c531b1ecf7ec1c43f4de9d49556de87b86b26a98942cb078486fdb44de38b80864c3973153756363696e6374204c616273");
         let len = msg.len() as u32;
         msg.resize(256, 1);
@@ -279,9 +288,14 @@ mod tests {
         test_sha512_variable_length(&msg, len, expected_digest);
     }
 
+    // FAILED
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_curta_variable_short_message_same_slice() {
+        env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
         let mut msg: Vec<u8> = b"plonky2".to_vec();
         let len = msg.len() as u32;
         msg.resize(128, 1);
@@ -290,9 +304,14 @@ mod tests {
         test_sha512_variable_length(&msg, len, expected_digest);
     }
 
+    // FAILED
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_curta_variable_short_message_different_slice() {
+        env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+        dotenv::dotenv().ok();
+
         let mut msg: Vec<u8> = b"plonky2".to_vec();
         let len = msg.len() as u32;
         msg.resize(512, 1);
@@ -304,7 +323,6 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_fixed_length() {
-        setup_logger();
         let mut builder = DefaultBuilder::new();
 
         let max_len = 300;
@@ -331,7 +349,6 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha512_variable_length_random() {
-        setup_logger();
         let mut builder = DefaultBuilder::new();
 
         let max_number_of_chunks = 2;
@@ -367,7 +384,6 @@ mod tests {
     fn test_sha512_variable_length_max_size() {
         // This test checks that sha512_variable_pad works as intended, especially when the max
         // input length is (length % 128 > 128 - 17).
-        setup_logger();
         let mut builder = DefaultBuilder::new();
 
         let max_number_of_chunks = 1;

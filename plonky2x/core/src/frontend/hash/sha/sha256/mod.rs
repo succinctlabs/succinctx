@@ -161,7 +161,6 @@ mod tests {
     use super::*;
     use crate::prelude::{ByteVariable, CircuitBuilder, DefaultParameters, U32Variable};
     use crate::utils::hash::sha256;
-    use crate::utils::setup_logger;
 
     type L = DefaultParameters;
     const D: usize = 2;
@@ -169,8 +168,6 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_padding() {
-        setup_logger();
-
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let max_len = 1024;
@@ -209,8 +206,6 @@ mod tests {
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_sha256_variable_padding() {
-        setup_logger();
-
         let mut builder = CircuitBuilder::<L, D>::new();
 
         let max_number_of_chunks = 5;
@@ -239,7 +234,7 @@ mod tests {
                 .map(|b| builder.constant::<ByteVariable>(*b))
                 .collect::<Vec<_>>();
 
-            let padding = builder.pad_message_sha256_variable(&message, length);
+            let padding = builder.pad_sha256_variable_length(&message, length);
 
             for (value, expected) in padding.iter().zip(expected_padding.iter()) {
                 builder.assert_is_equal(*value, *expected);

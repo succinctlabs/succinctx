@@ -31,8 +31,8 @@ impl<L: PlonkParameters<D>, const D: usize> AirParameters for BLAKE2BAirParamete
 
     type Instruction = UintInstruction;
 
-    const NUM_FREE_COLUMNS: usize = 1527;
-    const EXTENDED_COLUMNS: usize = 708;
+    const NUM_FREE_COLUMNS: usize = 1271;
+    const EXTENDED_COLUMNS: usize = 1476;
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 96, true, 4> for BLAKE2B {
@@ -175,7 +175,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             });
         }
 
-        let digest = self.init_unsafe::<Bytes32Variable>();
+        let digest = self.init::<Bytes32Variable>();
         let digest_array = BLAKE2B::digest_to_array(self, digest);
         let accelerator = self
             .blake2b_accelerator
@@ -194,6 +194,11 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         length: U32Variable,
     ) -> Bytes32Variable {
+        // Check that length <= input.len(). This is needed to ensure that users cannot
+        // prove the hash of a longer message than they supplied.
+        let supplied_input_length = self.constant::<U32Variable>(input.len() as u32);
+        self.lte(length, supplied_input_length);
+
         let last_chunk = self.compute_blake2b_last_chunk_index(length);
         if self.blake2b_accelerator.is_none() {
             self.blake2b_accelerator = Some(BLAKE2BAccelerator {
@@ -202,7 +207,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             });
         }
 
-        let digest = self.init_unsafe::<Bytes32Variable>();
+        let digest = self.init::<Bytes32Variable>();
         let digest_array = BLAKE2B::digest_to_array(self, digest);
 
         let accelerator = self

@@ -28,6 +28,11 @@ pub fn list_lte_circuit<F: RichField + Extendable<D>, const D: usize>(
 
     let chunk_bits = 2;
     let num_chunks = ceil_div_usize(num_bits, chunk_bits);
+    assert_eq!(
+        num_bits % chunk_bits,
+        0,
+        "num_bits must be divisible by chunk_bits"
+    );
 
     let one = builder.one();
     let mut result = one;

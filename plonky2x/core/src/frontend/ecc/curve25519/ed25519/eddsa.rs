@@ -126,7 +126,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         self.curta_eddsa_verify_sigs(msg_array, Some(msg_len_vec), sig_array, pub_key_array);
     }
 
-    /// This function will verify a set of eddsa signatures.   If message_byte_lengths is None, then
+    /// This function will verify a set of eddsa signatures. If message_byte_lengths is None, then
     /// all the messages should have the length of MAX_MSG_LENGTH_BYTES.
     pub fn curta_eddsa_verify_sigs<
         // Maximum length of a signed message in bytes.
@@ -154,6 +154,9 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let scalar_modulus_value =
             U512::from_little_endian(&Ed25519ScalarField::modulus().to_bytes_le());
         let scalar_modulus = self.constant::<U512Variable>(scalar_modulus_value);
+        let scalar_mod_256_value =
+            U256::from_little_endian(&Ed25519ScalarField::modulus().to_bytes_le());
+        let scalar_mod_256 = self.constant::<U256Variable>(scalar_mod_256_value);
 
         for i in 0..NUM_SIGS {
             // Create a new BytesVariable that will contain the message to be hashed.
@@ -183,7 +186,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 limbs: array![i => h_scalar_512_limbs[i]; 8],
             };
 
-            let p1 = self.curta_25519_scalar_mul(signatures[i].s, generator_var.clone());
+            let s = signatures[i].s;
+            // Assert that s is less than the scalar modulus.
+            let s_lt_scalar_mod = self.lt(s, scalar_mod_256);
+            let true_val = self.constant::<BoolVariable>(true);
+            self.assert_is_equal(s_lt_scalar_mod, true_val);
+            let p1 = self.curta_25519_scalar_mul(s, generator_var.clone());
             let pubkey_affine = self.curta_25519_decompress(pubkeys[i].clone());
             self.curta_25519_is_valid(pubkey_affine.clone());
             let mut p2 = self.curta_25519_scalar_mul(h_scalar, pubkey_affine);

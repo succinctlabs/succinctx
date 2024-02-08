@@ -1,11 +1,8 @@
 //! Arithmetic operations.
 
-use std::marker::PhantomData;
-
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::builder::CircuitBuilder;
-use crate::frontend::eth::mpt::generators::LteGenerator;
-use crate::prelude::{BoolVariable, Variable};
+use crate::prelude::BoolVariable;
 
 /// The addition operation.
 ///
@@ -171,19 +168,16 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The less than operation (<).
     pub fn lt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
-        Lhs: LessThanOrEqual<L, D, Lhs>,
-        Rhs: Sub<L, D, Rhs, Output = Lhs> + One<L, D>,
+        Rhs: LessThanOrEqual<L, D, Lhs>,
     {
-        let one = self.one::<Rhs>();
-        let upper_bound = rhs.sub(one, self);
-        self.lte(lhs, upper_bound)
+        let lte = rhs.lte(lhs, self);
+        self.not(lte)
     }
 
     /// The greater than operation (>).
     pub fn gt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
-        Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
-        Rhs: LessThanOrEqual<L, D, Rhs>,
+        Lhs: LessThanOrEqual<L, D, Rhs>,
     {
         self.lt(rhs, lhs)
     }
@@ -191,7 +185,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The greater than or equal to operation (>=).
     pub fn gte<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
-        Lhs: Sub<L, D, Lhs, Output = Rhs> + One<L, D>,
         Rhs: LessThanOrEqual<L, D, Lhs>,
     {
         self.lte(rhs, lhs)
@@ -208,23 +201,67 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 }
 
-impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for Variable {
-    fn lte(self, rhs: Variable, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
-        // TODO: FIX
-        let generator: LteGenerator<L, D> = LteGenerator {
-            lhs: self,
-            rhs,
-            output: builder.init::<BoolVariable>(),
-            _phantom: PhantomData,
-        };
-        builder.add_simple_generator(generator.clone());
-        generator.output
-    }
-}
-
 mod tests {
     #[allow(unused_imports)]
     use crate::prelude::{BoolVariable, DefaultBuilder, U32Variable};
+
+    #[test]
+    fn test_math_lt() {
+        let mut builder = DefaultBuilder::new();
+
+        let v0 = builder.read::<U32Variable>();
+        let v1 = builder.read::<U32Variable>();
+        let result = builder.read::<BoolVariable>();
+        let computed_result = builder.lt(v0, v1);
+        builder.assert_is_equal(result, computed_result);
+
+        let circuit = builder.build();
+
+        let test_cases = [
+            (5u32, 0u32, false),
+            (0u32, 10u32, true),
+            (10u32, 5u32, false),
+        ];
+
+        for test_case in test_cases.iter() {
+            let mut input = circuit.input();
+            input.write::<U32Variable>(test_case.0);
+            input.write::<U32Variable>(test_case.1);
+            input.write::<BoolVariable>(test_case.2);
+
+            let (proof, output) = circuit.prove(&input);
+            circuit.verify(&proof, &input, &output);
+        }
+    }
+
+    #[test]
+    fn test_math_lte() {
+        let mut builder = DefaultBuilder::new();
+
+        let v0 = builder.read::<U32Variable>();
+        let v1 = builder.read::<U32Variable>();
+        let result = builder.read::<BoolVariable>();
+        let computed_result = builder.lte(v0, v1);
+        builder.assert_is_equal(result, computed_result);
+
+        let circuit = builder.build();
+
+        let test_cases = [
+            (0u32, 0u32, true),
+            (0u32, 100u32, true),
+            (10u32, 0u32, false),
+        ];
+
+        for test_case in test_cases.iter() {
+            let mut input = circuit.input();
+            input.write::<U32Variable>(test_case.0);
+            input.write::<U32Variable>(test_case.1);
+            input.write::<BoolVariable>(test_case.2);
+
+            let (proof, output) = circuit.prove(&input);
+            circuit.verify(&proof, &input, &output);
+        }
+    }
 
     #[test]
     fn test_math_gt() {

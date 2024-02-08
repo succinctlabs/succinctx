@@ -29,8 +29,8 @@ impl<L: PlonkParameters<D>, const D: usize> AirParameters for SHA256AirParameter
 
     type Instruction = UintInstruction;
 
-    const NUM_FREE_COLUMNS: usize = 605;
-    const EXTENDED_COLUMNS: usize = 351;
+    const NUM_FREE_COLUMNS: usize = 418;
+    const EXTENDED_COLUMNS: usize = 912;
 }
 
 impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 64, false, 8> for SHA256 {
@@ -57,7 +57,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 64, false, 8> for SHA256 
         input: &[ByteVariable],
         length: U32Variable,
     ) -> Vec<Self::IntVariable> {
-        let padded_bytes = builder.pad_message_sha256_variable(input, length);
+        let padded_bytes = builder.pad_sha256_variable_length(input, length);
 
         padded_bytes
             .chunks_exact(4)
@@ -124,7 +124,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             });
         }
 
-        let digest = self.init_unsafe::<Bytes32Variable>();
+        let digest = self.init::<Bytes32Variable>();
         let digest_array = SHA256::digest_to_array(self, digest);
         let accelerator = self
             .sha256_accelerator
@@ -143,11 +143,19 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         length: U32Variable,
     ) -> Bytes32Variable {
-        assert_eq!(
-            input.len() % 64,
-            0,
-            "input length should be a multiple of 64"
-        );
+        // Check that length <= input.len(). This is needed to ensure that users cannot prove the
+        // hash of a longer message than they supplied.
+        let supplied_input_length = self.constant::<U32Variable>(input.len() as u32);
+        self.lte(length, supplied_input_length);
+        // Extend input's length to the nearest multiple of 64 (if it is not already).
+        let mut input = input.to_vec();
+        if (input.len() % 64) != 0 {
+            input.resize(
+                input.len() + 64 - (input.len() % 64),
+                self.constant::<ByteVariable>(0),
+            );
+        }
+
         let last_chunk = self.compute_sha256_last_chunk(length);
         if self.sha256_accelerator.is_none() {
             self.sha256_accelerator = Some(SHA256Accelerator {
@@ -156,7 +164,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             });
         }
 
-        let digest = self.init_unsafe::<Bytes32Variable>();
+        let digest = self.init::<Bytes32Variable>();
         let digest_array = SHA256::digest_to_array(self, digest);
         let accelerator = self
             .sha256_accelerator

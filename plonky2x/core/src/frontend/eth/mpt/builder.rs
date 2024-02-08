@@ -1,11 +1,9 @@
-use std::marker::PhantomData;
-
 use curta::math::field::Field;
 
-use super::generators::*;
 use crate::frontend::vars::Nibbles;
 use crate::prelude::{
-    ArrayVariable, ByteVariable, Bytes32Variable, CircuitBuilder, PlonkParameters, Variable,
+    ArrayVariable, ByteVariable, Bytes32Variable, CircuitBuilder, CircuitVariable, PlonkParameters,
+    U32Variable, Variable,
 };
 
 pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usize>(
@@ -42,27 +40,6 @@ pub fn transform_proof_to_padded<const ENCODING_LEN: usize, const PROOF_LEN: usi
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
-    pub fn byte_to_variable(&mut self, lhs: ByteVariable) -> Variable {
-        let generator: ByteToVariableGenerator<L, D> = ByteToVariableGenerator {
-            lhs,
-            output: self.init::<Variable>(),
-            _phantom: PhantomData,
-        };
-        self.add_simple_generator(generator.clone());
-        generator.output
-    }
-
-    pub fn sub_byte(&mut self, lhs: ByteVariable, rhs: ByteVariable) -> ByteVariable {
-        let generator: ByteSubGenerator<L, D> = ByteSubGenerator {
-            lhs,
-            rhs,
-            output: self.init::<ByteVariable>(),
-            _phantom: PhantomData,
-        };
-        self.add_simple_generator(generator.clone());
-        generator.output
-    }
-
     const PREFIX_EXTENSION_EVEN: u8 = 0;
     const PREFIX_EXTENSION_ODD: u8 = 1;
     const PREFIX_LEAF_EVEN: u8 = 2;
@@ -73,7 +50,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         &mut self,
         key: Bytes32Variable,
         proof: ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>,
-        len_nodes: ArrayVariable<Variable, PROOF_LEN>,
+        len_nodes: ArrayVariable<U32Variable, PROOF_LEN>,
         root: Bytes32Variable,
         value: Bytes32Variable,
     ) {
@@ -91,8 +68,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let one: Variable = self.one::<Variable>();
         let two = self.constant::<Variable>(L::Field::from_canonical_u8(2));
         let const_64 = self.constant::<Variable>(L::Field::from_canonical_u8(64));
-        let const_32 = self.constant::<Variable>(L::Field::from_canonical_u8(32));
-        let const_128 = self.constant::<ByteVariable>(128);
+        let const_32 = self.constant::<U32Variable>(32u32);
+        let const_128 = self.constant::<U32Variable>(128u32);
 
         let mut current_key_idx = self.zero::<Variable>();
         let mut finished = self._false();
@@ -102,17 +79,14 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             padded_root.push(self.constant::<ByteVariable>(0));
         }
         let mut current_node_id = ArrayVariable::<ByteVariable, ELEMENT_LEN>::new(padded_root);
-        let hash_key = self.keccak256(&key.as_bytes());
-        let key_path: ArrayVariable<ByteVariable, 64> = hash_key
-            .as_bytes()
-            .to_vec()
-            .to_nibbles(self)
-            .try_into()
-            .unwrap();
+        let hash_key = self.keccak256_witness(&key.as_bytes());
+        let key_path: ArrayVariable<ByteVariable, 64> =
+            hash_key.as_bytes().to_vec().to_nibbles(self).into();
 
         for i in 0..PROOF_LEN {
             let current_node = proof[i].clone();
-            let current_node_hash = self.keccak256_variable(current_node.as_slice(), len_nodes[i]);
+            let current_node_hash =
+                self.keccak256_variable_witness(current_node.as_slice(), len_nodes[i].variable);
 
             if i == 0 {
                 self.assert_is_equal(current_node_hash, root);
@@ -125,7 +99,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                     current_node_hash,
                     current_node_id.as_slice()[0..32].into(),
                 );
-                let node_len_le_32 = self.lte(len_nodes[i], const_32);
+                let node_len_le_32 = self.lt(len_nodes[i], const_32);
                 let case_len_le_32 = self.and(node_len_le_32, first_32_bytes_eq);
                 let inter = self.not(node_len_le_32);
                 let case_len_gt_32 = self.and(inter, hash_eq);
@@ -138,7 +112,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let (decoded_list, decoded_element_lens, len_decoded_list) = self
                 .decode_element_as_list::<ENCODING_LEN, LIST_LEN, ELEMENT_LEN>(
                     current_node,
-                    len_nodes[i],
+                    len_nodes[i].variable,
                     finished,
                 );
 
@@ -156,7 +130,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             let offset_odd = self.mul(prefix_extension_odd.variable, one);
             let offset = self.add(offset_even, offset_odd);
             let branch_key = self.select_array(key_path.clone().as_slice(), current_key_idx);
-            let branch_key_variable: Variable = self.byte_to_variable(branch_key); // can be unsafe since nibbles are checked
+            let branch_key_variable = branch_key.to_variable(self);
 
             // Case 1
             let is_branch_and_key_terminated = self.and(is_branch, key_terminated);
@@ -209,37 +183,36 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             finished = self.or(finished, m);
         }
 
-        let current_node_len = self.sub_byte(current_node_id[0], const_128);
-        let current_node_len_as_var = self.byte_to_variable(current_node_len);
-        let lhs_offset = self.sub(const_32, current_node_len_as_var);
+        // Can be unsafe because `current_node_id` comes from a ByteVariable.
+        let current_node_id_u32 =
+            U32Variable::from_variables_unsafe(&[current_node_id[0].to_variable(self)]);
+        let current_node_len = self.sub(current_node_id_u32, const_128);
+        let lhs_offset = self.sub(const_32, current_node_len);
 
         self.assert_subarray_equal(
             &value.as_bytes(),
-            lhs_offset,
+            lhs_offset.variable,
             current_node_id.as_slice(),
             one,
-            current_node_len_as_var,
+            current_node_len.variable,
         );
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use curta::math::field::Field;
     use log::debug;
 
     use super::super::utils::{read_fixture, EIP1186ProofResponse};
     use super::*;
     use crate::frontend::eth::utils::u256_to_h256_be;
-    use crate::prelude::{DefaultBuilder, GoldilocksField};
+    use crate::prelude::DefaultBuilder;
     use crate::utils;
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_mpt_circuit() {
         utils::setup_logger();
-        type F = GoldilocksField;
-
         let storage_result: EIP1186ProofResponse =
             read_fixture("./src/frontend/eth/mpt/fixtures/example.json");
 
@@ -262,16 +235,16 @@ mod tests {
 
         let (proof_as_fixed, lengths_as_fixed) =
             transform_proof_to_padded::<ENCODING_LEN, PROOF_LEN>(storage_proof);
-        let len_nodes_field_elements = lengths_as_fixed
+        let len_nodes_value = lengths_as_fixed
             .iter()
-            .map(|x| F::from_canonical_usize(*x))
-            .collect::<Vec<F>>();
+            .map(|x| *x as u32)
+            .collect::<Vec<_>>();
 
         let mut builder = DefaultBuilder::new();
         let key_variable = builder.read::<Bytes32Variable>();
         let proof_variable =
             builder.read::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>();
-        let len_nodes = builder.read::<ArrayVariable<Variable, PROOF_LEN>>();
+        let len_nodes = builder.read::<ArrayVariable<U32Variable, PROOF_LEN>>();
         let root_variable = builder.read::<Bytes32Variable>();
         let value_variable = builder.read::<Bytes32Variable>();
         builder.verify_mpt_proof::<ENCODING_LEN, PROOF_LEN>(
@@ -288,7 +261,7 @@ mod tests {
         input.write::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>(
             proof_as_fixed,
         );
-        input.write::<ArrayVariable<Variable, PROOF_LEN>>(len_nodes_field_elements);
+        input.write::<ArrayVariable<U32Variable, PROOF_LEN>>(len_nodes_value);
         input.write::<Bytes32Variable>(root);
         input.write::<Bytes32Variable>(value_as_h256);
 

@@ -1,10 +1,13 @@
 use curta::chip::builder::AirBuilder;
 use curta::chip::ec::edwards::ed25519::gadget::{CompressedPointAirWriter, CompressedPointGadget};
 use curta::chip::ec::edwards::ed25519::instruction::Ed25519FpInstruction;
+use curta::chip::ec::edwards::ed25519::params::Ed25519BaseField;
 use curta::chip::ec::edwards::ed25519::point::CompressedPointRegister;
 use curta::chip::ec::gadget::EllipticCurveAirWriter;
 use curta::chip::ec::point::{AffinePoint, AffinePointRegister};
 use curta::chip::ec::scalar::ECScalarRegister;
+use curta::chip::ec::EllipticCurveParameters;
+use curta::chip::field::register::FieldRegister;
 use curta::chip::register::Register;
 use curta::chip::trace::writer::data::AirWriterData;
 use curta::chip::trace::writer::AirWriter;
@@ -42,7 +45,11 @@ pub enum Ed25519CurtaOp {
         AffinePointRegister<Curve>,
         AffinePointRegister<Curve>,
     ),
-    Decompress(CompressedPointRegister, AffinePointRegister<Curve>),
+    Decompress(
+        CompressedPointRegister,
+        AffinePointRegister<Curve>,
+        FieldRegister<Ed25519BaseField>,
+    ),
     IsValid(AffinePointRegister<Curve>),
 }
 
@@ -57,7 +64,11 @@ pub enum Ed25519OpVariable {
         AffinePointVariable<Curve>,
         AffinePointVariable<Curve>,
     ),
-    Decompress(Box<CompressedEdwardsYVariable>, AffinePointVariable<Curve>),
+    Decompress(
+        Box<CompressedEdwardsYVariable>,
+        AffinePointVariable<Curve>,
+        FieldVariable<Ed25519BaseField>,
+    ),
     IsValid(AffinePointVariable<Curve>),
 }
 
@@ -148,7 +159,7 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
                         panic!("invalid input");
                     }
                 }
-                Ed25519CurtaOp::Decompress(compressed_point, _) => {
+                Ed25519CurtaOp::Decompress(compressed_point, _, _) => {
                     if let Ed25519CurtaOpValue::Decompress(compressed_point_val, _) = &op_value {
                         writer.write_ec_compressed_point(compressed_point, compressed_point_val);
                     } else {
@@ -236,8 +247,8 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
                     Self::assert_point_equal(builder, result, result_var, public_inputs);
                 }
                 (
-                    Ed25519CurtaOp::Decompress(compressed_point, result),
-                    Ed25519OpVariable::Decompress(compressed_point_var, result_var),
+                    Ed25519CurtaOp::Decompress(compressed_point, result, pos_sqrt),
+                    Ed25519OpVariable::Decompress(compressed_point_var, result_var, pos_sqrt_var),
                 ) => {
                     Self::assert_compressed_point_equal(
                         builder,
@@ -246,6 +257,12 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
                         public_inputs,
                     );
                     Self::assert_point_equal(builder, result, result_var, public_inputs);
+                    Self::assert_field_element_equal(
+                        builder,
+                        pos_sqrt,
+                        pos_sqrt_var,
+                        public_inputs,
+                    );
                 }
                 (Ed25519CurtaOp::IsValid(point), Ed25519OpVariable::IsValid(point_var)) => {
                     Self::assert_point_equal(builder, point, point_var, public_inputs);
@@ -305,18 +322,26 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
         }
     }
 
+    fn assert_field_element_equal(
+        builder: &mut CircuitBuilder<L, D>,
+        element: &FieldRegister<<Curve as EllipticCurveParameters>::BaseField>,
+        element_var: &FieldVariable<<Curve as EllipticCurveParameters>::BaseField>,
+        public_inputs: &[Variable],
+    ) {
+        let element = FieldVariable::from_variables_unsafe(
+            element.read_from_slice(public_inputs).coefficients(),
+        );
+        builder.assert_is_equal(element, element_var.clone());
+    }
+
     fn assert_point_equal(
         builder: &mut CircuitBuilder<L, D>,
         a: &AffinePointRegister<Curve>,
         a_var: &AffinePointVariable<Curve>,
         public_inputs: &[Variable],
     ) {
-        let a_x =
-            FieldVariable::from_variables_unsafe(a.x.read_from_slice(public_inputs).coefficients());
-        builder.assert_is_equal(a_x, a_var.x.clone());
-        let a_y =
-            FieldVariable::from_variables_unsafe(a.y.read_from_slice(public_inputs).coefficients());
-        builder.assert_is_equal(a_y, a_var.y.clone());
+        Self::assert_field_element_equal(builder, &a.x, &a_var.x, public_inputs);
+        Self::assert_field_element_equal(builder, &a.y, &a_var.y, public_inputs);
     }
 
     pub fn read_proof_with_public_input(
@@ -351,8 +376,8 @@ impl Ed25519CurtaOp {
             }
             EcOpRequestType::Decompress => {
                 let compressed_point = builder.alloc_public_ec_compressed_point();
-                let result = builder.ed25519_decompress(&compressed_point);
-                Self::Decompress(compressed_point, result)
+                let (result, pos_square_root) = builder.ed25519_decompress(&compressed_point);
+                Self::Decompress(compressed_point, result, pos_square_root)
             }
             EcOpRequestType::IsValid => {
                 let point = builder.alloc_public_ec_point();

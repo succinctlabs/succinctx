@@ -12,7 +12,7 @@ on:
     branches:
       - "**"
 
-jobs:  
+jobs:
   test:
     name: CI Test Suite
     runs-on: buildjet-32vcpu-ubuntu-2204
@@ -31,22 +31,22 @@ jobs:
             ~/.cargo/git/db/
             target/
             ~/.rustup/
-          key: test-rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
-          restore-keys: rust-nightly-2023-08-24-
+          key: test-rust-nightly-2024-01-25-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: rust-nightly-2024-01-25-
 
       - name: Install nightly toolchain
         id: rustc-toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2023-08-24
+          toolchain: nightly-2024-01-25
           override: true
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release --features "ci" 
+          args: --release --features "ci"
         env:
           RUST_LOG: 1
           RUST_BACKTRACE: 1
@@ -58,7 +58,7 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
- 
+
       - name: rust-cache
         uses: buildjet/cache@v3
         with:
@@ -69,15 +69,15 @@ jobs:
             ~/.cargo/git/db/
             target/
             ~/.rustup/
-          key: clippy-rust-nightly-2023-08-24-${{ hashFiles('**/Cargo.toml') }}
-          restore-keys: rust-nightly-2023-08-24-
+          key: clippy-rust-nightly-2024-01-25-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: rust-nightly-2024-01-25-
 
       - name: Install nightly toolchain
         id: rustc-toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2023-08-24
+          toolchain: nightly-2024-01-25
           override: true
           components: rustfmt, clippy
 
