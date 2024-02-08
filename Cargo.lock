@@ -873,7 +873,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git#752495eb27ecf5a20d76830316f1e5cc304d60e5"
+source = "git+https://github.com/succinctlabs/curta.git#fd41b0fa761e8f57ebfb8475245d5d5a0b3eb225"
 dependencies = [
  "anyhow",
  "bincode",
@@ -892,9 +892,9 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
-version = "4.1.2"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a677b8922c94e01bdbb12126b0bc852f00447528dee1782229af9c720c3f348"
+checksum = "f711ade317dd348950a9910f81c5947e3d8907ebd2b83f76203ff1807e6a2bc2"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -1602,9 +1602,9 @@ dependencies = [
 
 [[package]]
 name = "fiat-crypto"
-version = "0.2.6"
+version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1676f435fc1dadde4d03e43f5d62b259e1ce5f40bd4ffb21db2b42ebe59c1382"
+checksum = "e825f6987101665dea6ec934c09ec6d721de7bc1bf92248e1d5810c8cd636b77"
 
 [[package]]
 name = "fixed-hash"
@@ -2894,7 +2894,7 @@ checksum = "626dec3cac7cc0e1577a2ec3fc496277ec2baa084bebad95bb6fdbfae235f84c"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/mir-protocol/plonky2.git?rev=2d36559d#2d36559dad7adaff46631f31c7e6b24b80096eee"
+source = "git+https://github.com/mir-protocol/plonky2.git?rev=d2598bd#d2598bded0cb24d36b0a9900e8ffd104c470831b"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2905,7 +2905,7 @@ dependencies = [
  "log",
  "num",
  "plonky2_field",
- "plonky2_maybe_rayon 0.1.1 (git+https://github.com/mir-protocol/plonky2.git?rev=2d36559d)",
+ "plonky2_maybe_rayon 0.1.1 (git+https://github.com/mir-protocol/plonky2.git?rev=d2598bd)",
  "plonky2_util",
  "rand",
  "rand_chacha",
@@ -2913,12 +2913,13 @@ dependencies = [
  "serde_json",
  "static_assertions",
  "unroll",
+ "web-time",
 ]
 
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git?rev=2d36559d#2d36559dad7adaff46631f31c7e6b24b80096eee"
+source = "git+https://github.com/mir-protocol/plonky2.git?rev=d2598bd#d2598bded0cb24d36b0a9900e8ffd104c470831b"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2942,7 +2943,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git?rev=2d36559d#2d36559dad7adaff46631f31c7e6b24b80096eee"
+source = "git+https://github.com/mir-protocol/plonky2.git?rev=d2598bd#d2598bded0cb24d36b0a9900e8ffd104c470831b"
 dependencies = [
  "rayon",
 ]
@@ -2950,7 +2951,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/mir-protocol/plonky2.git?rev=2d36559d#2d36559dad7adaff46631f31c7e6b24b80096eee"
+source = "git+https://github.com/mir-protocol/plonky2.git?rev=d2598bd#d2598bded0cb24d36b0a9900e8ffd104c470831b"
 
 [[package]]
 name = "plonky2x"
@@ -4661,6 +4662,16 @@ name = "web-sys"
 version = "0.3.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96565907687f7aceb35bc5fc03770a8a0471d82e479f25832f54a0e3f4b28446"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "web-time"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ee269d72cc29bf77a2c4bc689cc750fb39f5cbd493d2205bbb3f5c7779cf7b0"
 dependencies = [
  "js-sys",
  "wasm-bindgen",

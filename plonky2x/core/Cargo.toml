@@ -13,13 +13,13 @@ timing = ["plonky2/timing"]
 ci = []
 
 [dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false, rev = "2d36559d" }
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false, rev = "d2598bd" }
 curta = { git = "https://github.com/succinctlabs/curta.git" }
 plonky2x-derive = { path = "../derive" }
 
 num = { version = "0.4", default-features = false }
 sha2 = "0.10.7"
-curve25519-dalek = "4.1.1"
+curve25519-dalek = "=4.0.0"
 ff = { package = "ff", version = "0.13", features = ["derive"] }
 ethers = { version = "2.0" }
 hex = "0.4.3"
@@ -51,7 +51,7 @@ digest = "0.10.7"
 sha256 = "1.4.0"
 
 [dev-dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", rev = "2d36559d", features = [
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", rev = "d2598bd", features = [
     "gate_testing",
 ] }
 env_logger = "0.10.0"

@@ -21,13 +21,13 @@ env_logger = "0.10.0"
 ethers = "2.0.10"
 hex = "0.4.3"
 log = "0.4.20"
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false, rev = "2d36559d" }
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false, rev = "d2598bd" }
 plonky2x = { path = "../plonky2x/core" }
 serde = "1.0.188"
 serde_json = "1.0.107"
 tokio = "1.33.0"
 
 [dev-dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", rev = "2d36559d", features = [
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", rev = "d2598bd", features = [
     "gate_testing",
 ] }
