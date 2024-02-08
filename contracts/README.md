@@ -57,9 +57,20 @@ If the contracts are not deployed on a chain you need, you can deploy them yours
 
 ## Deploying
 
+Ensure your `.env` file is correctly filled out with the necessary environment variables:
+
+```sh
+PRIVATE_KEY= # The private key of the deployer account
+CREATE2_SALT= # The salt to be used for CREATE2 deployments
+GUARDIAN= # The 'owner' of the contracts, recommended to be an EOA
+PROVER= # The default prover to fullfill requests for Functions that have not opted for a different prover
+RPC_{CHAIN_ID}= # RPC URLs for each chain you want to deploy to
+ETHERSCAN_API_KEY_{CHAIN_ID}= # Etherscan API keys for each chain you want to deploy to
+```
+
 Each contract has it's own deployment file in the form of `script/deploy/{Contract}.s.sol`. Inside each, there is a `Deploy{Contract}` script that will deploy the contract. This allows for programmatic cross-chain deployment of contracts using `script/deploy.sh`.
 
-For example, to deploy SuccinctFeeVault and then SuccinctGateway on Chains 5, 420, 84531, and 421613, you would ensure that your `.env` is correctly filled out. Then run `./scripts/deploy.sh <contracts> <chain_ids>` to deploy the contracts:
+For example, to deploy SuccinctFeeVault and then SuccinctGateway on Chains 5, 420, 84531, and 421613 run `./scripts/deploy.sh <contracts> <chain_ids>` to deploy the contracts:
 
 ```sh
 ./script/deploy.sh "SuccinctFeeVault SuccinctGateway" "5 420 84531 421613"
@@ -78,6 +89,8 @@ For example, to verify both the proxy and implementation contract of SuccinctGat
 ```
 
 ## Upgrading
+
+Note: The Succinct contracts are no longer upgradeable. The following instructions are for historical purposes only.
 
 ### Upgrades via EOA
 
