@@ -5,10 +5,212 @@ import (
 	"io"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr/iop"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/consensys/gnark/backend/groth16"
 	groth16Bn254 "github.com/consensys/gnark/backend/groth16/bn254"
 )
+
+// func readV08ProvingKey(pk *groth16Bn254.ProvingKey, r io.Reader) (int64, error) {
+// 	dec := bn254.NewDecoder(r)
+
+// 	// Read domain
+// 	if err := dec.Decode(&pk.Domain); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.Domain", pk.Domain)
+// 	// Read G1 (Alpha, Beta, Delta, A, B, Z, K)
+// 	if err := dec.Decode(&pk.G1.Alpha); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.G1.Alpha", pk.G1.Alpha)
+// 	if err := dec.Decode(&pk.G1.Beta); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.G1.Beta", pk.G1.Beta)
+// 	if err := dec.Decode(&pk.G1.Delta); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.G1.Delta", pk.G1.Delta)
+// 	if err := dec.Decode(&pk.G1.A); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	if err := dec.Decode(&pk.G1.B); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.G1.B", pk.G1.B)
+// 	if err := dec.Decode(&pk.G1.Z); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	if err := dec.Decode(&pk.G1.K); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.G1.K", pk.G1.K)
+
+// 	// Read G2 (Beta, Delta, B)
+// 	if err := dec.Decode(&pk.G2.Beta); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.G2.Beta", pk.G2.Beta)
+// 	if err := dec.Decode(&pk.G2.Delta); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.G2.Delta", pk.G2.Delta)
+// 	if err := dec.Decode(&pk.G2.B); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.G2.B", pk.G2.B)
+
+// 	// Read InfinityA, InfinityB, NbInfinityA, NbInfinityB
+// 	if err := dec.Decode(&pk.InfinityA); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.InfinityA", pk.InfinityA)
+// 	if err := dec.Decode(&pk.InfinityB); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.InfinityB", pk.InfinityB)
+// 	if err := dec.Decode(&pk.NbInfinityA); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.NbInfinityA", pk.NbInfinityA)
+// 	if err := dec.Decode(&pk.NbInfinityB); err != nil {
+// 		return dec.BytesRead(), err
+// 	}
+// 	fmt.Println("pk.NbInfinityB", pk.NbInfinityB)
+
+// 	return dec.BytesRead(), nil
+// }
+
+func readV08ProvingKey(pk *groth16Bn254.ProvingKey, r io.Reader) (int64, error) {
+	pk.Vk = &groth16.VerifyingKey{}
+	n, err := pk.Vk.ReadFrom(r)
+	if err != nil {
+		return n, err
+	}
+
+	n2, err, chDomain0 := pk.Domain[0].AsyncReadFrom(r)
+	n += n2
+	if err != nil {
+		return n, err
+	}
+
+	n2, err, chDomain1 := pk.Domain[1].AsyncReadFrom(r)
+	n += n2
+	if err != nil {
+		return n, err
+	}
+
+	if withSubgroupChecks {
+		n2, err = pk.Kzg.ReadFrom(r)
+	} else {
+		n2, err = pk.Kzg.UnsafeReadFrom(r)
+	}
+	n += n2
+	if err != nil {
+		return n, err
+	}
+	if withSubgroupChecks {
+		n2, err = pk.KzgLagrange.ReadFrom(r)
+	} else {
+		n2, err = pk.KzgLagrange.UnsafeReadFrom(r)
+	}
+	n += n2
+	if err != nil {
+		return n, err
+	}
+
+	pk.trace.S = make([]int64, 3*pk.Domain[0].Cardinality)
+
+	dec := curve.NewDecoder(r)
+
+	var ql, qr, qm, qo, qk, s1, s2, s3 []fr.Element
+	var qcp [][]fr.Element
+
+	// TODO @gbotrel: this is a bit ugly, we should probably refactor this.
+	// The order of the variables is important, as it matches the order in which they are
+	// encoded in the WriteTo(...) method.
+
+	// Note: instead of calling dec.Decode(...) for each of the above variables,
+	// we call AsyncReadFrom when possible which allows to consume bytes from the reader
+	// and perform the decoding in parallel
+
+	type v struct {
+		data  *fr.Vector
+		chErr chan error
+	}
+
+	vectors := make([]v, 8)
+	vectors[0] = v{data: (*fr.Vector)(&ql)}
+	vectors[1] = v{data: (*fr.Vector)(&qr)}
+	vectors[2] = v{data: (*fr.Vector)(&qm)}
+	vectors[3] = v{data: (*fr.Vector)(&qo)}
+	vectors[4] = v{data: (*fr.Vector)(&qk)}
+	vectors[5] = v{data: (*fr.Vector)(&s1)}
+	vectors[6] = v{data: (*fr.Vector)(&s2)}
+	vectors[7] = v{data: (*fr.Vector)(&s3)}
+
+	// read ql, qr, qm, qo, qk
+	for i := 0; i < 5; i++ {
+		n2, err, ch := vectors[i].data.AsyncReadFrom(r)
+		n += n2
+		if err != nil {
+			return n, err
+		}
+		vectors[i].chErr = ch
+	}
+
+	// read qcp
+	if err := dec.Decode(&qcp); err != nil {
+		return n + dec.BytesRead(), err
+	}
+
+	// read lqk, s1, s2, s3
+	for i := 5; i < 8; i++ {
+		n2, err, ch := vectors[i].data.AsyncReadFrom(r)
+		n += n2
+		if err != nil {
+			return n, err
+		}
+		vectors[i].chErr = ch
+	}
+
+	// read pk.Trace.S
+	if err := dec.Decode(&pk.trace.S); err != nil {
+		return n + dec.BytesRead(), err
+	}
+
+	// wait for all AsyncReadFrom(...) to complete
+	for i := range vectors {
+		if err := <-vectors[i].chErr; err != nil {
+			return n, err
+		}
+	}
+
+	canReg := iop.Form{Basis: iop.Canonical, Layout: iop.Regular}
+	pk.trace.Ql = iop.NewPolynomial(&ql, canReg)
+	pk.trace.Qr = iop.NewPolynomial(&qr, canReg)
+	pk.trace.Qm = iop.NewPolynomial(&qm, canReg)
+	pk.trace.Qo = iop.NewPolynomial(&qo, canReg)
+	pk.trace.Qk = iop.NewPolynomial(&qk, canReg)
+	pk.trace.S1 = iop.NewPolynomial(&s1, canReg)
+	pk.trace.S2 = iop.NewPolynomial(&s2, canReg)
+	pk.trace.S3 = iop.NewPolynomial(&s3, canReg)
+
+	pk.trace.Qcp = make([]*iop.Polynomial, len(qcp))
+	for i := range qcp {
+		pk.trace.Qcp[i] = iop.NewPolynomial(&qcp[i], canReg)
+	}
+
+	// wait for FFT to be precomputed
+	<-chDomain0
+	<-chDomain1
+
+	return n + dec.BytesRead(), nil
+
+}
 
 func readV08VerifyingKey(vk *groth16Bn254.VerifyingKey, r io.Reader) (int64, error) {
 	dec := bn254.NewDecoder(r)

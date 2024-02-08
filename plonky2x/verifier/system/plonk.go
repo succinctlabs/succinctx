@@ -15,7 +15,7 @@ import (
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/frontend/cs/r1cs"
+	"github.com/consensys/gnark/frontend/cs/scs"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/pkg/errors"
@@ -158,25 +158,25 @@ func (s *PlonkSystem) CompileVerifierCircuit() (constraint.ConstraintSystem, plo
 		OutputHash:        new(frontend.Variable),
 		CommonCircuitData: commonCircuitData,
 	}
-	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+	scs, err := frontend.Compile(ecc.BN254.ScalarField(), scs.NewBuilder, &circuit)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "compile verifier circuit")
 	}
 
 	s.logger.Info("Running circuit setup")
 	start := time.Now()
-	srs, err := test.NewKZGSRS(r1cs)
+	srs, err := test.NewKZGSRS(scs)
 	if err != nil {
 		panic(err)
 	}
-	pk, vk, err := plonk.Setup(r1cs, srs)
+	pk, vk, err := plonk.Setup(scs, srs)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	elapsed := time.Since(start)
 	s.logger.Info("Successfully ran circuit setup", zap.String("time", elapsed.String()))
 
-	return r1cs, pk, vk, nil
+	return scs, pk, vk, nil
 }
 
 func (s *PlonkSystem) SaveVerifierCircuit(r1cs constraint.ConstraintSystem, pk plonk.ProvingKey, vk plonk.VerifyingKey) error {
