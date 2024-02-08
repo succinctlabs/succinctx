@@ -25,19 +25,35 @@ forge test
 `SUCCINCT_GATEWAY`=[0x6c7a05e0AE641c6559fD76ac56641778B6eCd776](https://etherscan.io/address/0x6c7a05e0AE641c6559fD76ac56641778B6eCd776)
 `SUCCINCT_FEE_VAULT`=[0x296666e937b270193B960a7cEC526B351F353166](https://etherscan.io/address/0x296666e937b270193B960a7cEC526B351F353166)
 
-If the contracts are not deployed on a chain you need, you can deploy them yourself using the deployment instructions below or by contracting Succinct.
+These are the same for all chains. SuccinctGateway exists on these chains:
 
 | Chain            | Chain ID | Address                                                                                                          |
 |------------------|----------|------------------------------------------------------------------------------------------------------------------|
-| Mainnet          | 1        | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)            |
-| Goerli           | 5        | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://goerli.etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)     |
-| Gnosis           | 100      | [0x6e4f1e9eA315EBFd69d18C2DB974EEf6105FB803](https://gnosisscan.io/address/0x6e4f1e9eA315EBFd69d18C2DB974EEf6105FB803)           |
-| Holesky          | 17000    | [0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803](https://holesky.etherscan.io/address/0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803)    |
-| Arbitrum         | 42161    | [0x2d27182206f0442885989626934ca9dd5290f979](https://arbiscan.io/address/0x2d27182206f0442885989626934ca9dd5290f979)             |
-| Arbitrum Sepolia | 421614   | [0x2d27182206f0442885989626934ca9dd5290f979](https://sepolia.arbiscan.io/address/0x2d27182206f0442885989626934ca9dd5290f979)     |
-| Sepolia          | 11155111 | [0xaea9288f0b7a8c605c4d474c56e5e74f96bfd4b3](https://sepolia.etherscan.io/address/0xaea9288f0b7a8c605c4d474c56e5e74f96bfd4b3)    |
+| Mainnet          | 1        | [0x6c7a05e0ae641c6559fd76ac56641778b6ecd776](https://etherscan.io/address/0x6c7a05e0ae641c6559fd76ac56641778b6ecd776)            |
+| Goerli           | 5        | [0x6c7a05e0ae641c6559fd76ac56641778b6ecd776](https://goerli.etherscan.io/address/0x6c7a05e0ae641c6559fd76ac56641778b6ecd776)     |
+| Sepolia          | 11155111 | [0x6c7a05e0ae641c6559fd76ac56641778b6ecd776](https://sepolia.etherscan.io/address/0x6c7a05e0ae641c6559fd76ac56641778b6ecd776)    |
+| Holesky          | 17000    | [0x6c7a05e0ae641c6559fd76ac56641778b6ecd776](https://holesky.etherscan.io/address/0x6c7a05e0ae641c6559fd76ac56641778b6ecd776)    |
+| Gnosis           | 100      | [0x6c7a05e0ae641c6559fd76ac56641778b6ecd776](https://gnosisscan.io/address/0x6c7a05e0ae641c6559fd76ac56641778b6ecd776)           |
+| Arbitrum         | 42161    | [0x6c7a05e0ae641c6559fd76ac56641778b6ecd776](https://arbiscan.io/address/0x6c7a05e0ae641c6559fd76ac56641778b6ecd776)             |
+| Arbitrum Sepolia | 421614   | [0x6c7a05e0ae641c6559fd76ac56641778b6ecd776](https://sepolia.arbiscan.io/address/0x6c7a05e0ae641c6559fd76ac56641778b6ecd776)     |
+| Base             | 8453     | [0x6c7a05e0ae641c6559fd76ac56641778b6ecd776](https://basescan.org/address/0x6c7a05e0ae641c6559fd76ac56641778b6ecd776)            |
+| Base Sepolia     | 84532    | [0x6c7a05e0ae641c6559fd76ac56641778b6ecd776](https://sepolia.basescan.org/address/0x6c7a05e0ae641c6559fd76ac56641778b6ecd776)    |
 
+and SuccinctFeeVault exists on these chains:
 
+| Chain            | Chain ID | Address                                                                                                          |
+|------------------|----------|------------------------------------------------------------------------------------------------------------------|
+| Mainnet          | 1        | [0x296666e937b270193B960a7cEC526B351F353166](https://etherscan.io/address/0x296666e937b270193B960a7cEC526B351F353166)            |
+| Goerli           | 5        | [0x296666e937b270193B960a7cEC526B351F353166](https://goerli.etherscan.io/address/0x296666e937b270193B960a7cEC526B351F353166)     |
+| Sepolia          | 11155111 | [0x296666e937b270193B960a7cEC526B351F353166](https://sepolia.etherscan.io/address/0x296666e937b270193B960a7cEC526B351F353166)    |
+| Holesky          | 17000    | [0x296666e937b270193B960a7cEC526B351F353166](https://holesky.etherscan.io/address/0x296666e937b270193B960a7cEC526B351F353166)    |
+| Gnosis           | 100      | [0x296666e937b270193B960a7cEC526B351F353166](https://gnosisscan.io/address/0x296666e937b270193B960a7cEC526B351F353166)           |
+| Arbitrum         | 42161    | [0x296666e937b270193B960a7cEC526B351F353166](https://arbiscan.io/address/0x296666e937b270193B960a7cEC526B351F353166)             |
+| Arbitrum Sepolia | 421614   | [0x296666e937b270193B960a7cEC526B351F353166](https://sepolia.arbiscan.io/address/0x296666e937b270193B960a7cEC526B351F353166)     |
+| Base             | 8453     | [0x296666e937b270193B960a7cEC526B351F353166](https://basescan.org/address/0x296666e937b270193B960a7cEC526B351F353166)            |
+| Base Sepolia     | 84532    | [0x296666e937b270193B960a7cEC526B351F353166](https://sepolia.basescan.org/address/0x296666e937b270193B960a7cEC526B351F353166)    |
+
+If the contracts are not deployed on a chain you need, you can deploy them yourself using the deployment instructions below or by contacting Succinct.
 
 ## Deploying
 
