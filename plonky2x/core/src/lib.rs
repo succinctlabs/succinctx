@@ -3,7 +3,6 @@
 #![allow(incomplete_features)]
 #![feature(trait_alias)]
 #![feature(decl_macro)]
-#![feature(core_intrinsics)]
 #![feature(trait_upcasting)]
 
 extern crate alloc;
