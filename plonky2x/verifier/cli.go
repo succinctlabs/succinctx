@@ -10,7 +10,8 @@ import (
 )
 
 func main() {
-	os.Setenv("USE_BIT_DECOMPOSITION_RANGE_CHECK", "true") // doesn't seem to work
+	// https://github.com/succinctlabs/gnark-plonky2-verifier/blob/c01f530fe1d0107cc20da226cfec541ece9fb882/goldilocks/base.go#L131
+	os.Setenv("USE_BIT_DECOMPOSITION_RANGE_CHECK", "true")
 
 	circuitPath := flag.String("circuit", "", "circuit data directory")
 	dataPath := flag.String("data", "", "data directory")
@@ -47,7 +48,7 @@ func main() {
 	if *compileFlag {
 		err := s.Compile()
 		if err != nil {
-			logger.Error().Msg("failed to compile verifier circuit:" + err.Error())
+			logger.Error().Msg("failed to compile circuit:" + err.Error())
 			os.Exit(1)
 		}
 	}
@@ -71,7 +72,7 @@ func main() {
 	if *exportFlag {
 		err := s.Export()
 		if err != nil {
-			logger.Error().Msg("failed to export verifier circuit:" + err.Error())
+			logger.Error().Msg("failed to export verifier:" + err.Error())
 			os.Exit(1)
 		}
 	}
