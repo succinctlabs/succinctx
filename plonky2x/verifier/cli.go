@@ -5,8 +5,8 @@ import (
 	"flag"
 	"os"
 
+	"github.com/consensys/gnark/logger"
 	"github.com/succinctlabs/succinctx/plonky2x/verifier/system"
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -21,22 +21,18 @@ func main() {
 	systemFlag := flag.String("system", "groth16", "proving system to use (groth16, plonk)")
 	flag.Parse()
 
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
-	defer logger.Sync()
-
+	logger := logger.Logger()
 	if *circuitPath == "" {
-		logger.Info("no circuitPath flag found, so user must input circuitPath via stdin")
+		logger.Info().Msg("no circuitPath flag found, so user must input circuitPath via stdin")
+		os.Exit(1)
 	}
 
 	if *dataPath == "" {
-		logger.Error("please specify a path to data dir (where the compiled gnark circuit data will be)")
+		logger.Error().Msg("please specify a path to data dir (where the compiled gnark circuit data will be)")
 		os.Exit(1)
 	}
-	logger.Info("Circuit path: " + *circuitPath)
-	logger.Info("Data path: " + *dataPath)
+	logger.Info().Msg("Circuit path: " + *circuitPath)
+	logger.Info().Msg("Data path: " + *dataPath)
 
 	var s system.ProvingSystem
 	if *systemFlag == "groth16" {
@@ -44,14 +40,14 @@ func main() {
 	} else if *systemFlag == "plonk" {
 		s = system.NewPlonkSystem(logger, "./data/dummy", *dataPath)
 	} else {
-		logger.Error("invalid proving system")
+		logger.Error().Msg("invalid proving system")
 		os.Exit(1)
 	}
 
 	if *compileFlag {
 		err := s.Compile()
 		if err != nil {
-			logger.Error("failed to compile verifier circuit:" + err.Error())
+			logger.Error().Msg("failed to compile verifier circuit:" + err.Error())
 			os.Exit(1)
 		}
 	}
@@ -59,7 +55,7 @@ func main() {
 	if *proofFlag {
 		err := s.Prove()
 		if err != nil {
-			logger.Error("failed to create proof:" + err.Error())
+			logger.Error().Msg("failed to create proof:" + err.Error())
 			os.Exit(1)
 		}
 	}
@@ -67,7 +63,7 @@ func main() {
 	if *verifyFlag {
 		err := s.Verify()
 		if err != nil {
-			logger.Error("failed to verify proof:" + err.Error())
+			logger.Error().Msg("failed to verify proof:" + err.Error())
 			os.Exit(1)
 		}
 	}
@@ -75,7 +71,7 @@ func main() {
 	if *exportFlag {
 		err := s.Export()
 		if err != nil {
-			logger.Error("failed to export verifier circuit:" + err.Error())
+			logger.Error().Msg("failed to export verifier circuit:" + err.Error())
 			os.Exit(1)
 		}
 	}

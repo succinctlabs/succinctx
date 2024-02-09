@@ -289,8 +289,7 @@ impl<C: Circuit> Plonky2xFunction for C {
         let wrapper_verifier_contract = fs::read_to_string(wrapper_verifier_path)
             .expect("Failed to read wrapper_verifier_path");
         let generated_contract = wrapper_verifier_contract
-            .replace("pragma solidity ^0.8.19;", "pragma solidity ^0.8.16;")
-            .replace("function Verify", "function verifyProof");
+            .replace("pragma solidity ^0.8.0;", "pragma solidity ^0.8.16;");
 
         let verifier_contract = "
 
@@ -300,17 +299,21 @@ interface IFunctionVerifier {
     function verificationKeyHash() external pure returns (bytes32);
 }
 
-contract FunctionVerifier is IFunctionVerifier, PlonkVerifier {
+contract FunctionVerifier is IFunctionVerifier, Verifier {
 
     bytes32 public constant CIRCUIT_DIGEST = {CIRCUIT_DIGEST};
 
     function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool) {
-        uint256[] memory input = new uint256[](3);
+        (uint256[8] memory proof) = abi.decode(_proof, (uint256[8]));
+
+        uint256[4] memory input;
         input[0] = uint256(CIRCUIT_DIGEST);
         input[1] = uint256(_inputHash) & ((1 << 253) - 1);
-        input[2] = uint256(_outputHash) & ((1 << 253) - 1); 
+        input[2] = uint256(_outputHash) & ((1 << 253) - 1);
 
-        return this.verifyProof(_proof, input);
+        this.verifyProof(proof, input);
+
+        return true;
     }
 
     function verificationKeyHash() external pure returns (bytes32) {

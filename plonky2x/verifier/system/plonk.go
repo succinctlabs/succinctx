@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
+	groth16Bn254 "github.com/consensys/gnark/backend/groth16/bn254"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
@@ -19,22 +20,19 @@ import (
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog"
 
-	plonk_bn254 "github.com/consensys/gnark/backend/plonk/bn254"
 	gnark_verifier_types "github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
-	"github.com/succinctlabs/succinctx/gnarkx/types"
 )
 
 type PlonkSystem struct {
-	logger      *zap.Logger
+	logger      zerolog.Logger
 	circuitPath string
 	dataPath    string
 }
 
-func NewPlonkSystem(logger *zap.Logger, circuitPath string, dataPath string) *PlonkSystem {
+func NewPlonkSystem(logger zerolog.Logger, circuitPath string, dataPath string) *PlonkSystem {
 	return &PlonkSystem{
 		logger:      logger,
 		circuitPath: circuitPath,
@@ -43,7 +41,7 @@ func NewPlonkSystem(logger *zap.Logger, circuitPath string, dataPath string) *Pl
 }
 
 func (s *PlonkSystem) Compile() error {
-	s.logger.Info("starting compiling verifier circuit")
+	s.logger.Info().Msg("starting compiling verifier circuit")
 
 	r1cs, pk, vk, err := s.CompileVerifierCircuit()
 	if err != nil {
@@ -55,22 +53,22 @@ func (s *PlonkSystem) Compile() error {
 		return errors.Wrap(err, "save verifier circuit")
 	}
 
-	s.logger.Info("successfully compiled verifier circuit")
+	s.logger.Info().Msg("successfully compiled verifier circuit")
 
 	return nil
 }
 
 func (s *PlonkSystem) Prove() error {
-	s.logger.Info("starting prove -- loading verifier circuit and proving key")
+	s.logger.Info().Msg("starting prove -- loading verifier circuit and proving key")
 
 	// If the circuitPath is "" and not provided as part of the CLI flags, then we wait
 	// for user input.
 	if s.circuitPath == "" {
-		s.logger.Info("no circuitPath flag found, so user must input circuitPath via stdin")
+		s.logger.Info().Msg("no circuitPath flag found, so user must input circuitPath via stdin")
 		reader := bufio.NewReader(os.Stdin)
 		str, err := reader.ReadString('\n')
 		if err != nil {
-			s.logger.Error("failed to parse the user provided circuitPath", zap.Error(err))
+			return errors.Wrap(err, "read circuitPath from stdin")
 		}
 		trimmed := strings.TrimSuffix(str, "\n")
 		s.circuitPath = trimmed
@@ -90,13 +88,13 @@ func (s *PlonkSystem) Prove() error {
 		return errors.Wrap(err, "create proof")
 	}
 
-	s.logger.Info("successfully created proof")
+	s.logger.Info().Msg("successfully created proof")
 
 	return nil
 }
 
 func (s *PlonkSystem) Verify() error {
-	s.logger.Info("starting verify -- loading verifier key, public witness, and proof")
+	s.logger.Info().Msg("starting verify -- loading verifier key, public witness, and proof")
 
 	vk, err := s.LoadVerifierKey()
 	if err != nil {
@@ -118,13 +116,13 @@ func (s *PlonkSystem) Verify() error {
 		return errors.Wrap(err, "verify proof")
 	}
 
-	s.logger.Info("successfully verified proof")
+	s.logger.Info().Msg("successfully verified proof")
 
 	return nil
 }
 
 func (s *PlonkSystem) Export() error {
-	s.logger.Info("starting export -- loading verifier key and exporting Verifier solidity")
+	s.logger.Info().Msg("starting export -- loading verifier key and exporting Verifier solidity")
 
 	vk, err := s.LoadVerifierKey()
 	if err != nil {
@@ -136,7 +134,7 @@ func (s *PlonkSystem) Export() error {
 		return errors.Wrap(err, "export Verifier solidity")
 	}
 
-	s.logger.Info("successfully exported Verifier solidity")
+	s.logger.Info().Msg("successfully exported Verifier solidity")
 
 	return nil
 }
@@ -163,7 +161,7 @@ func (s *PlonkSystem) CompileVerifierCircuit() (constraint.ConstraintSystem, plo
 		return nil, nil, nil, errors.Wrap(err, "compile verifier circuit")
 	}
 
-	s.logger.Info("Running circuit setup")
+	s.logger.Info().Msg("Successfully compiled verifier circuit")
 	start := time.Now()
 	srs, err := test.NewKZGSRS(scs)
 	if err != nil {
@@ -174,7 +172,7 @@ func (s *PlonkSystem) CompileVerifierCircuit() (constraint.ConstraintSystem, plo
 		return nil, nil, nil, err
 	}
 	elapsed := time.Since(start)
-	s.logger.Info("Successfully ran circuit setup", zap.String("time", elapsed.String()))
+	s.logger.Info().Msg("Successfully ran circuit setup in " + elapsed.String())
 
 	return scs, pk, vk, nil
 }
@@ -188,16 +186,16 @@ func (s *PlonkSystem) SaveVerifierCircuit(r1cs constraint.ConstraintSystem, pk p
 	}
 	r1cs.WriteTo(r1csFile)
 	r1csFile.Close()
-	s.logger.Debug("Successfully saved circuit constraints", zap.String("path", s.dataPath+"/r1cs.bin"))
+	s.logger.Info().Msg("Successfully saved circuit constraints to r1cs.bin")
 
-	s.logger.Info("Saving proving key", zap.String("path", s.dataPath+"/pk.bin"))
+	s.logger.Info().Msg("Saving proving key to pk.bin")
 	pkFile, err := os.Create(s.dataPath + "/pk.bin")
 	if err != nil {
 		return errors.Wrap(err, "create pk file")
 	}
 	pk.WriteRawTo(pkFile)
 	pkFile.Close()
-	s.logger.Debug("Successfully saved proving key", zap.String("path", s.dataPath+"/pk.bin"))
+	s.logger.Info().Msg("Successfully saved proving key to pk.bin")
 
 	vkFile, err := os.Create(s.dataPath + "/vk.bin")
 	if err != nil {
@@ -205,12 +203,13 @@ func (s *PlonkSystem) SaveVerifierCircuit(r1cs constraint.ConstraintSystem, pk p
 	}
 	vk.WriteRawTo(vkFile)
 	vkFile.Close()
-	s.logger.Debug("Successfully saved verifying key", zap.String("path", s.dataPath+"/vk.bin"))
+	s.logger.Info().Msg("Successfully saved verifying key to vk.bin")
 
 	return nil
 }
 
 func (s *PlonkSystem) ProveCircuit(r1cs constraint.ConstraintSystem, pk plonk.ProvingKey) (plonk.Proof, witness.Witness, error) {
+	s.logger.Info().Msg("Loading verifier only circuit data and proof with public inputs in path " + s.circuitPath)
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(
 		gnark_verifier_types.ReadVerifierOnlyCircuitData(s.circuitPath + "/verifier_only_circuit_data.json"),
 	)
@@ -228,30 +227,29 @@ func (s *PlonkSystem) ProveCircuit(r1cs constraint.ConstraintSystem, pk plonk.Pr
 		OutputHash:     frontend.Variable(outputHash),
 	}
 
-	s.logger.Debug("Generating witness")
+	s.logger.Info().Msg("Generating witness")
 	start := time.Now()
 	witness, err := frontend.NewWitness(assignment, ecc.BN254.ScalarField())
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "generate witness")
 	}
 	elapsed := time.Since(start)
-	s.logger.Debug("Successfully generated witness", zap.Duration("time", elapsed))
+	s.logger.Info().Msg("Successfully generated witness in " + elapsed.String())
 
-	s.logger.Debug("Creating proof")
+	s.logger.Info().Msg("Creating proof")
 	start = time.Now()
 	proof, err := plonk.Prove(r1cs, pk, witness)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "create proof")
 	}
 	elapsed = time.Since(start)
-	s.logger.Info("Successfully created proof", zap.Duration("time", elapsed))
+	s.logger.Info().Msg("Successfully created proof in " + elapsed.String())
 
-	_proof := proof.(*plonk_bn254.Proof)
-	log.Info().Msg("Saving proof to proof.json")
-	jsonProof, err := json.Marshal(types.ProofResult{
-		// Output will be filled in by plonky2x CLI
+	_proof := proof.(*groth16Bn254.Proof)
+	s.logger.Info().Msg("Saving proof to proof.json")
+	jsonProof, err := json.Marshal(ProofResult{
 		Output: []byte{},
-		Proof:  _proof.MarshalSolidity(),
+		Proof:  _proof.Ar.Marshal(),
 	})
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "marshal proof")
@@ -264,7 +262,7 @@ func (s *PlonkSystem) ProveCircuit(r1cs constraint.ConstraintSystem, pk plonk.Pr
 	if _, err = proofFile.Write(jsonProof); err != nil {
 		return nil, nil, errors.Wrap(err, "write proof file")
 	}
-	s.logger.Info("Successfully saved proof")
+	s.logger.Info().Msg("Successfully saved proof")
 
 	// Write proof with all the public inputs and save to disk.
 	jsonProofWithWitness, err := json.Marshal(struct {
@@ -276,7 +274,7 @@ func (s *PlonkSystem) ProveCircuit(r1cs constraint.ConstraintSystem, pk plonk.Pr
 		InputHash:      inputHash.Bytes(),
 		OutputHash:     outputHash.Bytes(),
 		VerifierDigest: (verifierOnlyCircuitData.CircuitDigest).(*big.Int).Bytes(),
-		Proof:          _proof.MarshalSolidity(),
+		Proof:          _proof.Ar.Marshal(),
 	})
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "marshal proof with witness")
@@ -289,14 +287,14 @@ func (s *PlonkSystem) ProveCircuit(r1cs constraint.ConstraintSystem, pk plonk.Pr
 	if _, err = proofFile.Write(jsonProofWithWitness); err != nil {
 		return nil, nil, errors.Wrap(err, "write proof_with_witness file")
 	}
-	s.logger.Info("Successfully saved proof_with_witness", zap.String("proofWithWitness", string(jsonProofWithWitness)))
+	s.logger.Info().Msg("Successfully saved proof_with_witness to proof_with_witness.json")
 
 	publicWitness, err := witness.Public()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "get public witness")
 	}
 
-	s.logger.Info("Saving public witness to public_witness.bin")
+	s.logger.Info().Msg("Saving public witness to public_witness.bin")
 	witnessFile, err := os.Create("public_witness.bin")
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "create public witness file")
@@ -305,7 +303,7 @@ func (s *PlonkSystem) ProveCircuit(r1cs constraint.ConstraintSystem, pk plonk.Pr
 	if _, err = publicWitness.WriteTo(witnessFile); err != nil {
 		return nil, nil, errors.Wrap(err, "write public witness file")
 	}
-	s.logger.Info("Successfully saved public witness")
+	s.logger.Info().Msg("Successfully saved public witness")
 
 	return proof, publicWitness, nil
 }

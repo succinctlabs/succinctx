@@ -79,13 +79,7 @@ export abstract class Circuit {
       solidityVerifier = solidityVerifier.replaceAll("calldataload", "mload");
       solidityVerifier = solidityVerifier.replaceAll("calldata", "memory");
       solidityVerifier = solidityVerifier.replaceAll(
-        "_pB, _pC",
-        // for some reason, uint256[2][2] memory _pB has two words (two lengths?) prepended to it
-        // and calldata doesn't have it
-        "add(_pB, 64), _pC"
-      );
-      solidityVerifier = solidityVerifier.replaceAll(
-        "pragma solidity >=0.7.0 <0.9.0;",
+        "pragma solidity ^0.8.0;",
         "pragma solidity ^0.8.16;"
       );
       solidityVerifier += `
@@ -99,27 +93,38 @@ interface IFunctionVerifier {
 contract FunctionVerifier is IFunctionVerifier, Groth16Verifier {
 
     function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool) {
-        (uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c) =
-            abi.decode(_proof, (uint256[2], uint256[2][2], uint256[2]));
+        (uint256[8] memory proof) = abi.decode(_proof, (uint256[8]));
 
-        uint256[2] memory input = [uint256(_outputHash), uint256(_inputHash)];
-        input[0] = input[0] & ((1 << 253) - 1);
-        input[1] = input[1] & ((1 << 253) - 1);
+        uint256[4] memory input;
+        input[0] = uint256(CIRCUIT_DIGEST);
+        input[1] = uint256(_inputHash) & ((1 << 253) - 1);
+        input[2] = uint256(_outputHash) & ((1 << 253) - 1);
 
-        return verifyProof(a, b, c, input);
+        this.verifyProof(proof, input);
+
+        return true;
     }
 
     function verificationKeyHash() external pure returns (bytes32) {
-        bytes memory left;
-        bytes memory right;
-        {
-            left = abi.encode(alphax, alphay, betax1, betax2, betay1, betay2);
-        }
-        {
-            right = abi.encode(gammax1, gammax2, gammay1, gammay2, deltax1, deltax2, deltay1, deltay2);
-        }
-        return keccak256(abi.encode(left, right));
-    }
+      bytes memory left;
+      bytes memory right;
+      {
+          left = abi.encode(ALPHA_X, ALPHA_Y, BETA_NEG_X_1, BETA_NEG_X_0, BETA_NEG_Y_1, BETA_NEG_Y_0);
+      }
+      {
+          right = abi.encode(
+              GAMMA_NEG_X_1,
+              GAMMA_NEG_X_0,
+              GAMMA_NEG_Y_1,
+              GAMMA_NEG_Y_0,
+              DELTA_NEG_X_1,
+              DELTA_NEG_X_0,
+              DELTA_NEG_Y_1,
+              DELTA_NEG_Y_0
+          );
+      }
+      return keccak256(abi.encode(left, right));
+  }
 }
 `;
       fs.writeFileSync("build/FunctionVerifier.sol", solidityVerifier);
