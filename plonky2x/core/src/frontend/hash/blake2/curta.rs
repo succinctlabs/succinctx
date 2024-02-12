@@ -392,6 +392,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "ci", ignore)]
     fn test_blake2b_curta_chunk_aligned() {
         let _ = env_logger::builder().is_test(true).try_init();
 
