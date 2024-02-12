@@ -95,7 +95,7 @@ contract FunctionVerifier is IFunctionVerifier, Groth16Verifier {
     function verify(bytes32 _inputHash, bytes32 _outputHash, bytes memory _proof) external view returns (bool) {
         (uint256[8] memory proof) = abi.decode(_proof, (uint256[8]));
 
-        uint256[4] memory input;
+        uint256[3] memory input;
         input[0] = uint256(CIRCUIT_DIGEST);
         input[1] = uint256(_inputHash) & ((1 << 253) - 1);
         input[2] = uint256(_outputHash) & ((1 << 253) - 1);

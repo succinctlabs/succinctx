@@ -476,42 +476,42 @@ func (s *Groth16System) LoadPublicWitness() (witness.Witness, error) {
 // }
 
 type VerifyingKeyJSON struct {
-	VkAlpha1X  uint64 `json:"vk_alpha1_x"`
-	VkAlpha1Y  uint64 `json:"vk_alpha1_y"`
-	VkBeta2X1  uint64 `json:"vk_beta2_x1"`
-	VkBeta2X0  uint64 `json:"vk_beta2_x0"`
-	VkBeta2Y1  uint64 `json:"vk_beta2_y1"`
-	VkBeta2Y0  uint64 `json:"vk_beta2_y0"`
-	VkGamma2X1 uint64 `json:"vk_gamma2_x1"`
-	VkGamma2X0 uint64 `json:"vk_gamma2_x0"`
-	VkGamma2Y1 uint64 `json:"vk_gamma2_y1"`
-	VkGamma2Y0 uint64 `json:"vk_gamma2_y0"`
-	VkDelta2X1 uint64 `json:"vk_delta2_x1"`
-	VkDelta2X0 uint64 `json:"vk_delta2_x0"`
-	VkDelta2Y1 uint64 `json:"vk_delta2_y1"`
-	VkDelta2Y0 uint64 `json:"vk_delta2_y0"`
-	Ax         uint64 `json:"ax"`
-	Ay         uint64 `json:"ay"`
-	Bx1        uint64 `json:"bx1"`
-	Bx0        uint64 `json:"bx0"`
-	By1        uint64 `json:"by1"`
-	By0        uint64 `json:"by0"`
-	Cx         uint64 `json:"cx"`
-	Cy         uint64 `json:"cy"`
-	VkIc0X     uint64 `json:"vk_ic0_x"`
-	VkIc0Y     uint64 `json:"vk_ic0_y"`
-	VkIc1X     uint64 `json:"vk_ic1_x"`
-	VkIc1Y     uint64 `json:"vk_ic1_y"`
-	VkIc2X     uint64 `json:"vk_ic2_x"`
-	VkIc2Y     uint64 `json:"vk_ic2_y"`
-	VkIc3X     uint64 `json:"vk_ic3_x"`
-	VkIc3Y     uint64 `json:"vk_ic3_y"`
-	VkIc4X     uint64 `json:"vk_ic4_x"`
-	VkIc4Y     uint64 `json:"vk_ic4_y"`
-	Input0     uint64 `json:"input_0"`
-	Input1     uint64 `json:"input_1"`
-	Input2     uint64 `json:"input_2"`
-	Input3     uint64 `json:"input_3"`
+	VkAlpha1X  string `json:"vk_alpha1_x"`
+	VkAlpha1Y  string `json:"vk_alpha1_y"`
+	VkBeta2X1  string `json:"vk_beta2_x1"`
+	VkBeta2X0  string `json:"vk_beta2_x0"`
+	VkBeta2Y1  string `json:"vk_beta2_y1"`
+	VkBeta2Y0  string `json:"vk_beta2_y0"`
+	VkGamma2X1 string `json:"vk_gamma2_x1"`
+	VkGamma2X0 string `json:"vk_gamma2_x0"`
+	VkGamma2Y1 string `json:"vk_gamma2_y1"`
+	VkGamma2Y0 string `json:"vk_gamma2_y0"`
+	VkDelta2X1 string `json:"vk_delta2_x1"`
+	VkDelta2X0 string `json:"vk_delta2_x0"`
+	VkDelta2Y1 string `json:"vk_delta2_y1"`
+	VkDelta2Y0 string `json:"vk_delta2_y0"`
+	Ax         string `json:"ax"`
+	Ay         string `json:"ay"`
+	Bx1        string `json:"bx1"`
+	Bx0        string `json:"bx0"`
+	By1        string `json:"by1"`
+	By0        string `json:"by0"`
+	Cx         string `json:"cx"`
+	Cy         string `json:"cy"`
+	VkIc0X     string `json:"vk_ic0_x"`
+	VkIc0Y     string `json:"vk_ic0_y"`
+	VkIc1X     string `json:"vk_ic1_x"`
+	VkIc1Y     string `json:"vk_ic1_y"`
+	VkIc2X     string `json:"vk_ic2_x"`
+	VkIc2Y     string `json:"vk_ic2_y"`
+	VkIc3X     string `json:"vk_ic3_x"`
+	VkIc3Y     string `json:"vk_ic3_y"`
+	VkIc4X     string `json:"vk_ic4_x"`
+	VkIc4Y     string `json:"vk_ic4_y"`
+	Input0     string `json:"input_0"`
+	Input1     string `json:"input_1"`
+	Input2     string `json:"input_2"`
+	Input3     string `json:"input_3"`
 }
 
 // VerifyingKeyWrapper wraps groth16.VerifyingKey to allow adding methods.
@@ -523,42 +523,25 @@ func (vk *VerifyingKeyWrapper) WriteJSONTo(w io.Writer) error {
 	vkJSON := VerifyingKeyJSON{}
 
 	// Fill in the scalar fields
-	vkJSON.VkAlpha1X = vk.G1.Alpha.X[0]
-	vkJSON.VkAlpha1Y = vk.G1.Alpha.Y[0]
+	vkJSON.VkAlpha1X = elementToStr(vk.G1.Alpha.X)
+	vkJSON.VkAlpha1Y = elementToStr(vk.G1.Alpha.Y)
+	vkJSON.Ax = elementToStr(vk.G1.Beta.X)
 
 	// Fill in the complex fields like vk.G2.Beta, vk.G2.Gamma, vk.G2.Delta
-	vkJSON.VkBeta2X1 = vk.G2.Beta.X.A1[0]
-	vkJSON.VkBeta2X0 = vk.G2.Beta.X.A0[0]
-	vkJSON.VkBeta2Y1 = vk.G2.Beta.Y.A1[0]
-	vkJSON.VkBeta2Y0 = vk.G2.Beta.Y.A0[0]
-	vkJSON.VkGamma2X1 = vk.G2.Gamma.X.A1[0]
-	vkJSON.VkGamma2X0 = vk.G2.Gamma.X.A0[0]
-	vkJSON.VkGamma2Y1 = vk.G2.Gamma.Y.A1[0]
-	vkJSON.VkGamma2Y0 = vk.G2.Gamma.Y.A0[0]
-	vkJSON.VkDelta2X1 = vk.G2.Delta.X.A1[0]
-	vkJSON.VkDelta2X0 = vk.G2.Delta.X.A0[0]
-	vkJSON.VkDelta2Y1 = vk.G2.Delta.Y.A1[0]
-	vkJSON.VkDelta2Y0 = vk.G2.Delta.Y.A0[0]
+	vkJSON.VkBeta2X1 = elementToStr(vk.G2.Beta.X.A1)
+	vkJSON.VkBeta2X0 = elementToStr(vk.G2.Beta.X.A0)
+	vkJSON.VkBeta2Y1 = elementToStr(vk.G2.Beta.Y.A1)
+	vkJSON.VkBeta2Y0 = elementToStr(vk.G2.Beta.Y.A0)
+	vkJSON.VkGamma2X1 = elementToStr(vk.G2.Gamma.X.A1)
+	vkJSON.VkGamma2X0 = elementToStr(vk.G2.Gamma.X.A0)
+	vkJSON.VkGamma2Y1 = elementToStr(vk.G2.Gamma.Y.A1)
+	vkJSON.VkGamma2Y0 = elementToStr(vk.G2.Gamma.Y.A0)
+	vkJSON.VkDelta2X1 = elementToStr(vk.G2.Delta.X.A1)
+	vkJSON.VkDelta2X0 = elementToStr(vk.G2.Delta.X.A0)
+	vkJSON.VkDelta2Y1 = elementToStr(vk.G2.Delta.Y.A1)
+	vkJSON.VkDelta2Y0 = elementToStr(vk.G2.Delta.Y.A0)
 
-	// Fill in the scalar fields
-	vkJSON.Ax = vk.G1.Alpha.X[0]
-	vkJSON.Ay = vk.G1.Alpha.Y[0]
-	vkJSON.Bx1 = vk.G2.Beta.X.A1[0]
-	vkJSON.Bx0 = vk.G2.Beta.X.A0[0]
-	vkJSON.By1 = vk.G2.Beta.Y.A1[0]
-	vkJSON.By0 = vk.G2.Beta.Y.A0[0]
-	vkJSON.Cx = vk.G1.Alpha.X[0]
-	vkJSON.Cy = vk.G1.Alpha.Y[0]
-
-	// Fill in the scalar fields
-	vkJSON.VkIc0X = vk.G1.Delta.X[0]
-	vkJSON.VkIc0Y = vk.G1.Delta.Y[0]
-	vkJSON.VkIc1X = vk.G1.Delta.X[1]
-	vkJSON.VkIc1Y = vk.G1.Delta.Y[1]
-	vkJSON.VkIc2X = vk.G1.Delta.X[2]
-	vkJSON.VkIc2Y = vk.G1.Delta.Y[2]
-	vkJSON.VkIc3X = vk.G1.Delta.X[3]
-	vkJSON.VkIc3Y = vk.G1.Delta.Y[3]
+	vk.NbG1()
 
 	// Marshal the struct to JSON
 	jsonData, err := json.MarshalIndent(vkJSON, "", "    ")
@@ -569,4 +552,14 @@ func (vk *VerifyingKeyWrapper) WriteJSONTo(w io.Writer) error {
 	// Write the JSON data to the writer
 	_, err = w.Write(jsonData)
 	return err
+}
+
+func elementToStr(e [4]uint64) string {
+	// assumes little endian, shifts each limb by 64 bits and adds to bigInt
+	bigInt := new(big.Int)
+	for i := len(e) - 1; i >= 0; i-- {
+		bigInt.Lsh(bigInt, 64)
+		bigInt.Add(bigInt, new(big.Int).SetUint64(e[i]))
+	}
+	return bigInt.String()
 }

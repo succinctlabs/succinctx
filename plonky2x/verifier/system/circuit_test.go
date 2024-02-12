@@ -16,8 +16,8 @@ func TestPlonky2xVerifierCircuit(t *testing.T) {
 	assert := test.NewAssert(t)
 
 	testCase := func(option int64) error {
-		dummyCircuitPath := "./data/dummy"
-		circuitPath := "./data/test_circuit"
+		dummyCircuitPath := "../data/dummy"
+		circuitPath := "../data/test_circuit"
 
 		verifierOnlyCircuitDataDummy := variables.DeserializeVerifierOnlyCircuitData(
 			types.ReadVerifierOnlyCircuitData(dummyCircuitPath + "/verifier_only_circuit_data.json"),
