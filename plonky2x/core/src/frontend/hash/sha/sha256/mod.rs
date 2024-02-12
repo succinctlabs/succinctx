@@ -1,5 +1,5 @@
-use ::curta::machine::hash::sha::algorithm::SHAPure;
-use ::curta::machine::hash::sha::sha256::SHA256;
+use ::starkyx::machine::hash::sha::algorithm::SHAPure;
+use ::starkyx::machine::hash::sha::sha256::SHA256;
 /// Implementation of sha256
 /// reference: https://github.com/thomdixon/pysha2/blob/master/sha2/sha256.py
 use itertools::Itertools;

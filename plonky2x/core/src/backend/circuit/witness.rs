@@ -10,11 +10,11 @@ use alloc::collections::BTreeMap;
 use std::collections::HashSet;
 
 use anyhow::{anyhow, Error, Result};
-use curta::maybe_rayon::rayon;
 use log::trace;
 use plonky2::iop::generator::{GeneratedValues, WitnessGeneratorRef};
 use plonky2::iop::witness::{PartialWitness, PartitionWitness, WitnessWrite};
 use plonky2::plonk::circuit_data::{CommonCircuitData, ProverOnlyCircuitData};
+use starkyx::maybe_rayon::rayon;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::oneshot;
 

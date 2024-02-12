@@ -1,4 +1,4 @@
-use curta::chip::ec::edwards::ed25519::params::Ed25519;
+use starkyx::chip::ec::edwards::ed25519::params::Ed25519;
 
 pub mod accelerator;
 pub mod air_parameters;

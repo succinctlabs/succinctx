@@ -1,7 +1,7 @@
-use curta::prelude::Field;
 use ethers::types::H256;
 use itertools::Itertools;
 use num::pow;
+use starkyx::prelude::Field;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::merkle::utils::log2_ceil_usize;

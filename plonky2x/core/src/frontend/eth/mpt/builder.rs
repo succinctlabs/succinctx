@@ -1,4 +1,4 @@
-use curta::math::field::Field;
+use starkyx::math::field::Field;
 
 use crate::frontend::vars::Nibbles;
 use crate::prelude::{

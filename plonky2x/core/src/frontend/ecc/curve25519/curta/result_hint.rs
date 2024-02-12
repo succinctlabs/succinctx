@@ -1,7 +1,7 @@
-use curta::chip::ec::edwards::ed25519::decompress::decompress;
-use curta::chip::ec::EllipticCurveParameters;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
+use starkyx::chip::ec::edwards::ed25519::decompress::decompress;
+use starkyx::chip::ec::EllipticCurveParameters;
 
 use super::request::EcOpRequestType;
 use super::Curve;

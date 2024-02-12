@@ -1,14 +1,14 @@
 use core::fmt::Debug;
 
-use ::curta::chip::ec::edwards::ed25519::params::Ed25519ScalarField;
-use ::curta::chip::field::parameters::FieldParameters;
+use ::starkyx::chip::ec::edwards::ed25519::params::Ed25519ScalarField;
+use ::starkyx::chip::field::parameters::FieldParameters;
 use array_macro::array;
-use curta::chip::ec::edwards::ed25519::params::Ed25519Parameters;
-use curta::chip::ec::edwards::EdwardsParameters;
-use curta::chip::ec::point::AffinePoint;
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use ethers::types::{U256, U512};
 use plonky2::hash::hash_types::RichField;
+use starkyx::chip::ec::edwards::ed25519::params::Ed25519Parameters;
+use starkyx::chip::ec::edwards::EdwardsParameters;
+use starkyx::chip::ec::point::AffinePoint;
 
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
 use crate::frontend::uint::num::biguint::biguint_from_bytes_variable;

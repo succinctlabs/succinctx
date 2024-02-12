@@ -9,9 +9,6 @@ use std::collections::HashMap;
 use std::env;
 
 use backtrace::Backtrace;
-use curta::machine::hash::blake::blake2b::BLAKE2B;
-use curta::machine::hash::sha::sha256::SHA256;
-use curta::machine::hash::sha::sha512::SHA512;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::U256;
 use itertools::Itertools;
@@ -19,6 +16,9 @@ use plonky2::iop::generator::{SimpleGenerator, WitnessGeneratorRef};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder as CircuitAPI;
 use plonky2::plonk::circuit_data::CircuitConfig;
+use starkyx::machine::hash::blake::blake2b::BLAKE2B;
+use starkyx::machine::hash::sha::sha256::SHA256;
+use starkyx::machine::hash::sha::sha512::SHA512;
 use tokio::runtime::Runtime;
 
 pub use self::io::CircuitIO;

@@ -1,8 +1,8 @@
 use core::fmt::Debug;
 
 use async_trait::async_trait;
-use curta::maybe_rayon::rayon;
 use serde::{Deserialize, Serialize};
+use starkyx::maybe_rayon::rayon;
 use tokio::sync::oneshot;
 
 use super::asynchronous::hint::AsyncHint;
