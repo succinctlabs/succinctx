@@ -1,6 +1,5 @@
 use core::marker::PhantomData;
 
-use ::starkyx::machine::hash::blake::blake2b::BLAKE2B;
 use serde::{Deserialize, Serialize};
 use starkyx::chip::register::array::ArrayRegister;
 use starkyx::chip::register::bit::BitRegister;
@@ -12,6 +11,7 @@ use starkyx::machine::hash::blake::blake2b;
 use starkyx::machine::hash::blake::blake2b::builder::BlakeBuilder;
 use starkyx::machine::hash::blake::blake2b::pure::BLAKE2BPure;
 use starkyx::machine::hash::blake::blake2b::utils::BLAKE2BUtil;
+use starkyx::machine::hash::blake::blake2b::BLAKE2B;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::hash::curta::accelerator::HashAccelerator;
@@ -116,7 +116,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 96, true, 4> for BLAKE2B 
 
     fn hash(message: Vec<u8>) -> [Self::Integer; 4] {
         let mut num_message_chunks = (message.len() as u64 / 128) + 1;
-        if num_message_chunks % 128 == 0 {
+        if message.len() % 128 == 0 {
             num_message_chunks -= 1;
         }
 
@@ -227,7 +227,18 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input_byte_length: U32Variable,
     ) -> U32Variable {
         let chunk_size = self.constant::<U32Variable>(128);
-        self.div(input_byte_length, chunk_size)
+        let last_chunk_idx = self.div(input_byte_length, chunk_size);
+
+        // Check to see if the input length is a multiple of 128. If it is, we need to subtract 1
+        // from the last chunk index.
+        let one = self.one();
+        let last_chunk_idx_minus_one = self.sub(last_chunk_idx, one);
+
+        let mut tmp = self.mul(chunk_size, last_chunk_idx);
+        tmp = self.sub(tmp, input_byte_length);
+        let is_multiple = self.is_zero(tmp.variable);
+
+        self.select(is_multiple, last_chunk_idx_minus_one, last_chunk_idx)
     }
 }
 
@@ -239,7 +250,7 @@ mod tests {
 
     use crate::backend::circuit::DefaultParameters;
     use crate::frontend::vars::Bytes32Variable;
-    use crate::prelude::{BytesVariable, CircuitBuilder, U32Variable};
+    use crate::prelude::{ArrayVariable, ByteVariable, BytesVariable, CircuitBuilder, U32Variable};
     use crate::utils::bytes32;
 
     type L = DefaultParameters;
@@ -375,6 +386,41 @@ mod tests {
 
         let circuit = builder.build();
         let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+        circuit.test_default_serializers();
+    }
+
+    #[test]
+    fn test_blake2b_curta_chunk_aligned() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let mut builder = CircuitBuilder::<L, D>::new();
+
+        let zeros = "0".repeat(30720);
+        let msgs = [zeros];
+
+        let msg_bytes = msgs.map(|x| hex::decode(x).unwrap());
+        let mut results = Vec::new();
+
+        const MSG_LEN_1: usize = 15360;
+        let msg_len_const = builder.constant::<U32Variable>(MSG_LEN_1 as u32);
+        let msg_var = builder.read::<ArrayVariable<ByteVariable, MSG_LEN_1>>();
+
+        results.push(builder.curta_blake2b_variable(msg_var.as_slice(), msg_len_const));
+
+        let expected_digests = [bytes32!(
+            "467ec8e17ec259e15e915668cb1de2e6dc9982d50957da267fe9e472a4418527"
+        )];
+
+        for (expected_digest, result) in expected_digests.iter().zip_eq(results.iter()) {
+            let expected_digest_var = builder.constant::<Bytes32Variable>(*expected_digest);
+            builder.assert_is_equal(*result, expected_digest_var);
+        }
+
+        let circuit = builder.build();
+        let mut input = circuit.input();
+        input.write::<ArrayVariable<ByteVariable, MSG_LEN_1>>(msg_bytes[0].clone());
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
