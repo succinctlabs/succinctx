@@ -37,9 +37,9 @@ func main() {
 
 	var s system.ProvingSystem
 	if *systemFlag == "groth16" {
-		s = system.NewGroth16System(logger, "../data/dummy", *dataPath)
+		s = system.NewGroth16System(logger, *circuitPath, *dataPath)
 	} else if *systemFlag == "plonk" {
-		s = system.NewPlonkSystem(logger, "../data/dummy", *dataPath)
+		s = system.NewPlonkSystem(logger, *circuitPath, *dataPath)
 	} else {
 		logger.Error().Msg("invalid proving system")
 		os.Exit(1)
