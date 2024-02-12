@@ -1,5 +1,5 @@
-use curta::chip::Chip;
-use curta::plonky2::Plonky2Air;
+use starkyx::chip::Chip;
+use starkyx::plonky2::Plonky2Air;
 
 use super::accelerator::HashAccelerator;
 use super::digest_hint::HashDigestHint;

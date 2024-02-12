@@ -1,13 +1,13 @@
-use curta::chip::{AirParameters, Chip};
-use curta::machine::bytes::proof::ByteStarkProofTarget;
-use curta::machine::bytes::stark::ByteStark;
-use curta::machine::emulated::proof::EmulatedStarkProofTarget;
-use curta::machine::emulated::stark::EmulatedStark;
-use curta::plonky2::stark::config::StarkyConfig;
-use curta::plonky2::stark::gadget::StarkGadget;
-use curta::plonky2::stark::proof::StarkProofTarget;
-use curta::plonky2::stark::Starky;
-use curta::plonky2::Plonky2Air;
+use starkyx::chip::{AirParameters, Chip};
+use starkyx::machine::bytes::proof::ByteStarkProofTarget;
+use starkyx::machine::bytes::stark::ByteStark;
+use starkyx::machine::emulated::proof::EmulatedStarkProofTarget;
+use starkyx::machine::emulated::stark::EmulatedStark;
+use starkyx::plonky2::stark::config::StarkyConfig;
+use starkyx::plonky2::stark::gadget::StarkGadget;
+use starkyx::plonky2::stark::proof::StarkProofTarget;
+use starkyx::plonky2::stark::Starky;
+use starkyx::plonky2::Plonky2Air;
 
 use super::proof::{ByteStarkProofVariable, EmulatedStarkProofVariable, StarkProofVariable};
 use crate::prelude::*;
@@ -57,23 +57,23 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use curta::chip::memory::time::Time;
-    use curta::chip::register::array::ArrayRegister;
-    use curta::chip::register::element::ElementRegister;
-    use curta::chip::register::Register;
-    use curta::chip::trace::writer::{InnerWriterData, TraceWriter};
-    use curta::chip::uint::operations::instruction::UintInstruction;
-    use curta::chip::uint::register::U32Register;
-    use curta::chip::uint::util::u32_to_le_field_bytes;
-    use curta::chip::AirParameters;
-    use curta::machine::builder::Builder;
-    use curta::machine::bytes::builder::BytesBuilder;
-    use curta::machine::bytes::stark::ByteStark;
-    use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
-    use curta::plonky2::stark::config::CurtaPoseidonGoldilocksConfig;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::util::timing::TimingTree;
     use serde::{Deserialize, Serialize};
+    use starkyx::chip::memory::time::Time;
+    use starkyx::chip::register::array::ArrayRegister;
+    use starkyx::chip::register::element::ElementRegister;
+    use starkyx::chip::register::Register;
+    use starkyx::chip::trace::writer::{InnerWriterData, TraceWriter};
+    use starkyx::chip::uint::operations::instruction::UintInstruction;
+    use starkyx::chip::uint::register::U32Register;
+    use starkyx::chip::uint::util::u32_to_le_field_bytes;
+    use starkyx::chip::AirParameters;
+    use starkyx::machine::builder::Builder;
+    use starkyx::machine::bytes::builder::BytesBuilder;
+    use starkyx::machine::bytes::stark::ByteStark;
+    use starkyx::math::goldilocks::cubic::GoldilocksCubicParameters;
+    use starkyx::plonky2::stark::config::CurtaPoseidonGoldilocksConfig;
 
     use crate::frontend::hint::simple::hint::Hint;
     use crate::prelude::*;

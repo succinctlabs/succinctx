@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use curta::math::prelude::cubic::element::CubicElement;
-use curta::plonky2::cubic::builder::CubicCircuitBuilder;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
+use starkyx::math::prelude::cubic::element::CubicElement;
+use starkyx::plonky2::cubic::builder::CubicCircuitBuilder;
 
 use crate::prelude::{
     Add, CircuitBuilder, CircuitVariable, Mul, One, PlonkParameters, Sub, Variable, Zero,

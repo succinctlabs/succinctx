@@ -1,5 +1,5 @@
-use curta::chip::ec::edwards::ed25519::params::Ed25519;
-use curta::chip::ec::EllipticCurveParameters;
+use starkyx::chip::ec::edwards::ed25519::params::Ed25519;
+use starkyx::chip::ec::EllipticCurveParameters;
 
 use super::curta::accelerator::EcOpAccelerator;
 use super::curta::request::{EcOpRequest, EcOpRequestType, EcOpResponse};

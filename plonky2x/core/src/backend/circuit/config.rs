@@ -1,13 +1,13 @@
 use core::fmt::Debug;
 
-use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
-use curta::math::prelude::CubicParameters;
-use curta::plonky2::stark::config::{CurtaConfig, CurtaPoseidonGoldilocksConfig};
 use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 use serde::{Deserialize, Serialize};
+use starkyx::math::goldilocks::cubic::GoldilocksCubicParameters;
+use starkyx::math::prelude::CubicParameters;
+use starkyx::plonky2::stark::config::{CurtaConfig, CurtaPoseidonGoldilocksConfig};
 
 use crate::backend::wrapper::plonky2_config::PoseidonBN128GoldilocksConfig;
 

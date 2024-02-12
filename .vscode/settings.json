@@ -33,4 +33,5 @@
         "unresolved-proc-macro"
     ],
     "editor.defaultFormatter": null,
+    "rust-analyzer.showUnlinkedFileNotification": false,
 }

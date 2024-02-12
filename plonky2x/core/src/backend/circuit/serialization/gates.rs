@@ -2,8 +2,6 @@ use core::any::TypeId;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGate;
-use curta::plonky2::cubic::mul_gate::MulCubicGate;
 use plonky2::field::extension::Extendable;
 use plonky2::gates::arithmetic_base::ArithmeticGate;
 use plonky2::gates::arithmetic_extension::ArithmeticExtensionGate;
@@ -25,6 +23,8 @@ use plonky2::gates::reducing_extension::ReducingExtensionGate;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, GateSerializer, IoResult, Read, Write};
+use starkyx::plonky2::cubic::arithmetic_gate::ArithmeticCubicGate;
+use starkyx::plonky2::cubic::mul_gate::MulCubicGate;
 
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;

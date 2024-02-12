@@ -1,16 +1,16 @@
 use core::marker::PhantomData;
 
-use curta::chip::register::array::ArrayRegister;
-use curta::chip::register::bit::BitRegister;
-use curta::chip::register::element::ElementRegister;
-use curta::chip::uint::operations::instruction::UintInstruction;
-use curta::chip::uint::register::U64Register;
-use curta::chip::AirParameters;
-use curta::machine::bytes::builder::BytesBuilder;
-use curta::machine::hash::sha::algorithm::SHAPure;
-use curta::machine::hash::sha::builder::SHABuilder;
-use curta::machine::hash::sha::sha512::SHA512;
 use serde::{Deserialize, Serialize};
+use starkyx::chip::register::array::ArrayRegister;
+use starkyx::chip::register::bit::BitRegister;
+use starkyx::chip::register::element::ElementRegister;
+use starkyx::chip::uint::operations::instruction::UintInstruction;
+use starkyx::chip::uint::register::U64Register;
+use starkyx::chip::AirParameters;
+use starkyx::machine::bytes::builder::BytesBuilder;
+use starkyx::machine::hash::sha::algorithm::SHAPure;
+use starkyx::machine::hash::sha::builder::SHABuilder;
+use starkyx::machine::hash::sha::sha512::SHA512;
 
 use crate::frontend::hash::curta::accelerator::HashAccelerator;
 use crate::frontend::hash::curta::request::HashRequest;
@@ -67,7 +67,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 80, false, 8> for SHA512 
 
     fn value_to_variable(
         builder: &mut CircuitBuilder<L, D>,
-        value: <U64Register as curta::chip::register::Register>::Value<Variable>,
+        value: <U64Register as starkyx::chip::register::Register>::Value<Variable>,
     ) -> Self::IntVariable {
         let low_limbs = &value[0..4];
         let high_limbs = &value[4..8];

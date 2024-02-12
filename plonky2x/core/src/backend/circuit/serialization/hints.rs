@@ -1,11 +1,6 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use curta::machine::hash::blake::blake2b::BLAKE2B;
-use curta::machine::hash::sha::sha256::SHA256;
-use curta::machine::hash::sha::sha512::SHA512;
-use curta::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
-use curta::plonky2::cubic::mul_gate::MulCubicGenerator;
 use plonky2::field::extension::Extendable;
 use plonky2::gadgets::arithmetic::EqualityGenerator;
 use plonky2::gadgets::arithmetic_extension::QuotientGeneratorExtension;
@@ -34,6 +29,11 @@ use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::recursion::dummy_circuit::DummyProofGenerator;
 use plonky2::util::serialization::{Buffer, IoResult, Read, WitnessGeneratorSerializer, Write};
+use starkyx::machine::hash::blake::blake2b::BLAKE2B;
+use starkyx::machine::hash::sha::sha256::SHA256;
+use starkyx::machine::hash::sha::sha512::SHA512;
+use starkyx::plonky2::cubic::arithmetic_gate::ArithmeticCubicGenerator;
+use starkyx::plonky2::cubic::mul_gate::MulCubicGenerator;
 
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;

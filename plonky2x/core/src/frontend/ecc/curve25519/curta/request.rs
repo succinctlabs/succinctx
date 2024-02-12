@@ -1,5 +1,5 @@
-use curta::chip::ec::EllipticCurve;
 use serde::{Deserialize, Serialize};
+use starkyx::chip::ec::EllipticCurve;
 
 use crate::frontend::curta::ec::point::{AffinePointVariable, CompressedEdwardsYVariable};
 use crate::frontend::curta::field::variable::FieldVariable;

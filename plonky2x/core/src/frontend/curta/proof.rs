@@ -1,16 +1,16 @@
 use core::iter::once;
 
-use curta::chip::{AirParameters, Chip};
-use curta::machine::bytes::proof::{ByteStarkProof, ByteStarkProofTarget};
-use curta::machine::bytes::stark::ByteStark;
-use curta::machine::emulated::proof::{EmulatedStarkProof, EmulatedStarkProofTarget};
-use curta::machine::emulated::stark::EmulatedStark;
-use curta::plonky2::stark::config::{CurtaConfig, StarkyConfig};
-use curta::plonky2::stark::proof::{
+use starkyx::chip::{AirParameters, Chip};
+use starkyx::machine::bytes::proof::{ByteStarkProof, ByteStarkProofTarget};
+use starkyx::machine::bytes::stark::ByteStark;
+use starkyx::machine::emulated::proof::{EmulatedStarkProof, EmulatedStarkProofTarget};
+use starkyx::machine::emulated::stark::EmulatedStark;
+use starkyx::plonky2::stark::config::{CurtaConfig, StarkyConfig};
+use starkyx::plonky2::stark::proof::{
     AirProof, AirProofTarget, StarkOpeningSet, StarkOpeningSetTarget, StarkProof, StarkProofTarget,
 };
-use curta::plonky2::stark::Starky;
-use curta::plonky2::Plonky2Air;
+use starkyx::plonky2::stark::Starky;
+use starkyx::plonky2::Plonky2Air;
 
 use crate::frontend::recursion::extension::ExtensionVariable;
 use crate::frontend::recursion::fri::proof::FriProofVariable;
@@ -722,19 +722,19 @@ impl<const D: usize> From<EmulatedStarkProofTarget<D>> for EmulatedStarkProofVar
 
 #[cfg(test)]
 mod tests {
-    use curta::chip::builder::AirBuilder;
-    use curta::chip::instruction::empty::EmptyInstruction;
-    use curta::chip::register::element::ElementRegister;
-    use curta::chip::register::{Register, RegisterSerializable};
-    use curta::chip::trace::generator::ArithmeticGenerator;
-    use curta::chip::AirParameters;
-    use curta::math::goldilocks::cubic::GoldilocksCubicParameters;
-    use curta::plonky2::stark::config::{
+    use serde::{Deserialize, Serialize};
+    use starkyx::chip::builder::AirBuilder;
+    use starkyx::chip::instruction::empty::EmptyInstruction;
+    use starkyx::chip::register::element::ElementRegister;
+    use starkyx::chip::register::{Register, RegisterSerializable};
+    use starkyx::chip::trace::generator::ArithmeticGenerator;
+    use starkyx::chip::AirParameters;
+    use starkyx::math::goldilocks::cubic::GoldilocksCubicParameters;
+    use starkyx::plonky2::stark::config::{
         CurtaPoseidonGoldilocksConfig, PoseidonGoldilocksStarkConfig,
     };
-    use curta::plonky2::stark::gadget::StarkGadget;
-    use curta::plonky2::stark::prover::StarkyProver;
-    use serde::{Deserialize, Serialize};
+    use starkyx::plonky2::stark::gadget::StarkGadget;
+    use starkyx::plonky2::stark::prover::StarkyProver;
 
     use super::*;
     use crate::frontend::hint::simple::hint::Hint;

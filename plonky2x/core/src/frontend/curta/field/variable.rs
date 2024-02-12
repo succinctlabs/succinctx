@@ -1,12 +1,12 @@
 use core::marker::PhantomData;
 
-use curta::chip::field::parameters::FieldParameters;
-use curta::chip::utils::digits_to_biguint;
-use curta::math::prelude::PrimeField64;
-use curta::polynomial::to_u16_le_limbs_polynomial;
 use itertools::Itertools;
 use num::One;
 use num_bigint::BigUint;
+use starkyx::chip::field::parameters::FieldParameters;
+use starkyx::chip::utils::digits_to_biguint;
+use starkyx::math::prelude::PrimeField64;
+use starkyx::polynomial::to_u16_le_limbs_polynomial;
 
 use crate::frontend::uint::num::u32::gadgets::multiple_comparison::list_lte_circuit;
 use crate::prelude::*;
@@ -112,10 +112,10 @@ impl<P: FieldParameters> CircuitVariable for FieldVariable<P> {
 
 #[cfg(test)]
 mod tests {
-    use curta::chip::ec::weierstrass::bn254::Bn254BaseField;
-    use curta::chip::field::parameters::FieldParameters;
     use num::{One, Zero};
     use num_bigint::BigUint;
+    use starkyx::chip::ec::weierstrass::bn254::Bn254BaseField;
+    use starkyx::chip::field::parameters::FieldParameters;
 
     use super::FieldVariable;
     use crate::prelude::{CircuitBuilder, CircuitVariable, DefaultParameters};

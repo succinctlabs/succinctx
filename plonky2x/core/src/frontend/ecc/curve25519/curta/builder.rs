@@ -1,4 +1,4 @@
-use curta::chip::ec::EllipticCurveParameters;
+use starkyx::chip::ec::EllipticCurveParameters;
 
 use super::accelerator::EcOpAccelerator;
 use super::proof_hint::EcOpProofHint;

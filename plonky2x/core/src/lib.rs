@@ -13,7 +13,6 @@ pub mod frontend;
 pub mod utils;
 
 pub mod prelude {
-    pub use curta::math::prelude::cubic::element::CubicElement;
     pub use plonky2;
     pub use plonky2::field::extension::Extendable;
     pub use plonky2::field::goldilocks_field::GoldilocksField;
@@ -23,6 +22,7 @@ pub mod prelude {
     pub use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
     pub use plonky2::plonk::config::PoseidonGoldilocksConfig;
     pub use plonky2x_derive::CircuitVariable;
+    pub use starkyx::math::prelude::cubic::element::CubicElement;
 
     pub use crate::backend::circuit::config::{DefaultParameters, PlonkParameters};
     pub use crate::backend::circuit::{GateRegistry, HintRegistry};

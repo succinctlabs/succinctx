@@ -1,8 +1,8 @@
 use core::marker::PhantomData;
 
-use curta::chip::Chip;
-use curta::plonky2::Plonky2Air;
 use serde::{Deserialize, Serialize};
+use starkyx::chip::Chip;
+use starkyx::plonky2::Plonky2Air;
 
 use super::data::HashInputParameters;
 use super::Hash;

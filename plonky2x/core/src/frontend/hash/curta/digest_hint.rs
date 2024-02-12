@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
-use curta::math::prelude::PrimeField64;
 use serde::{Deserialize, Serialize};
+use starkyx::math::prelude::PrimeField64;
 
 use super::Hash;
 use crate::frontend::hint::simple::hint::Hint;

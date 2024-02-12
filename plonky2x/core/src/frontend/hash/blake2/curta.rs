@@ -1,17 +1,17 @@
 use core::marker::PhantomData;
 
-use ::curta::machine::hash::blake::blake2b::BLAKE2B;
-use curta::chip::register::array::ArrayRegister;
-use curta::chip::register::bit::BitRegister;
-use curta::chip::register::element::ElementRegister;
-use curta::chip::uint::operations::instruction::UintInstruction;
-use curta::chip::AirParameters;
-use curta::machine::bytes::builder::BytesBuilder;
-use curta::machine::hash::blake::blake2b;
-use curta::machine::hash::blake::blake2b::builder::BlakeBuilder;
-use curta::machine::hash::blake::blake2b::pure::BLAKE2BPure;
-use curta::machine::hash::blake::blake2b::utils::BLAKE2BUtil;
+use ::starkyx::machine::hash::blake::blake2b::BLAKE2B;
 use serde::{Deserialize, Serialize};
+use starkyx::chip::register::array::ArrayRegister;
+use starkyx::chip::register::bit::BitRegister;
+use starkyx::chip::register::element::ElementRegister;
+use starkyx::chip::uint::operations::instruction::UintInstruction;
+use starkyx::chip::AirParameters;
+use starkyx::machine::bytes::builder::BytesBuilder;
+use starkyx::machine::hash::blake::blake2b;
+use starkyx::machine::hash::blake::blake2b::builder::BlakeBuilder;
+use starkyx::machine::hash::blake::blake2b::pure::BLAKE2BPure;
+use starkyx::machine::hash::blake::blake2b::utils::BLAKE2BUtil;
 
 use crate::backend::circuit::PlonkParameters;
 use crate::frontend::hash::curta::accelerator::HashAccelerator;
@@ -76,7 +76,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 96, true, 4> for BLAKE2B 
 
     fn value_to_variable(
         builder: &mut CircuitBuilder<L, D>,
-        value: <Self::IntRegister as curta::chip::register::Register>::Value<Variable>,
+        value: <Self::IntRegister as starkyx::chip::register::Register>::Value<Variable>,
     ) -> Self::IntVariable {
         let low_limbs = &value[0..4];
         let high_limbs = &value[4..8];
@@ -132,7 +132,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 96, true, 4> for BLAKE2B 
             } else {
                 t += 128;
             }
-            <curta::machine::hash::blake::blake2b::BLAKE2B as BLAKE2BPure>::compress(
+            <starkyx::machine::hash::blake::blake2b::BLAKE2B as BLAKE2BPure>::compress(
                 chunk,
                 &mut state,
                 t,

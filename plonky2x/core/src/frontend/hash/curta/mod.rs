@@ -1,18 +1,18 @@
 use core::fmt::Debug;
 
-use curta::chip::register::array::ArrayRegister;
-use curta::chip::register::bit::BitRegister;
-use curta::chip::register::element::ElementRegister;
-use curta::chip::register::Register;
-use curta::chip::uint::operations::instruction::UintInstructions;
-use curta::chip::uint::register::U64Register;
-use curta::chip::AirParameters;
-use curta::machine::builder::Builder;
-use curta::machine::bytes::builder::BytesBuilder;
-use curta::machine::hash::{HashDigest, HashIntConversion};
 use plonky2::util::log2_ceil;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use starkyx::chip::register::array::ArrayRegister;
+use starkyx::chip::register::bit::BitRegister;
+use starkyx::chip::register::element::ElementRegister;
+use starkyx::chip::register::Register;
+use starkyx::chip::uint::operations::instruction::UintInstructions;
+use starkyx::chip::uint::register::U64Register;
+use starkyx::chip::AirParameters;
+use starkyx::machine::builder::Builder;
+use starkyx::machine::bytes::builder::BytesBuilder;
+use starkyx::machine::hash::{HashDigest, HashIntConversion};
 
 use self::accelerator::HashAccelerator;
 use self::data::{HashInputData, HashInputParameters};

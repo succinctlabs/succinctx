@@ -1,6 +1,6 @@
-use curta::math::field::Field;
-use curta::math::prelude::PrimeField64;
 use serde::{Deserialize, Serialize};
+use starkyx::math::field::Field;
+use starkyx::math::prelude::PrimeField64;
 
 use super::utils::decode_padded_mpt_node;
 use crate::frontend::eth::rlp::utils::MAX_RLP_ITEM_SIZE;
