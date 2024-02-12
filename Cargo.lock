@@ -873,7 +873,7 @@ dependencies = [
 [[package]]
 name = "curta"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/curta.git#fd41b0fa761e8f57ebfb8475245d5d5a0b3eb225"
+source = "git+https://github.com/succinctlabs/starkyx.git#fd41b0fa761e8f57ebfb8475245d5d5a0b3eb225"
 dependencies = [
  "anyhow",
  "bincode",
