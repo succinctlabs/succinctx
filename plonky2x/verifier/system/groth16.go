@@ -338,17 +338,11 @@ func (s *Groth16System) ExportVerifierSolidity(vk groth16.VerifyingKey) error {
 }
 
 func (s *Groth16System) ExportVerifierJSON(vk groth16.VerifyingKey) error {
-	vkw := VerifyingKeyWrapper{vk.(*groth16_bn254.VerifyingKey)}
 	vkFile, err := os.Create(s.dataPath + "/vk.json")
 	if err != nil {
 		return errors.Wrap(err, "create vk.json file")
 	}
 	defer vkFile.Close()
-
-	err = vkw.WriteJSONTo(vkFile)
-	if err != nil {
-		return errors.Wrap(err, "write vk.json")
-	}
 
 	return nil
 }
@@ -434,126 +428,4 @@ func (s *Groth16System) LoadPublicWitness() (witness.Witness, error) {
 	f.Close()
 
 	return publicWitness, nil
-}
-
-type VerifyingKeyJSON struct {
-	VkAlpha1X  string `json:"vk_alpha1_x"`
-	VkAlpha1Y  string `json:"vk_alpha1_y"`
-	VkBeta2X1  string `json:"vk_beta2_x1"`
-	VkBeta2X0  string `json:"vk_beta2_x0"`
-	VkBeta2Y1  string `json:"vk_beta2_y1"`
-	VkBeta2Y0  string `json:"vk_beta2_y0"`
-	VkGamma2X1 string `json:"vk_gamma2_x1"`
-	VkGamma2X0 string `json:"vk_gamma2_x0"`
-	VkGamma2Y1 string `json:"vk_gamma2_y1"`
-	VkGamma2Y0 string `json:"vk_gamma2_y0"`
-	VkDelta2X1 string `json:"vk_delta2_x1"`
-	VkDelta2X0 string `json:"vk_delta2_x0"`
-	VkDelta2Y1 string `json:"vk_delta2_y1"`
-	VkDelta2Y0 string `json:"vk_delta2_y0"`
-	Ax         string `json:"ax"`
-	Ay         string `json:"ay"`
-	Bx1        string `json:"bx1"`
-	Bx0        string `json:"bx0"`
-	By1        string `json:"by1"`
-	By0        string `json:"by0"`
-	Cx         string `json:"cx"`
-	Cy         string `json:"cy"`
-	VkIc0X     string `json:"vk_ic0_x"`
-	VkIc0Y     string `json:"vk_ic0_y"`
-	VkIc1X     string `json:"vk_ic1_x"`
-	VkIc1Y     string `json:"vk_ic1_y"`
-	VkIc2X     string `json:"vk_ic2_x"`
-	VkIc2Y     string `json:"vk_ic2_y"`
-	VkIc3X     string `json:"vk_ic3_x"`
-	VkIc3Y     string `json:"vk_ic3_y"`
-	VkIc4X     string `json:"vk_ic4_x"`
-	VkIc4Y     string `json:"vk_ic4_y"`
-	Input0     string `json:"input_0"`
-	Input1     string `json:"input_1"`
-	Input2     string `json:"input_2"`
-	Input3     string `json:"input_3"`
-}
-
-// VerifyingKeyWrapper wraps groth16.VerifyingKey to allow adding methods.
-type VerifyingKeyWrapper struct {
-	*groth16_bn254.VerifyingKey
-}
-
-// TODO: not all the fields are handled yet, desired output is:
-//
-//	{
-//	    "vk_alpha1_x": 20491192805390485299153009773594534940189261866228447918068658471970481763042,
-//	    "vk_alpha1_y": 9383485363053290200918347156157836566562967994039712273449902621266178545958,
-//	    "vk_beta2_x1": 4252822878758300859123897981450591353533073413197771768651442665752259397132,
-//	    "vk_beta2_x0": 6375614351688725206403948262868962793625744043794305715222011528459656738731,
-//	    "vk_beta2_y1": 21847035105528745403288232691147584728191162732299865338377159692350059136679,
-//	    "vk_beta2_y0": 10505242626370262277552901082094356697409835680220590971873171140371331206856,
-//	    "vk_gamma2_x1": 11559732032986387107991004021392285783925812861821192530917403151452391805634,
-//	    "vk_gamma2_x0": 10857046999023057135944570762232829481370756359578518086990519993285655852781,
-//	    "vk_gamma2_y1": 4082367875863433681332203403145435568316851327593401208105741076214120093531,
-//	    "vk_gamma2_y0": 8495653923123431417604973247489272438418190587263600148770280649306958101930,
-//	    "vk_delta2_x1": 12599857379517512478445603412764121041984228075771497593287716170335433683702,
-//	    "vk_delta2_x0": 7912208710313447447762395792098481825752520616755888860068004689933335666613,
-//	    "vk_delta2_y1": 11502426145685875357967720478366491326865907869902181704031346886834786027007,
-//	    "vk_delta2_y0": 21679208693936337484429571887537508926366191105267550375038502782696042114705,
-//	    "ax": 6424909707529041010431833767196069900905951186152453452535233785859310247091,
-//	    "ay": 15156427692937982705101882891732675959670219989397474519215594210140745958982,
-//	    "bx1": 11702600617119966915217386854353771222477427862839239072991366294351362953119,
-//	    "bx0": 9377668754004040279698406674069547206576290350544684455848413744271894321832,
-//	    "by1": 3628891305020420995628487021870577687557167953941662416598489001684202886401,
-//	    "by0": 2339250257289832665920974862775225721388286867501651664202401324220401621360,
-//	    "cx": 11664089827190113040588903049366218671264446383108882453852976389666897952784,
-//	    "cy": 11964654005374721149828827734828350582389212487311147825692987599394401865041,
-//	    "vk_ic0_x": 19918517214839406678907482305035208173510172567546071380302965459737278553528,
-//	    "vk_ic0_y": 7151186077716310064777520690144511885696297127165278362082219441732663131220,
-//	    "vk_ic1_x": 690581125971423619528508316402701520070153774868732534279095503611995849608,
-//	    "vk_ic1_y": 21271996888576045810415843612869789314680408477068973024786458305950370465558,
-//	    "vk_ic2_x": 16461282535702132833442937829027913110152135149151199860671943445720775371319,
-//	    "vk_ic2_y": 2814052162479976678403678512565563275428791320557060777323643795017729081887,
-//	    "vk_ic3_x": 4319780315499060392574138782191013129592543766464046592208884866569377437627,
-//	    "vk_ic3_y": 13920930439395002698339449999482247728129484070642079851312682993555105218086,
-//	    "vk_ic4_x": 3554830803181375418665292545416227334138838284686406179598687755626325482686,
-//	    "vk_ic4_y": 5951609174746846070367113593675211691311013364421437923470787371738135276998,
-//	    "input_0": 21705359380887563070149446940526235604214635927514568554179739874068936581326,
-//	    "input_1": 13630543870832548245486205251095070353732552187251924897575030362759902904563,
-//	    "input_2": 162293819954371680461551288230016133027961592341006905831869429197623161310,
-//	    "input_3": 335454208347774977187488698124679955736871218687692995704073124237365188281
-//	}
-func (vk *VerifyingKeyWrapper) WriteJSONTo(w io.Writer) error {
-	vkJSON := VerifyingKeyJSON{}
-
-	vkJSON.VkAlpha1X = elementToStr(vk.G1.Alpha.X)
-	vkJSON.VkAlpha1Y = elementToStr(vk.G1.Alpha.Y)
-	vkJSON.Ax = elementToStr(vk.G1.Beta.X)
-
-	vkJSON.VkBeta2X1 = elementToStr(vk.G2.Beta.X.A1)
-	vkJSON.VkBeta2X0 = elementToStr(vk.G2.Beta.X.A0)
-	vkJSON.VkBeta2Y1 = elementToStr(vk.G2.Beta.Y.A1)
-	vkJSON.VkBeta2Y0 = elementToStr(vk.G2.Beta.Y.A0)
-	vkJSON.VkGamma2X1 = elementToStr(vk.G2.Gamma.X.A1)
-	vkJSON.VkGamma2X0 = elementToStr(vk.G2.Gamma.X.A0)
-	vkJSON.VkGamma2Y1 = elementToStr(vk.G2.Gamma.Y.A1)
-	vkJSON.VkGamma2Y0 = elementToStr(vk.G2.Gamma.Y.A0)
-	vkJSON.VkDelta2X1 = elementToStr(vk.G2.Delta.X.A1)
-	vkJSON.VkDelta2X0 = elementToStr(vk.G2.Delta.X.A0)
-	vkJSON.VkDelta2Y1 = elementToStr(vk.G2.Delta.Y.A1)
-	vkJSON.VkDelta2Y0 = elementToStr(vk.G2.Delta.Y.A0)
-
-	jsonData, err := json.MarshalIndent(vkJSON, "", "    ")
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write(jsonData)
-	return err
-}
-
-func elementToStr(e [4]uint64) string {
-	bigInt := new(big.Int)
-	for i := 0; i < len(e); i++ {
-		bigInt.Lsh(bigInt, 64)                           // Shift the accumulated value left by 64 bits to make room for the next limb
-		bigInt.Add(bigInt, new(big.Int).SetUint64(e[i])) // Add the current limb
-	}
-	return bigInt.String()
 }
