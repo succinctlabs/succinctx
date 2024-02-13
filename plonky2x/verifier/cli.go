@@ -25,6 +25,10 @@ func main() {
 
 	logger := logger.Logger()
 
+	if *circuitPath == "" {
+		logger.Info().Msg("no circuitPath flag found, so user must input circuitPath via stdin")
+	}
+
 	if *dataPath == "" {
 		logger.Error().Msg("please specify a path to data dir (where the compiled gnark circuit data will be)")
 		os.Exit(1)

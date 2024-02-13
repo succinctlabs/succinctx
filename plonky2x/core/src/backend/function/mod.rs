@@ -140,8 +140,15 @@ impl<C: Circuit> Plonky2xFunction for C {
             AlgebraicHasher<InnerParameters::Field>,
         OuterParameters::Config: Serialize,
     {
-        // If the request is of type bytes and the wrapper path is not empty, then we need to
-        // start the gnark wrapper process.
+        println!(
+            "Starting gnark wrapper process with command: {:?}",
+            path::Path::new(&args.wrapper_path).join("verifier")
+        );
+        println!(
+            "Arguments: -prove -data {}",
+            path::Path::new(&args.wrapper_path).display()
+        );
+
         let gnark_wrapper_process = if let ProofRequest::Bytes(_) = request {
             if !args.wrapper_path.is_empty() {
                 let child_process = std::process::Command::new(
@@ -150,8 +157,8 @@ impl<C: Circuit> Plonky2xFunction for C {
                 .arg("-prove")
                 .arg("-data")
                 .arg(path::Path::new(&args.wrapper_path))
-                .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
                 .stdin(std::process::Stdio::piped())
                 .spawn()
                 .expect("Failed to start gnark wrapper process");
@@ -229,10 +236,32 @@ impl<C: Circuit> Plonky2xFunction for C {
                 };
             }
 
-            let stdin = stdin_opt.unwrap();
-            stdin
-                .write_all(b"wrapped\n")
-                .expect("Failed to write to stdin");
+            // // Immediately write to stdin before consuming child_process
+            // if let Some(stdin) = child_process.stdin.as_mut() {
+            //     stdin
+            //         .write_all(b"wrapped\n")
+            //         .expect("Failed to write to stdin");
+            // } else {
+            //     println!("No stdin available for gnark wrapper process");
+            // }
+
+            // // Now it's safe to consume child_process since we're done writing to stdin
+            // let outputs = child_process
+            //     .wait_with_output()
+            //     .expect("Failed to read stdout/stderr");
+            // println!("Stdout: {}", String::from_utf8_lossy(&outputs.stdout));
+            // println!("Stderr: {}", String::from_utf8_lossy(&outputs.stderr));
+
+            // Some(child_process) // This is logically incorrect as child_process is already consumed
+
+            // let stdin = stdin_opt.unwrap();
+            if let Some(stdin) = stdin_opt {
+                let _ = stdin.write_all(b"wrapped\n");
+                // .expect("Failed to write to stdin");
+            } else {
+                info!("No stdin available for gnark wrapper process");
+            }
+
             let verifier_output = gnark_wrapper_process
                 .wait_with_output()
                 .expect("failed to execute process");

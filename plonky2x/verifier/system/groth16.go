@@ -69,6 +69,7 @@ func (s *Groth16System) Prove() error {
 		if err != nil {
 			return errors.Wrap(err, "read circuitPath from stdin")
 		}
+		s.logger.Info().Msgf("circuitPath from stdin: %v", str)
 		trimmed := strings.TrimSuffix(str, "\n")
 		s.circuitPath = trimmed
 	}
@@ -81,6 +82,8 @@ func (s *Groth16System) Prove() error {
 	if err != nil {
 		return errors.Wrap(err, "load the proving key")
 	}
+
+	s.logger.Info().Msgf("generating proof with circuit path %v and proving key %v", s.circuitPath, pk)
 
 	proof, publicWitness, err := s.ProveCircuit(r1cs, pk)
 	if err != nil {
