@@ -410,26 +410,22 @@ mod tests {
         let msgs = [zeros];
 
         let msg_bytes = msgs.map(|x| hex::decode(x).unwrap());
-        let mut results = Vec::new();
 
-        const MSG_LEN_1: usize = 15360;
-        let msg_len_const = builder.constant::<U32Variable>(MSG_LEN_1 as u32);
-        let msg_var = builder.read::<ArrayVariable<ByteVariable, MSG_LEN_1>>();
+        const MSG_LEN: usize = 15360;
+        let msg_len_const = builder.constant::<U32Variable>(MSG_LEN as u32);
+        let msg_var = builder.read::<ArrayVariable<ByteVariable, MSG_LEN>>();
 
-        results.push(builder.curta_blake2b_variable(msg_var.as_slice(), msg_len_const));
+        let calculated_digest = builder.curta_blake2b_variable(msg_var.as_slice(), msg_len_const);
 
-        let expected_digests = [bytes32!(
+        let expected_digest = builder.constant::<Bytes32Variable>(bytes32!(
             "467ec8e17ec259e15e915668cb1de2e6dc9982d50957da267fe9e472a4418527"
-        )];
+        ));
 
-        for (expected_digest, result) in expected_digests.iter().zip_eq(results.iter()) {
-            let expected_digest_var = builder.constant::<Bytes32Variable>(*expected_digest);
-            builder.assert_is_equal(*result, expected_digest_var);
-        }
+        builder.assert_is_equal(calculated_digest, expected_digest);
 
         let circuit = builder.build();
         let mut input = circuit.input();
-        input.write::<ArrayVariable<ByteVariable, MSG_LEN_1>>(msg_bytes[0].clone());
+        input.write::<ArrayVariable<ByteVariable, MSG_LEN>>(msg_bytes[0].clone());
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
