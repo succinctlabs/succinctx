@@ -432,8 +432,8 @@ mod tests {
             let msg_len = builder.constant::<U32Variable>(msg.len() as u32);
 
             let variable_result = builder.curta_sha512_variable(&msg_var.0, msg_len);
-
             let fixed_result = builder.curta_sha512(&msg_var[0..i]);
+
             let expected_digest = builder.constant::<BytesVariable<64>>(sha512(msg));
 
             builder.assert_is_equal(variable_result, expected_digest);

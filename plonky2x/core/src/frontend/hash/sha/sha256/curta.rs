@@ -455,8 +455,8 @@ mod tests {
             let msg_len = builder.constant::<U32Variable>(msg.len() as u32);
 
             let variable_result = builder.curta_sha256_variable(&msg_var.0, msg_len);
-
             let fixed_result = builder.curta_sha256(&msg_var[0..i]);
+
             let expected_digest = builder.constant::<Bytes32Variable>(H256::from(sha256(msg)));
 
             builder.assert_is_equal(variable_result, expected_digest);
