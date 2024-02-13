@@ -116,7 +116,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 96, true, 4> for BLAKE2B 
 
     fn hash(message: Vec<u8>) -> [Self::Integer; 4] {
         let mut num_message_chunks = (message.len() as u64 / 128) + 1;
-        if message.len() % 128 == 0 {
+        if message.len() % 128 == 0 && !message.is_empty() {
             num_message_chunks -= 1;
         }
 
@@ -229,16 +229,24 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         let chunk_size = self.constant::<U32Variable>(128);
         let last_chunk_idx = self.div(input_byte_length, chunk_size);
 
-        // Check to see if the input length is a multiple of 128. If it is, we need to subtract 1
-        // from the last chunk index.
-        let one = self.one();
-        let last_chunk_idx_minus_one = self.sub(last_chunk_idx, one);
+        // Check to see if the input length is a multiple of 128 and it's not zero length. If it is,
+        // we need to subtract 1 from the last chunk index.
 
+        // Find out if the input length is a multiple of 128.
         let mut tmp = self.mul(chunk_size, last_chunk_idx);
         tmp = self.sub(tmp, input_byte_length);
         let is_multiple = self.is_zero(tmp.variable);
 
-        self.select(is_multiple, last_chunk_idx_minus_one, last_chunk_idx)
+        // Find out if the input length is not zero.
+        let is_zero_length = self.is_zero(input_byte_length.variable);
+        let is_not_zero_length = self.not(is_zero_length);
+
+        // Find out if we need to subtract 1 from the last chunk index.
+        let do_minus_one = self.and(is_multiple, is_not_zero_length);
+        let one = self.one();
+        let last_chunk_idx_minus_one = self.sub(last_chunk_idx, one);
+
+        self.select(do_minus_one, last_chunk_idx_minus_one, last_chunk_idx)
     }
 }
 
