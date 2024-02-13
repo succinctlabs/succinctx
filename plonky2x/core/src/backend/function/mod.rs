@@ -128,142 +128,6 @@ impl<C: Circuit> Plonky2xFunction for C {
         }
     }
 
-    // fn prove<
-    //     InnerParameters: PlonkParameters<D>,
-    //     OuterParameters: PlonkParameters<D, Field = InnerParameters::Field>,
-    //     const D: usize,
-    // >(
-    //     args: ProveArgs,
-    //     request: ProofRequest<InnerParameters, D>,
-    // ) where
-    //     <InnerParameters::Config as GenericConfig<D>>::Hasher:
-    //         AlgebraicHasher<InnerParameters::Field>,
-    //     OuterParameters::Config: Serialize,
-    // {
-    //     // If the request is of type bytes and the wrapper path is not empty, then we need to
-    //     // start the gnark wrapper process.
-    //     let gnark_wrapper_process = if let ProofRequest::Bytes(_) = request {
-    //         if !args.wrapper_path.is_empty() {
-    //             let child_process = std::process::Command::new(
-    //                 path::Path::new(&args.wrapper_path).join("verifier"),
-    //             )
-    //             .arg("-prove")
-    //             .arg("-data")
-    //             .arg(path::Path::new(&args.wrapper_path))
-    //             .stdout(std::process::Stdio::inherit())
-    //             .stderr(std::process::Stdio::inherit())
-    //             .stdin(std::process::Stdio::piped())
-    //             .spawn()
-    //             .expect("Failed to start gnark wrapper process");
-    //             Some(child_process)
-    //         } else {
-    //             None
-    //         }
-    //     } else {
-    //         None
-    //     };
-
-    //     let mut generator_registry = HintRegistry::new();
-    //     let mut gate_registry = GateRegistry::new();
-    //     C::register_generators::<InnerParameters, D>(&mut generator_registry);
-    //     C::register_gates::<InnerParameters, D>(&mut gate_registry);
-
-    //     let mut path = match request {
-    //         ProofRequest::Bytes(_) => {
-    //             format!("{}/main.circuit", args.build_dir)
-    //         }
-    //         ProofRequest::Elements(ref request) => {
-    //             format!("{}/{}.circuit", args.build_dir, request.data.circuit_id)
-    //         }
-    //         ProofRequest::RecursiveProofs(ref request) => {
-    //             format!("{}/{}.circuit", args.build_dir, request.data.circuit_id)
-    //         }
-    //         _ => todo!(),
-    //     };
-    //     if fs::metadata(&path).is_err() {
-    //         path = format!("{}/main.circuit", args.build_dir);
-    //     }
-
-    //     info!("Loading circuit from {}...", path);
-    //     let circuit =
-    //         CircuitBuild::<InnerParameters, D>::load(&path, &gate_registry, &generator_registry)
-    //             .unwrap();
-    //     info!("Successfully loaded circuit.");
-
-    //     let input = request.input();
-    //     let (proof, output) = circuit.prove(&input);
-    //     info!(
-    //         "Successfully generated proof, wrapping proof with {}",
-    //         args.wrapper_path
-    //     );
-
-    //     if let PublicInput::Bytes(input_bytes) = input {
-    //         info!("Input Bytes: 0x{}", hex::encode(input_bytes));
-    //     }
-
-    //     if let PublicOutput::Bytes(output_bytes) = output {
-    //         // It's quite fast (~5-10 seconds) to rebuild the wrapped circuit. Because of this we
-    //         // choose to rebuild here instead of loading from disk.
-    //         info!("Output Bytes: 0x{}", hex::encode(output_bytes.clone()));
-    //         let wrapped_circuit =
-    //             WrappedCircuit::<InnerParameters, OuterParameters, D>::build(circuit);
-    //         let wrapped_proof = wrapped_circuit.prove(&proof).expect("failed to wrap proof");
-    //         wrapped_proof
-    //             .save("wrapped")
-    //             .expect("failed to save wrapped proof");
-
-    //         // The gnark_wrapper_process should have been started.
-    //         let mut gnark_wrapper_process = gnark_wrapper_process.unwrap();
-    //         let mut stdin_opt = None;
-    //         while stdin_opt.is_none() {
-    //             stdin_opt = match gnark_wrapper_process.stdin.as_mut() {
-    //                 Some(stdin) => {
-    //                     info!("Got stdin of child process");
-    //                     Some(stdin)
-    //                 }
-    //                 None => {
-    //                     info!("Failed to open stdin of gnark wrapper. Retrying...");
-    //                     std::thread::sleep(std::time::Duration::from_secs(1));
-    //                     None
-    //                 }
-    //             };
-    //         }
-
-    //         let stdin = stdin_opt.unwrap();
-    //         stdin
-    //             .write_all(b"wrapped\n")
-    //             .expect("Failed to write to stdin");
-    //         let verifier_output = gnark_wrapper_process
-    //             .wait_with_output()
-    //             .expect("failed to execute process");
-
-    //         if !verifier_output.status.success() {
-    //             panic!("verifier failed");
-    //         }
-
-    //         // Read result from gnark verifier.
-    //         let file = std::fs::File::open("proof.json").unwrap();
-    //         let rdr = std::io::BufReader::new(file);
-    //         let result_data =
-    //             serde_json::from_reader::<BufReader<File>, BytesResultData>(rdr).unwrap();
-
-    //         // Write full result with output bytes to output.json.
-    //         let result: ProofResult<OuterParameters, D> =
-    //             ProofResult::from_bytes(result_data.proof, output_bytes);
-    //         let json = serde_json::to_string_pretty(&result).unwrap();
-    //         info!("output.json:\n{}", json);
-    //         let mut file = File::create("output.json").unwrap();
-    //         file.write_all(json.as_bytes()).unwrap();
-    //         info!("Successfully saved full result to disk at output.json.");
-    //     } else {
-    //         let result = ProofResult::from_proof_output(proof, output);
-    //         let json = serde_json::to_string_pretty(&result).unwrap();
-    //         let mut file = File::create("output.json").unwrap();
-    //         file.write_all(json.as_bytes()).unwrap();
-    //         info!("Successfully saved proof to disk at output.json.");
-    //     }
-    // }
-
     fn prove<
         InnerParameters: PlonkParameters<D>,
         OuterParameters: PlonkParameters<D, Field = InnerParameters::Field>,
@@ -320,16 +184,18 @@ impl<C: Circuit> Plonky2xFunction for C {
 
         if !args.wrapper_path.is_empty() {
             // Construct the command to execute the wrapper_circuit
-            let child_process = std::process::Command::new(&args.wrapper_path)
-                .arg("-prove")
-                .arg("-data")
-                .arg(path::Path::new(&args.wrapper_path))
-                .arg("-circuit")
-                .arg(circuit_path)
-                .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit())
-                .spawn()
-                .expect("Failed to start gnark wrapper process");
+            let child_process =
+                std::process::Command::new(path::Path::new(&args.wrapper_path).join("verifier"))
+                    .arg("-prove")
+                    .arg("-data")
+                    .arg(path::Path::new(&args.wrapper_path))
+                    .arg("-circuit")
+                    .arg(circuit_path)
+                    .stdout(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::inherit())
+                    .stdin(std::process::Stdio::piped())
+                    .spawn()
+                    .expect("Failed to start gnark wrapper process");
 
             // Wait for the wrapper_circuit process to complete
             let output = child_process
