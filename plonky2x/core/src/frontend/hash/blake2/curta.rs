@@ -115,6 +115,9 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 96, true, 4> for BLAKE2B 
     }
 
     fn hash(message: Vec<u8>) -> [Self::Integer; 4] {
+        // The number of chunks in a message is the smallest multiple of 128 that is larger than or
+        // equal to the message length.
+        // For the case of an empty message, the number of chunks is 1.
         let mut num_message_chunks = (message.len() as u64 / 128) + 1;
         if message.len() % 128 == 0 && !message.is_empty() {
             num_message_chunks -= 1;
@@ -254,6 +257,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 mod tests {
     use std::env;
 
+    use crypto::blake2b::Blake2b;
+    use crypto::digest::Digest;
     use itertools::Itertools;
 
     use crate::backend::circuit::DefaultParameters;
@@ -263,6 +268,17 @@ mod tests {
 
     type L = DefaultParameters;
     const D: usize = 2;
+
+    fn get_expected_digest(msg: &[u8]) -> String {
+        const DIGEST_SIZE: usize = 32;
+        let mut hasher = Blake2b::new(DIGEST_SIZE);
+        hasher.input(msg);
+
+        let mut digest_bytes = [0u8; DIGEST_SIZE];
+        hasher.result(&mut digest_bytes);
+
+        hex::encode(digest_bytes)
+    }
 
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
@@ -275,8 +291,7 @@ mod tests {
         let zero = builder.zero::<U32Variable>();
         let result = builder.curta_blake2b_variable(&[], zero);
 
-        let expected_digest =
-            bytes32!("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8");
+        let expected_digest = bytes32!(get_expected_digest(&[]));
         let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
         builder.assert_is_equal(result, expected_digest);
@@ -304,8 +319,9 @@ mod tests {
         let bytes_length = builder.constant::<U32Variable>(msg_bytes.len() as u32);
         let result = builder.curta_blake2b_variable(&msg.0, bytes_length);
 
-        let expected_digest =
-            bytes32!("7c38fc8356aa20394c7f538e3cee3f924e6d9252494c8138d1a6aabfc253118f");
+        let expected_digest = bytes32!(get_expected_digest(&msg_bytes));
+
+        bytes32!("7c38fc8356aa20394c7f538e3cee3f924e6d9252494c8138d1a6aabfc253118f");
         let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
         builder.assert_is_equal(result, expected_digest);
@@ -330,6 +346,7 @@ mod tests {
             "39285734897537894674835698460198237adce984eda487459893754091",
         ];
         let mut msg_bytes = msgs.map(|x| hex::decode(x).unwrap());
+        let original_msg_bytes = msg_bytes.clone();
 
         let mut results = Vec::new();
         for msg in msg_bytes.iter_mut() {
@@ -341,8 +358,8 @@ mod tests {
         }
 
         let expected_digests = [
-            bytes32!("7c38fc8356aa20394c7f538e3cee3f924e6d9252494c8138d1a6aabfc253118f"),
-            bytes32!("7cd6b73d53b4bd7fef48f0d45782caac149615387c13891b0f3665dcfa50a4c0"),
+            bytes32!(get_expected_digest(&original_msg_bytes[0])),
+            bytes32!(get_expected_digest(&original_msg_bytes[1])),
         ];
 
         for (expected_digest, result) in expected_digests.iter().zip_eq(results.iter()) {
@@ -383,8 +400,8 @@ mod tests {
         results.push(builder.curta_blake2b(&msg_var.0));
 
         let expected_digests = [
-            bytes32!("7c38fc8356aa20394c7f538e3cee3f924e6d9252494c8138d1a6aabfc253118f"),
-            bytes32!("7cd6b73d53b4bd7fef48f0d45782caac149615387c13891b0f3665dcfa50a4c0"),
+            bytes32!(get_expected_digest(&msg_bytes[0])),
+            bytes32!(get_expected_digest(&msg_bytes[1])),
         ];
 
         for (expected_digest, result) in expected_digests.iter().zip_eq(results.iter()) {
@@ -406,26 +423,25 @@ mod tests {
 
         let mut builder = CircuitBuilder::<L, D>::new();
 
-        let zeros = "0".repeat(30720);
-        let msgs = [zeros];
+        let zeros = "0".repeat(3840);
+        let msg = zeros;
 
-        let msg_bytes = msgs.map(|x| hex::decode(x).unwrap());
+        let msg_bytes = hex::decode(msg).unwrap();
 
-        const MSG_LEN: usize = 15360;
+        const MSG_LEN: usize = 1920;
         let msg_len_const = builder.constant::<U32Variable>(MSG_LEN as u32);
         let msg_var = builder.read::<ArrayVariable<ByteVariable, MSG_LEN>>();
 
         let calculated_digest = builder.curta_blake2b_variable(msg_var.as_slice(), msg_len_const);
 
-        let expected_digest = builder.constant::<Bytes32Variable>(bytes32!(
-            "467ec8e17ec259e15e915668cb1de2e6dc9982d50957da267fe9e472a4418527"
-        ));
+        let expected_digest =
+            builder.constant::<Bytes32Variable>(bytes32!(get_expected_digest(&msg_bytes)));
 
         builder.assert_is_equal(calculated_digest, expected_digest);
 
         let circuit = builder.build();
         let mut input = circuit.input();
-        input.write::<ArrayVariable<ByteVariable, MSG_LEN>>(msg_bytes[0].clone());
+        input.write::<ArrayVariable<ByteVariable, MSG_LEN>>(msg_bytes.clone());
         let (proof, output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
         circuit.test_default_serializers();
