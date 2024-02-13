@@ -60,6 +60,15 @@ func (s *Groth16System) Compile() error {
 func (s *Groth16System) Prove() error {
 	s.logger.Info().Msg("starting prove -- loading verifier circuit and proving key")
 
+	r1cs, err := s.LoadCircuit()
+	if err != nil {
+		return errors.Wrap(err, "load the verifier circuit")
+	}
+	pk, err := s.LoadProvingKey()
+	if err != nil {
+		return errors.Wrap(err, "load the proving key")
+	}
+
 	// If the circuitPath is "" and not provided as part of the CLI flags, then we wait
 	// for user input.
 	if s.circuitPath == "" {
@@ -74,17 +83,7 @@ func (s *Groth16System) Prove() error {
 		s.circuitPath = trimmed
 	}
 
-	r1cs, err := s.LoadCircuit()
-	if err != nil {
-		return errors.Wrap(err, "load the verifier circuit")
-	}
-	pk, err := s.LoadProvingKey()
-	if err != nil {
-		return errors.Wrap(err, "load the proving key")
-	}
-
 	s.logger.Info().Msgf("generating proof with circuit path %v and proving key %v", s.circuitPath, pk)
-
 	proof, publicWitness, err := s.ProveCircuit(r1cs, pk)
 	if err != nil {
 		return errors.Wrap(err, "create proof")
