@@ -72,9 +72,23 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 96, true, 4> for BLAKE2B 
     fn pad_circuit_variable_length(
         builder: &mut CircuitBuilder<L, D>,
         input: &[ByteVariable],
-        _: U32Variable,
+        length: U32Variable,
     ) -> Vec<Self::IntVariable> {
-        Self::pad_circuit(builder, input)
+        let mut padded_input = Vec::new();
+
+        let mut add_padding = builder._false();
+        let zero = builder.zero();
+
+        for idx in 0..input.len() {
+            let idx_var = builder.constant::<U32Variable>(idx as u32);
+
+            let at_length = builder.is_equal(idx_var, length);
+            add_padding = builder.or(add_padding, at_length);
+
+            padded_input.push(builder.select(add_padding, zero, input[idx]));
+        }
+
+        Self::pad_circuit(builder, &padded_input)
     }
 
     fn value_to_variable(
@@ -391,7 +405,6 @@ mod tests {
         circuit.test_default_serializers();
     }
 
-    // TODO: This test fails with curta_blake2b_variable.
     #[test]
     #[cfg_attr(feature = "ci", ignore)]
     fn test_blake2b_diff_sizes() {
@@ -404,15 +417,12 @@ mod tests {
         let mut rng = rand::thread_rng();
         let msg_bytes: Vec<u8> = (0..256).map(|_| rng.gen()).collect();
 
-        println!("msg_bytes.len() = {}", msg_bytes.len());
         let msg_var = builder.constant::<BytesVariable<256>>(msg_bytes.clone().try_into().unwrap());
 
-        // TODO: Change back to 1..256
-        for i in 1..2 {
+        for i in 1..256 {
             let msg = &msg_bytes.clone()[0..i];
             let msg_len = builder.constant::<U32Variable>(msg.len() as u32);
-            builder.watch(&msg_len, "msg_len");
-            // TODO: curta_blake2b_variable is failing.
+
             let variable_result = builder.curta_blake2b_variable(&msg_var.0, msg_len);
 
             let fixed_result = builder.curta_blake2b(&msg_var[0..i]);
@@ -420,7 +430,7 @@ mod tests {
             let expected_digest = bytes32!(get_expected_digest(msg));
             let expected_digest = builder.constant::<Bytes32Variable>(expected_digest);
 
-            // builder.assert_is_equal(variable_result, expected_digest);
+            builder.assert_is_equal(variable_result, expected_digest);
             builder.assert_is_equal(fixed_result, expected_digest);
         }
 
