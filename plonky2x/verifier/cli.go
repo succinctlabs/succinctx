@@ -33,8 +33,8 @@ func main() {
 		logger.Error().Msg("please specify a path to data dir (where the compiled gnark circuit data will be)")
 		os.Exit(1)
 	}
-	logger.Info().Msg("Circuit path: " + *circuitPath)
-	logger.Info().Msg("Data path: " + *dataPath)
+	logger.Debug().Msg("Circuit path: " + *circuitPath)
+	logger.Debug().Msg("Data path: " + *dataPath)
 
 	var s system.ProvingSystem
 	if *systemFlag == "groth16" {
