@@ -46,7 +46,10 @@ impl<L: PlonkParameters<D>, const D: usize> Hash<L, D, 96, true, 4> for BLAKE2B 
         builder: &mut CircuitBuilder<L, D>,
         input: &[ByteVariable],
     ) -> Vec<Self::IntVariable> {
-        let num_pad_bytes = 128 - (input.len() % 128);
+        let mut num_pad_bytes = 128 - (input.len() % 128);
+        if input.len() % 128 == 0 && !input.is_empty() {
+            num_pad_bytes = 0;
+        }
 
         let mut padded_message = Vec::new();
         padded_message.extend_from_slice(input);
