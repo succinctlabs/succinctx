@@ -152,10 +152,12 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         input: &[ByteVariable],
         length: U32Variable,
     ) -> BytesVariable<64> {
+        let true_v = self._true();
         // Check that length <= input.len(). This is needed to ensure that users cannot prove the
         // hash of a longer message than they supplied.
         let supplied_input_length = self.constant::<U32Variable>(input.len() as u32);
-        self.lte(length, supplied_input_length);
+        let is_length_valid = self.lte(length, supplied_input_length);
+        self.assert_is_equal(is_length_valid, true_v);
 
         let last_chunk = self.compute_sha512_last_chunk(length);
 
@@ -403,6 +405,39 @@ mod tests {
             let digest = builder.curta_sha512_variable(&message, length);
             let expected_digest = builder.constant::<BytesVariable<64>>(expected_digest);
             builder.assert_is_equal(digest, expected_digest);
+        }
+
+        let circuit = builder.build();
+        let input = circuit.input();
+        let (proof, output) = circuit.prove(&input);
+        circuit.verify(&proof, &input, &output);
+    }
+
+    #[test]
+    #[cfg_attr(feature = "ci", ignore)]
+    fn test_sha512_diff_sizes() {
+        // Confirm that Curta SHA512 works for all sizes from 0 to 256 bytes.
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let mut builder = DefaultBuilder::new();
+
+        // Generate random Vec of <u8> of size 256 bytes.
+        let mut rng = rand::thread_rng();
+        let msg_bytes: Vec<u8> = (0..256).map(|_| rng.gen()).collect();
+
+        let msg_var = builder.constant::<BytesVariable<256>>(msg_bytes.clone().try_into().unwrap());
+
+        for i in 1..256 {
+            let msg = &msg_bytes.clone()[0..i];
+            let msg_len = builder.constant::<U32Variable>(msg.len() as u32);
+
+            let variable_result = builder.curta_sha512_variable(&msg_var.0, msg_len);
+            let fixed_result = builder.curta_sha512(&msg_var[0..i]);
+
+            let expected_digest = builder.constant::<BytesVariable<64>>(sha512(msg));
+
+            builder.assert_is_equal(variable_result, expected_digest);
+            builder.assert_is_equal(fixed_result, expected_digest);
         }
 
         let circuit = builder.build();

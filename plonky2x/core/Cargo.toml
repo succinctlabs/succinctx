@@ -55,3 +55,4 @@ plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", rev = "d2598bd"
     "gate_testing",
 ] }
 env_logger = "0.10.0"
+rust-crypto = "0.2"
