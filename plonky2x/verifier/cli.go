@@ -20,6 +20,7 @@ func main() {
 	compileFlag := flag.Bool("compile", false, "compile and save the universal verifier circuit")
 	exportFlag := flag.Bool("export", false, "export the Solidity verifier")
 	systemFlag := flag.String("system", "groth16", "proving system to use (groth16, plonk)")
+	contractFlag := flag.Bool("contract", true, "Generate solidity contract")
 	flag.Parse()
 
 	logger := logger.Logger()
@@ -65,7 +66,7 @@ func main() {
 		}
 	}
 
-	if *exportFlag {
+	if *exportFlag || *contractFlag {
 		err := s.Export()
 		if err != nil {
 			logger.Error().Msg("failed to export verifier:" + err.Error())

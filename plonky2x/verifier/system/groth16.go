@@ -82,12 +82,12 @@ func (s *Groth16System) Prove() error {
 		return errors.Wrap(err, "load the proving key")
 	}
 
-	_, _, err = s.ProveCircuit(r1cs, pk)
+	proof, publicWitness, err = s.ProveCircuit(r1cs, pk)
 	if err != nil {
 		return errors.Wrap(err, "create proof")
 	}
 
-	s.logger.Info().Msg("successfully created proof")
+	s.logger.Info().Msgf("successfully created proof: %+v, publicWitness: %+v", proof, publicWitness)
 
 	return nil
 }
