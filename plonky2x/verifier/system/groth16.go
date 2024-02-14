@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math/big"
 	"os"
@@ -268,13 +269,23 @@ func (s *Groth16System) ProveCircuit(r1cs constraint.ConstraintSystem, pk groth1
 
 	const fpSize = 4 * 8
 
-	// read in proof.json and extract the proof bytes
 	proofBytes := _proof.Ar.Marshal()
 
+	// Ensure proofBytes contains enough data for the expected operation
+	expectedLength := fpSize * 8
+	if len(proofBytes) < expectedLength {
+		return nil, nil, fmt.Errorf("proofBytes length is %d, expected at least %d", len(proofBytes), expectedLength)
+	}
+
 	proofs := make([]string, 8)
-	// Print out the proof
 	for i := 0; i < 8; i++ {
-		proofs[i] = "0x" + hex.EncodeToString(proofBytes[i*fpSize:(i+1)*fpSize])
+		start := i * fpSize
+		end := (i + 1) * fpSize
+		// Additional check to prevent slice bounds out of range panic
+		if end > len(proofBytes) {
+			return nil, nil, fmt.Errorf("attempt to slice beyond proofBytes length at segment %d", i)
+		}
+		proofs[i] = "0x" + hex.EncodeToString(proofBytes[start:end])
 	}
 
 	publicWitness, _ := witness.Public()
