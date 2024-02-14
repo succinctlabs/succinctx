@@ -3,7 +3,7 @@ pub mod request;
 pub mod result;
 
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufReader, Write};
 use std::{fs, path};
 
 use clap::Parser;
