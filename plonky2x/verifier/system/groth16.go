@@ -269,10 +269,7 @@ func (s *Groth16System) ProveCircuit(r1cs constraint.ConstraintSystem, pk groth1
 	const fpSize = 4 * 8
 
 	// read in proof.json and extract the proof bytes
-	proofBytes, err := os.ReadFile("proof.json")
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "read proof file")
-	}
+	proofBytes := _proof.Ar.Marshal()
 
 	proofs := make([]string, 8)
 	// Print out the proof
