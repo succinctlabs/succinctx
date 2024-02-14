@@ -83,6 +83,7 @@ func (s *PlonkSystem) Prove() error {
 		s.circuitPath = trimmed
 	}
 
+	s.logger.Info().Msgf("generating proof with circuit path %v", s.circuitPath)
 	_, _, err = s.ProveCircuit(r1cs, pk)
 	if err != nil {
 		return errors.Wrap(err, "create proof")
