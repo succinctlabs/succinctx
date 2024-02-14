@@ -4,7 +4,6 @@
 package system
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
@@ -16,8 +15,10 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/frontend/cs/r1cs"
+	"github.com/consensys/gnark/logger"
 	"github.com/consensys/gnark/std/rangecheck"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type MyCircuit struct {
@@ -42,36 +43,33 @@ type Groth16ProofData struct {
 }
 
 func TestGroth16(t *testing.T) {
+	os.Setenv("USE_BIT_DECOMPOSITION_RANGE_CHECK", "true")
 
-	circuit := MyCircuit{DoRangeCheck: false}
+	logger := logger.Logger()
+	s := NewGroth16System(logger, "../data/dummy", "../verifier-build")
 
-	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
-	if err != nil {
-		panic(err)
-	}
-	pk, vk, err := groth16.Setup(r1cs)
-	if err != nil {
-		panic(err)
-	}
+	r1cs, err := s.LoadCircuit()
+	assert.Nil(t, err)
+	pk, err := s.LoadProvingKey()
+	assert.Nil(t, err)
+	// buf := new(bytes.Buffer)
+	// err = vk.ExportSolidity(buf)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// content := buf.String()
 
-	buf := new(bytes.Buffer)
-	err = vk.ExportSolidity(buf)
-	if err != nil {
-		panic(err)
-	}
-	content := buf.String()
-
-	contractFile, err := os.Create("VerifierGroth16.sol")
-	if err != nil {
-		panic(err)
-	}
-	w := bufio.NewWriter(contractFile)
-	// write the new content to the writer
-	_, err = w.Write([]byte(content))
-	if err != nil {
-		panic(err)
-	}
-	contractFile.Close()
+	// contractFile, err := os.Create("VerifierGroth16.sol")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// w := bufio.NewWriter(contractFile)
+	// // write the new content to the writer
+	// _, err = w.Write([]byte(content))
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// contractFile.Close()
 
 	assignment := MyCircuit{
 		X: 1,
@@ -79,11 +77,13 @@ func TestGroth16(t *testing.T) {
 		Z: 3,
 	}
 
-	witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
-	proof, _ := groth16.Prove(r1cs, pk, witness)
+	witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
+	assert.Nil(t, err)
+	proof, err := groth16.Prove(r1cs, pk, witness)
+	assert.Nil(t, err)
 
 	const fpSize = 4 * 8
-	buf = new(bytes.Buffer)
+	buf := new(bytes.Buffer)
 	proof.WriteRawTo(buf)
 	proofBytes := buf.Bytes()
 
