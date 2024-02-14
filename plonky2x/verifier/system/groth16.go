@@ -3,6 +3,7 @@ package system
 import (
 	"bufio"
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"math/big"
@@ -265,13 +266,26 @@ func (s *Groth16System) ProveCircuit(r1cs constraint.ConstraintSystem, pk groth1
 	}
 	s.logger.Info().Msg("Successfully saved proof")
 
+	publicWitness, _ := witness.Public()
+	publicWitnessBytes, _ := publicWitness.MarshalBinary()
+	publicWitnessBytes = publicWitnessBytes[12:] // We cut off the first 12 bytes because they encode length information
+
+	inputs := make([]string, 3)
+	const fpSize = 4 * 8
+	// Print out the public witness bytes
+	for i := 0; i < 3; i++ {
+		inputs[i] = "0x" + hex.EncodeToString(publicWitnessBytes[i*fpSize:(i+1)*fpSize])
+	}
+
 	// Write proof with all the public inputs and save to disk.
 	jsonProofWithWitness, err := json.Marshal(struct {
+		Input          []string      `json:"input"`
 		InputHash      hexutil.Bytes `json:"input_hash"`
 		OutputHash     hexutil.Bytes `json:"output_hash"`
 		VerifierDigest hexutil.Bytes `json:"verifier_digest"`
 		Proof          hexutil.Bytes `json:"proof"`
 	}{
+		Input:          inputs,
 		InputHash:      inputHash.Bytes(),
 		OutputHash:     outputHash.Bytes(),
 		VerifierDigest: (verifierOnlyCircuitData.CircuitDigest).(*big.Int).Bytes(),
@@ -290,7 +304,7 @@ func (s *Groth16System) ProveCircuit(r1cs constraint.ConstraintSystem, pk groth1
 	}
 	s.logger.Info().Msg("Successfully saved proof_with_witness to proof_with_witness.json")
 
-	publicWitness, err := witness.Public()
+	publicWitness, err = witness.Public()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "get public witness")
 	}
