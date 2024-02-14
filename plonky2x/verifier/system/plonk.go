@@ -61,6 +61,15 @@ func (s *PlonkSystem) Compile() error {
 func (s *PlonkSystem) Prove() error {
 	s.logger.Info().Msg("starting prove -- loading verifier circuit and proving key")
 
+	r1cs, err := s.LoadCircuit()
+	if err != nil {
+		return errors.Wrap(err, "load the verifier circuit")
+	}
+	pk, err := s.LoadProvingKey()
+	if err != nil {
+		return errors.Wrap(err, "load the proving key")
+	}
+
 	// If the circuitPath is "" and not provided as part of the CLI flags, then we wait
 	// for user input.
 	if s.circuitPath == "" {
@@ -72,15 +81,6 @@ func (s *PlonkSystem) Prove() error {
 		}
 		trimmed := strings.TrimSuffix(str, "\n")
 		s.circuitPath = trimmed
-	}
-
-	r1cs, err := s.LoadCircuit()
-	if err != nil {
-		return errors.Wrap(err, "load the verifier circuit")
-	}
-	pk, err := s.LoadProvingKey()
-	if err != nil {
-		return errors.Wrap(err, "load the proving key")
 	}
 
 	_, _, err = s.ProveCircuit(r1cs, pk)
