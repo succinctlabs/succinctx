@@ -266,12 +266,25 @@ func (s *Groth16System) ProveCircuit(r1cs constraint.ConstraintSystem, pk groth1
 	}
 	s.logger.Info().Msg("Successfully saved proof")
 
+	const fpSize = 4 * 8
+
+	// read in proof.json and extract the proof bytes
+	proofBytes, err := os.ReadFile("proof.json")
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "read proof file")
+	}
+
+	proofs := make([]string, 8)
+	// Print out the proof
+	for i := 0; i < 8; i++ {
+		proofs[i] = "0x" + hex.EncodeToString(proofBytes[i*fpSize:(i+1)*fpSize])
+	}
+
 	publicWitness, _ := witness.Public()
 	publicWitnessBytes, _ := publicWitness.MarshalBinary()
 	publicWitnessBytes = publicWitnessBytes[12:] // We cut off the first 12 bytes because they encode length information
 
 	inputs := make([]string, 3)
-	const fpSize = 4 * 8
 	// Print out the public witness bytes
 	for i := 0; i < 3; i++ {
 		inputs[i] = "0x" + hex.EncodeToString(publicWitnessBytes[i*fpSize:(i+1)*fpSize])
@@ -279,13 +292,15 @@ func (s *Groth16System) ProveCircuit(r1cs constraint.ConstraintSystem, pk groth1
 
 	// Write proof with all the public inputs and save to disk.
 	jsonProofWithWitness, err := json.Marshal(struct {
-		Input          []string      `json:"input"`
+		Inputs         []string      `json:"inputs"`
+		Proofs         []string      `json:"proofs"`
 		InputHash      hexutil.Bytes `json:"input_hash"`
 		OutputHash     hexutil.Bytes `json:"output_hash"`
 		VerifierDigest hexutil.Bytes `json:"verifier_digest"`
 		Proof          hexutil.Bytes `json:"proof"`
 	}{
-		Input:          inputs,
+		Inputs:         inputs,
+		Proofs:         proofs,
 		InputHash:      inputHash.Bytes(),
 		OutputHash:     outputHash.Bytes(),
 		VerifierDigest: (verifierOnlyCircuitData.CircuitDigest).(*big.Int).Bytes(),
