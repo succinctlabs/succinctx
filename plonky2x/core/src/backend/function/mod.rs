@@ -187,7 +187,7 @@ impl<C: Circuit> Plonky2xFunction for C {
                     .arg("-data")
                     .arg(path::Path::new(&args.wrapper_path))
                     .arg("-circuit")
-                    .arg(format!("{}/", args.build_dir))
+                    .arg(&args.build_dir)
                     .stdout(std::process::Stdio::inherit())
                     .stderr(std::process::Stdio::inherit())
                     .stdin(std::process::Stdio::piped())
