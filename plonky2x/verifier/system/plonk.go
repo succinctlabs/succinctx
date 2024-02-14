@@ -275,7 +275,7 @@ func (s *PlonkSystem) ProveCircuit(r1cs constraint.ConstraintSystem, pk plonk.Pr
 		InputHash:      inputHash.Bytes(),
 		OutputHash:     outputHash.Bytes(),
 		VerifierDigest: (verifierOnlyCircuitData.CircuitDigest).(*big.Int).Bytes(),
-		Proof:          _proof.Ar.Marshal(),
+		Proof:          _proof.MarshalSolidity(),
 	})
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "marshal proof with witness")
