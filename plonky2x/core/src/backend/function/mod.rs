@@ -176,11 +176,8 @@ impl<C: Circuit> Plonky2xFunction for C {
 
         // Generate the proof for the loaded circuit
         let input = request.input();
-        let (proof, output) = circuit.prove(&input);
-        info!(
-            "Successfully generated proof: {:?} output: {:?}",
-            proof, output
-        );
+        let (_, _) = circuit.prove(&input);
+        info!("Successfully generated proof");
 
         if !args.wrapper_path.is_empty() {
             // Construct the command to execute the wrapper_circuit
