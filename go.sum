@@ -22,6 +22,8 @@ github.com/consensys/gnark v0.9.1 h1:aTwBp5469MY/2jNrf4ABrqHRW3+JytfkADdw4ZBY7T0
 github.com/consensys/gnark v0.9.1/go.mod h1:udWvWGXnfBE7mn7BsNoGAvZDnUhcONBEtNijvVjfY80=
 github.com/consensys/gnark-crypto v0.12.2-0.20231013160410-1f65e75b6dfb h1:f0BMgIjhZy4lSRHCXFbQst85f5agZAjtDMixQqBWNpc=
 github.com/consensys/gnark-crypto v0.12.2-0.20231013160410-1f65e75b6dfb/go.mod h1:v2Gy7L/4ZRosZ7Ivs+9SfUDr0f5UlG+EM5t7MPHiLuY=
+github.com/consensys/gnark-ignition-verifier v0.0.0-20230527014722-10693546ab33 h1:z42ewLaLxoTYeQ17arcF4WExZc/eSaN3YVlF7eEaPt4=
+github.com/consensys/gnark-ignition-verifier v0.0.0-20230527014722-10693546ab33/go.mod h1:JdKor28c/KR4BbznP88bz8AAvnCgovzrB3KWsiR7lwk=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -94,8 +96,8 @@ github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible/go
 github.com/status-im/keycard-go v0.2.0 h1:QDLFswOQu1r5jsycloeQh3bVU8n/NatHHaZobtDnDzA=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
-github.com/succinctlabs/gnark-plonky2-verifier v0.0.2 h1:wdRnIonINDQUd16LcX71RQxtm4tGMA/awydBYusmUwQ=
-github.com/succinctlabs/gnark-plonky2-verifier v0.0.2/go.mod h1:KfQWe59ELvPg+snt1C4YE7T7hm9Cdi1UYJIez3bWELQ=
+github.com/succinctlabs/gnark-plonky2-verifier v0.0.3 h1:hlciV1yXKJ8aJE1IOHp7Ptt2a53PWeig4Vam1g+JoT0=
+github.com/succinctlabs/gnark-plonky2-verifier v0.0.3/go.mod h1:c144MdRU1b0w/khA+lTrTFGcRHiKp1obwv8VGv/LQzI=
 github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 h1:epCh84lMvA70Z7CTTCmYQn2CKbY8j86K7/FAIr141uY=
 github.com/tklauser/go-sysconf v0.3.5 h1:uu3Xl4nkLzQfXNsWn15rPc/HQCJKObbt1dKJeWp3vU4=
 github.com/tklauser/go-sysconf v0.3.5/go.mod h1:MkWzOF4RMCshBAMXuhXJs64Rte09mITnppBXY/rYEFI=
