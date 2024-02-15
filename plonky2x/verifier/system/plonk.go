@@ -12,7 +12,7 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
-	plonk16Bn254 "github.com/consensys/gnark/backend/plonk/bn254"
+	plonk_bn254 "github.com/consensys/gnark/backend/plonk/bn254"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
@@ -246,7 +246,7 @@ func (s *PlonkSystem) ProveCircuit(r1cs constraint.ConstraintSystem, pk plonk.Pr
 	elapsed = time.Since(start)
 	s.logger.Info().Msg("Successfully created proof in " + elapsed.String())
 
-	_proof := proof.(*plonk16Bn254.Proof)
+	_proof := proof.(*plonk_bn254.Proof)
 	s.logger.Info().Msg("Saving proof to proof.json")
 	jsonProof, err := json.Marshal(ProofResult{
 		Output: []byte{},

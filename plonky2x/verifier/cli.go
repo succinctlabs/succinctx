@@ -19,7 +19,7 @@ func main() {
 	verifyFlag := flag.Bool("verify", false, "verify a proof")
 	compileFlag := flag.Bool("compile", false, "compile and save the universal verifier circuit")
 	exportFlag := flag.Bool("export", false, "export the Solidity verifier")
-	systemFlag := flag.String("system", "groth16", "proving system to use (groth16, plonk)")
+	systemFlag := flag.String("system", "plonk", "proving system to use (plonk, groth16)")
 	contractFlag := flag.Bool("contract", true, "Generate solidity contract")
 	flag.Parse()
 

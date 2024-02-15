@@ -3,13 +3,13 @@ module github.com/succinctlabs/succinctx
 go 1.20
 
 require (
-	github.com/consensys/gnark v0.9.0
-	github.com/consensys/gnark-crypto v0.11.2
+	github.com/consensys/gnark v0.9.1
+	github.com/consensys/gnark-crypto v0.12.2-0.20231013160410-1f65e75b6dfb
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.31.0
 	github.com/stretchr/testify v1.8.4
-	github.com/succinctlabs/gnark-plonky2-verifier v0.0.1
+	github.com/succinctlabs/gnark-plonky2-verifier v0.0.2
 )
 
 require (
