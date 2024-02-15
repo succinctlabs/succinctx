@@ -11,17 +11,18 @@ import (
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark-crypto/kzg"
 	"github.com/consensys/gnark/backend/plonk"
 	plonk_bn254 "github.com/consensys/gnark/backend/plonk/bn254"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/scs"
-	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 
+	"github.com/succinctlabs/gnark-plonky2-verifier/trusted_setup"
 	gnark_verifier_types "github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 )
@@ -161,13 +162,23 @@ func (s *PlonkSystem) CompileVerifierCircuit() (constraint.ConstraintSystem, plo
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "compile verifier circuit")
 	}
-
 	s.logger.Info().Msg("Successfully compiled verifier circuit")
-	start := time.Now()
-	srs, err := test.NewKZGSRS(scs)
-	if err != nil {
-		panic(err)
+
+	fileName := "srs_setup"
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		trusted_setup.DownloadAndSaveAztecIgnitionSrs(174, fileName)
 	}
+	fSRS, err := os.Open(fileName)
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(err, "open srs file")
+	}
+
+	var srs kzg.SRS = kzg.NewSRS(ecc.BN254)
+	_, err = srs.ReadFrom(fSRS)
+	fSRS.Close()
+	s.logger.Info().Msg("Successfully loaded SRS")
+
+	start := time.Now()
 	pk, vk, err := plonk.Setup(scs, srs)
 	if err != nil {
 		return nil, nil, nil, err
