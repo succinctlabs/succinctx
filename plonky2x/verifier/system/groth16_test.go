@@ -4,6 +4,7 @@
 package system
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
@@ -15,7 +16,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/logger"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/consensys/gnark/std/rangecheck"
 
 	"github.com/stretchr/testify/assert"
@@ -43,33 +44,34 @@ type Groth16ProofData struct {
 }
 
 func TestGroth16(t *testing.T) {
-	os.Setenv("USE_BIT_DECOMPOSITION_RANGE_CHECK", "true")
 
-	logger := logger.Logger()
-	s := NewGroth16System(logger, "../data/dummy", "../verifier-build")
+	range_check := true
 
-	r1cs, err := s.LoadCircuit()
-	assert.Nil(t, err)
-	pk, err := s.LoadProvingKey()
-	assert.Nil(t, err)
-	// buf := new(bytes.Buffer)
-	// err = vk.ExportSolidity(buf)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// content := buf.String()
+	circuit := MyCircuit{DoRangeCheck: range_check}
 
-	// contractFile, err := os.Create("VerifierGroth16.sol")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// w := bufio.NewWriter(contractFile)
-	// // write the new content to the writer
-	// _, err = w.Write([]byte(content))
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// contractFile.Close()
+	r1cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		panic(err)
+	}
+	pk, vk, err := groth16.Setup(r1cs)
+	buf := new(bytes.Buffer)
+	err = vk.ExportSolidity(buf)
+	if err != nil {
+		panic(err)
+	}
+	content := buf.String()
+	filename := "VerifierGroth16.sol"
+	contractFile, err := os.Create(filename)
+	if err != nil {
+		panic(err)
+	}
+	w := bufio.NewWriter(contractFile)
+	// write the new content to the writer
+	_, err = w.Write([]byte(content))
+	if err != nil {
+		panic(err)
+	}
+	contractFile.Close()
 
 	assignment := MyCircuit{
 		X: 1,

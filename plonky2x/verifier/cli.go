@@ -10,9 +10,6 @@ import (
 )
 
 func main() {
-	// https://github.com/succinctlabs/gnark-plonky2-verifier/blob/c01f530fe1d0107cc20da226cfec541ece9fb882/goldilocks/base.go#L131
-	os.Setenv("USE_BIT_DECOMPOSITION_RANGE_CHECK", "true")
-
 	circuitPath := flag.String("circuit", "", "circuit data directory")
 	dataPath := flag.String("data", "", "data directory")
 	proofFlag := flag.Bool("prove", false, "create a proof")
@@ -37,6 +34,8 @@ func main() {
 
 	var s system.ProvingSystem
 	if *systemFlag == "groth16" {
+		// https://github.com/succinctlabs/gnark-plonky2-verifier/blob/c01f530fe1d0107cc20da226cfec541ece9fb882/goldilocks/base.go#L131
+		os.Setenv("USE_BIT_DECOMPOSITION_RANGE_CHECK", "true")
 		s = system.NewGroth16System(logger, *circuitPath, *dataPath)
 	} else if *systemFlag == "plonk" {
 		s = system.NewPlonkSystem(logger, *circuitPath, *dataPath)
