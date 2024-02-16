@@ -7,7 +7,7 @@ require (
 	github.com/consensys/gnark-crypto v0.12.2-0.20231013160410-1f65e75b6dfb
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/stretchr/testify v1.8.4
-	github.com/succinctlabs/gnark-plonky2-verifier v0.0.0-20231013210054-89b5a01e4b4b
+	github.com/succinctlabs/gnark-plonky2-verifier v0.1.0
 )
 
 require (
@@ -16,6 +16,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
+	github.com/consensys/gnark-ignition-verifier v0.0.0-20230527014722-10693546ab33 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
