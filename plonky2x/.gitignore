@@ -2,3 +2,4 @@ verifier-build/
 core/wrapped/
 *tar.gz
 verifier-build-groth16/
+proof_with_witness.json

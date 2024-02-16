@@ -81,7 +81,6 @@ func (build *CircuitBuild) Export() {
 		fmt.Println("Failed to export solidity verifier:", err)
 		return
 	}
-
 }
 
 // ImportCircuitBuild imports the R1CS, proving key, and verifying key from files.

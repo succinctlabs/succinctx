@@ -1,4 +1,4 @@
-package main
+package system
 
 import (
 	"testing"
@@ -16,8 +16,8 @@ func TestPlonky2xVerifierCircuit(t *testing.T) {
 	assert := test.NewAssert(t)
 
 	testCase := func(option int64) error {
-		dummyCircuitPath := "./data/dummy"
-		circuitPath := "./data/test_circuit"
+		dummyCircuitPath := "../data/dummy"
+		circuitPath := "../data/test_circuit"
 
 		verifierOnlyCircuitDataDummy := variables.DeserializeVerifierOnlyCircuitData(
 			types.ReadVerifierOnlyCircuitData(dummyCircuitPath + "/verifier_only_circuit_data.json"),
@@ -27,7 +27,7 @@ func TestPlonky2xVerifierCircuit(t *testing.T) {
 		)
 		commonCircuitDataDummy := types.ReadCommonCircuitData(dummyCircuitPath + "/common_circuit_data.json")
 
-		circuit := Plonky2xVerifierCircuit{
+		circuit := VerifierCircuit{
 			ProofWithPis:      proofWithPisDummy,
 			VerifierData:      verifierOnlyCircuitDataDummy,
 			VerifierDigest:    frontend.Variable(0), // Can be empty for defining the circuit
@@ -44,7 +44,7 @@ func TestPlonky2xVerifierCircuit(t *testing.T) {
 
 		proofWithPisVariable := variables.DeserializeProofWithPublicInputs(proofWithPis)
 
-		witness := Plonky2xVerifierCircuit{
+		witness := VerifierCircuit{
 			ProofWithPis:   proofWithPisVariable,
 			VerifierData:   verifierOnlyCircuitData,
 			VerifierDigest: verifierOnlyCircuitData.CircuitDigest,
