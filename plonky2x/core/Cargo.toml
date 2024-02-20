@@ -14,7 +14,7 @@ ci = []
 
 [dependencies]
 plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", default-features = false, rev = "d2598bd" }
-starkyx = { git = "https://github.com/succinctlabs/starkyx.git", branch = "ratan/update-dalek" }
+starkyx = { git = "https://github.com/succinctlabs/starkyx.git" }
 plonky2x-derive = { path = "../derive" }
 
 num = { version = "0.4", default-features = false }

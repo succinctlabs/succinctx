@@ -3984,7 +3984,7 @@ dependencies = [
 [[package]]
 name = "starkyx"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/starkyx.git?branch=ratan/update-dalek#2c11ee2632618e20ff51d2a4e9d6907e20b44220"
+source = "git+https://github.com/succinctlabs/starkyx.git#b73a875cb81c8c3d84328b99dc56701bba9ae350"
 dependencies = [
  "anyhow",
  "bincode",
