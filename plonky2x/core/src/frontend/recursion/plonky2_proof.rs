@@ -3,7 +3,7 @@ use crate::frontend::recursion::fri::proof::FriProofVariable;
 use crate::frontend::recursion::hash::MerkleCapVariable;
 use crate::prelude::Variable;
 pub struct ProofWithPublicInputsVariable<const D: usize> {
-    proof: ProofVariable<D>, // Add missing generic argument
+    proof: ProofVariable<D>,
     public_inputs: Vec<Variable>,
 }
 
