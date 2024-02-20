@@ -3,16 +3,16 @@ use crate::frontend::recursion::fri::proof::FriProofVariable;
 use crate::frontend::recursion::hash::MerkleCapVariable;
 use crate::prelude::Variable;
 pub struct ProofWithPublicInputsVariable<const D: usize> {
-    proof: ProofVariable<D>,
-    public_inputs: Vec<Variable>,
+    pub proof: ProofVariable<D>,
+    pub public_inputs: Vec<Variable>,
 }
 
 pub struct ProofVariable<const D: usize> {
-    wires_cap: MerkleCapVariable,
-    plonk_zs_partial_products_cap: MerkleCapVariable,
-    quotient_polys_cap: MerkleCapVariable,
-    openings: OpeningSetVariable<D>,
-    opening_proof: FriProofVariable<D>,
+    pub wires_cap: MerkleCapVariable,
+    pub plonk_zs_partial_products_cap: MerkleCapVariable,
+    pub quotient_polys_cap: MerkleCapVariable,
+    pub openings: OpeningSetVariable<D>,
+    pub opening_proof: FriProofVariable<D>,
 }
 
 pub struct OpeningSetVariable<const D: usize> {
