@@ -21,8 +21,8 @@ contract DeployAndRegisterFunction is Script {
         // Create2 salt
         bytes32 salt = vm.envBytes32("CREATE2_SALT");
 
-        (bytes32 functionId,
-            address verifier) = SuccinctGateway(gateway).deployAndRegisterFunction(msg.sender, bytecode, salt);
+        (bytes32 functionId, address verifier) =
+            SuccinctGateway(gateway).deployAndRegisterFunction(msg.sender, bytecode, salt);
 
         console.log("Function ID: ");
         console.logBytes32(functionId);
