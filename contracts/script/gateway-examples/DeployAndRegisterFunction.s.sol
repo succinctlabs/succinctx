@@ -11,10 +11,10 @@ contract DeployAndRegisterFunction is Script {
     function run() external {
         vm.startBroadcast();
 
-        // Assuming `MyContract` is the contract for which you want the deployment bytecode
+        // Get the bytecode of the FunctionVerifier contract.
         bytes memory bytecode = type(FunctionVerifier).creationCode;
 
-        // Get Succinct Gateway address from arguments
+        // SuccinctGateway address
         address gateway = vm.envAddress("SUCCINCT_GATEWAY");
         console.logAddress(gateway);
 
