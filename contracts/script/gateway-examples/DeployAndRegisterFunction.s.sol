@@ -4,14 +4,15 @@ pragma solidity ^0.8.0;
 import "forge-std/Script.sol";
 import "forge-std/Vm.sol";
 import "forge-std/console.sol";
-import {FunctionVerifier} from "./DummyFunctionVerifier.sol";
 import {SuccinctGateway} from "../../src/SuccinctGateway.sol";
+
+// NOTE: Update FunctionVerifier to the verifier you want to deploy and register from the
+// Succinct platform.
+contract FunctionVerifier {
+}
 
 contract DeployAndRegisterFunction is Script {
     function run() external returns (bytes32, address) {
-        // NOTE: Update FunctionVerifier to the verifier you want to deploy and register from the
-        // Succinct platform.
-
         vm.startBroadcast();
 
         // Get the bytecode of the FunctionVerifier contract.
