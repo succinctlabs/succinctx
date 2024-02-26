@@ -19,14 +19,16 @@ contract DeployAndRegisterFunction is Script {
         bytes memory bytecode = type(FunctionVerifier).creationCode;
 
         // SuccinctGateway address
-        address gateway = vm.envAddress("SUCCINCT_GATEWAY");
-        console.logAddress(gateway);
+        address GATEWAY = vm.envAddress("SUCCINCT_GATEWAY");
+        console.logAddress(GATEWAY);
 
         // Create2 salt
-        bytes32 salt = vm.envBytes32("CREATE2_SALT");
+        bytes32 SALT = vm.envBytes32("CREATE2_SALT");
+
+        address OWNER = msg.sender;
 
         (bytes32 functionId, address verifier) =
-            SuccinctGateway(gateway).deployAndRegisterFunction(msg.sender, bytecode, salt);
+            SuccinctGateway(GATEWAY).deployAndRegisterFunction(OWNER, bytecode, SALT);
 
         return (functionId, verifier);
     }
