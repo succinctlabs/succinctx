@@ -4,11 +4,14 @@ pragma solidity ^0.8.0;
 import "forge-std/Script.sol";
 import "forge-std/Vm.sol";
 import "forge-std/console.sol";
-import {FunctionVerifier} from "./FunctionVerifier.sol";
+import {FunctionVerifier} from "./DummyFunctionVerifier.sol";
 import {SuccinctGateway} from "../../src/SuccinctGateway.sol";
 
 contract DeployAndRegisterFunction is Script {
-    function run() external {
+    function run() external returns (bytes32, address) {
+        // NOTE: Update FunctionVerifier to the verifier you want to deploy and register from the
+        // Succinct platform.
+
         vm.startBroadcast();
 
         // Get the bytecode of the FunctionVerifier contract.
@@ -24,9 +27,6 @@ contract DeployAndRegisterFunction is Script {
         (bytes32 functionId, address verifier) =
             SuccinctGateway(gateway).deployAndRegisterFunction(msg.sender, bytecode, salt);
 
-        console.log("Function ID: ");
-        console.logBytes32(functionId);
-        console.log("Verifier Address: ");
-        console.logAddress(verifier);
+        return (functionId, verifier);
     }
 }
