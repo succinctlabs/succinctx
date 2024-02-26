@@ -8,8 +8,7 @@ import {SuccinctGateway} from "../../src/SuccinctGateway.sol";
 
 // NOTE: Update FunctionVerifier to the verifier you want to deploy and register from the
 // Succinct platform.
-contract FunctionVerifier {
-}
+contract FunctionVerifier {}
 
 contract DeployAndRegisterFunction is Script {
     function run() external returns (bytes32, address) {
