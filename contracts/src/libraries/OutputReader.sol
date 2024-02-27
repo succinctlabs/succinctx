@@ -20,7 +20,7 @@ library OutputReader {
     {
         uint128 value;
         assembly {
-            value := mload(add(add(_output, 0x10), _offset))
+            value := mload(add(add(_output, 0x20), _offset))
         }
         return (_offset + 16, value);
     }
@@ -32,7 +32,7 @@ library OutputReader {
     {
         uint64 value;
         assembly {
-            value := mload(add(add(_output, 0x08), _offset))
+            value := mload(add(add(_output, 0x20), _offset))
         }
         return (_offset + 8, value);
     }
@@ -44,7 +44,7 @@ library OutputReader {
     {
         uint32 value;
         assembly {
-            value := mload(add(add(_output, 0x04), _offset))
+            value := mload(add(add(_output, 0x20), _offset))
         }
         return (_offset + 4, value);
     }
