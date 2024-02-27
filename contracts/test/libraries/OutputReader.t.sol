@@ -40,4 +40,35 @@ contract OutputReaderTest is Test {
         assertEq(offset, 64);
         assertEq(value2, 2);
     }
+
+    function test_ReadUint128() public {
+        bytes memory output = abi.encodePacked(uint128(1));
+        uint256 offset = 0;
+        uint128 value;
+        (offset, value) = OutputReader.readUint128(output, 0);
+        assertEq(offset, 16);
+        assertEq(value, 1);
+    }
+
+    function testFuzz_ReadUint128(uint128 v) public {
+        bytes memory output = abi.encodePacked(v);
+        uint256 offset = 0;
+        uint128 value;
+        (offset, value) = OutputReader.readUint128(output, 0);
+        assertEq(offset, 16);
+        assertEq(value, v);
+    }
+
+    function test_ReadUint128Multiple() public {
+        bytes memory output = abi.encodePacked(uint128(1), uint128(2));
+        uint256 offset = 0;
+        uint128 value1;
+        uint128 value2;
+        (offset, value1) = OutputReader.readUint128(output, 0);
+        assertEq(offset, 16);
+        assertEq(value1, 1);
+        (offset, value2) = OutputReader.readUint128(output, offset);
+        assertEq(offset, 32);
+        assertEq(value2, 2);
+    }
 }
