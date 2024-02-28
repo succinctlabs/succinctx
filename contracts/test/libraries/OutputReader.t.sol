@@ -75,71 +75,71 @@ contract OutputReaderTest is Test {
         assertEq(value2, 2);
     }
 
-    // function test_ReadUint64() public {
-    //     bytes memory output = abi.encodePacked(uint128(1));
-    //     console.logBytes(output);
-    //     uint256 offset = 0;
-    //     uint64 value;
-    //     (offset, value) = OutputReader.readUint64(output, 0);
-    //     console.log("offset", offset);
-    //     console.log("value", value);
-    //     assertEq(offset, 16);
-    //     assertEq(value, 1);
-    // }
+    function test_ReadUint64() public {
+        bytes memory output = abi.encodePacked(uint64(1));
+        console.logBytes(output);
+        uint256 offset = 0;
+        uint64 value;
+        (offset, value) = OutputReader.readUint64(output, 0);
+        console.log("offset", offset);
+        console.log("value", value);
+        assertEq(offset, 8);
+        assertEq(value, 1);
+    }
 
-    // function testFuzz_ReadUint64(uint128 v) public {
-    //     bytes memory output = abi.encodePacked(v);
-    //     uint256 offset = 0;
-    //     uint64 value;
-    //     (offset, value) = OutputReader.readUint64(output, 0);
-    //     assertEq(offset, 16);
-    //     assertEq(value, v);
-    // }
+    function testFuzz_ReadUint64(uint64 v) public {
+        bytes memory output = abi.encodePacked(v);
+        uint256 offset = 0;
+        uint64 value;
+        (offset, value) = OutputReader.readUint64(output, 0);
+        assertEq(offset, 8);
+        assertEq(value, v);
+    }
 
-    // function test_ReadUint64Multiple() public {
-    //     bytes memory output = abi.encodePacked(uint128(1), uint128(2));
-    //     uint256 offset = 0;
-    //     uint64 value1;
-    //     uint64 value2;
-    //     (offset, value1) = OutputReader.readUint64(output, 0);
-    //     assertEq(offset, 16);
-    //     assertEq(value1, 1);
-    //     (offset, value2) = OutputReader.readUint64(output, offset);
-    //     assertEq(offset, 32);
-    //     assertEq(value2, 2);
-    // }
+    function test_ReadUint64Multiple() public {
+        bytes memory output = abi.encodePacked(uint64(1), uint64(2));
+        uint256 offset = 0;
+        uint64 value1;
+        uint64 value2;
+        (offset, value1) = OutputReader.readUint64(output, 0);
+        assertEq(offset, 8);
+        assertEq(value1, 1);
+        (offset, value2) = OutputReader.readUint64(output, offset);
+        assertEq(offset, 16);
+        assertEq(value2, 2);
+    }
 
-    // function test_ReadUint32() public {
-    //     bytes memory output = abi.encodePacked(uint128(1));
-    //     console.logBytes(output);
-    //     uint256 offset = 0;
-    //     uint32 value;
-    //     (offset, value) = OutputReader.readUint32(output, 0);
-    //     console.log("offset", offset);
-    //     console.log("value", value);
-    //     assertEq(offset, 16);
-    //     assertEq(value, 1);
-    // }
+    function test_ReadUint32() public {
+        bytes memory output = abi.encodePacked(uint32(1));
+        console.logBytes(output);
+        uint256 offset = 0;
+        uint32 value;
+        (offset, value) = OutputReader.readUint32(output, 0);
+        console.log("offset", offset);
+        console.log("value", value);
+        assertEq(offset, 4);
+        assertEq(value, 1);
+    }
 
-    // function testFuzz_ReadUint32(uint128 v) public {
-    //     bytes memory output = abi.encodePacked(v);
-    //     uint256 offset = 0;
-    //     uint32 value;
-    //     (offset, value) = OutputReader.readUint32(output, 0);
-    //     assertEq(offset, 16);
-    //     assertEq(value, v);
-    // }
+    function testFuzz_ReadUint32(uint32 v) public {
+        bytes memory output = abi.encodePacked(v);
+        uint256 offset = 0;
+        uint32 value;
+        (offset, value) = OutputReader.readUint32(output, 0);
+        assertEq(offset, 4);
+        assertEq(value, v);
+    }
 
-    // function test_ReadUint32Multiple() public {
-    //     bytes memory output = abi.encodePacked(uint32(1), uint32(2));
-    //     uint256 offset = 0;
-    //     uint32 value1;
-    //     uint32 value2;
-    //     (offset, value1) = OutputReader.readUint32(output, 0);
-    //     assertEq(offset, 16);
-    //     assertEq(value1, 1);
-    //     (offset, value2) = OutputReader.readUint32(output, offset);
-    //     assertEq(offset, 32);
-    //     assertEq(value2, 2);
-    // }
+    function test_ReadUint32Multiple() public {
+        bytes memory output = abi.encodePacked(uint32(1), uint32(2));
+        uint256 offset = 0;
+        uint32 value1;
+        uint32 value2;
+        (offset, value1) = OutputReader.readUint32(output, 0);
+        assertEq(offset, 4);
+        assertEq(value1, 1);
+        (offset, value2) = OutputReader.readUint32(output, offset);
+        assertEq(offset, 8);
+        assertEq(value2, 2);
+    }
 }
