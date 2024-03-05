@@ -1,10 +1,7 @@
 use alloc::sync::Arc;
-use std::convert::TryFrom;
 
 use anyhow::Result;
 use ethers::prelude::*;
-use ethers::providers::{Http, Middleware, Provider};
-use ethers::types::{Address, H256, U256};
 use ethers::utils::keccak256;
 use log::info;
 

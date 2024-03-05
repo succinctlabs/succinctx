@@ -81,7 +81,7 @@ mod test {
     use ethers::types::U64;
 
     use super::*;
-    use crate::prelude::{CircuitBuilder, DefaultParameters, PlonkParameters};
+    use crate::prelude::DefaultParameters;
     use crate::utils::eth::beacon::BeaconClient;
 
     type L = DefaultParameters;

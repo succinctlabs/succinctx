@@ -1,5 +1,3 @@
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::marker::PhantomData;
 
@@ -242,7 +240,7 @@ mod tests {
     use itertools::unfold;
     use plonky2::field::extension::quartic::QuarticExtension;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::{Field, Sample};
+    use plonky2::field::types::Sample;
     use plonky2::gates::gate_testing::{test_eval_fns, test_low_degree};
     use plonky2::hash::hash_types::HashOut;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};

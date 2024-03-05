@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use crate::frontend::uint::num::u32::gadgets::arithmetic_u32::U32Target;

@@ -65,7 +65,6 @@ impl<L: PlonkParameters<D>, const D: usize> MockCircuitBuild<L, D> {
 pub(crate) mod tests {
 
     use log::debug;
-    use plonky2::field::types::Field;
 
     use crate::prelude::*;
     use crate::utils;

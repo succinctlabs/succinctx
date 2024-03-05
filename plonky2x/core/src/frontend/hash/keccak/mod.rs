@@ -47,7 +47,6 @@ mod tests {
 
     use super::*;
     use crate::backend::circuit::DefaultParameters;
-    use crate::prelude::CircuitBuilder;
     use crate::utils::bytes32;
 
     type L = DefaultParameters;

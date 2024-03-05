@@ -124,10 +124,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 #[cfg(test)]
 pub(crate) mod tests {
 
-    use plonky2::field::types::Field;
-
     use crate::frontend::extension::CubicExtensionVariable;
-    use crate::frontend::uint::uint32::U32Variable;
     use crate::prelude::*;
     use crate::utils;
 

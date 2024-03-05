@@ -222,7 +222,6 @@ mod tests {
     use ethers::types::H256;
     use itertools::Itertools;
 
-    use crate::backend::circuit::DefaultParameters;
     use crate::frontend::merkle::tendermint::TendermintMerkleTree;
     use crate::frontend::merkle::tree::{InclusionProof, MerkleInclusionProofVariable};
     use crate::prelude::*;

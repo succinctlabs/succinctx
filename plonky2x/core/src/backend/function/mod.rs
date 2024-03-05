@@ -18,7 +18,7 @@ use crate::backend::circuit::*;
 use crate::backend::function::args::{Args, Commands};
 use crate::backend::wrapper::wrap::WrappedCircuit;
 use crate::frontend::builder::CircuitIO;
-use crate::prelude::{CircuitBuilder, GateRegistry, HintRegistry};
+use crate::prelude::CircuitBuilder;
 
 /// `Plonky2xFunction`s have all necessary code for a circuit to be deployed end-to-end.
 pub trait Plonky2xFunction {

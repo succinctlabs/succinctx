@@ -57,7 +57,6 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
 #[cfg(test)]
 mod tests {
-    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::util::timing::TimingTree;
     use serde::{Deserialize, Serialize};
     use starkyx::chip::memory::time::Time;

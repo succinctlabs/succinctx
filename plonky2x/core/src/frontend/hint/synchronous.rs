@@ -57,7 +57,6 @@ mod tests {
     use serde::{Deserialize, Serialize};
 
     use super::*;
-    use crate::frontend::vars::{ValueStream, VariableStream};
     use crate::prelude::*;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]

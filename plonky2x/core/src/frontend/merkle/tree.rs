@@ -1,5 +1,3 @@
-use plonky2::hash::hash_types::RichField;
-
 use crate::prelude::*;
 
 #[derive(Clone, Debug, CircuitVariable)]

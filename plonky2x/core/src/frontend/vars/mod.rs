@@ -188,7 +188,6 @@ pub trait SSZVariable: CircuitVariable {
 
 #[cfg(test)]
 mod tests {
-    use crate::frontend::vars::ArrayVariable;
     use crate::prelude::*;
 
     #[test]

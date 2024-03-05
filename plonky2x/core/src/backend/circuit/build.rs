@@ -298,11 +298,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuild<L, D> {
 #[cfg(test)]
 pub(crate) mod tests {
 
-    use plonky2::field::types::Field;
-
-    use crate::backend::circuit::serialization::{GateRegistry, HintRegistry};
     use crate::backend::circuit::CircuitBuild;
-    use crate::frontend::builder::DefaultBuilder;
     use crate::prelude::*;
 
     type L = DefaultParameters;

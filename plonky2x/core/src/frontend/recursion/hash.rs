@@ -4,7 +4,6 @@ use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::plonk::config::AlgebraicHasher;
 
 use crate::frontend::hash::poseidon::poseidon256::PoseidonHashOutVariable;
-use crate::frontend::vars::{OutputVariableStream, VariableStream};
 use crate::prelude::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

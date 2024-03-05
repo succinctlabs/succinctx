@@ -186,9 +186,7 @@ impl<L: PlonkParameters<D>, V: CircuitVariable, const D: usize> SimpleGenerator<
 #[cfg(test)]
 mod tests {
     use log::{debug, Level};
-    use plonky2::field::types::Field;
 
-    use crate::frontend::builder::DefaultBuilder;
     use crate::prelude::*;
     use crate::utils;
 

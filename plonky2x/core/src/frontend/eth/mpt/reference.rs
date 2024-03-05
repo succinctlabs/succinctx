@@ -144,7 +144,7 @@ mod tests {
     use ethers::types::Bytes;
 
     use super::super::utils::{read_fixture, EIP1186ProofResponse};
-    use super::{get, *};
+    use super::*;
     use crate::frontend::eth::utils::u256_to_h256_be;
     use crate::utils::bytes32;
 

@@ -410,9 +410,7 @@ impl<L: PlonkParameters<D>, const D: usize> Default for CircuitBuilder<L, D> {
 pub(crate) mod tests {
 
     use log::debug;
-    use plonky2::field::types::Field;
 
-    use super::DefaultBuilder;
     use crate::prelude::*;
     use crate::utils;
 

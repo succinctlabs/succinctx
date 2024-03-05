@@ -728,7 +728,6 @@ mod tests {
     use starkyx::chip::register::element::ElementRegister;
     use starkyx::chip::register::{Register, RegisterSerializable};
     use starkyx::chip::trace::generator::ArithmeticGenerator;
-    use starkyx::chip::AirParameters;
     use starkyx::math::goldilocks::cubic::GoldilocksCubicParameters;
     use starkyx::plonky2::stark::config::{
         CurtaPoseidonGoldilocksConfig, PoseidonGoldilocksStarkConfig,

@@ -291,7 +291,6 @@ impl<L: PlonkParameters<D>, const D: usize, const N: usize> RotateRight<L, D, us
 mod tests {
     use rand::{thread_rng, Rng};
 
-    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
 
     type L = DefaultParameters;

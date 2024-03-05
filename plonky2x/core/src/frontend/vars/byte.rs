@@ -293,7 +293,6 @@ impl<L: PlonkParameters<D>, const D: usize> Zero<L, D> for ByteVariable {
 mod tests {
     use itertools::Itertools;
 
-    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
 
     type L = DefaultParameters;

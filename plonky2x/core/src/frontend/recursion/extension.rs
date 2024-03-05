@@ -1,7 +1,6 @@
 use plonky2::field::extension::FieldExtension;
 use plonky2::iop::ext_target::ExtensionTarget;
 
-use crate::frontend::vars::ValueStream;
 use crate::prelude::*;
 
 #[derive(Debug, Clone, Eq, PartialEq, CircuitVariable)]

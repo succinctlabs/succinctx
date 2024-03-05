@@ -1,6 +1,4 @@
-use alloc::string::{String, ToString};
 use alloc::vec;
-use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use plonky2::field::extension::Extendable;
