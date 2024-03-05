@@ -3973,7 +3973,7 @@ dependencies = [
 [[package]]
 name = "starkyx"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/starkyx.git?branch=ratan/rm-dalek-lock#9f5989eb9ccc56d0db10c2fa84414bab366e8a17"
+source = "git+https://github.com/succinctlabs/starkyx.git#e28bd667ca01da4e6cc782ab19f97d2f3fd6127e"
 dependencies = [
  "anyhow",
  "bincode",
