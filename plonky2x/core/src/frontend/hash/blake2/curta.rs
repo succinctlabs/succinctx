@@ -13,11 +13,10 @@ use starkyx::machine::hash::blake::blake2b::pure::BLAKE2BPure;
 use starkyx::machine::hash::blake::blake2b::utils::BLAKE2BUtil;
 use starkyx::machine::hash::blake::blake2b::BLAKE2B;
 
-use crate::backend::circuit::PlonkParameters;
 use crate::frontend::hash::curta::accelerator::HashAccelerator;
 use crate::frontend::hash::curta::request::HashRequest;
 use crate::frontend::hash::curta::Hash;
-use crate::frontend::vars::{Bytes32Variable, EvmVariable};
+use crate::frontend::vars::EvmVariable;
 use crate::prelude::*;
 
 pub type BLAKE2BAccelerator = HashAccelerator<U64Variable, 4>;

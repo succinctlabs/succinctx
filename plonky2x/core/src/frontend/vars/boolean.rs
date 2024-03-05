@@ -130,7 +130,6 @@ impl<L: PlonkParameters<D>, const D: usize> Not<L, D> for BoolVariable {
 
 #[cfg(test)]
 mod tests {
-    use crate::backend::circuit::DefaultParameters;
     use crate::prelude::*;
 
     type L = DefaultParameters;

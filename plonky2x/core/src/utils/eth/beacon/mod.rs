@@ -776,7 +776,6 @@ mod tests {
 
     use std::env;
 
-    use anyhow::Result;
     use log::debug;
 
     use super::*;

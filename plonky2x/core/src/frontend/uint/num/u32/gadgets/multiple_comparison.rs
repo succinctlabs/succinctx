@@ -1,5 +1,4 @@
 use alloc::vec;
-use alloc::vec::Vec;
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;

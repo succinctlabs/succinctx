@@ -62,7 +62,6 @@ mod tests {
 
     use super::*;
     use crate::backend::circuit::CircuitBuild;
-    use crate::frontend::vars::ValueStream;
     use crate::prelude::*;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]

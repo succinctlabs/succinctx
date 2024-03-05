@@ -133,7 +133,6 @@ mod tests {
 
     use std::env;
 
-    use crate::backend::circuit::DefaultParameters;
     use crate::frontend::merkle::simple::SimpleMerkleTree;
     use crate::prelude::*;
 

@@ -255,7 +255,6 @@ impl<L: PlonkParameters<D>, const D: usize> WrappedOutput<L, D> {
 mod tests {
     use super::*;
     use crate::backend::circuit::{DefaultParameters, Groth16WrapperParameters};
-    use crate::frontend::builder::CircuitBuilder;
     use crate::utils;
 
     #[test]

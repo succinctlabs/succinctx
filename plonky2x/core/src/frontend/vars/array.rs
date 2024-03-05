@@ -368,13 +368,10 @@ mod tests {
 
     use ethers::types::U256;
     use log::debug;
-    use plonky2::field::types::Field;
     use rand::rngs::OsRng;
     use rand::Rng;
 
     use super::*;
-    use crate::backend::circuit::DefaultParameters;
-    use crate::frontend::vars::U256Variable;
     use crate::prelude::*;
     use crate::utils;
 

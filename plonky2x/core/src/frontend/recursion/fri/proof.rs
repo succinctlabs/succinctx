@@ -554,7 +554,6 @@ impl<const D: usize> From<FriProofVariable<D>> for FriProofTarget<D> {
 
 #[cfg(test)]
 mod tests {
-    use plonky2::fri::proof::FriProofTarget;
     use plonky2::hash::poseidon::PoseidonHash;
     use plonky2::plonk::plonk_common::salt_size;
 

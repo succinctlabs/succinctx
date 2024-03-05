@@ -575,9 +575,8 @@ impl ReadBigUint for Buffer<'_> {
 
 #[cfg(test)]
 mod tests {
-    use num::{BigUint, FromPrimitive, Integer};
+    use num::FromPrimitive;
     use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use rand::rngs::OsRng;

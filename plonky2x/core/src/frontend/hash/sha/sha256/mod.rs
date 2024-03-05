@@ -159,7 +159,7 @@ mod tests {
     use rand::{thread_rng, Rng};
 
     use super::*;
-    use crate::prelude::{ByteVariable, CircuitBuilder, DefaultParameters, U32Variable};
+    use crate::prelude::{DefaultParameters, U32Variable};
     use crate::utils::hash::sha256;
 
     type L = DefaultParameters;

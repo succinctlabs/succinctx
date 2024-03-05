@@ -200,8 +200,7 @@ mod tests {
     use ethers::types::H256;
     use rand::{thread_rng, Rng};
 
-    use crate::backend::circuit::{CircuitBuild, DefaultParameters};
-    use crate::frontend::vars::Bytes32Variable;
+    use crate::backend::circuit::CircuitBuild;
     use crate::prelude::*;
     use crate::utils::hash::sha256;
     use crate::utils::{bytes, bytes32};

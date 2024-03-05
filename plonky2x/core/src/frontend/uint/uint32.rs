@@ -1,16 +1,12 @@
 use std::fmt::Debug;
 
 use itertools::Itertools;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 
-use super::uint64::U64Variable;
-use crate::backend::circuit::PlonkParameters;
-use crate::frontend::builder::CircuitBuilder;
 use crate::frontend::uint::num::biguint::{BigUintTarget, CircuitBuilderBiguint};
 use crate::frontend::uint::num::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 use crate::frontend::uint::num::u32::gadgets::multiple_comparison::list_lte_circuit;
-use crate::frontend::vars::{CircuitVariable, EvmVariable, Variable};
+use crate::frontend::vars::EvmVariable;
 use crate::prelude::*;
 
 /// A variable in the circuit representing a u32 value.
@@ -277,8 +273,6 @@ impl U32Variable {
 mod tests {
     use rand::Rng;
 
-    use super::U32Variable;
-    use crate::backend::circuit::DefaultParameters;
     use crate::frontend::vars::EvmVariable;
     use crate::prelude::*;
     use crate::utils::setup_logger;
