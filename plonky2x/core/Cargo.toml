@@ -13,7 +13,7 @@ std = ["plonky2/std", "itertools/use_std"]
 timing = ["plonky2/timing"]
 
 [dependencies]
-plonky2 = {git = "https://github.com/mir-protocol/plonky2.git", default-features = false, rev = "d2598bd"}
+plonky2 = {git = "https://github.com/mir-protocol/plonky2.git", version = "0.2.0", default-features = false}
 plonky2x-derive = {path = "../derive"}
 starkyx = {git = "https://github.com/succinctlabs/starkyx.git", branch = "ratan/rm-dalek-lock"}
 
@@ -52,7 +52,7 @@ uuid = {version = "1.4.1", features = ["serde"]}
 
 [dev-dependencies]
 env_logger = "0.10.0"
-plonky2 = {git = "https://github.com/mir-protocol/plonky2.git", rev = "d2598bd", features = [
+plonky2 = {git = "https://github.com/mir-protocol/plonky2.git", version = "0.2.0", features = [
   "gate_testing",
 ]}
 rust-crypto = "0.2"
