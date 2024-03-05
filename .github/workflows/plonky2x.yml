@@ -31,15 +31,15 @@ jobs:
             ~/.cargo/git/db/
             target/
             ~/.rustup/
-          key: test-rust-nightly-2024-01-25-${{ hashFiles('**/Cargo.toml') }}
-          restore-keys: rust-nightly-2024-01-25-
+          key: test-rust-nightly-2024-02-22-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: rust-nightly-2024-02-22-
 
       - name: Install nightly toolchain
         id: rustc-toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2024-01-25
+          toolchain: nightly-2024-02-22
           override: true
 
       - name: Run cargo test
@@ -69,15 +69,15 @@ jobs:
             ~/.cargo/git/db/
             target/
             ~/.rustup/
-          key: clippy-rust-nightly-2024-01-25-${{ hashFiles('**/Cargo.toml') }}
-          restore-keys: rust-nightly-2024-01-25-
+          key: clippy-rust-nightly-2024-02-22-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: rust-nightly-2024-02-22-
 
       - name: Install nightly toolchain
         id: rustc-toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2024-01-25
+          toolchain: nightly-2024-02-22
           override: true
           components: rustfmt, clippy
 
