@@ -37,7 +37,7 @@ use starkyx::plonky2::cubic::mul_gate::MulCubicGenerator;
 
 use super::registry::{SerializationRegistry, Serializer};
 use super::PlonkParameters;
-use crate::frontend::builder::watch::WatchGenerator;
+use crate as plonky2x;
 use crate::frontend::ecc::curve25519::curta::proof_hint::EcOpProofHint;
 use crate::frontend::ecc::curve25519::curta::result_hint::EcOpResultHint;
 use crate::frontend::eth::beacon::generators::{
@@ -160,11 +160,12 @@ impl<L: PlonkParameters<D>, const D: usize> HintRegistry<L, D> {
     }
 }
 
+#[macro_export]
 macro_rules! register_watch_generator {
     ($registry:ident, $l:ty, $d:ty, $($type:ty),*) => {
         $(
-            let generator_id = WatchGenerator::<$l, $d, $type>::id();
-            $registry.register_simple::<WatchGenerator<$l, $d, $type>>(generator_id);
+            let generator_id = plonky2x::frontend::builder::watch::WatchGenerator::<$l, $d, $type>::id();
+            $registry.register_simple::<plonky2x::frontend::builder::watch::WatchGenerator<$l, $d, $type>>(generator_id);
         )*
     };
 }
