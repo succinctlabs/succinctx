@@ -420,8 +420,10 @@ impl SuccinctClient {
                     ethers::types::Bytes(succinct_proof_data.calldata.0),
                 )
                 .send()
-                .await?
-                .await?;
+                .await
+                .map_err(|e| Error::msg(format!("Transaction failed: {}", e)))?
+                .await
+                .map_err(|e| Error::msg(format!("Transaction confirmation failed: {}", e)))?;
 
             if let Some(tx) = tx {
                 info!(
