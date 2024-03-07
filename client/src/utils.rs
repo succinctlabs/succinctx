@@ -1,12 +1,27 @@
 // List of Succinct Gateway addresses for chains.
-const GATEWAY_ADDRESSES: [(u32, &str); 7] = [
-    (1, "0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803"),
-    (5, "0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803"),
-    (100, "0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803"),
-    (17000, "0x6e4f1e9ea315ebfd69d18c2db974eef6105fb803"),
-    (42161, "0x2d27182206f0442885989626934ca9dd5290f979"),
-    (421614, "0x2d27182206f0442885989626934ca9dd5290f979"),
-    (11155111, "0xaea9288f0b7a8c605c4d474c56e5e74f96bfd4b3"),
+const GATEWAY_ADDRESSES: [(u32, &str); 11] = [
+    // Mainnet
+    (1, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
+    // Goerli
+    (5, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
+    // Sepolia
+    (11155111, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
+    // Holesky
+    (17000, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
+    // Gnosis
+    (100, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
+    // Base
+    (8453, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
+    // Base Sepolia
+    (84532, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
+    // Arbitrum
+    (42161, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
+    // Arbitrum Sepolia
+    (421614, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
+    // Scroll
+    (534352, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
+    // Scroll Sepolia
+    (534351, "0x6c7a05e0AE641c6559fD76ac56641778B6eCd776"),
 ];
 
 pub fn get_gateway_address(chain_id: u32) -> Option<&'static str> {
