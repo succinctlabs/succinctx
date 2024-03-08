@@ -303,6 +303,7 @@ macro_rules! make_uint32_n {
         }
 
         impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for $a {
+            #[must_use]
             fn lte(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
                 let mut lte_acc = builder.constant::<BoolVariable>(false);
                 let mut equal_so_far = builder.constant::<BoolVariable>(true);

@@ -40,7 +40,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     // = a*( 1 - 2*b - 2*c + 4*b*c ) + b + c - 2*b*c
     // = a*( 1 - 2*b -2*c + 4*m ) + b + c - 2*m
     // where m = b*c
-    //
+    #[must_use]
     pub fn xor3(&mut self, a: Variable, b: Variable, c: Variable) -> BoolVariable {
         let m = self.mul(b, c);
         let two_b = self.add(b, b);

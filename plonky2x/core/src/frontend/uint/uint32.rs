@@ -127,6 +127,7 @@ impl From<U32Target> for U32Variable {
 }
 
 impl<L: PlonkParameters<D>, const D: usize> LessThanOrEqual<L, D> for U32Variable {
+    #[must_use]
     fn lte(self, rhs: Self, builder: &mut CircuitBuilder<L, D>) -> BoolVariable {
         list_lte_circuit(&mut builder.api, self.targets(), rhs.targets(), 32).into()
     }

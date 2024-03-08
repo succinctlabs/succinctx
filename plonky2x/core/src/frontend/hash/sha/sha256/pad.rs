@@ -150,8 +150,8 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
             }
         }
         // These checks verify input_byte_length <= input.len().
-        self.is_equal(message_byte_selector, false_t);
-        self.is_equal(reached_last_chunk, true_t);
+        self.assert_is_equal(message_byte_selector, false_t);
+        self.assert_is_equal(reached_last_chunk, true_t);
 
         padded_bytes
     }
