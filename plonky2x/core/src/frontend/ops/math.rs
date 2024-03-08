@@ -153,11 +153,13 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 ///
 /// Types implementing this trait can be used within the `builder.lte(lhs, rhs)` method.
 pub trait LessThanOrEqual<L: PlonkParameters<D>, const D: usize, Rhs = Self> {
+    #[must_use]
     fn lte(self, rhs: Rhs, builder: &mut CircuitBuilder<L, D>) -> BoolVariable;
 }
 
 impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     /// The less than or equal to operation (<=).
+    #[must_use]
     pub fn lte<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
         Lhs: LessThanOrEqual<L, D, Rhs>,
@@ -166,6 +168,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// The less than operation (<).
+    #[must_use]
     pub fn lt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
         Rhs: LessThanOrEqual<L, D, Lhs>,
@@ -175,6 +178,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// The greater than operation (>).
+    #[must_use]
     pub fn gt<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
         Lhs: LessThanOrEqual<L, D, Rhs>,
@@ -183,6 +187,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// The greater than or equal to operation (>=).
+    #[must_use]
     pub fn gte<Lhs, Rhs>(&mut self, lhs: Lhs, rhs: Rhs) -> BoolVariable
     where
         Rhs: LessThanOrEqual<L, D, Lhs>,
@@ -191,6 +196,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
     }
 
     /// The within range operation (lhs <= variable < rhs).
+    #[must_use]
     pub fn within_range<V>(&mut self, variable: V, lhs: V, rhs: V) -> BoolVariable
     where
         V: LessThanOrEqual<L, D, V> + Sub<L, D, V, Output = V> + One<L, D> + Clone,
