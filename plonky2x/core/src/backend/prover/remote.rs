@@ -123,8 +123,8 @@ impl RemoteProver {
             .collect_vec();
         let (batch_id, proof_ids) = service.submit_batch(&requests)?;
 
-        // Default timeout for a proof is 60 minutes. Users can override this value by
-        // setting the PROOF_TIMEOUT_SECS environment variable.
+        // Default timeout for a batch proof is 60 minutes. Users can override this value by
+        // setting the PROOF_BATCH_TIMEOUT_SECS environment variable.
         const DEFAULT_PROOF_BATCH_TIMEOUT_SECS: u64 = 60 * 60;
         let proof_batch_timeout_secs = env::var("PROOF_BATCH_TIMEOUT_SECS")
             .unwrap_or(DEFAULT_PROOF_BATCH_TIMEOUT_SECS.to_string())
