@@ -67,12 +67,13 @@ impl RemoteProver {
         let proof_timeout_mins =
             env::var("PROOF_TIMEOUT_MINS").unwrap_or(DEFAULT_PROOF_TIMEOUT_MINS.to_string());
         let proof_timeout_secs = proof_timeout_mins.parse::<u64>().unwrap() * 60;
-        let poll_delay_secs = 10;
-        let max_polls = proof_timeout_secs / poll_delay_secs;
+        let poll_secs = 10;
+        // Maximum number of polls for proof status before timeout.
+        let max_polls = proof_timeout_secs / poll_secs;
 
         let mut status = ProofRequestStatus::Pending;
         for i in 0..max_polls {
-            sleep(Duration::from_secs(poll_delay_secs)).await;
+            sleep(Duration::from_secs(poll_secs)).await;
             let request = service.get::<L, D>(proof_id)?;
             debug!(
                 "proof {:?}: status={:?}, nb_polls={}/{}",
@@ -127,11 +128,12 @@ impl RemoteProver {
         let proof_timeout_mins = env::var("BATCH_PROOF_TIMEOUT_MINS")
             .unwrap_or(DEFAULT_BATCH_PROOF_TIMEOUT_MINS.to_string());
         let proof_timeout_secs = proof_timeout_mins.parse::<u64>().unwrap() * 60;
-        let poll_delay_secs = 10;
-        let max_polls = proof_timeout_secs / poll_delay_secs;
+        let poll_secs = 10;
+        // Maximum number of polls for proof status before timeout.
+        let max_polls = proof_timeout_secs / poll_secs;
 
         for i in 0..max_polls {
-            sleep(Duration::from_secs(poll_delay_secs)).await;
+            sleep(Duration::from_secs(poll_secs)).await;
             let request = match service.get_batch::<L, D>(batch_id) {
                 Ok(request) => request,
                 Err(e) => {
