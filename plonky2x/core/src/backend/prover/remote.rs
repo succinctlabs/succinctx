@@ -63,7 +63,7 @@ impl RemoteProver {
 
         // Default timeout for a proof is 60 minutes. Users can override this value by
         // setting the PROOF_TIMEOUT_MINS environment variable.
-        const DEFAULT_PROOF_TIMEOUT_MINS: usize = 60;
+        const DEFAULT_PROOF_TIMEOUT_MINS: u64 = 60;
         let proof_timeout_mins =
             env::var("PROOF_TIMEOUT_MINS").unwrap_or(DEFAULT_PROOF_TIMEOUT_MINS.to_string());
         let proof_timeout_secs = proof_timeout_mins.parse::<u64>().unwrap() * 60;
@@ -123,7 +123,7 @@ impl RemoteProver {
 
         // Default timeout for a batch proof is 60 minutes. Users can override this value by
         // setting the BATCH_PROOF_TIMEOUT_MINS environment variable.
-        const DEFAULT_BATCH_PROOF_TIMEOUT_MINS: usize = 60;
+        const DEFAULT_BATCH_PROOF_TIMEOUT_MINS: u64 = 60;
         let proof_timeout_mins = env::var("BATCH_PROOF_TIMEOUT_MINS")
             .unwrap_or(DEFAULT_BATCH_PROOF_TIMEOUT_MINS.to_string());
         let proof_timeout_secs = proof_timeout_mins.parse::<u64>().unwrap() * 60;
