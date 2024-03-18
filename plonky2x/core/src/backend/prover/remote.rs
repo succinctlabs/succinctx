@@ -61,18 +61,27 @@ impl RemoteProver {
             .submit::<L, D>(request)
             .expect("failed to submit proof request");
 
-        // Wait for the proof to be generated.
-        const MAX_RETRIES: usize = 500;
+        // Default timeout for a proof is 60 minutes. Users can override this value by
+        // setting the PROOF_TIMEOUT_SECS environment variable.
+        const DEFAULT_PROOF_TIMEOUT_SECS: u64 = 60 * 60;
+        let proof_timeout_secs = env::var("PROOF_TIMEOUT_SECS")
+            .unwrap_or(DEFAULT_PROOF_TIMEOUT_SECS.to_string())
+            .parse::<u64>()
+            .unwrap();
+        let poll_secs = 10;
+        // Maximum number of polls for proof status before timeout.
+        let max_polls = proof_timeout_secs / poll_secs;
+
         let mut status = ProofRequestStatus::Pending;
-        for i in 0..MAX_RETRIES {
-            sleep(Duration::from_secs(10)).await;
+        for i in 0..max_polls {
+            sleep(Duration::from_secs(poll_secs)).await;
             let request = service.get::<L, D>(proof_id)?;
             debug!(
-                "proof {:?}: status={:?}, nb_retries={}/{}",
+                "proof {:?}: status={:?}, nb_polls={}/{}",
                 proof_id,
                 request.status,
                 i + 1,
-                MAX_RETRIES
+                max_polls,
             );
 
             status = request.status;
@@ -114,9 +123,19 @@ impl RemoteProver {
             .collect_vec();
         let (batch_id, proof_ids) = service.submit_batch(&requests)?;
 
-        const MAX_RETRIES: usize = 1500;
-        for _ in 0..MAX_RETRIES {
-            sleep(Duration::from_secs(10)).await;
+        // Default timeout for a batch proof is 60 minutes. Users can override this value by
+        // setting the PROOF_BATCH_TIMEOUT_SECS environment variable.
+        const DEFAULT_PROOF_BATCH_TIMEOUT_SECS: u64 = 60 * 60;
+        let proof_batch_timeout_secs = env::var("PROOF_BATCH_TIMEOUT_SECS")
+            .unwrap_or(DEFAULT_PROOF_BATCH_TIMEOUT_SECS.to_string())
+            .parse::<u64>()
+            .unwrap();
+        let poll_secs = 10;
+        // Maximum number of polls for proof status before timeout.
+        let max_polls = proof_batch_timeout_secs / poll_secs;
+
+        for i in 0..max_polls {
+            sleep(Duration::from_secs(poll_secs)).await;
             let request = match service.get_batch::<L, D>(batch_id) {
                 Ok(request) => request,
                 Err(e) => {
@@ -130,6 +149,12 @@ impl RemoteProver {
                     batch_id, status, count
                 );
             });
+            debug!(
+                "proof batch {:?}: nb_polls={}/{}",
+                batch_id,
+                i + 1,
+                max_polls
+            );
             if let Some(failed) = request.statuses.get(&ProofRequestStatus::Failure) {
                 if *failed > 0 {
                     let count = request
