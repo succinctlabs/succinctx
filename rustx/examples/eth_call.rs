@@ -36,7 +36,7 @@ impl Program for EthCall {
         let (chain_id, block_number, from_address, to_address, calldata) =
             EthCallRequestTuple::abi_decode_sequence(&input_bytes, true).unwrap();
 
-        // Get relevant enviroment variables and initialize the HTTP provider.
+        // Get relevant environment variables and initialize the HTTP provider.
         dotenv::dotenv().ok();
         let rpc_url = env::var(format!("RPC_{}", chain_id))
             .unwrap_or_else(|_| panic!("RPC_{} environment variable was not found", chain_id));

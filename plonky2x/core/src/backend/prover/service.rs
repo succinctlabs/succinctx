@@ -26,11 +26,11 @@ const GET_PROOF_REQUEST_ROUTE: &str = "/api/proof";
 /// The endpoint for getting the status of a proof request.
 const GET_PROOF_BATCH_REQUEST_ROUTE: &str = "/api/proof/batch/status";
 
-/// A UUID V4 identifer for a proof request.
+/// A UUID V4 identifier for a proof request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProofId(pub Uuid);
 
-/// A UUID V4 identifer for a proof request.
+/// A UUID V4 identifier for a proof request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BatchProofId(pub Uuid);
 

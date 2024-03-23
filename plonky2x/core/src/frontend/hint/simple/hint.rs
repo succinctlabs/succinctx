@@ -44,7 +44,7 @@ pub trait Hint<L: PlonkParameters<D>, const D: usize>:
 
     /// a unique identifier for this hint.
     ///
-    /// By default, this is the type name of the hint. This function should be overwriten in case
+    /// By default, this is the type name of the hint. This function should be overwritten in case
     /// type names vary between compilation units.
     fn id() -> String {
         std::any::type_name::<Self>().to_string()

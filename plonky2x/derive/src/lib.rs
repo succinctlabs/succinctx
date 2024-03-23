@@ -52,7 +52,7 @@ pub fn derive_circuit_variable(input: proc_macro::TokenStream) -> proc_macro::To
                         value_derive.push(ident.clone());
                         Ok(())
                     })
-                    .expect("Could not parse value_derive atrributes");
+                    .expect("Could not parse value_derive attributes");
                 }
                 Meta::NameValue(_) => panic!("value_derive cannot be a named value"),
             }

@@ -67,7 +67,7 @@ Ensure your `.env` file is correctly filled out with the necessary environment v
 PRIVATE_KEY= # The private key of the deployer account
 CREATE2_SALT= # The salt to be used for CREATE2 deployments
 GUARDIAN= # The 'owner' of the contracts, recommended to be an EOA
-PROVER= # The default prover to fullfill requests for Functions that have not opted for a different prover
+PROVER= # The default prover to fulfill requests for Functions that have not opted for a different prover
 RPC_{CHAIN_ID}= # RPC URLs for each chain you want to deploy to
 ETHERSCAN_API_KEY_{CHAIN_ID}= # Etherscan API keys for each chain you want to deploy to
 ```

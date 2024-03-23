@@ -60,7 +60,7 @@ impl<L: PlonkParameters<D>, const D: usize> FoldBuilderMethods<L, D> for Circuit
         // Build and save inner circuit.
         let inner_circuit =
             build_inner::<Definition, Ctx, Element, Accumulator, Serializer, L, D>(None);
-        debug!("succesfully built circuit: id={}", inner_circuit.id());
+        debug!("successfully built circuit: id={}", inner_circuit.id());
 
         let gate_serializer = Serializer::gate_registry::<L, D>();
         let generator_serializer = Serializer::generator_registry::<L, D>();

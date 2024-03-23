@@ -775,7 +775,7 @@ In a way, the byte lookup digest formula `opcode + 256 * a + 256^2 * b + 256^3 *
 
 First, even when `ByteRegister`s are allocated, they are not directly range checked via decomposition into 8 bits. Therefore, one can prove that given `a, b`, one can prove that `a AND b = c` where `OPCODE::AND + 256 * a + 256^2 * b + 256^3 * c = OPCODE::XOR + 256 * 1 + 256^2 * 1 + 256^3 * 0`, **even in the case where `c` is not within byte range**.
 
-In a way, this issue comes from the fact that the coefficients for the linear combination of `(opcode, a, b, c)` used to compute the digest is a fixed constant. In a standard vector lookup, a challenge $\gamma$ is derived via Fiat-Shamir (after commiting to all relevant lookup instances) then the linear combination is done with consecutive powers of $\gamma$. Implementing the byte operation lookups in this fashion would resolve the issue without additional range checks.
+In a way, this issue comes from the fact that the coefficients for the linear combination of `(opcode, a, b, c)` used to compute the digest is a fixed constant. In a standard vector lookup, a challenge $\gamma$ is derived via Fiat-Shamir (after committing to all relevant lookup instances) then the linear combination is done with consecutive powers of $\gamma$. Implementing the byte operation lookups in this fashion would resolve the issue without additional range checks.
 
 The other method to resolve this issue is to strictly enforce that all `ByteRegister` go through a range check. This range check should not be based on the lookup table (as the lookup itself assumes values to be within byte range), but should be done via bitwise decomposition.
 
@@ -1049,7 +1049,7 @@ In other words, it asserts that on the starting bit the `bit_accumulator` is equ
 // chip/ec/scalar.rs
 impl<AP: AirParser> AirConstraint<AP> for LimbBitInstruction {
     fn eval(&self, parser: &mut AP) {
-        // Assert the initial valuen of `bit_accumulator` at the begining of each cycle. As the bits
+        // Assert the initial valuen of `bit_accumulator` at the beginning of each cycle. As the bits
         // are presented in little-endian order, the initial value of `bit_accumulator` is the value
         // of the limb register at the beginning of the cycle. This translates to the constraint:
         //    `start_bit * (bit_accumulator - limb) = 0`
@@ -1823,7 +1823,7 @@ pub(crate) const fn num_ops(config: &CircuitConfig) -> usize {
 }
 ```
 
-Thankfully, the stadard configuration has `num_routed_wires = 80`.
+Thankfully, the standard configuration has `num_routed_wires = 80`.
 
 ```rust=
 pub const fn standard_recursion_config() -> Self {

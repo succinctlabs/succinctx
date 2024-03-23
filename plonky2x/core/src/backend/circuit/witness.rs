@@ -148,7 +148,7 @@ fn fill_witness_values<'a, L: PlonkParameters<D>, const D: usize>(
                 continue;
             }
 
-            // Run the generator, depending on whether it is an asyncronous or not.
+            // Run the generator, depending on whether it is an asynchronous or not.
             if let Some(async_gen) = async_generators.get_mut(&generator_idx) {
                 // Check if the hint handler has returned an error, and if so, return it.
                 if let Ok(e) = rx_handler_error.try_recv() {

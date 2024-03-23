@@ -37,7 +37,7 @@ fn generate_fixtures() {
     let storage_result: EIP1186ProofResponse = get_proof_closure();
     let serialized = serde_json::to_string(&storage_result).unwrap();
     info!("{}", serialized);
-    // TODO: save this to fixtures/example.json programatically instead of copy-paste
+    // TODO: save this to fixtures/example.json programmatically instead of copy-paste
 }
 
 #[allow(dead_code)] // We allow dead_code since this is used in tests

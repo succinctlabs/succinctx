@@ -13,7 +13,7 @@ use crate::frontend::vars::ValueStream;
 ///
 /// ## Example
 /// The following example shows how to use an asynchronous hint that gets an input byte, sleeps
-/// for the number of miliseconds specified by the byte, and then outputs the byte.
+/// for the number of milliseconds specified by the byte, and then outputs the byte.
 /// ```
 /// # use async_trait::async_trait;
 /// # use serde::{Deserialize, Serialize};
@@ -62,7 +62,7 @@ pub trait AsyncHint<L: PlonkParameters<D>, const D: usize>:
 
     /// a unique identifier for this hint.
     ///
-    /// By default, this is the type name of the hint. This function should be overwriten in case
+    /// By default, this is the type name of the hint. This function should be overwritten in case
     /// type names vary between compilation units.
     fn id() -> String {
         std::any::type_name::<Self>().to_string()
