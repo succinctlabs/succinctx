@@ -96,7 +96,7 @@ pub trait Hash<
         builder: &mut CircuitBuilder<L, D>,
         accelerator: HashAccelerator<Self::IntVariable, DIGEST_LEN>,
     ) -> HashInputData<Self::IntVariable, DIGEST_LEN> {
-        // Initialze the data struictures of `SHAInputData`.
+        // Initialize the data struictures of `SHAInputData`.
         let mut t_values: Option<Vec<_>> = None;
         if HAS_T_VALUES {
             t_values = Some(Vec::new());
@@ -146,7 +146,7 @@ pub trait Hash<
                 // Store the end_bit values. The end bit indicates the end of message chunks.
                 end_bit_values.extend_from_slice(&vec![false; total_number_of_chunks - 1]);
                 end_bit_values.push(true);
-                // The chunk index is given by the currenty index plus the chunk index we got from
+                // The chunk index is given by the currently index plus the chunk index we got from
                 // the request.
                 let current_chunk_index_variable = builder
                     .constant::<Variable>(L::Field::from_canonical_usize(current_chunk_index));

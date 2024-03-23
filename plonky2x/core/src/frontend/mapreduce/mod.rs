@@ -12,7 +12,7 @@
 //! we can pass in a block hash as the dynamic data to the map and reduce functions to say that
 //! in each map call we want to grab the storage slot at slot i, which is a compile time constant.
 //!
-//! Under the hood, we compute each map in a seperate proof and perform the reductions by generating
+//! Under the hood, we compute each map in a separate proof and perform the reductions by generating
 //! a proof for each reduction between two proofs until we have a single proof.
 
 pub mod generator;
@@ -194,7 +194,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
         // Build a map circuit which maps from I -> O using the closure `m`.
         debug!("building map");
         let map_circuit = self.build_map(&map_fn);
-        debug!("succesfully built map circuit: id={}", map_circuit.id());
+        debug!("successfully built map circuit: id={}", map_circuit.id());
 
         // Save map circuit and map circuit input target to build folder.
         let map_circuit_id = map_circuit.id();
@@ -221,7 +221,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 &generator_serializer,
             );
             reduce_circuits.push(reduce_circuit);
-            debug!("succesfully built reduce circuit: id={}", reduce_circuit_id);
+            debug!("successfully built reduce circuit: id={}", reduce_circuit_id);
         }
 
         // Create generator to generate map and reduce proofs for each layer.
@@ -291,7 +291,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
 
         // Build a map circuit which maps from I -> O using the closure `m`.
         let map_circuit = self.build_map(&map_fn);
-        debug!("succesfully built map circuit: id={}", map_circuit.id());
+        debug!("successfully built map circuit: id={}", map_circuit.id());
 
         // Save map circuit and map circuit input target to build folder.
         let map_circuit_id = map_circuit.id();
@@ -318,7 +318,7 @@ impl<L: PlonkParameters<D>, const D: usize> CircuitBuilder<L, D> {
                 &generator_serializer,
             );
             reduce_circuits.push(reduce_circuit);
-            debug!("succesfully built reduce circuit: id={}", reduce_circuit_id);
+            debug!("successfully built reduce circuit: id={}", reduce_circuit_id);
         }
 
         // Create generator to generate map and reduce proofs for each layer.

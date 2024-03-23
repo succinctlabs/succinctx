@@ -193,7 +193,7 @@ abstract contract BaseScript is Script {
 
     /// @notice Use 'cast wallet sign' to sign a message.
     /// @dev Needed because internal vm.sign has needs access to the private key directly,
-    ///      which is unavailable for hardward wallets.
+    ///      which is unavailable for hardware wallets.
     ///
     ///      Keep in mind cast wallet sign uses EIP-191 eth_sign: https://eips.ethereum.org/EIPS/eip-191
     ///      with the message prefixed with "\x19Ethereum Signed Message:\n" + message.length. To work

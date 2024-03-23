@@ -184,9 +184,9 @@ pub fn verify_decoded_list<const M: usize>(
         claim_poly *= random.pow(3);
         claim_poly += 0xf9;
 
-        // Most signficant byte.
+        // Most significant byte.
         claim_poly += (sum_of_rlp_encoding_length / 256) * random.clone();
-        // Lease siginificant byte.
+        // Lease significant byte.
         claim_poly += (sum_of_rlp_encoding_length % 256) * random.pow(2);
     }
 

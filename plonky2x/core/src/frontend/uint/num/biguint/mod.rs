@@ -264,7 +264,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
     fn mul_biguint_by_bool(&mut self, a: &BigUintTarget, b: BoolTarget) -> BigUintTarget {
         let t = b.target;
 
-        // Each limb will be multipled by 0 or 1, which will have a product that is within
+        // Each limb will be multiplied by 0 or 1, which will have a product that is within
         // U32Target's range.
         BigUintTarget {
             limbs: a

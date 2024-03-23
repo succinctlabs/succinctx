@@ -63,7 +63,7 @@ func (f *CircuitFunction) SetWitness(inputBytes []byte) {
 // and h(outputBytes) == outputHash.
 func (f *CircuitFunction) Define(baseApi frontend.API) error {
 	// Define the circuit using the Gnark standard API. Ideally, we would pass in builder.API
-	// but we can't becaues this is handled by Gnark internally.
+	// but we can't because this is handled by Gnark internally.
 	f.Circuit.Define(baseApi)
 
 	// Automatically handle the input and output hashes and assert that they must be consistent.

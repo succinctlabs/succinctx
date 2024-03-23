@@ -194,7 +194,7 @@ impl<L: PlonkParameters<D>, const D: usize> Ed25519Stark<L, D> {
         let mut writer = writer_data.public_writer();
         self.write_input(&mut writer, input);
 
-        debug!("Writing EC execusion trace");
+        debug!("Writing EC execution trace");
         self.stark.air_data.write_global_instructions(&mut writer);
         writer_data.chunks_par(256).for_each(|mut chunk| {
             for i in 0..256 {

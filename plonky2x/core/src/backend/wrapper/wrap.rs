@@ -236,16 +236,16 @@ impl<L: PlonkParameters<D>, const D: usize> WrappedOutput<L, D> {
         }
         let common_data_file = File::create(path.as_ref().join("common_circuit_data.json"))?;
         serde_json::to_writer(&common_data_file, &self.common_data)?;
-        info!("Succesfully wrote common circuit data to common_circuit_data.json");
+        info!("Successfully wrote common circuit data to common_circuit_data.json");
 
         let verifier_data_file =
             File::create(path.as_ref().join("verifier_only_circuit_data.json"))?;
         serde_json::to_writer(&verifier_data_file, &self.verifier_data)?;
-        info!("Succesfully wrote verifier data to verifier_only_circuit_data.json");
+        info!("Successfully wrote verifier data to verifier_only_circuit_data.json");
 
         let proof_file = File::create(path.as_ref().join("proof_with_public_inputs.json"))?;
         serde_json::to_writer(&proof_file, &self.proof)?;
-        info!("Succesfully wrote proof to proof_with_public_inputs.json");
+        info!("Successfully wrote proof to proof_with_public_inputs.json");
 
         Ok(())
     }
