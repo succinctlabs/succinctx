@@ -320,7 +320,10 @@ impl SuccinctClient {
             Ok(response.request_id)
         } else {
             error!("Request failed!");
-            Err(Error::msg("Failed to submit request to Succinct X API."))
+            Err(Error::msg(format!(
+                "Failed to submit request to Succinct X API, error {:?}",
+                res.error_for_status()?.text().await?
+            )))
         }
     }
 
