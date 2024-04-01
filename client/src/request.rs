@@ -414,13 +414,13 @@ impl SuccinctClient {
 
             // Submit the proof to the Succinct X API.
             let tx: Option<TransactionReceipt> = contract
-                .fulfill_call(
-                    succinct_proof_data.function_id.0,
-                    ethers::types::Bytes(succinct_proof_data.input.0),
-                    ethers::types::Bytes(succinct_proof_data.output.0),
-                    ethers::types::Bytes(succinct_proof_data.proof.0),
-                    H160(succinct_proof_data.to.0 .0),
-                    ethers::types::Bytes(succinct_proof_data.calldata.0),
+                .nonce(
+                    // succinct_proof_data.function_id.0,
+                    // ethers::types::Bytes(succinct_proof_data.input.0),
+                    // ethers::types::Bytes(succinct_proof_data.output.0),
+                    // ethers::types::Bytes(succinct_proof_data.proof.0),
+                    // H160(succinct_proof_data.to.0 .0),
+                    // ethers::types::Bytes(succinct_proof_data.calldata.0),
                 )
                 .send()
                 .await
