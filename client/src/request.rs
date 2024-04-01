@@ -19,7 +19,7 @@ use uuid::Uuid;
 use crate::utils::get_gateway_address;
 
 // Note: Update ABI when updating contract.
-abigen!(SuccinctGateway, "./abi/SuccinctGateway.abi.json");
+abigen!(MockSuccinctGateway, "./abi/MockSuccinctGateway.abi.json");
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
@@ -410,7 +410,8 @@ impl SuccinctClient {
 
             let gateway_address_bytes: [u8; 20] =
                 hex::decode(gateway_address).unwrap().try_into().unwrap();
-            let contract = SuccinctGateway::new(H160::from(gateway_address_bytes), client.clone());
+            let contract =
+                MockSuccinctGateway::new(H160::from(gateway_address_bytes), client.clone());
 
             // Submit the proof to the Succinct X API.
             println!("contract: {:?}", gateway_address_bytes);
