@@ -413,6 +413,7 @@ impl SuccinctClient {
             let contract = SuccinctGateway::new(H160::from(gateway_address_bytes), client.clone());
 
             // Submit the proof to the Succinct X API.
+            println!("contract: {:?}", gateway_address_bytes);
             let tx: Option<TransactionReceipt> = contract
                 .nonce(
                     // succinct_proof_data.function_id.0,
