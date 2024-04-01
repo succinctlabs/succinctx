@@ -19,7 +19,13 @@ use uuid::Uuid;
 use crate::utils::get_gateway_address;
 
 // Note: Update ABI when updating contract.
-abigen!(MockSuccinctGateway, "./abi/MockSuccinctGateway.abi.json");
+// Human readable ABI
+abigen!(
+    MockSuccinctGateway,
+    r"[
+    function getValue() external returns (uint256)
+]"
+);
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
@@ -416,7 +422,7 @@ impl SuccinctClient {
             // Submit the proof to the Succinct X API.
             println!("contract: {:?}", gateway_address_bytes);
             let tx: Option<TransactionReceipt> = contract
-                .nonce(
+                .get_value(
                     // succinct_proof_data.function_id.0,
                     // ethers::types::Bytes(succinct_proof_data.input.0),
                     // ethers::types::Bytes(succinct_proof_data.output.0),
