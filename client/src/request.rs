@@ -23,7 +23,7 @@ use crate::utils::get_gateway_address;
 abigen!(
     MockSuccinctGateway,
     r"[
-    function getValue() external returns (uint256)
+    function fulfillCall(bytes32,bytes,bytes,bytes,address,bytes) external
 ]"
 );
 
@@ -422,13 +422,13 @@ impl SuccinctClient {
             // Submit the proof to the Succinct X API.
             println!("contract: {:?}", gateway_address_bytes);
             let tx: Option<TransactionReceipt> = contract
-                .get_value(
-                    // succinct_proof_data.function_id.0,
-                    // ethers::types::Bytes(succinct_proof_data.input.0),
-                    // ethers::types::Bytes(succinct_proof_data.output.0),
-                    // ethers::types::Bytes(succinct_proof_data.proof.0),
-                    // H160(succinct_proof_data.to.0 .0),
-                    // ethers::types::Bytes(succinct_proof_data.calldata.0),
+                .fulfill_call(
+                    succinct_proof_data.function_id.0,
+                    ethers::types::Bytes(succinct_proof_data.input.0),
+                    ethers::types::Bytes(succinct_proof_data.output.0),
+                    ethers::types::Bytes(succinct_proof_data.proof.0),
+                    H160(succinct_proof_data.to.0 .0),
+                    ethers::types::Bytes(succinct_proof_data.calldata.0),
                 )
                 .send()
                 .await
