@@ -1,1485 +1,1184 @@
 [
     {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "callbackAddress",
-                "type": "address"
-            },
-            {
-                "internalType": "bytes",
-                "name": "callbackData",
-                "type": "bytes"
-            }
-        ],
-        "name": "CallFailed",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes4",
-                "name": "callbackSelector",
-                "type": "bytes4"
-            },
-            {
-                "internalType": "bytes",
-                "name": "output",
-                "type": "bytes"
-            },
-            {
-                "internalType": "bytes",
-                "name": "context",
-                "type": "bytes"
-            }
-        ],
-        "name": "CallbackFailed",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "EmptyBytecode",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "FailedDeploy",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            }
-        ],
-        "name": "FunctionAlreadyRegistered",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "bytes",
-                "name": "input",
-                "type": "bytes"
-            }
-        ],
-        "name": "InvalidCall",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "verifier",
-                "type": "address"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "inputHash",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "outputHash",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "bytes",
-                "name": "proof",
-                "type": "bytes"
-            }
-        ],
-        "name": "InvalidProof",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint32",
-                "name": "nonce",
-                "type": "uint32"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "expectedRequestHash",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "requestHash",
-                "type": "bytes32"
-            }
-        ],
-        "name": "InvalidRequest",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "owner",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "actualOwner",
-                "type": "address"
-            }
-        ],
-        "name": "NotFunctionOwner",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "sender",
-                "type": "address"
-            }
-        ],
-        "name": "OnlyGuardian",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "sender",
-                "type": "address"
-            }
-        ],
-        "name": "OnlyProver",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "sender",
-                "type": "address"
-            }
-        ],
-        "name": "OnlyTimelock",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "RecoverFailed",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "ReentrantFulfill",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            }
-        ],
-        "name": "VerifierAlreadyUpdated",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "VerifierCannotBeZero",
-        "type": "error"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "previousAdmin",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "newAdmin",
-                "type": "address"
-            }
-        ],
-        "name": "AdminChanged",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "beacon",
-                "type": "address"
-            }
-        ],
-        "name": "BeaconUpgraded",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "inputHash",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "outputHash",
-                "type": "bytes32"
-            }
-        ],
-        "name": "Call",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "bytecodeHash",
-                "type": "bytes32"
-            },
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "salt",
-                "type": "bytes32"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "deployedAddress",
-                "type": "address"
-            }
-        ],
-        "name": "Deployed",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "verifier",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "salt",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "owner",
-                "type": "address"
-            }
-        ],
-        "name": "FunctionRegistered",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "verifier",
-                "type": "address"
-            }
-        ],
-        "name": "FunctionVerifierUpdated",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "uint8",
-                "name": "version",
-                "type": "uint8"
-            }
-        ],
-        "name": "Initialized",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "prover",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "bool",
-                "name": "added",
-                "type": "bool"
-            }
-        ],
-        "name": "ProverUpdated",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes",
-                "name": "input",
-                "type": "bytes"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "entryAddress",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes",
-                "name": "entryCalldata",
-                "type": "bytes"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint32",
-                "name": "entryGasLimit",
-                "type": "uint32"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "sender",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "feeAmount",
-                "type": "uint256"
-            }
-        ],
-        "name": "RequestCall",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "uint32",
-                "name": "nonce",
-                "type": "uint32"
-            },
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes",
-                "name": "input",
-                "type": "bytes"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes",
-                "name": "context",
-                "type": "bytes"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "callbackAddress",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes4",
-                "name": "callbackSelector",
-                "type": "bytes4"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint32",
-                "name": "callbackGasLimit",
-                "type": "uint32"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "feeAmount",
-                "type": "uint256"
-            }
-        ],
-        "name": "RequestCallback",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "uint32",
-                "name": "nonce",
-                "type": "uint32"
-            },
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "inputHash",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "outputHash",
-                "type": "bytes32"
-            }
-        ],
-        "name": "RequestFulfilled",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
-            },
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "previousAdminRole",
-                "type": "bytes32"
-            },
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "newAdminRole",
-                "type": "bytes32"
-            }
-        ],
-        "name": "RoleAdminChanged",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "sender",
-                "type": "address"
-            }
-        ],
-        "name": "RoleGranted",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "sender",
-                "type": "address"
-            }
-        ],
-        "name": "RoleRevoked",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "oldFeeVault",
-                "type": "address"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "newFeeVault",
-                "type": "address"
-            }
-        ],
-        "name": "SetFeeVault",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "implementation",
-                "type": "address"
-            }
-        ],
-        "name": "Upgraded",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "enum WhitelistStatus",
-                "name": "status",
-                "type": "uint8"
-            }
-        ],
-        "name": "WhitelistStatusUpdated",
-        "type": "event"
-    },
-    {
-        "inputs": [],
-        "name": "DEFAULT_ADMIN_ROLE",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "GUARDIAN_ROLE",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "TIMELOCK_ROLE",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "VERSION",
-        "outputs": [
-            {
-                "internalType": "string",
-                "name": "",
-                "type": "string"
-            }
-        ],
-        "stateMutability": "pure",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "_functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "_prover",
-                "type": "address"
-            }
-        ],
-        "name": "addCustomProver",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "_prover",
-                "type": "address"
-            }
-        ],
-        "name": "addDefaultProver",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "name": "allowedProvers",
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "_owner",
-                "type": "address"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_bytecode",
-                "type": "bytes"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "_salt",
-                "type": "bytes32"
-            }
-        ],
-        "name": "deployAndRegisterFunction",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "verifier",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes",
-                "name": "_bytecode",
-                "type": "bytes"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "_salt",
-                "type": "bytes32"
-            }
-        ],
-        "name": "deployAndUpdateFunction",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "verifier",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "feeVault",
-        "outputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "_functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_input",
-                "type": "bytes"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_output",
-                "type": "bytes"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_proof",
-                "type": "bytes"
-            },
-            {
-                "internalType": "address",
-                "name": "_callbackAddress",
-                "type": "address"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_callbackData",
-                "type": "bytes"
-            }
-        ],
-        "name": "fulfillCall",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint32",
-                "name": "_nonce",
-                "type": "uint32"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "_functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "_inputHash",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "_callbackAddress",
-                "type": "address"
-            },
-            {
-                "internalType": "bytes4",
-                "name": "_callbackSelector",
-                "type": "bytes4"
-            },
-            {
-                "internalType": "uint32",
-                "name": "_callbackGasLimit",
-                "type": "uint32"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_context",
-                "type": "bytes"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_output",
-                "type": "bytes"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_proof",
-                "type": "bytes"
-            }
-        ],
-        "name": "fulfillCallback",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "_owner",
-                "type": "address"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "_salt",
-                "type": "bytes32"
-            }
-        ],
-        "name": "getFunctionId",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "pure",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
-            }
-        ],
-        "name": "getRoleAdmin",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            }
-        ],
-        "name": "grantRole",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            }
-        ],
-        "name": "hasRole",
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "_feeVault",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "_timelock",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "_guardian",
-                "type": "address"
-            }
-        ],
-        "name": "initialize",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "isCallback",
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "nonce",
-        "outputs": [
-            {
-                "internalType": "uint32",
-                "name": "",
-                "type": "uint32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "proxiableUUID",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "_to",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "_amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "recover",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "_owner",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "_verifier",
-                "type": "address"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "_salt",
-                "type": "bytes32"
-            }
-        ],
-        "name": "registerFunction",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "_functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "_prover",
-                "type": "address"
-            }
-        ],
-        "name": "removeCustomProver",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "_prover",
-                "type": "address"
-            }
-        ],
-        "name": "removeDefaultProver",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            }
-        ],
-        "name": "renounceRole",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "_functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_input",
-                "type": "bytes"
-            },
-            {
-                "internalType": "address",
-                "name": "_entryAddress",
-                "type": "address"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_entryCalldata",
-                "type": "bytes"
-            },
-            {
-                "internalType": "uint32",
-                "name": "_entryGasLimit",
-                "type": "uint32"
-            }
-        ],
-        "name": "requestCall",
-        "outputs": [],
-        "stateMutability": "payable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "_functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_input",
-                "type": "bytes"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_context",
-                "type": "bytes"
-            },
-            {
-                "internalType": "bytes4",
-                "name": "_callbackSelector",
-                "type": "bytes4"
-            },
-            {
-                "internalType": "uint32",
-                "name": "_callbackGasLimit",
-                "type": "uint32"
-            }
-        ],
-        "name": "requestCallback",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "payable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint32",
-                "name": "",
-                "type": "uint32"
-            }
-        ],
-        "name": "requests",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            }
-        ],
-        "name": "revokeRole",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "_feeVault",
-                "type": "address"
-            }
-        ],
-        "name": "setFeeVault",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "_functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "enum WhitelistStatus",
-                "name": "_status",
-                "type": "uint8"
-            }
-        ],
-        "name": "setWhitelistStatus",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes4",
-                "name": "interfaceId",
-                "type": "bytes4"
-            }
-        ],
-        "name": "supportsInterface",
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "_verifier",
-                "type": "address"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "_salt",
-                "type": "bytes32"
-            }
-        ],
-        "name": "updateFunction",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "functionId",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "newImplementation",
-                "type": "address"
-            }
-        ],
-        "name": "upgradeTo",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "newImplementation",
-                "type": "address"
-            },
-            {
-                "internalType": "bytes",
-                "name": "data",
-                "type": "bytes"
-            }
-        ],
-        "name": "upgradeToAndCall",
-        "outputs": [],
-        "stateMutability": "payable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "_functionId",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "bytes",
-                "name": "_input",
-                "type": "bytes"
-            }
-        ],
-        "name": "verifiedCall",
-        "outputs": [
-            {
-                "internalType": "bytes",
-                "name": "",
-                "type": "bytes"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "verifiedFunctionId",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "verifiedInputHash",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "verifiedOutput",
-        "outputs": [
-            {
-                "internalType": "bytes",
-                "name": "",
-                "type": "bytes"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "name": "verifierOwners",
-        "outputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "name": "verifiers",
-        "outputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "name": "whitelistStatus",
-        "outputs": [
-            {
-                "internalType": "enum WhitelistStatus",
-                "name": "",
-                "type": "uint8"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
+      "type": "function",
+      "name": "addCustomProver",
+      "inputs": [
+        {
+          "name": "_functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "_prover",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "addDefaultProver",
+      "inputs": [
+        {
+          "name": "_prover",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "allowedProvers",
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "deployAndRegisterFunction",
+      "inputs": [
+        {
+          "name": "_owner",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_bytecode",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_salt",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "verifier",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "deployAndUpdateFunction",
+      "inputs": [
+        {
+          "name": "_bytecode",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_salt",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "verifier",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "feeVault",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "fulfillCall",
+      "inputs": [
+        {
+          "name": "_functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "_input",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_output",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_proof",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_callbackAddress",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_callbackData",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "fulfillCallback",
+      "inputs": [
+        {
+          "name": "_nonce",
+          "type": "uint32",
+          "internalType": "uint32"
+        },
+        {
+          "name": "_functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "_inputHash",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "_callbackAddress",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_callbackSelector",
+          "type": "bytes4",
+          "internalType": "bytes4"
+        },
+        {
+          "name": "_callbackGasLimit",
+          "type": "uint32",
+          "internalType": "uint32"
+        },
+        {
+          "name": "_context",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_output",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_proof",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "getFunctionId",
+      "inputs": [
+        {
+          "name": "_owner",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_salt",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "function",
+      "name": "initialize",
+      "inputs": [
+        {
+          "name": "_owner",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_feeVault",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_defaultProver",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "isCallback",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "nonce",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint32",
+          "internalType": "uint32"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "owner",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "recover",
+      "inputs": [
+        {
+          "name": "_to",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_amount",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "registerFunction",
+      "inputs": [
+        {
+          "name": "_owner",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_verifier",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_salt",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "removeCustomProver",
+      "inputs": [
+        {
+          "name": "_functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "_prover",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "removeDefaultProver",
+      "inputs": [
+        {
+          "name": "_prover",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "renounceOwnership",
+      "inputs": [],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "requestCall",
+      "inputs": [
+        {
+          "name": "_functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "_input",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_entryAddress",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_entryCalldata",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_entryGasLimit",
+          "type": "uint32",
+          "internalType": "uint32"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "payable"
+    },
+    {
+      "type": "function",
+      "name": "requestCallback",
+      "inputs": [
+        {
+          "name": "_functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "_input",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_context",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "_callbackSelector",
+          "type": "bytes4",
+          "internalType": "bytes4"
+        },
+        {
+          "name": "_callbackGasLimit",
+          "type": "uint32",
+          "internalType": "uint32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "payable"
+    },
+    {
+      "type": "function",
+      "name": "requests",
+      "inputs": [
+        {
+          "name": "",
+          "type": "uint32",
+          "internalType": "uint32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "setFeeVault",
+      "inputs": [
+        {
+          "name": "_feeVault",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "setWhitelistStatus",
+      "inputs": [
+        {
+          "name": "_functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "_status",
+          "type": "uint8",
+          "internalType": "enum WhitelistStatus"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "transferOwnership",
+      "inputs": [
+        {
+          "name": "newOwner",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "updateFunction",
+      "inputs": [
+        {
+          "name": "_verifier",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_salt",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "verifiedCall",
+      "inputs": [
+        {
+          "name": "_functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "_input",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "verifiedFunctionId",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "verifiedInputHash",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "verifiedOutput",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "verifierOwners",
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "verifiers",
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "whitelistStatus",
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint8",
+          "internalType": "enum WhitelistStatus"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "event",
+      "name": "Call",
+      "inputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "inputHash",
+          "type": "bytes32",
+          "indexed": false,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "outputHash",
+          "type": "bytes32",
+          "indexed": false,
+          "internalType": "bytes32"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "Deployed",
+      "inputs": [
+        {
+          "name": "bytecodeHash",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "salt",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "deployedAddress",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "FunctionRegistered",
+      "inputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "verifier",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "salt",
+          "type": "bytes32",
+          "indexed": false,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "owner",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "FunctionVerifierUpdated",
+      "inputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "verifier",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "Initialized",
+      "inputs": [
+        {
+          "name": "version",
+          "type": "uint8",
+          "indexed": false,
+          "internalType": "uint8"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "OwnershipTransferred",
+      "inputs": [
+        {
+          "name": "previousOwner",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "newOwner",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "ProverUpdated",
+      "inputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "prover",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "added",
+          "type": "bool",
+          "indexed": false,
+          "internalType": "bool"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "RequestCall",
+      "inputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "input",
+          "type": "bytes",
+          "indexed": false,
+          "internalType": "bytes"
+        },
+        {
+          "name": "entryAddress",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "entryCalldata",
+          "type": "bytes",
+          "indexed": false,
+          "internalType": "bytes"
+        },
+        {
+          "name": "entryGasLimit",
+          "type": "uint32",
+          "indexed": false,
+          "internalType": "uint32"
+        },
+        {
+          "name": "sender",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "feeAmount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "RequestCallback",
+      "inputs": [
+        {
+          "name": "nonce",
+          "type": "uint32",
+          "indexed": true,
+          "internalType": "uint32"
+        },
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "input",
+          "type": "bytes",
+          "indexed": false,
+          "internalType": "bytes"
+        },
+        {
+          "name": "context",
+          "type": "bytes",
+          "indexed": false,
+          "internalType": "bytes"
+        },
+        {
+          "name": "callbackAddress",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "callbackSelector",
+          "type": "bytes4",
+          "indexed": false,
+          "internalType": "bytes4"
+        },
+        {
+          "name": "callbackGasLimit",
+          "type": "uint32",
+          "indexed": false,
+          "internalType": "uint32"
+        },
+        {
+          "name": "feeAmount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "RequestFulfilled",
+      "inputs": [
+        {
+          "name": "nonce",
+          "type": "uint32",
+          "indexed": true,
+          "internalType": "uint32"
+        },
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "inputHash",
+          "type": "bytes32",
+          "indexed": false,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "outputHash",
+          "type": "bytes32",
+          "indexed": false,
+          "internalType": "bytes32"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "SetFeeVault",
+      "inputs": [
+        {
+          "name": "oldFeeVault",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "newFeeVault",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "WhitelistStatusUpdated",
+      "inputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "status",
+          "type": "uint8",
+          "indexed": false,
+          "internalType": "enum WhitelistStatus"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "error",
+      "name": "CallFailed",
+      "inputs": [
+        {
+          "name": "callbackAddress",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "callbackData",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "CallbackFailed",
+      "inputs": [
+        {
+          "name": "callbackSelector",
+          "type": "bytes4",
+          "internalType": "bytes4"
+        },
+        {
+          "name": "output",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "context",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "EmptyBytecode",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "FailedDeploy",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "FunctionAlreadyRegistered",
+      "inputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "InvalidCall",
+      "inputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "input",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "InvalidProof",
+      "inputs": [
+        {
+          "name": "verifier",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "inputHash",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "outputHash",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "proof",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "InvalidRequest",
+      "inputs": [
+        {
+          "name": "nonce",
+          "type": "uint32",
+          "internalType": "uint32"
+        },
+        {
+          "name": "expectedRequestHash",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "requestHash",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "NotFunctionOwner",
+      "inputs": [
+        {
+          "name": "owner",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "actualOwner",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "OnlyProver",
+      "inputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "sender",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "RecoverFailed",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ReentrantFulfill",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "VerifierAlreadyUpdated",
+      "inputs": [
+        {
+          "name": "functionId",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "VerifierCannotBeZero",
+      "inputs": []
     }
-]
+  ]
+  
