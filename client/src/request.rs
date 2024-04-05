@@ -28,7 +28,7 @@ abigen!(
 );
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 /// Data to be sent to the Succinct X API with an offchain request.
 struct OffchainInput {
     /// The chain id of the network to be used.
@@ -303,6 +303,7 @@ impl SuccinctClient {
             functionId: function_id,
             input,
         };
+        println!("HERE: {:?}", data);
 
         // Serialize the data to JSON.
         let serialized_data = serde_json::to_string(&data).unwrap();
