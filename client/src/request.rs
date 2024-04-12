@@ -19,10 +19,16 @@ use uuid::Uuid;
 use crate::utils::get_gateway_address;
 
 // Note: Update ABI when updating contract.
-abigen!(SuccinctGateway, "./abi/SuccinctGateway.abi.json");
+// Human readable ABI
+abigen!(
+    MockSuccinctGateway,
+    r"[
+    function fulfillCall(bytes32,bytes,bytes,bytes,address,bytes) external
+]"
+);
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 /// Data to be sent to the Succinct X API with an offchain request.
 struct OffchainInput {
     /// The chain id of the network to be used.
@@ -297,6 +303,7 @@ impl SuccinctClient {
             functionId: function_id,
             input,
         };
+        println!("HERE: {:?}", data);
 
         // Serialize the data to JSON.
         let serialized_data = serde_json::to_string(&data).unwrap();
@@ -320,7 +327,10 @@ impl SuccinctClient {
             Ok(response.request_id)
         } else {
             error!("Request failed!");
-            Err(Error::msg("Failed to submit request to Succinct X API."))
+            Err(Error::msg(format!(
+                "Failed to submit request to Succinct X API, error {:?}",
+                res.error_for_status()?.text().await?
+            )))
         }
     }
 
@@ -407,9 +417,11 @@ impl SuccinctClient {
 
             let gateway_address_bytes: [u8; 20] =
                 hex::decode(gateway_address).unwrap().try_into().unwrap();
-            let contract = SuccinctGateway::new(H160::from(gateway_address_bytes), client.clone());
+            let contract =
+                MockSuccinctGateway::new(H160::from(gateway_address_bytes), client.clone());
 
             // Submit the proof to the Succinct X API.
+            println!("contract: {:?}", gateway_address_bytes);
             let tx: Option<TransactionReceipt> = contract
                 .fulfill_call(
                     succinct_proof_data.function_id.0,
