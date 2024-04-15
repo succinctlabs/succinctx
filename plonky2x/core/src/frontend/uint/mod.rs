@@ -6,7 +6,7 @@ pub mod uint32;
 pub mod uint512;
 pub mod uint64;
 
-pub(crate) mod num;
+pub mod num;
 
 mod uint32_n;
 
