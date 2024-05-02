@@ -256,7 +256,7 @@ mod tests {
         );
         let circuit = builder.mock_build();
 
-        let mut key_bytes = vec![];
+        let mut key_bytes = vec![0u8; 32];
         key.to_big_endian(&mut key_bytes);
 
         let key_bytes: [u8; 32] = key_bytes.try_into().unwrap();

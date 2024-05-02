@@ -159,7 +159,7 @@ mod tests {
             .map(|b| b.to_vec())
             .collect::<Vec<Vec<u8>>>();
 
-        let mut key_bytes = vec![];
+        let mut key_bytes = vec![0u8; 32];
         storage_result.storage_proof[0]
             .key
             .to_big_endian(&mut key_bytes);
