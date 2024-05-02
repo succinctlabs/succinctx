@@ -7,10 +7,6 @@ version = "0.1.0"
 
 [features]
 ci = []
-default = ["parallel", "std", "timing"]
-parallel = ["plonky2/parallel"]
-std = ["plonky2/std"]
-timing = ["plonky2/timing"]
 
 [dependencies]
 alloy-primitives = "0.4.2"

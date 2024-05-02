@@ -2892,34 +2892,11 @@ dependencies = [
  "keccak-hash",
  "log",
  "num",
- "plonky2_field 0.2.0 (git+https://github.com/0xPolygonZero/plonky2.git?tag=v0.2.0)",
+ "plonky2_field",
  "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xPolygonZero/plonky2.git?tag=v0.2.0)",
- "plonky2_util 0.2.0 (git+https://github.com/0xPolygonZero/plonky2.git?tag=v0.2.0)",
+ "plonky2_util",
  "rand 0.8.5",
  "rand_chacha",
- "serde",
- "static_assertions",
- "unroll",
- "web-time",
-]
-
-[[package]]
-name = "plonky2"
-version = "0.2.0"
-source = "git+https://github.com/mir-protocol/plonky2.git#62ffe11a984dbc0e6fe92d812fa8da78b7ba73c7"
-dependencies = [
- "ahash",
- "anyhow",
- "getrandom",
- "hashbrown 0.14.3",
- "itertools 0.11.0",
- "keccak-hash",
- "log",
- "num",
- "plonky2_field 0.2.0 (git+https://github.com/mir-protocol/plonky2.git)",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/mir-protocol/plonky2.git)",
- "plonky2_util 0.2.0 (git+https://github.com/mir-protocol/plonky2.git)",
- "rand 0.8.5",
  "serde",
  "static_assertions",
  "unroll",
@@ -2934,22 +2911,7 @@ dependencies = [
  "anyhow",
  "itertools 0.11.0",
  "num",
- "plonky2_util 0.2.0 (git+https://github.com/0xPolygonZero/plonky2.git?tag=v0.2.0)",
- "rand 0.8.5",
- "serde",
- "static_assertions",
- "unroll",
-]
-
-[[package]]
-name = "plonky2_field"
-version = "0.2.0"
-source = "git+https://github.com/mir-protocol/plonky2.git#62ffe11a984dbc0e6fe92d812fa8da78b7ba73c7"
-dependencies = [
- "anyhow",
- "itertools 0.11.0",
- "num",
- "plonky2_util 0.2.0 (git+https://github.com/mir-protocol/plonky2.git)",
+ "plonky2_util",
  "rand 0.8.5",
  "serde",
  "static_assertions",
@@ -2974,22 +2936,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "plonky2_maybe_rayon"
-version = "0.2.0"
-source = "git+https://github.com/mir-protocol/plonky2.git#62ffe11a984dbc0e6fe92d812fa8da78b7ba73c7"
-dependencies = [
- "rayon",
-]
-
-[[package]]
 name = "plonky2_util"
 version = "0.2.0"
 source = "git+https://github.com/0xPolygonZero/plonky2.git?tag=v0.2.0#7445ec911b0c5a1d94062ef2d5cae4ec08ee9a3f"
-
-[[package]]
-name = "plonky2_util"
-version = "0.2.0"
-source = "git+https://github.com/mir-protocol/plonky2.git#62ffe11a984dbc0e6fe92d812fa8da78b7ba73c7"
 
 [[package]]
 name = "plonky2x"
@@ -3016,7 +2965,7 @@ dependencies = [
  "log",
  "num",
  "num-bigint 0.4.4",
- "plonky2 0.2.0 (git+https://github.com/0xPolygonZero/plonky2.git?tag=v0.2.0)",
+ "plonky2",
  "plonky2x-derive",
  "rand 0.8.5",
  "reqwest",
@@ -3607,7 +3556,6 @@ dependencies = [
  "ethers",
  "hex",
  "log",
- "plonky2 0.2.0 (git+https://github.com/0xPolygonZero/plonky2.git?tag=v0.2.0)",
  "plonky2x",
  "serde",
  "serde_json",
@@ -4024,7 +3972,7 @@ dependencies = [
 [[package]]
 name = "starkyx"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/starkyx.git#ad8eb4bae41268dcb2964dab52e66d4e551abf39"
+source = "git+https://github.com/succinctlabs/starkyx.git?branch=ratan/fix-plonky2-pin#e8b856902a83ae57e8f8b4092d06a00673039bb5"
 dependencies = [
  "anyhow",
  "bincode",
@@ -4034,7 +3982,7 @@ dependencies = [
  "itertools 0.10.5",
  "log",
  "num",
- "plonky2 0.2.0 (git+https://github.com/mir-protocol/plonky2.git)",
+ "plonky2",
  "plonky2_maybe_rayon 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.8.5",
  "serde",
