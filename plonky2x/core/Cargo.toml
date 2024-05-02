@@ -29,7 +29,7 @@ digest = "0.10.7"
 dotenv = "0.15.0"
 ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
 env_logger = "0.10.0"
-ethers = { version = "2.0" }
+ethers = "2.0.10"
 ff = { package = "ff", version = "0.13", features = ["derive"] }
 futures = "0.3.28"
 hex = "0.4.3"

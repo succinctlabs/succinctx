@@ -256,8 +256,13 @@ mod tests {
         );
         let circuit = builder.mock_build();
 
+        let mut key_bytes = vec![];
+        key.to_big_endian(&mut key_bytes);
+
+        let key_bytes: [u8; 32] = key_bytes.try_into().unwrap();
+
         let mut input = circuit.input();
-        input.write::<Bytes32Variable>(key);
+        input.write::<Bytes32Variable>(key_bytes.into());
         input.write::<ArrayVariable<ArrayVariable<ByteVariable, ENCODING_LEN>, PROOF_LEN>>(
             proof_as_fixed,
         );
