@@ -15,7 +15,7 @@ timing = ["plonky2/timing"]
 [dependencies]
 plonky2 = { git = "https://github.com/0xPolygonZero/plonky2.git", tag = "v0.2.0", default-features = false }
 plonky2x-derive = { path = "../derive" }
-starkyx = { git = "https://github.com/succinctlabs/starkyx.git", branch = "ratan/fix-plonky2-pin" }
+starkyx = { git = "https://github.com/succinctlabs/starkyx.git", tag = "v1.0.0" }
 
 anyhow = "1.0.75"
 array-macro = "2.1.5"
