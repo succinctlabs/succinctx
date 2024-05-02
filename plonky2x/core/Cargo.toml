@@ -13,9 +13,9 @@ std = ["plonky2/std", "itertools/use_std"]
 timing = ["plonky2/timing"]
 
 [dependencies]
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", version = "0.2.0", default-features = false }
+plonky2 = { git = "https://github.com/0xPolygonZero/plonky2.git", tag = "v0.2.0", default-features = false }
 plonky2x-derive = { path = "../derive" }
-starkyx = { git = "https://github.com/succinctlabs/starkyx.git" }
+starkyx = { git = "https://github.com/succinctlabs/starkyx.git", tag = "v1.0.0" }
 
 anyhow = "1.0.75"
 array-macro = "2.1.5"
@@ -29,7 +29,7 @@ digest = "0.10.7"
 dotenv = "0.15.0"
 ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
 env_logger = "0.10.0"
-ethers = { version = "2.0" }
+ethers = "2.0.10"
 ff = { package = "ff", version = "0.13", features = ["derive"] }
 futures = "0.3.28"
 hex = "0.4.3"
@@ -52,7 +52,7 @@ uuid = { version = "1.4.1", features = ["serde"] }
 
 [dev-dependencies]
 env_logger = "0.10.0"
-plonky2 = { git = "https://github.com/mir-protocol/plonky2.git", version = "0.2.0", features = [
+plonky2 = { git = "https://github.com/0xPolygonZero/plonky2.git", tag = "v0.2.0", features = [
   "gate_testing",
 ] }
 rust-crypto = "0.2"

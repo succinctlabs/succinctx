@@ -158,7 +158,13 @@ mod tests {
             .iter()
             .map(|b| b.to_vec())
             .collect::<Vec<Vec<u8>>>();
-        let storage_key = keccak256(storage_result.storage_proof[0].key.as_bytes());
+
+        let mut key_bytes = vec![0u8; 32];
+        storage_result.storage_proof[0]
+            .key
+            .to_big_endian(&mut key_bytes);
+
+        let storage_key = keccak256(key_bytes);
         let mut value = get(
             storage_key.into(),
             proof,
