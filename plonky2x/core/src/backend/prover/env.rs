@@ -32,7 +32,8 @@ impl EnvProver {
         } else {
             let gate_serializer = S::gate_registry::<L, D>();
             let generator_serializer = S::generator_registry::<L, D>();
-            let circuit_path = format!("./build/{}.circuit", circuit_id);
+            let build_dir = env::var("BUILD_DIR").unwrap_or_else(|_| "./build".to_string());
+            let circuit_path = format!("{}/{}.circuit", build_dir, circuit_id);
             let circuit =
                 CircuitBuild::<L, D>::load(&circuit_path, &gate_serializer, &generator_serializer)
                     .unwrap();
@@ -55,7 +56,8 @@ impl EnvProver {
         } else {
             let gate_serializer = S::gate_registry::<L, D>();
             let generator_serializer = S::generator_registry::<L, D>();
-            let circuit_path = format!("./build/{}.circuit", circuit_id);
+            let build_dir = env::var("BUILD_DIR").unwrap_or_else(|_| "./build".to_string());
+            let circuit_path = format!("{}/{}.circuit", build_dir, circuit_id);
             let circuit =
                 CircuitBuild::<L, D>::load(&circuit_path, &gate_serializer, &generator_serializer)
                     .unwrap();
